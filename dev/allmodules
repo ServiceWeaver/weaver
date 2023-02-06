@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+# Run various build steps on every Go module
+#
+# Usage: Run the specified command for each module.
+#       ./allmodules <command>...
+#
+# The available commands are:
+#       benchmark       -- Runs the benchmarks
+#       build           -- Builds the module
+#       generate        -- Generates code
+#       test            -- Tests the module
+#       testrace        -- Tests the module for data races
+#       tidy            -- Adds missing and removes unused modules
+#       vet             -- Runs go vet
+#       lint            -- Runs golangci-lint
+# If no commands are specified, tidy,generate,build,vet,test,testrace are run
+# in order.
+#
+# Examples:
+#       ./allmodules           -- Generates, builds, lints, tests, race-tests,
+#                                 and module-updates.
+#       ./allmodules build     -- Builds Go code
+
+modules=$(find . -name go.mod | xargs dirname | sort | uniq)
+protos=$(find . -type f -name "*.proto")
+
+# Run specified command in each module.
+function permodule() {
+  err=""
+  for mod in $modules; do
+    echo "[Module $mod]"
+    if ! (cd $mod && "$@"); then
+      err=1
+    fi
+  done
+  if test -n "$err"; then
+    echo "FAILED: $@"
+    exit 1
+  fi
+}
+
+function cmd_generate() {
+  # Generate go files.
+  (cd cmd/weaver && go build) || exit 1
+  permodule go generate ./...
+
+  # Add license headers.
+  addlicense="$(which addlicense)"
+  if test -z "$addlicense"; then
+    >&2 printf "addlicense not found; install via\ngo install github.com/google/addlicense@latest\n"
+    exit 1
+  fi
+  addlicense -c "Google LLC" -l apache . || exit 1
+}
+
+function cmd_build() {
+  permodule go build ./...
+
+  # Also build the important binaries (go build does not build them if passed any arguments).
+  # Note; we build cmd/weaver since user may have skipped the generate phase.
+  for dir in cmd/weaver; do
+    (cd $dir && go build) || exit 1
+  done
+}
+
+function cmd_vet() {
+  permodule go vet ./...
+}
+
+function cmd_lint() {
+  linter="$(which golangci-lint)"
+  if test -z "$linter"; then
+    >&2 printf "golangci-lint not found; install via\ngo install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0\n"
+    exit 1
+  fi
+
+  permodule golangci-lint run ./...
+
+  # Run unused check while skipping uses found in tests. This helps us
+  # identify non-test code that is only used from tests.
+  permodule golangci-lint run --enable unused --tests=false ./...
+}
+
+function cmd_test() {
+  permodule go test ./...
+}
+
+function cmd_testrace() {
+  permodule go test -race ./...
+}
+
+function cmd_tidy() {
+  permodule go mod tidy
+}
+
+function cmd_benchmark() {
+  (cd benchmarks && go test -c -o benchmarks_bin ./benchmarks_test.go) || exit 1
+  $(realpath cmd/weaver/weaver) deploy -type=multiprocess ./benchmarks/benchmarks_bin -test.run=^$ -test.bench=. --test.benchmem
+}
+
+cmds="$*"
+if test -z "$cmds"; then
+  cmds="tidy generate build vet lint test testrace"
+fi
+
+# Run specified commands.
+for cmd in $cmds; do
+  echo "=== $cmd ==="
+  cmd_$cmd
+  echo
+done

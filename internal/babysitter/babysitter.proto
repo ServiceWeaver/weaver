@@ -1,0 +1,55 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/ServiceWeaver/weaver/internal/babysitter";
+
+package babysitter;
+import "runtime/protos/runtime.proto";
+import "google/protobuf/timestamp.proto";
+
+// AppVersionState contains state managed for an application version by the
+// babysitter.
+message AppVersionState {
+  string app = 1;
+  string deployment_id = 2;
+  google.protobuf.Timestamp submission_time = 3;
+  map<string, ColocationGroupState> groups = 4; // per group information
+  map<string, ProcessState> processes = 5;      // per process information
+  repeated runtime.Listener listeners = 6;      // per listener information
+}
+
+message ColocationGroupState {
+  // It contains the set of processes that a colocation group in a given
+  // deployment should be running.
+  repeated string processes = 1;
+}
+
+message ProcessState {
+  // It contains the set of components that a process in a given deployment
+  // should be running, along with their routing status (whether a component is
+  // routed).
+  map<string, bool> components = 1;
+
+  // It contains the list of replica addresses for the process.
+  repeated string replicas = 2;
+
+  // It contains the list of replica pids for the process.
+  repeated int64 replica_pids = 4;
+
+  // It contains the list of assignments for the routed components that are
+  // running by a process.
+  map<string, runtime.Assignment> assignments = 3;
+}

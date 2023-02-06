@@ -1,0 +1,9 @@
+[serviceweaver]
+binary = "./factors"
+rollout = "5m"
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "factors", hostname = "factors.example.com"},
+]

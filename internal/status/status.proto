@@ -1,0 +1,68 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+option go_package = "github.com/ServiceWeaver/weaver/internal/status";
+
+package status;
+
+import "google/protobuf/timestamp.proto";
+import "runtime/protos/runtime.proto";
+
+// Status describes the status of a Service Weaver application deployment.
+message Status {
+  string app = 1;                                 // application name
+  string deployment_id = 2;                       // deployment id
+  google.protobuf.Timestamp submission_time = 3;  // when the app was submitted
+  string status_addr = 4;                         // status server address
+  repeated Component components = 5;              // active components
+  repeated Listener listeners = 6;                // exported listeners
+  string trace_file = 7;                          // trace file
+  runtime.AppConfig config = 8;  // application config file contents
+}
+
+// Component describes a Service Weaver component.
+message Component {
+  string name = 1;              // component name (e.g., Cache)
+  string process = 2;           // process name (e.g., Cache)
+  repeated int64 pids = 3;      // PIDs of component replicas
+  repeated Method methods = 4;  // methods
+}
+
+// Method describes a Component method.
+message Method {
+  string name = 1;         // method name
+  MethodStats minute = 2;  // stats from the last minute
+  MethodStats hour = 3;    // stats from the last hour
+  MethodStats total = 4;   // lifetime stats
+}
+
+// MethodStats summarizes a method's metrics.
+message MethodStats {
+  double num_calls = 1;        // number of times the method was called
+  double avg_latency_ms = 2;   // average latency, in ms, of method execution
+  double recv_kb_per_sec = 3;  // KB/s received by method
+  double sent_kb_per_sec = 4;  // KB/s returned by method
+}
+
+// Listener describes a Service Weaver listener.
+message Listener {
+  string name = 1;  // exported listener name
+  string addr = 2;  // dialable listener address
+}
+
+// Metrics is a snapshot of a deployment's metrics.
+message Metrics {
+  repeated runtime.MetricSnapshot metrics = 1;
+}

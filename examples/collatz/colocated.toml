@@ -1,0 +1,20 @@
+[serviceweaver]
+binary = "./collatz"
+args = ["--local_addr=localhost:10000"]
+rollout = "5m"
+colocate = [
+  [
+    "main",
+    "github.com/ServiceWeaver/weaver/examples/collatz/even/Even",
+    "github.com/ServiceWeaver/weaver/examples/collatz/odd/Odd"
+  ]
+]
+
+[ssh]
+locations_file = "./ssh_locations.txt"
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "collatz", hostname = "collatz.example.com"},
+]

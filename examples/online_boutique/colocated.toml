@@ -1,0 +1,25 @@
+[serviceweaver]
+binary = "./online_boutique"
+rollout = "5m"
+colocate = [
+  [
+    "main",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/adservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice/cartCache",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/checkoutservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/currencyservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/emailservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/paymentservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/productcatalogservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/recommendationservice/T",
+    "github.com/ServiceWeaver/weaver/examples/online_boutique/shippingservice/T",
+  ]
+]
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "boutique", hostname = "online-boutique.example.com"},
+]
+
