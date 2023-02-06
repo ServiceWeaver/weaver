@@ -29,7 +29,7 @@ import (
 	"fmt"
 	"os"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/frontend"
 )
 

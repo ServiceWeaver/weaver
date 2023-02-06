@@ -16,7 +16,7 @@
 
 package foo
 
-import weaver "github.com/ServiceWeaver/weaver"
+import "github.com/ServiceWeaver/weaver"
 
 type NotSerializable struct {
 	weaver.AutoMarshal

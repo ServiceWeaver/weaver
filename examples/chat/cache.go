@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/metrics"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (

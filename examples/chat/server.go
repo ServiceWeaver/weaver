@@ -31,7 +31,7 @@ import (
 	"strings"
 	"time"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 var flagAddress = flag.String("http", ":0", "host:port to use for when running locally (picked automatically by default)")

@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 const dbName = "serviceweaver_chat_example"

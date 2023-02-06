@@ -20,8 +20,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/google/uuid"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 //go:generate ../../../cmd/weaver/weaver generate

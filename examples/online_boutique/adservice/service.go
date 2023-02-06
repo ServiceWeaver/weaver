@@ -21,9 +21,9 @@ import (
 
 	"golang.org/x/exp/maps"
 
+	"github.com/ServiceWeaver/weaver"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 const (

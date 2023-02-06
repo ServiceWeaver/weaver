@@ -24,14 +24,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/babysitter"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/uuid"
 )
 
 // initMultiProcess initializes a brand new multi-process execution environment

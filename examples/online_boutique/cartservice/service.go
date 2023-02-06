@@ -17,7 +17,7 @@ package cartservice
 import (
 	"context"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 type CartItem struct {

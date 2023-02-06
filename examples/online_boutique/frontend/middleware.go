@@ -19,8 +19,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/google/uuid"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 type ctxKeyLogger struct{}

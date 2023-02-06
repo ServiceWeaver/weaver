@@ -17,7 +17,7 @@ package weaver_test
 import (
 	"net/http"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 func ExampleInstrumentHandler() {

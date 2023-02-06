@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ServiceWeaver/weaver"
 	"go.opentelemetry.io/otel/trace"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 // Odd computes the next value in the collatz sequence for odd integers.

@@ -15,7 +15,7 @@
 package types
 
 import (
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types/money"

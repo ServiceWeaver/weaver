@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 var ErrFailed = errors.New("Failed")

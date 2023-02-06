@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
 )
 

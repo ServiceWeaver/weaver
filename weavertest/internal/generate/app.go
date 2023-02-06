@@ -21,7 +21,7 @@ import (
 	"context"
 	"fmt"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 //go:generate ../../../cmd/weaver/weaver generate

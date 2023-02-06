@@ -52,7 +52,7 @@ import (
 	"context"
 	"time"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 type foo interface {

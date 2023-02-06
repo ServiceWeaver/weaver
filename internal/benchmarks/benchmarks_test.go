@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/google/go-cmp/cmp"

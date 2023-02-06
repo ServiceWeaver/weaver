@@ -23,9 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gorilla/mux"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/adservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/checkoutservice"
@@ -33,6 +31,8 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/recommendationservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/shippingservice"
+	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
