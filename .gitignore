@@ -1,8 +1,7 @@
 cmd/weaver/weaver
-dev/docgen/docgen
-weavertest/internal/diverge/diverge
 examples/chat/chat
 examples/collatz/collatz
-examples/oeis/oeis
+examples/factors/factors
+examples/hello/hello
 examples/online_boutique/online_boutique
 website/public/
