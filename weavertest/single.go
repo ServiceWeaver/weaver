@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 )
 

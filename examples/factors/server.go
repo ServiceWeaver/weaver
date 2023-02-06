@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strconv"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 type server struct {

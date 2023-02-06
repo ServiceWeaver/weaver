@@ -26,10 +26,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/simple"
+	"github.com/google/uuid"
 )
 
 func TestOneComponent(t *testing.T) {

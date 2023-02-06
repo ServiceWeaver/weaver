@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 // The size of a factorer's LRU cache.

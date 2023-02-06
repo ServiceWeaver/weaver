@@ -24,8 +24,8 @@ package foo
 import (
 	"context"
 
+	"github.com/ServiceWeaver/weaver"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 type TypeProto struct {

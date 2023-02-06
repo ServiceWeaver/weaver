@@ -1,3 +1,4 @@
+cmd/weaver/weaver
 dev/docgen/docgen
 weavertest/internal/diverge/diverge
 examples/chat/chat

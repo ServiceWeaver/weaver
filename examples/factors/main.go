@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 var localAddr = flag.String("local_addr", "localhost:9000", "Local address")

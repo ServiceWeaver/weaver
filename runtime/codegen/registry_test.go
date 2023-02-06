@@ -20,9 +20,9 @@ import (
 	"strings"
 	"testing"
 
-	"go.opentelemetry.io/otel/trace"
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestComponentConfigValidator(t *testing.T) {

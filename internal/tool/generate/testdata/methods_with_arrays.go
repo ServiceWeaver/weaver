@@ -36,7 +36,7 @@ package foo
 import (
 	"context"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 const N = 1024

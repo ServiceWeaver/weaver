@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 // Options configure weavertest.Init.

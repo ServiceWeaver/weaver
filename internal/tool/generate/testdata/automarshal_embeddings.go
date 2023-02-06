@@ -25,7 +25,7 @@ package foo
 import (
 	"context"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 type A struct {

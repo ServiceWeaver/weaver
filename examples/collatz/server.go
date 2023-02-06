@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ServiceWeaver/weaver"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	weaver "github.com/ServiceWeaver/weaver"
 )
 
 type server struct {

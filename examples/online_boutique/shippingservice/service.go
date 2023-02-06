@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types/money"
 )

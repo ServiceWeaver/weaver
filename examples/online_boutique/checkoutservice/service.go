@@ -18,8 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/currencyservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/emailservice"
@@ -28,6 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types/money"
+	"github.com/google/uuid"
 )
 
 type PlaceOrderRequest struct {

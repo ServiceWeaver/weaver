@@ -17,7 +17,7 @@ package money
 import (
 	"errors"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 const (

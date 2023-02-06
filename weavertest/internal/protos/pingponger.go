@@ -17,7 +17,7 @@ package protos
 import (
 	"context"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 //go:generate ../../../dev/protoc.sh ping.proto

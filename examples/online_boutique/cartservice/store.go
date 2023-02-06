@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	weaver "github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver"
 )
 
 type cartStore struct {
