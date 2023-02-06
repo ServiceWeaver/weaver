@@ -1,0 +1,208 @@
+<!--
+ Copyright 2022 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div id="serviceweaver-jumbotron">
+  <h1>
+    Write your system like it's a <strong>monolith</strong>. Deploy it like
+    it's a set of <em>microservices</em>.
+  </h1>
+  <p>
+    Service Weaver is a programming framework for writing and deploying cloud
+    applications.
+  </p>
+
+  <a href="docs.html">Read the Docs</a>
+</div>
+
+<div class="intro-row">
+  <div class="intro-col">
+    <h1>Step 1: Split Your Application Into Components</h1>
+    <p>
+    Split your application into <strong>components</strong> written as regular
+    Go interfaces. Don't fuss with any networking or serialization code. Focus
+    on your business logic.
+    </p>
+  </div>
+  <div class="intro-col">
+<markdown>
+```go
+type Adder interface {
+    Add(context.Context, int, int) (int, error)
+}
+
+type impl struct{}
+
+func (impl) Add(_ context.Context, x, y int) (int, error) {
+    return x + y, nil
+}
+```
+</markdown>
+  </div>
+</div>
+
+<div class="intro-row">
+  <div class="intro-col">
+    <h1>Step 2: Call Your Components</h1>
+    <p>
+    Call your components using regular Go method calls. No need for RPCs or
+    HTTP requests. Forget about versioning issues. The type system guarantees
+    <strong>components are compatible</strong>.
+    </p>
+  </div>
+  <div class="intro-col">
+<markdown>
+```go
+adder, err := weaver.Get[Adder](root)
+if err != nil {
+    panic(err)
+}
+sum, err := adder.Add(ctx, 1, 2)
+</markdown>
+  </div>
+</div>
+
+<div class="intro-row">
+  <div class="intro-col">
+    <h1>Step 3: Deploy Your Components</h1>
+    <p>
+    Test your app locally and deploy it to the cloud. Service Weaver lets you think
+    about <strong>what</strong> your code does without worrying about
+    <strong>where</strong> it's running.
+    </p>
+  </div>
+  <div class="intro-col">
+<markdown>
+```shell
+$ go test .                       # Test locally.
+$ go run .                        # Run in a single process.
+$ weaver multi deploy weaver.toml # Run in multiple processes.
+$ weaver-gke deploy weaver.toml   # Run in the cloud.
+</markdown>
+  </div>
+</div>
+
+<div class="intro-row">
+  <div class="intro-col">
+    <h1>Step 4: Place Your Components</h1>
+    <p>
+    Run your components <strong>wherever you want</strong>: in the same process
+    or on different machines. Run <strong>as many replicas as you
+    want</strong>; scale up or down to match load.
+    </p>
+  </div>
+  <div class="intro-col">
+    <!-- This SVG is populated by /assets/js/placement.js. -->
+    <svg id="placement" viewBox="-30 0 200 100"></svg>
+  </div>
+</div>
+
+<h1 id="feature-heading">Features</h1>
+
+<div class="feature-list">
+  <div class="feature-col">
+    <div class="feature-bubble">
+      <h2><a href="docs.html#serializable-types">Highly Performant ⚡</a></h2>
+      <p>
+      Co-located components communicate via <strong>direct method
+      call</strong>. Remote components communicate using custom serialization
+      and RPC protocols with up to 2.5x less CPU and up to 2x better latency
+      when compared to gRPC.
+      <!--TODO(mwhittaker): Replace code with graph.-->
+      </p>
+<markdown>
+```go
+// Automatically encoded and decoded.
+type pair struct { x, y int32 }
+var _ weaver.AutoMarshal = &Pair{}
+</markdown>
+    </div>
+  </div>
+
+  <div class="feature-col">
+    <div class="feature-bubble">
+      <h2><a href="docs.html#config-files">Tiny Config 🎛️</a></h2>
+      <p>
+      Deploy to the cloud <strong>without tons of boilerplate</strong>
+      configuration. Here's a working config file to deploy a Service Weaver application
+      across two regions in Google Cloud. It's less than ten lines long.
+      </p>
+<markdown>
+```toml
+[serviceweaver]
+binary = "./example"
+
+[gke]
+regions = ["us-west1", "us-east1"]
+public_listener = [
+  {name = "example", hostname = "example.com"},
+]
+</markdown>
+    </div>
+  </div>
+
+  <div class="feature-col">
+    <div class="feature-bubble">
+      <h2><a href="docs.html#logging">Logging, Metrics, Tracing 🔎</a></h2>
+      <p>
+      Service Weaver has libraries for logging, metrics, and tracing. This telemetry is
+      <strong>automatically integrated</strong> into the cloud where you
+      deploy.
+      </p>
+<markdown>
+```go
+var count = weaver.NewCounter(
+    "example_count",
+    "An example of a Service Weaver counter",
+)
+
+func main() {
+    count.Add(1)
+    // ...
+}
+</markdown>
+    </div>
+  </div>
+
+  <div class="feature-col">
+    <div class="feature-bubble">
+      <h2><a href="docs.html#routing">Sharding 🗃️</a></h2>
+      <p>
+      Shard requests across different component replicas.
+      </p>
+<markdown>
+```go
+type Cache interface {
+    Get(ctx context.Context, key string) (string, error)
+    Put(ctx context.Context, key, val string) error
+}
+
+// router defines how Cache methods are routed.
+type router struct{}
+
+func (router) Get(_ context.Context, k string) string {
+    return k
+}
+
+func (router) Put(_ context.Context, k, _ string) string {
+    return k
+}
+</markdown>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/snap.svg-min.js"></script>
+<script src="assets/js/placement.js"></script>

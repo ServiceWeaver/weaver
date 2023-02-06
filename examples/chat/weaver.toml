@@ -1,0 +1,13 @@
+[serviceweaver]
+binary = "./chat"
+rollout = "5m"
+
+[gke]
+regions = ["us-west1", "us-east1"]
+public_listener = [
+  {name = "chat", hostname = "chat.example.com"},
+]
+
+["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
+db_driver = "mysql"
+db_uri = "root:@tcp(localhost:3306)/"

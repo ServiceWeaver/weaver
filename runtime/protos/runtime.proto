@@ -1,0 +1,698 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+option go_package = "github.com/ServiceWeaver/weaver/runtime/protos";
+
+package runtime;
+
+// EnvelopeMsg holds a message sent by the envelope to the managed weavelet.
+message EnvelopeMsg {
+  // Unique id identifies a request that is part of a synchronous call. A
+  // request with positive id x expects a reply with negative id -x.
+  // Non-synchronous calls have an id of 0.
+  int64 id = 1;
+
+  // Exactly one of the following should be set.
+  // (Avoiding protobuf oneofs since they are annoying to use.)
+
+  // A request to the weavelet to send its current metrics.
+  bool send_metrics = 2;
+
+  // A request to the weavelet to send its health status.
+  bool send_health_status = 3;
+
+  // A request to the weavelet to profile itself and send back the profile
+  // data.
+  RunProfiling run_profiling = 4;
+
+  // A request to the weavelet to receive its weavelet information and respond with acknowledgment.
+  Weavelet weavelet_info = 5;
+
+  // A reply to the weavelet with the latest routing info.
+  RoutingInfo routing_info = 6;
+
+  // A reply to the weavelet with the latest list of components to start.
+  ComponentsToStart components_to_start = 7;
+
+  // A reply to the weavelet with the exported listener information.
+  ExportListenerReply export_listener_reply = 8;
+
+  // A reply to the weavelet with an error status.
+  string error = 9;
+}
+
+// WeaveletMsg holds a message sent by a weavelet to the envelope that manages it.
+message WeaveletMsg {
+  // Unique id identifies the request for which this message is a reply.
+  int64 id = 1;
+
+  // Exactly one of the following should be set.
+  // (Avoiding protobuf oneofs since they are annoying to use.)
+
+  // Updated metrics.
+  MetricUpdate metrics = 2;
+
+  // Latest log entry.
+  LogEntry log_entry = 3;
+
+  // Trace spans to be exported.
+  Spans trace_spans = 4;
+
+  // Component to be started.
+  ComponentToStart component_to_start = 5;
+
+  // Colocation group to be started.
+  ColocationGroup colocation_group_to_start = 6;
+
+  // Replica to register.
+  ReplicaToRegister replica_to_register = 7;
+
+  // Weavelet load to be reported.
+  WeaveletLoadReport load_report = 8;
+
+  // Updated health status.
+  HealthReport health_report = 9;
+
+  // Weavelet profile.
+  Profile profile = 10;
+
+  // A reply to the envelope with an error status.
+  string error = 11;
+
+  // Request to get the routing info.
+  GetRoutingInfo get_routing_info = 12;
+
+  // Request to get the list of components to be started.
+  GetComponentsToStart get_components_to_start = 13;
+
+  // Request to export a listener.
+  ListenerToExport listener_to_export = 14;
+}
+
+// Deployment holds internal information necessary for an application
+// deployment.
+message Deployment {
+  string id = 1;  // Unique identifier for the deployment.
+
+  // Application configuration.
+  AppConfig app = 2;
+
+  // Run as a single process locally.
+  bool single_process = 10;
+
+  // If true, all network traffic is sent via localhost. This option should only
+  // be set if all weavelets are running on the same machine (e.g., when using
+  // the weaver-gke-local or weaver-multi deployers).
+  bool use_localhost = 9;
+
+  // If true, the process is expected to pick the first available port on the
+  // local machine when creating a new listener; otherwise, the process should
+  // consult the runtime to pick the listener ports.
+  bool process_picks_ports = 5;
+
+  // Storage directory for files that facilitate internal communication
+  // between Service Weaver processes. If empty, defaults to "$TMP_DIR/serviceweaver/network".
+  string network_storage_dir = 8;
+}
+
+// AppConfig holds configuration for a Service Weaver application.
+message AppConfig {
+  // Application name (derived from binary if missing).
+  string name = 2;
+
+  // File name of the binary that implements the app.
+  string binary = 1;
+
+  // Arguments to pass to the binary.
+  repeated string args = 3;
+
+  // Environment variables available to the binary. Every entry should be of the
+  // form "key=value". If a key appears more than once, only the last value of
+  // the key is used.
+  repeated string env = 6;
+
+  // A group of components.
+  message ComponentGroup {
+    repeated string components = 1;
+  }
+
+  // Groups of components that must be co-located in the same process.
+  //
+  // This grouping allows the developer a level of control on where the
+  // Service Weaver runtime wil place each component. For example, suppose that the
+  // application binary contains six components: A, B, C, D, E, and F.
+  // Furthermore, suppose that the developer specifies the following
+  // grouping in the config.
+  //
+  //  same_process = [[A, B], [C, D, E]]
+  //
+  // In that case, no matter what algorithm the Service Weaver runtime uses to place
+  // components into processes, components A and B will always be placed in the
+  // same process, and components C, D, and E will always be placed in the same
+  // process. This means that a pair of replicas of the components can share
+  // in-memory state and communicate efficiently with each other (though not
+  // with other replicas).
+  //
+  // The placement algorithm the Service Weaver runtime uses varies across
+  // deployment environment. For example, a multiprocess deployer may choose
+  // to run each component in its own process, for maximum parallelism. A
+  // singleprocess deployer, on the other hand, may choose to run all components
+  // in the same process. Regardless of which deployment environment is used,
+  // however, the components that are placed in the same group are guaranteed
+  // to be placed in the same process.
+  //
+  // Components are identified using their full package paths, e.g.:
+  //   "github.com/my/project/package/ComponentName"
+  //
+  // , with the exception of the component associated with the application
+  // main(), which is identified using the name "main".
+  repeated ComponentGroup same_process = 20;
+
+  // A knob that lets the user specifies how many nanoseconds it expects for the rollout to
+  // take. This is used internally by Service Weaver to figure out the rollout strategy.
+  //
+  // If not specified, Service Weaver will pick a default value.
+  int64 rollout_nanos = 4;
+
+  // All config sections (includes [serviceweaver], [<deployer>], [<component>] sections).
+  map<string, string> sections = 7;
+}
+
+// A colocation group defines a set of components that are colocated together
+// on the same machine or a VM. A colocation group may be replicated, in which
+// case the communication between components in the same colocation group replica
+// remains local to that replica.
+message ColocationGroup {
+  string name = 1;
+}
+
+// Weavelet holds internal information that describes a weavelet, i.e.,
+// an OS process running inside a colocation group replica, hosting Service Weaver
+// components.
+message Weavelet {
+  // Unique id for the weavelet.
+  string id = 1;
+
+  // Deployment weavelet belongs to.
+  Deployment dep = 2;
+
+  // Colocation group weavelet belongs to.
+  ColocationGroup group = 3;
+
+  // Unique id of the colocation group replica weavelet belongs to.
+  string group_replica_id = 4;
+
+  // Name of the OS process this weavelet corresponds to.
+  string process = 5;
+}
+
+// GetRoutingInfo is a request to retrieve routing information for a given
+// process.
+message GetRoutingInfo {
+  string app = 1;
+  string deployment_id = 2;
+  string process = 3;
+  string version = 4;
+}
+
+// RoutingInfo contains routing information for a process.
+message RoutingInfo {
+  // unchanged is set to true if the request was ended prematurely without
+  // detecting a change. In this case, version and replicas are empty.
+  bool unchanged = 1;
+  string version = 2;
+
+  // Each replica is a string of the form "<net>://<addr>". E.g.,
+  //    tcp://host:1234
+  //    unix:///tmp/unix.sock
+  repeated string replicas = 3;
+
+  // Assignments for all the routed components that are hosted by the process.
+  repeated Assignment assignments = 4;
+}
+
+// ProfileType specifies a type of profile to collect.
+enum ProfileType {
+  Unspecified = 0;
+  Heap = 1;
+  CPU = 2;
+}
+
+// RunProfiling is a request to profile the given application version.
+message RunProfiling {
+  string app_name = 1;
+  string version_id = 2;
+  string process = 3; // If non-empty, only profile the given process.
+
+  // Type of the profile we want to collect (e.g., heap, cpu).
+  ProfileType profile_type = 4;
+
+  // Duration for the CPU profile collection, in nanoseconds.
+  int64 cpu_duration_ns = 5;
+}
+
+// Profile stores profile data for a given application version.
+message Profile {
+  string app_name = 1;
+  string version_id = 2;
+
+  bytes data = 3;       // Encoded profile data.
+
+  // Errors encountered collecting the profile data.
+  // Note that the profile data may be partially populated even if there are
+  // collection errors.
+  repeated string errors = 4;
+}
+
+// HealthStatus specifies the possible types of health status for a process.
+enum HealthStatus {
+  UNKNOWN = 0;
+  HEALTHY = 1;
+  UNHEALTHY = 2;
+  TERMINATED = 3;
+}
+
+// HealthReport contains the health report for a given process.
+message HealthReport {
+  HealthStatus status = 1;
+}
+
+// ReplicaToRegister is a request to the envelope to register a replica of
+// a given process.
+message ReplicaToRegister {
+  string app = 1;
+  string group_replica_id = 2;
+  string deployment_id = 3;
+  string process = 4;
+  string address = 5;  // Service Weaver RPC address for the replica.
+  int64 pid = 6;       // Service Weaver RPC address for the replica.
+}
+
+// GetProcessesToStartRequest is a request to the envelope to retrieve the
+// set of processes that should be started by a given colocation group.
+message GetProcessesToStartRequest {
+  string app = 1;
+  string deployment_id = 2;
+  string colocation_group = 3;
+  string version = 4;
+}
+
+// GetProcessesToStartReply is a result of the GetProcessesToStartRequest sent
+// to the envelope.
+message GetProcessesToStartReply {
+  // unchanged is set to true if the request was ended prematurely without
+  // detecting a change. In this case, version and components to start are
+  // empty.
+  bool unchanged = 1;
+  string version = 2;
+  repeated string processes = 3;
+}
+
+// ComponentToStart is a request to the envelope to register a component that
+// should be started by the given process.
+message ComponentToStart {
+  string app = 1;
+  string deployment_id = 2;
+  string colocation_group = 3;
+  string process = 4;
+  string component = 5;
+  bool isRouted = 6;  // whether the component is routed
+}
+
+// GetComponentsToStart is a request to the envelope to retrieve the set of components
+// that should be started by a given process.
+message GetComponentsToStart {
+  string app = 1;
+  string deployment_id = 2;
+  string process = 3;
+  string version = 4;
+}
+
+// ComponentsToStart is a result of the GetComponentsToStart sent to the manager.
+message ComponentsToStart {
+  // unchanged is set to true if the request was ended prematurely without
+  // detecting a change. In this case, version and components to start are empty.
+  bool unchanged = 1;
+  string version = 2;
+  repeated string components = 3;
+}
+
+// ListenerToExport is a request to the envelope to export a process's network
+// listener.
+message ListenerToExport {
+  string app = 1;            // Service Weaver application
+  string deployment_id = 2;  // Service Weaver deployment id
+  string process = 3;        // name of the process whose weavelet exports listener
+
+  Listener listener = 5;      // listener specification.
+  string local_address = 6;   // LocalAddress argument in ListenerOptions
+  ColocationGroup group = 7;  // colocation group exporting the listener
+}
+
+// ExportListenerReply is a result of the ListenerToExport request.
+message ExportListenerReply {
+  int32 port = 1;
+
+  // The address of the proxy that forwards traffic to the returned listener, or
+  // empty if there is no proxy.
+  string proxy_address = 2;
+
+  // True, if the address is already in use.
+  //
+  // TODO(mwhittaker): This field exists as a hack to avoid a weavelet retrying
+  // this error. In the future, we should have a more robust way to avoid
+  // retrying certain errors.
+  bool already_in_use = 3;
+}
+
+// Listener holds information about a network listener.
+message Listener {
+  string name = 1;  // listener name
+  string addr = 2;  // network address
+}
+
+// Listeners represents a set of network listeners.
+message Listeners {
+  repeated Listener listeners = 1;
+}
+
+// Assignment stores key assignments for a given component.
+//
+// An assignment partitions a key space (e.g., the hash space [0, 2^64)) into a
+// set of subregions, called slices, and assigns each slice to a set of
+// replicas.
+message Assignment {
+  // Represents a slice and the replicas to which it is assigned.
+  message Slice {
+    // Inclusive start key. Strictly greater than the `start` value for the
+    // previous entry in the current assignment.
+    //
+    // The first slice should always set start to 0.
+    uint64 start = 1;
+
+    // Replicas assigned to process this slice. The implementation will set
+    // these values to strings of the form "<net>://<addr>". E.g.,
+    //  tcp://host:1234
+    //  unix:///tmp/unix.sock
+    repeated string replicas = 2;
+  }
+
+  repeated Slice slices = 1;
+
+  // An assignment is scoped to a particular component in a particular deployment.
+  // For example, different components in the same deployment or the same component in
+  // different deployments get their own assignments. The assignment for a
+  // component can change over time. Every one of these assignments is given a
+  // monotonically increasing version. Versions are unique for a given component,
+  // but not unique across components.
+  string app = 2;
+  string deployment_id = 3;
+  string component = 4;
+  uint64 version = 5;
+}
+
+// WeaveletLoadReport includes load information for all of the routed components on
+// a particular weavelet. A weavelet periodically sends a WeaveletLoadReport to
+// the manager.
+message WeaveletLoadReport {
+  // ComponentLoad includes load information for a Service Weaver component. The component's key
+  // space is divided into a number of slices, each of which is associated with
+  // a particular double-valued load.
+  //
+  // TODO(mwhittaker): In the short term, a weavelet will report one SliceLoad
+  // for every slice it is assigned. In the future, however, we may report load
+  // in more advanced ways.
+  message ComponentLoad {
+    // SliceLoad includes the load of a slice, [start, end).
+    message SliceLoad {
+      uint64 start = 1;  // inclusive
+      uint64 end = 2;    // exclusive
+      double load = 3;
+
+      // splits divides the load of this slice into smaller subslices. For
+      // example, given a slice [0, 100) and load 9.0, we may have the
+      // following subslices:
+      //
+      //     SubsliceLoad{Start:  0, Load: 3.0} // [0, 20)
+      //     SubsliceLoad{Start: 20, Load: 3.0} // [20, 80)
+      //     SubsliceLoad{Start: 80, Load: 3.0} // [80, 100)
+      //
+      // TODO(mwhittaker): Implement this. For now, splits is left empty.
+      //
+      // TODO(mwhittaker): In the future, we likely want to report hot keys as
+      // their own slice. Change SubsliceLoad to support that.
+      message SubsliceLoad {
+        uint64 start = 1;
+        double load = 2;
+      }
+      repeated SubsliceLoad splits = 4;
+
+      // The "size" of the slice. Given a slice [a, b), it's tempting to think
+      // the slice has size b - a. This has a couple of problems.
+      //
+      //     1. Even if a slice is large, only a few keys in the slice may be
+      //        used. For example, a weavelet with slice [0, 2^60) may only
+      //        receive requests for keys in the range [0, 100).
+      //     2. a and b are not necessarily numeric. Imagine we are performing
+      //        range sharding on strings and have the slice ["ccbae",
+      //        "hhaefi"). What is the size of this slice?
+      //
+      // We instead measure the "size" of a slice as an estimate of the number
+      // of keys accessed in the slice. For example, if a slice [0, 1000)
+      // receives requests for keys 0, 1, 2, 3, and 10, then the size of the
+      // slice is 5.
+      //
+      // TODO(mwhittaker): Implement this. For now, we do report the size of a
+      // slice [a, b) as b - a.
+      uint64 size = 5;
+    }
+
+    // TODO(mwhittaker): In full generality, load is a generic
+    // application-specific double-valued measurement (e.g., total number of
+    // requests, size of components in memory). For now to simplify things, we
+    // assume load is measured as requests per second.
+    repeated SliceLoad load = 1;  // load, by slice
+
+    // TODO(mwhittaker): For now, load is reported with respect to a given
+    // assignment. When the assignment changes, the load is reset. This approach
+    // works for rate-based load like requests per second, but not other
+    // non-rate based load like size of cached components.
+    uint64 version = 3;
+  }
+
+  string app = 1;            // Service Weaver application
+  string deployment_id = 2;  // Service Weaver deployment id
+  string process = 3;        // name of the process whose weavelet reports load
+  string replica = 4;        // e.g., tcp://124.123.123.412:1291
+  map<string, ComponentLoad> loads = 6;  // load for every component on the weavelet
+}
+
+// MetricType specifies a particular kind of metric.
+enum MetricType {
+  INVALID = 0;
+  COUNTER = 1;
+  GAUGE = 2;
+  HISTOGRAM = 3;
+}
+
+// MetricUpdate contains the metrics' updated values.
+message MetricUpdate {
+  // Metric definitions and updated values.
+  //
+  // All metrics are identified by their globally unique id. Two endpoints
+  // exchanging metric updates must ensure that a received metric value has been
+  // preceded by a metric definition with the same id, either in the current
+  // update or an earlier one.
+  repeated MetricDef defs = 1;      // metric definitions
+  repeated MetricValue values = 2;  // metric values
+}
+
+// MetricDef is the definition of a new metric.
+message MetricDef {
+  uint64 id = 1;
+  string name = 2;
+  MetricType typ = 3;
+  string help = 4;
+  map<string, string> labels = 5;
+  repeated double bounds = 6;  // bucket bounds, for histograms
+}
+
+// MetricValue is the value associated with a metric.
+message MetricValue {
+  uint64 id = 1;               // metric's unique id.
+  double value = 2;            // value for counter and gauge, sum for histogram
+  repeated uint64 counts = 3;  // histogram counts
+}
+
+// MetricSnapshot is a snapshot of a metric. It is the union of a MetricDef and
+// a MetricValue.
+message MetricSnapshot {
+  uint64 id = 1;
+  string name = 2;
+  MetricType typ = 3;
+  string help = 4;
+  map<string, string> labels = 5;
+  repeated double bounds = 6;
+  double value = 7;
+  repeated uint64 counts = 8;
+}
+
+// LogEntry is a log entry. Every log entry consists of a payload (the thing the
+// user logged) and a set of metadata describing the payload.
+message LogEntry {
+  string app = 1;          // application name (e.g., todo)
+  string version = 2;      // deployment id (e.g., uuid.New().String())
+  string component = 3;    // component  (e.g., Todo, stdout, stderr, global)
+  string node = 4;         // weavelet id (e.g., uuid.New().String())
+  sfixed64 time_micros = 5; // time when logged (microseconds since epoch)
+  string severity = 6;     // log severity (e.g., debug, info, warn, error, fatal)
+  string file = 7;         // source file (e.g., // /tmp/serviceweaver/server.go)
+  int32 line = 8;          // source line // (e.g., 80)
+  string payload = 9;      // user provided payload (e.g., "Hello!")
+
+  // User-provided attributes and their associated values. The storage format
+  // is a name followed by its value, i.e.:
+  //   name1, value1, name2, value2, name3, value3, ...
+  repeated string attrs = 10;
+}
+
+// Span is a proto-based representation of an open-telemetry Span.
+message Span {
+  string name = 1;           // Span name
+  bytes trace_id = 2;        // Span trace id
+  bytes span_id = 3;         // Unique span id
+  bytes parent_span_id = 4;  // If non-empty, the span's parent id
+  SpanKind kind = 5;         // Span's role in the trace.
+  sfixed64 start_micros = 6;  // Span start time (microseconds since epoch)
+  sfixed64 end_micros = 7;    // Span end time (microseconds since epoch)
+  repeated Attribute attributes = 8;  // Span attributes
+
+  // Link represents the link a span has to another span.
+  message Link {
+    bytes trace_id = 1;                 // Span trace id
+    bytes span_id = 2;                  // Unique span id
+    repeated Attribute attributes = 3;  // Span attributes
+
+    // Number of span attributes dropped due to limits being reached
+    int64 dropped_attribute_count = 4;
+  }
+  repeated Link links = 9;  // Links to other spans
+
+  // Event represent an event that occurred in the span's lifetime.
+  message Event {
+    string name = 1;                     // Even name
+    sfixed64 time_micros = 2;            // Time the event was recorded (microseconds since epoch)
+    repeated Attribute attributes = 3;   // Event attributes
+
+    // Number of attributes dropped due to limits being reached.
+    int64 dropped_attribute_count = 4;
+  }
+  repeated Event events = 10;  // Events that occured in the span's lifetime
+
+  // Status represents the status for a span.
+  message Status {
+    enum Code {
+      UNSET = 0;
+      ERROR = 1;
+      OK = 2;
+    }
+    Code code = 1;     // Span status code
+    string error = 2;  // Error text; set only for an ERROR code
+  }
+  Status status = 11;  // Span status
+
+  // Library stores information about the instrumentation library that
+  // created the span.
+  message Library {
+    // Name of the instrumentation library, typically the package name of
+    // the library.
+    string name = 1;
+    string version = 2;     // The version of the instrumentation library
+    string schema_url = 3;  // Schema url of the telemetry emitted by library
+  }
+  Library library = 12;  // Instrumentation library that created the span
+
+  // Resource describes an entity (e.g., a Service Weaver component) this span belongs
+  // to.
+  message Resource {
+    // URL that describes the shape and a composition of data for this span.
+    string schema_url = 1;
+
+    repeated Attribute attributes = 2;  // Resource attributes
+  }
+  Resource resource = 13;
+
+  // Number of span attributes dropped due to limits being reached.
+  int64 dropped_attribute_count = 14;
+
+  // Number of links dropped due to limits being reached.
+  int64 dropped_link_count = 15;
+
+  // Number of events dropped due to limits being reached.
+  int64 dropped_event_count = 16;
+
+  // Number of spans that consider this span a direct parent.
+  int64 child_span_count = 17;
+}
+
+// Spans is a list of Span messages.
+message Spans {
+  repeated Span span = 1;
+}
+
+// Attribute is a key-value pair representing a component property.
+//
+// TODO(mwhittaker): Nest in Span. Attribute is too generic.
+message Attribute {
+  message Value {
+    // Type describes the type of the value.
+    enum Type {
+      INVALID = 0;  // Used when no value is set
+      BOOL = 1;
+      INT64 = 2;
+      FLOAT64 = 3;
+      STRING = 4;
+      BOOLLIST = 5;
+      INT64LIST = 6;
+      FLOAT64LIST = 7;
+      STRINGLIST = 8;
+    }
+    message NumberList {
+      repeated uint64 nums = 1;
+    }
+    message StringList {
+      repeated string strs = 2;
+    }
+    Type type = 1;  // Attribute type
+    oneof value {
+      uint64 num = 2;
+      string str = 3;
+      NumberList nums = 4;
+      StringList strs = 5;
+    }
+  }
+  string key = 1;
+  Value value = 2;
+}
+
+// SpanKind is the role a span plays in a trace.
+enum SpanKind {
+  UNSPECIFIED = 0;
+  INTERNAL = 1;
+  SERVER = 2;
+  CLIENT = 3;
+  PRODUCER = 4;
+  CONSUMER = 5;
+}

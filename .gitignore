@@ -1,0 +1,7 @@
+dev/docgen/docgen
+weavertest/internal/diverge/diverge
+examples/chat/chat
+examples/collatz/collatz
+examples/oeis/oeis
+examples/online_boutique/online_boutique
+website/public/

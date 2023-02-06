@@ -1,0 +1,139 @@
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.holder {
+  display: flex;
+}
+
+/* Button for toggling TOC visibility on narrow screens. */
+#toc-button {
+  display: none;
+  user-select: none;
+  border-radius: 4px;
+  padding: 1ch;
+  padding-left: 0.5ch;
+  padding-right: 0.5ch;
+  position: fixed;
+  top: 0.5ch;
+  left: 0px;
+  z-index: 2;
+}
+#toc-button:hover {
+  background: #aaa;
+}
+/* Hidden checkbox used to toggle TOC visibility. */
+#toc-toggle {
+  display: none;
+}
+
+/* On narrow displays allow toggling of TOC. */
+@media not (min-width: 800px) {
+  /* Make toc-button visible. */
+  #toc-button { display: block; }
+
+  /* Clicking toc-button toggles the toc-toggle checkbox. We use
+     the :checked state of toc-toggle to control TOC visibility. */
+  #toc-toggle:checked ~ .toc {
+    flex: 0 0 0px;
+    visibility: hidden;
+  }
+}
+
+.toc {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: 0 0 10em;
+  width: 10em;
+  max-height: calc(100% - 4em);
+  height: 100vh;
+  padding-left: 2ch;
+  border-right: 1px solid black;
+  background: #f8f8f8;
+  overflow-y: auto;
+  overflow-x: auto;
+  white-space: nowrap;
+  transition: flex 0.05s ease-out;
+}
+
+.toc ul {
+  list-style-type: none;
+  padding-inline-start: 0px;
+}
+.toc ul ul {
+  display: none;
+  padding-inline-start: 2ch;
+  padding-top: 1ch;
+}
+.toc .toc-expand ul {
+  display: block;
+}
+.toc li {
+  padding-bottom: 1ch;
+}
+.toc a {
+  text-decoration: none;
+}
+.toc-active {
+  color: #e84393;
+}
+
+.contents {
+  flex: 1 0 auto;
+  width: 10em;
+  padding-left: 1ch;
+  padding-right: 1ch;
+}
+
+.contents pre {
+  padding-top: 2ch;
+  padding-bottom: 2ch;
+}
+
+.contents p img {
+  width: 100%;
+}
+
+.contents table {
+  border: 1px solid #888;
+  border-collapse: collapse;
+}
+
+.contents table td,th {
+  border: 1px solid #888;
+  padding-left: 1ch;
+  padding-right: 1ch;
+  vertical-align: top;
+}
+
+.pre-copy-button-parent {
+    position: relative;
+}
+.pre-copy-button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    padding: 0.5ch;
+    border-radius: 5px;
+    border: 0px;
+    display: none;
+}
+.pre-copy-button-parent:hover .pre-copy-button {
+  display: inline;
+}
+.pre-copy-button:active {
+  background: #888;
+}

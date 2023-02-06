@@ -1,0 +1,12 @@
+[serviceweaver]
+binary = "./collatz"
+rollout = "5m"
+
+[ssh]
+locations_file = "./ssh_locations.txt"
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "collatz", hostname = "collatz.example.com"},
+]
