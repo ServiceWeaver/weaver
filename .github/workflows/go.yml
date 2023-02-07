@@ -1,0 +1,51 @@
+name: Build and test Go code.
+
+on: ["push"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ["1.18", "1.19", "1.20"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.version }}
+          cache: true
+
+      - name: Tidy
+        run: go mod tidy
+
+      - name: Generate
+        run: |
+          (cd cmd/weaver && go build)
+          go generate ./...
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Cache linter
+        uses: actions/cache@v3
+        with:
+          path: ~/go/bin/golangci-lint
+          key: golangci-lint-v1.51.0
+
+      - name: Lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
+          golangci-lint run ./...
+          golangci-lint run --enable unused --tests=false ./...
+
+      - name: Test
+        run: go test -v ./...
+
+      - name: Test Race
+        run: go test -v -race ./...
