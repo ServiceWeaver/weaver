@@ -93,6 +93,13 @@
 .toc .toc-active {
   color: #e84393;
 }
+.toc-section {
+  font-weight: 400;
+  color: #e74c3c;
+}
+.toc-section:nth-child(n+2) {
+  padding-top: 12pt;
+}
 
 .contents {
   flex: 1 0 auto;

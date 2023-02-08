@@ -31,6 +31,13 @@ init_toc();
 bind();
 
 function init_toc() {
+  const sections = {
+    'what-is-service-weaver': 'OVERVIEW',
+    'components': 'FUNDAMENTALS',
+    'single-process': 'DEPLOYERS',
+    'serializable-types': 'REFERENCE',
+  }
+
   // Process all headings.
   let hs = document.querySelectorAll('h1, h2');
   const toc_list = document.createElement('ul');
@@ -59,6 +66,12 @@ function init_toc() {
     toc_entries.set(h, item);
     if (h.tagName == 'H1') {
       children.set(h, []);
+      if (id in sections) {
+        const section = document.createElement('li');
+        section.innerText = sections[id];
+        section.classList.add('toc-section');
+        toc_list.appendChild(section);
+      }
       toc_list.appendChild(item);
       current_h1 = h;
       current_h1_list = null;
