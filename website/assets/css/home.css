@@ -32,7 +32,7 @@
 }
 
 #serviceweaver-jumbotron h1 {
-  font-size: 1.5em;
+  font-size: 2em;
 }
 
 #serviceweaver-jumbotron a:hover {
@@ -114,5 +114,6 @@
 }
 
 .feature-bubble h2 a {
+  color: black;
   text-decoration: none;
 }

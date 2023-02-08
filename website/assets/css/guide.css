@@ -56,12 +56,11 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  flex: 0 0 10em;
+  flex: 0 0 13em;
   width: 10em;
   max-height: calc(100% - 4em);
   height: 100vh;
   padding-left: 2ch;
-  border-right: 1px solid black;
   background: #f8f8f8;
   overflow-y: auto;
   overflow-x: auto;
@@ -84,10 +83,14 @@
 .toc li {
   padding-bottom: 1ch;
 }
+.toc ul ul li:last-child {
+  padding-bottom: 0;
+}
 .toc a {
   text-decoration: none;
+  color: black;
 }
-.toc-active {
+.toc .toc-active {
   color: #e84393;
 }
 

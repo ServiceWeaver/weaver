@@ -420,7 +420,7 @@ replicas around, co-locating two chatty components in the same OS process, for
 example, so that communication between the components is done locally rather
 than over the network.
 
-## Component Interfaces
+## Interfaces
 
 Every method in a component interface must receive a `context.Context` as its
 first argument and return an `error` as its final result. All other arguments
@@ -444,7 +444,7 @@ d(context.Context) (error, int)    // final result isn't error
 e(context.Context, chan int) error // chan int isn't serializable
 ```
 
-## Component Implementation
+## Implementation
 
 A component implementation must be a struct that looks like:
 
@@ -470,7 +470,7 @@ func (f *foo) Init(context.Context) error {
 }
 ```
 
-## Component Semantics
+## Semantics
 
 When implementing a component, there are three semantic details to keep in mind:
 
@@ -539,7 +539,7 @@ for i := 0; i < 5; i++ {
 }
 ```
 
-## Component Lifetime
+## Lifetime
 
 The `weaver.Get` function returns a client to a component; `weaver.Get[Foo]`
 returns a client to the `Foo` component, for example. Components are constructed
@@ -1115,7 +1115,7 @@ versions of your Service Weaver application safely and with less headache.
 Avoiding cross-version communication is trivial for applications deployed using
 [`go run`](#single-process) or [`weaver multi deploy`](#multiprocess) because
 every deployment runs independently from one another. Refer to the
-[GKE Deployments](#gke-multi-region-deployments) and
+[GKE Deployments](#gke-multi-region) and
 [GKE Versioning](#gke-versioning) sections to learn how Service Weaver uses a combination
 of [blue/green deployments][blue_green] and autoscaling to slowly shift traffic
 from an old version of a Service Weaver application running on GKE to a new version,
@@ -1679,7 +1679,7 @@ region. The two replicas of the `main` component each export a `hello` listener.
 The global load balancer that we curled earlier balances traffic evenly across
 these two listeners. The final section of the output details the rollout
 schedule of the application. We'll discuss rollouts later in the
-[Rollouts](#gke-multi-region-deployments) section.
+[Rollouts](#gke-multi-region) section.
 
 Note that `weaver gke` configures GKE to autoscale your application. As the load
 on your application increases, the number of replicas of the overloaded
@@ -1821,7 +1821,7 @@ Refer to `weaver gke profile --help` for more details.
 TODO(spetrovic): Write this section.
 </div>
 
-## Multi-Region Deployments
+## Multi-Region
 
 `weaver gke` allows you to deploy a Service Weaver application to multiple
 [cloud regions](https://cloud.google.com/compute/docs/regions-zones). Simply
@@ -2175,10 +2175,10 @@ Refer to `weaver gke-local profile --help` for more details.
 TODO(spetrovic): Explain how to integrate with jaeger.
 </div>
 
-## Deployments and Versioning
+## Versioning
 
 Recall that `weaver gke` performs slow rollouts
-[across regions](#gke-multi-region-deployments) and
+[across regions](#gke-multi-region) and
 [across application versions](#versioning). `weaver gke-local` simulates this
 behavior locally. When you `weaver gke-local deploy` an application, the
 application is first rolled out to a number of canary regions before being
@@ -2257,7 +2257,7 @@ type Pair[A any] struct {
 ```
 
 Finally note that while [Service Weaver requires every component method to
-return an `error`](#components-component-interfaces), `error` is not a
+return an `error`](#components-interfaces), `error` is not a
 serializable type. Service Weaver serializes `error`s in a way that does not
 preserve any custom `Is` or `As` methods.
 
@@ -2316,7 +2316,7 @@ fields:
 | args | optional | Command line arguments passed to the binary. |
 | env | optional | Environment variables that are set before the binary executes. |
 | colocate | optional | List of colocation groups. When two components in the same colocation group are deployed, they are deployed in the same OS process, where all method calls between them are performed as regular Go method calls. To avoid ambiguity, components must be prefixed by their full package path (e.g., `github.com/example/sandy/`). Note that the full package path of the main package in an executable is `main`. |
-| rollout | optional | How long it will take to roll out a new version of the application. See the [GKE Deployments](#gke-multi-region-deployments) section for more information on rollouts. |
+| rollout | optional | How long it will take to roll out a new version of the application. See the [GKE Deployments](#gke-multi-region) section for more information on rollouts. |
 
 A config file may additionally contain any number of component-specific
 configuration sections. These sections allow you to provide configuration
