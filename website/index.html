@@ -43,9 +43,11 @@ type Adder interface {
     Add(context.Context, int, int) (int, error)
 }
 
-type impl struct{}
+type adder struct{
+    weaver.Implements[Adder]
+}
 
-func (impl) Add(_ context.Context, x, y int) (int, error) {
+func (adder) Add(_ context.Context, x, y int) (int, error) {
     return x + y, nil
 }
 ```
@@ -89,7 +91,7 @@ sum, err := adder.Add(ctx, 1, 2)
 $ go test .                       # Test locally.
 $ go run .                        # Run in a single process.
 $ weaver multi deploy weaver.toml # Run in multiple processes.
-$ weaver-gke deploy weaver.toml   # Run in the cloud.
+$ weaver gke deploy weaver.toml   # Run in the cloud.
 </markdown>
   </div>
 </div>
