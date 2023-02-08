@@ -64,15 +64,22 @@ header .logo {
   font-size: 1.5em;
 }
 header .active {
-  background-color: rgb(13, 110, 203);
-  color: white;
-  border-radius: 8px;
+  color: black;
+  border-bottom: 2pt solid red;
 }
 header a {
   text-decoration: none;
+  color: black;
   padding: 0.75ch;
   padding-left: 1ch;
   padding-right: 1ch;
+}
+header .navlink {
+  color: #363434;
+}
+header .navlink:hover:not(.active) {
+  color: black;
+  border-bottom: 2pt solid gray;
 }
 header ul {
   list-style-type: none;

@@ -20,13 +20,13 @@
       <span>Service Weaver</span>
     </a>
     <ul>
-      <li><a href="/" class="{{if eq .Path "index.html"}}active{{end}}">Home</a></li>
-      <li><a href="/docs.html" class="{{if eq .Path "docs.html"}}active{{end}}">Docs</a></li>
-      <li><a href="/blog" class="{{if prefix .Path "blog/"}}active{{end}}">Blog</a></li>
-      <li><a href="/yyy" class="{{if eq .Path "TODO"}}active{{end}}">API</a></li>
+      <li><a href="/" class="navlink {{if eq .Path "index.html"}}active{{end}}">Home</a></li>
+      <li><a href="/docs.html" class="navlink {{if eq .Path "docs.html"}}active{{end}}">Docs</a></li>
+      <li><a href="/blog" class="navlink {{if prefix .Path "blog/"}}active{{end}}">Blog</a></li>
+      <li><a href="/yyy" class="navlink {{if eq .Path "TODO"}}active{{end}}">API</a></li>
     </ul>
   </div>
-  <a class="icon" href="https://github.com/TODO">
+  <a class="icon" href="https://github.com/ServiceWeaver/weaver">
     <img src="/assets/images/github_logo.svg" alt="GitHub">
   </a>
 </header>
