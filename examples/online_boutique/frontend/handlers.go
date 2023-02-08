@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/adservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/cartservice"
@@ -36,6 +35,7 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types/money"
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -99,19 +99,19 @@ func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := templates.ExecuteTemplate(w, "home", map[string]interface{}{
-		"session_id":        sessionID(r),
-		"request_id":        r.Context().Value(ctxKeyRequestID{}),
-		"user_currency":     currentCurrency(r),
-		"show_currency":     true,
-		"currencies":        currencies,
-		"products":          ps,
-		"cart_size":         cartSize(cart),
-		"banner_color":      os.Getenv("BANNER_COLOR"),
-		"ad":                fe.chooseAd(r.Context(), []string{}, logger),
-		"platform_css":      fe.platform.css,
-		"platform_name":     fe.platform.provider,
-		"is_cymbal_brand":   isCymbalBrand,
-		"deploymentDetails": fe.deployment,
+		"session_id":      sessionID(r),
+		"request_id":      r.Context().Value(ctxKeyRequestID{}),
+		"hostname":        fe.hostname,
+		"user_currency":   currentCurrency(r),
+		"show_currency":   true,
+		"currencies":      currencies,
+		"products":        ps,
+		"cart_size":       cartSize(cart),
+		"banner_color":    os.Getenv("BANNER_COLOR"),
+		"ad":              fe.chooseAd(r.Context(), []string{}, logger),
+		"platform_css":    fe.platform.css,
+		"platform_name":   fe.platform.provider,
+		"is_cymbal_brand": isCymbalBrand,
 	}); err != nil {
 		logger.Error("generate home page", err)
 	}
@@ -161,19 +161,19 @@ func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
 	}{p, price}
 
 	if err := templates.ExecuteTemplate(w, "product", map[string]interface{}{
-		"session_id":        sessionID(r),
-		"request_id":        r.Context().Value(ctxKeyRequestID{}),
-		"ad":                fe.chooseAd(r.Context(), p.Categories, logger),
-		"user_currency":     currentCurrency(r),
-		"show_currency":     true,
-		"currencies":        currencies,
-		"product":           product,
-		"recommendations":   recommendations,
-		"cart_size":         cartSize(cart),
-		"platform_css":      fe.platform.css,
-		"platform_name":     fe.platform.provider,
-		"is_cymbal_brand":   isCymbalBrand,
-		"deploymentDetails": fe.deployment,
+		"session_id":      sessionID(r),
+		"request_id":      r.Context().Value(ctxKeyRequestID{}),
+		"hostname":        fe.hostname,
+		"ad":              fe.chooseAd(r.Context(), p.Categories, logger),
+		"user_currency":   currentCurrency(r),
+		"show_currency":   true,
+		"currencies":      currencies,
+		"product":         product,
+		"recommendations": recommendations,
+		"cart_size":       cartSize(cart),
+		"platform_css":    fe.platform.css,
+		"platform_name":   fe.platform.provider,
+		"is_cymbal_brand": isCymbalBrand,
 	}); err != nil {
 		logger.Error("generate product page", err)
 	}
@@ -274,21 +274,21 @@ func (fe *Server) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	year := time.Now().Year()
 
 	if err := templates.ExecuteTemplate(w, "cart", map[string]interface{}{
-		"session_id":        sessionID(r),
-		"request_id":        r.Context().Value(ctxKeyRequestID{}),
-		"user_currency":     currentCurrency(r),
-		"currencies":        currencies,
-		"recommendations":   recommendations,
-		"cart_size":         cartSize(cart),
-		"shipping_cost":     shippingCost,
-		"show_currency":     true,
-		"total_cost":        totalPrice,
-		"items":             items,
-		"expiration_years":  []int{year, year + 1, year + 2, year + 3, year + 4},
-		"platform_css":      fe.platform.css,
-		"platform_name":     fe.platform.provider,
-		"is_cymbal_brand":   isCymbalBrand,
-		"deploymentDetails": fe.deployment,
+		"session_id":       sessionID(r),
+		"request_id":       r.Context().Value(ctxKeyRequestID{}),
+		"hostname":         fe.hostname,
+		"user_currency":    currentCurrency(r),
+		"currencies":       currencies,
+		"recommendations":  recommendations,
+		"cart_size":        cartSize(cart),
+		"shipping_cost":    shippingCost,
+		"show_currency":    true,
+		"total_cost":       totalPrice,
+		"items":            items,
+		"expiration_years": []int{year, year + 1, year + 2, year + 3, year + 4},
+		"platform_css":     fe.platform.css,
+		"platform_name":    fe.platform.provider,
+		"is_cymbal_brand":  isCymbalBrand,
 	}); err != nil {
 		logger.Error("generate cart page", err)
 	}
@@ -315,8 +315,8 @@ func (fe *Server) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 		Email: email,
 		CreditCard: paymentservice.CreditCardInfo{
 			Number:          ccNumber,
-			ExpirationMonth: int32(ccMonth),
-			ExpirationYear:  int32(ccYear),
+			ExpirationMonth: time.Month(ccMonth),
+			ExpirationYear:  int(ccYear),
 			CVV:             int32(ccCVV)},
 		UserID:       sessionID(r),
 		UserCurrency: currentCurrency(r),
@@ -348,18 +348,18 @@ func (fe *Server) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil /*productIDs*/)
 
 	if err := templates.ExecuteTemplate(w, "order", map[string]interface{}{
-		"session_id":        sessionID(r),
-		"request_id":        r.Context().Value(ctxKeyRequestID{}),
-		"user_currency":     currentCurrency(r),
-		"show_currency":     false,
-		"currencies":        currencies,
-		"order":             order,
-		"total_paid":        &totalPaid,
-		"recommendations":   recommendations,
-		"platform_css":      fe.platform.css,
-		"platform_name":     fe.platform.provider,
-		"is_cymbal_brand":   isCymbalBrand,
-		"deploymentDetails": fe.deployment,
+		"session_id":      sessionID(r),
+		"request_id":      r.Context().Value(ctxKeyRequestID{}),
+		"hostname":        fe.hostname,
+		"user_currency":   currentCurrency(r),
+		"show_currency":   false,
+		"currencies":      currencies,
+		"order":           order,
+		"total_paid":      &totalPaid,
+		"recommendations": recommendations,
+		"platform_css":    fe.platform.css,
+		"platform_name":   fe.platform.provider,
+		"is_cymbal_brand": isCymbalBrand,
 	}); err != nil {
 		logger.Error("generate order page", err)
 	}
@@ -466,12 +466,12 @@ func (fe *Server) renderHTTPError(r *http.Request, w http.ResponseWriter, err er
 	w.WriteHeader(code)
 
 	if templateErr := templates.ExecuteTemplate(w, "error", map[string]interface{}{
-		"session_id":        sessionID(r),
-		"request_id":        r.Context().Value(ctxKeyRequestID{}),
-		"error":             errMsg,
-		"status_code":       code,
-		"status":            http.StatusText(code),
-		"deploymentDetails": fe.deployment,
+		"session_id":  sessionID(r),
+		"request_id":  r.Context().Value(ctxKeyRequestID{}),
+		"hostname":    fe.hostname,
+		"error":       errMsg,
+		"status_code": code,
+		"status":      http.StatusText(code),
 	}); templateErr != nil {
 		logger.Error("generate error page", templateErr)
 	}

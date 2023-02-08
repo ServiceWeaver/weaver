@@ -162,8 +162,8 @@ func (x *CreditCardInfo) WeaverMarshal(enc *codegen.Encoder) {
 	}
 	enc.String(x.Number)
 	enc.Int32(x.CVV)
-	enc.Int32(x.ExpirationYear)
-	enc.Int32(x.ExpirationMonth)
+	enc.Int(x.ExpirationYear)
+	enc.Int((int)(x.ExpirationMonth))
 }
 
 func (x *CreditCardInfo) WeaverUnmarshal(dec *codegen.Decoder) {
@@ -172,6 +172,6 @@ func (x *CreditCardInfo) WeaverUnmarshal(dec *codegen.Decoder) {
 	}
 	x.Number = dec.String()
 	x.CVV = dec.Int32()
-	x.ExpirationYear = dec.Int32()
-	x.ExpirationMonth = dec.Int32()
+	x.ExpirationYear = dec.Int()
+	*(*int)(&x.ExpirationMonth) = dec.Int()
 }
