@@ -16,6 +16,7 @@ package paymentservice
 
 import (
 	"context"
+	"time"
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types/money"
@@ -25,8 +26,8 @@ type CreditCardInfo struct {
 	weaver.AutoMarshal
 	Number          string
 	CVV             int32
-	ExpirationYear  int32
-	ExpirationMonth int32
+	ExpirationYear  int
+	ExpirationMonth time.Month
 }
 
 // LastFour returns the last four digits of the card number.

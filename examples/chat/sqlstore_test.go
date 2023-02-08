@@ -17,62 +17,22 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"strings"
 	"testing"
 	"time"
 
-	sqle "github.com/dolthub/go-mysql-server"
-	"github.com/dolthub/go-mysql-server/memory"
-	dserver "github.com/dolthub/go-mysql-server/server"
-	"github.com/dolthub/go-mysql-server/sql"
-	"github.com/dolthub/go-mysql-server/sql/information_schema"
-	"github.com/google/go-cmp/cmp"
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
+	"github.com/google/go-cmp/cmp"
 )
 
-func testStore(ctx context.Context, t *testing.T) (SQLStore, func() error) {
-	// Create the test database.
-	engine := sqle.NewDefault(
-		sql.NewDatabaseProvider(
-			memory.NewDatabase(dbName),
-			information_schema.NewInformationSchemaDatabase(),
-		))
-	dbConfig := dserver.Config{
-		Protocol: "tcp",
-		Address:  "localhost:0",
-	}
-	s, err := dserver.NewDefaultServer(dbConfig, engine)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dbPort := s.Listener.Addr().(*net.TCPAddr).Port
-	go func() {
-		if err = s.Start(); err != nil {
-			panic(err)
-		}
-	}()
-
-	// Create the SQLStore component.
-	config := fmt.Sprintf(`
-["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
-db_driver = "mysql"
-db_uri = "root:@tcp(localhost:%d)/"
-	`, dbPort)
-	opts := weavertest.Options{SingleProcess: true, Config: config}
-	root := weavertest.Init(ctx, t, opts)
+func TestFeed(t *testing.T) {
+	ctx := context.Background()
+	root := weavertest.Init(ctx, t, weavertest.Options{SingleProcess: true})
 	store, err := weaver.Get[SQLStore](root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return store, s.Close
-}
-
-func TestFeed(t *testing.T) {
-	ctx := context.Background()
-	store, close := testStore(ctx, t)
-	defer close()
 
 	// Run the test.
 	makeThread := func(user, msg string, others ...string) ThreadID {
@@ -101,7 +61,7 @@ func TestFeed(t *testing.T) {
 	post(t1, "alice", "msg3")
 	post(t2, "ted", "msg4")
 
-	const thread1 = "bob:msg1 alice:msg3"
+	const thread1 = "alice:msg3 bob:msg1"
 	const thread2 = "ted:msg2 ted:msg4"
 	for user, expect := range map[string][]string{
 		"bob":   {thread2, thread1},
@@ -126,8 +86,11 @@ func TestFeed(t *testing.T) {
 
 func TestImage(t *testing.T) {
 	ctx := context.Background()
-	store, close := testStore(ctx, t)
-	defer close()
+	root := weavertest.Init(ctx, t, weavertest.Options{SingleProcess: true})
+	store, err := weaver.Get[SQLStore](root)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Create thread with an image in the initial post.
 	img := "test image"

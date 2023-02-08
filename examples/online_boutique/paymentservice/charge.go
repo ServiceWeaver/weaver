@@ -17,11 +17,11 @@ package paymentservice
 import (
 	"fmt"
 	"strings"
+	"time"
 
-	creditcard "github.com/durango/go-credit-card"
-	"github.com/google/uuid"
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/online_boutique/types/money"
+	"github.com/google/uuid"
 )
 
 type InvalidCreditCardErr struct{}
@@ -43,39 +43,31 @@ func (e ExpiredCreditCardErr) Error() string {
 }
 
 func charge(amount money.T, card CreditCardInfo, logger weaver.Logger) (string, error) {
-	// Validate the card using the validation library.
-	c := creditcard.Card{
-		// NOTE: creditcard library doesn't support dashes in credit-card
-		// numbers: remove them.
-		Number: strings.ReplaceAll(card.Number, "-", ""),
-		Cvv:    fmt.Sprint(card.CVV),
-		Month:  fmt.Sprint(card.ExpirationMonth),
-		Year:   fmt.Sprint(card.ExpirationYear),
-	}
-	if err := c.Method(); err != nil {
+	// Perform some rudimentary validation.
+	number := strings.ReplaceAll(card.Number, "-", "")
+	var company string
+	switch {
+	case len(number) < 4:
+		return "", InvalidCreditCardErr{}
+	case number[0] == '4':
+		company = "Visa"
+	case number[0] == '5':
+		company = "MasterCard"
+	default:
 		return "", InvalidCreditCardErr{}
 	}
-	if c.Company.Short != "visa" && c.Company.Short != "mastercard" {
-		return "", UnacceptedCreditCardErr{}
-	}
-	if err := c.ValidateCVV(); err != nil {
+	if card.CVV < 100 || card.CVV > 9999 {
 		return "", InvalidCreditCardErr{}
 	}
-	if ok := c.ValidateNumber(); !ok {
-		return "", InvalidCreditCardErr{}
-	}
-	if err := c.ValidateExpiration(); err != nil {
-		if strings.Contains(err.Error(), "expired") {
-			return "", ExpiredCreditCardErr{}
-		}
-		return "", InvalidCreditCardErr{}
+	if time.Date(card.ExpirationYear, card.ExpirationMonth, 0, 0, 0, 0, 0, time.Local).Before(time.Now()) {
+		return "", ExpiredCreditCardErr{}
 	}
 
 	// Card is valid: process the transaction.
 	logger.Info(
 		"Transaction processed",
-		"company", c.Company.Long,
-		"last_four", card.LastFour(),
+		"company", company,
+		"last_four", number[len(number)-4:],
 		"currency", amount.CurrencyCode,
 		"amount", fmt.Sprintf("%d.%d", amount.Units, amount.Nanos),
 	)
