@@ -67,10 +67,10 @@ func (plat *platformDetails) setPlatformDetails(env string) {
 
 // Server is the application frontend.
 type Server struct {
-	handler    http.Handler
-	root       weaver.Instance
-	platform   platformDetails
-	deployment deploymentDetails
+	handler  http.Handler
+	root     weaver.Instance
+	platform platformDetails
+	hostname string
 
 	catalogService        productcatalogservice.T
 	currencyService       currencyservice.T
@@ -131,13 +131,17 @@ func NewServer(root weaver.Instance) (*Server, error) {
 	root.Logger().Debug("ENV_PLATFORM", "platform", env)
 	platform := platformDetails{}
 	platform.setPlatformDetails(strings.ToLower(env))
-	deployment := loadDeploymentDetails(root.Logger(), env)
+	hostname, err := os.Hostname()
+	if err != nil {
+		root.Logger().Debug(`cannot get hostname for frontend: using "unknown"`)
+		hostname = "unknown"
+	}
 
 	// Create the server.
 	s := &Server{
 		root:                  root,
 		platform:              platform,
-		deployment:            deployment,
+		hostname:              hostname,
 		catalogService:        catalogService,
 		currencyService:       currencyService,
 		cartService:           cartService,
