@@ -71,6 +71,7 @@ github.com/ServiceWeaver/weaver/dev/docgen
     os/exec
     path/filepath
     regexp
+    strings
 github.com/ServiceWeaver/weaver/internal/babysitter
     context
     crypto/sha256

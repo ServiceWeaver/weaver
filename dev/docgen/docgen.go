@@ -39,6 +39,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/styles"
@@ -48,8 +49,14 @@ import (
 )
 
 var files = []file{
-	{dst: "index.html", html: "index.html", template: "home.html", title: "Service Weaver", license: true},
+	{dst: "index.html", html: "index.html", template: "basic.html", title: "Service Weaver", license: true},
 	{dst: "docs.html", markdown: "docs.md", template: "guide.html", license: true},
+
+	{dst: "blog/index.html", html: "blog/index.html", template: "basic.html", license: true},
+	{dst: "blog/hello_world.html", markdown: "blog/hello_world.md", template: "basic.html", license: true},
+	{dst: "blog/deployers.html", markdown: "blog/deployers.md", template: "basic.html", license: true},
+
+	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
 	staticFile("assets/css/guide.css"),
 	staticFile("assets/css/home.css"),
@@ -102,7 +109,10 @@ func main() {
 }
 
 func build(dstDir, templateGlob string, files []file) error {
-	t, err := template.ParseGlob(templateGlob)
+	t, err := template.
+		New("docgen").
+		Funcs(template.FuncMap{"prefix": strings.HasPrefix}).
+		ParseGlob(templateGlob)
 	if err != nil {
 		return err
 	}
