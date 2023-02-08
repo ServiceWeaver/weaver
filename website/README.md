@@ -23,3 +23,10 @@ And to preview the resulting structure:
 | public       | Generated website (DO NOT EDIT!) |
 | templates    | Go templates that define generated document structure |
 
+## Adding a Blog Post
+
+To add a blog post:
+
+1. Write the blog as a markdown file in `blog/`.
+2. Update `blog/index.html` with a link to the blog.
+2. Update `dev/docgen/docgen.go` with the markdown file.
