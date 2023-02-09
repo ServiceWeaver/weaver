@@ -12,22 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: not serializable
+// ERROR: cannot embed weaver.AutoMarshal
 package foo
 
-import (
-	"context"
-
-	"github.com/ServiceWeaver/weaver"
-)
+import "github.com/ServiceWeaver/weaver"
 
 type option[T any] struct {
+	x int
 	weaver.AutoMarshal
-	x T
+	y bool
 }
-
-type Foo interface {
-	M(context.Context, option[int]) error
-}
-
-type foo struct{ weaver.Implements[Foo] }
