@@ -28,4 +28,9 @@ type foo interface {
 	B(context.Context) (func(), error)
 }
 
-type impl struct{ weaver.Implements[foo] }
+type impl struct {
+	weaver.Implements[foo]
+}
+
+func (impl) A(context.Context, func()) error   { return nil }
+func (impl) B(context.Context) (func(), error) { return nil, nil }

@@ -44,3 +44,6 @@ type foo interface {
 }
 
 type impl struct{ weaver.Implements[foo] }
+
+func (impl) ByValue(context.Context, t) (t, error)     { return t{}, nil }
+func (impl) ByPointer(context.Context, *t) (*t, error) { return &t{}, nil }

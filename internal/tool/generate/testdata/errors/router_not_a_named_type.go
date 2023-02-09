@@ -31,3 +31,5 @@ type impl struct {
 	weaver.Implements[foo]
 	weaver.WithRouter[int]
 }
+
+func (impl) M(context.Context) error { return nil }

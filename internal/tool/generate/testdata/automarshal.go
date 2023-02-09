@@ -40,3 +40,5 @@ type foo interface {
 }
 
 type impl struct{ weaver.Implements[foo] }
+
+func (impl) M(context.Context, byValue, byPointer, mixed1, mixed2) error { return nil }

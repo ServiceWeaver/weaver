@@ -18,8 +18,8 @@ package foo
 import (
 	"context"
 
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"github.com/ServiceWeaver/weaver"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type p struct{}
@@ -32,4 +32,10 @@ type Foo interface {
 	M(context.Context, WeIgnoreEmbeddedProtos) error
 }
 
-type foo struct{ weaver.Implements[Foo] }
+type foo struct {
+	weaver.Implements[Foo]
+}
+
+func (foo) M(context.Context, WeIgnoreEmbeddedProtos) error {
+	return nil
+}
