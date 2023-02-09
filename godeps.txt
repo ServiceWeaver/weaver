@@ -243,6 +243,7 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     crypto/sha256
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/runtime/colors
     go/ast
     go/format
     go/parser
