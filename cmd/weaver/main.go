@@ -68,7 +68,7 @@ func main() {
 		}
 		generateFlags.Parse(flag.Args()[1:])
 		if err := generate.Generate(".", flag.Args()[1:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
 		}
 		return
