@@ -31,6 +31,7 @@ import (
 	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
+	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -147,7 +148,17 @@ type generator struct {
 }
 
 func (g *generator) addError(pos token.Pos, err error) {
-	g.errors = append(g.errors, fmt.Errorf("%v: %w", g.fileset.Position(pos), err))
+	position := g.fileset.Position(pos)
+	if cwd, err := filepath.Abs("."); err == nil {
+		if filename, err := filepath.Rel(cwd, position.Filename); err == nil {
+			position.Filename = filename
+		}
+	}
+	prefix := position.String()
+	if colors.Enabled() {
+		prefix = fmt.Sprintf("%s%v%s", colors.Color256(160), position, colors.Reset)
+	}
+	g.errors = append(g.errors, fmt.Errorf("%s: %w", prefix, err))
 }
 
 func (g *generator) errorf(pos token.Pos, format string, args ...interface{}) {
