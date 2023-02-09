@@ -10,7 +10,7 @@ locally on your machine, and then deploy the application to the cloud with a
 single command.
 
 ```console
-$ go run .                    # Run locally.
+$ go run .                      # Run locally.
 $ weaver gke deploy weaver.toml # Run in the cloud.
 ```
 
@@ -29,28 +29,23 @@ manage all the networking details on your behalf, ensuring that different
 components can communicate with each other and that clients can communicate with
 your application.
 
-Refer to the [Installation](#installation) section to install Service Weaver on your
-machine, or read the [Getting Started](#getting-started) section for a tutorial
-on how to write Service Weaver applications.
+Refer to the [Installation](#installation) section to install Service Weaver on
+your machine, or read the [Step by Step Tutorial](#step-by-step-tutorial)
+section for a tutorial on how to write Service Weaver applications.
 
 # Installation
 
-<div hidden class="todo">
-TODO: Update this section when we're on GitHub.
-</div>
-
-Run the following `go install` commands to install `weaver`, `weaver gke`, and
-`weaver gke-local`.
+Ensure you have [Go installed][go_install], version 1.19 or higher. Then, run
+the following to install the `weaver` command:
 
 ```console
 go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
-go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke@latest
-go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke-local@latest
 ```
 
-`go install` installs these commands to `$GOPATH/bin`. Make sure this directory
-is included in your `PATH`. You can accomplish this, for example, by adding the
-following to your `.bashrc` and running `source ~/.bashrc`:
+`go install` installs the `weaver` command to `$GOBIN`, which defaults to
+`$GOPATH/bin`. Make sure this directory is included in your `PATH`. You can
+accomplish this, for example, by adding the following to your `.bashrc` and
+running `source ~/.bashrc`:
 
 ```console
 export PATH="$PATH:$GOPATH/bin"
@@ -65,17 +60,20 @@ USAGE
   weaver generate                 // weaver code generator
   weaver single    <command> ...  // for single process deployments
   weaver multi     <command> ...  // for multiprocess deployments
-  weaver gke       <command> ...  // for GKE deployments
-  weaver gke-local <command> ...  // for simulated GKE deployments
   ...
 ```
 
-# Getting Started
+# Step by Step Tutorial
 
-In this section, we show you how to write Service Weaver applications. To follow along,
-refer to the [Installation](#installation) section to install Service Weaver. We begin
-with a simple "Hello, World!" server. Create and `cd` into a `hello/` directory.
-Run `go mod init hello` to create a go module.
+In this section, we show you how to write Service Weaver applications. To follow
+along, refer to the [Installation](#installation) section to install Service
+Weaver. The full source code presented in this tutorial can be found in [the
+examples directory on the project's GitHub page][hello_app].
+
+## Listeners and Servers
+
+We begin with a simple "Hello, World!" HTTP server. Create and `cd` into a
+`hello/` directory.  Run `go mod init hello` to create a go module.
 
 ```console
 mkdir hello/
@@ -115,11 +113,19 @@ func main() {
 }
 ```
 
-`weaver.Init` initializes Service Weaver and returns a `weaver.Instance`. We'll explain
-instances in more detail momentarily. For now, we use the instance to get a
-network listener named `hello` on address `localhost:12345`. We then register a
-handler for the `/hello?name=<name>` endpoint that returns a `Hello, <name>!`
-greeting.
+Here's an explanation of the code:
+
+- `weaver.Init(...)` initializes the Service Weaver application. It also returns
+  a `weaver.Instance`, which we assign to `root`. We'll explain instances in
+  more detail momentarily.
+- `root.Listener(...)` returns a network listener, similar to
+  [`net.Listen`][net_listen]. With Service Weaver, listeners are named. In this
+  case, we name the listener `"hello"`. A `weaver.ListenerOptions` configures
+  the listener. Here, we specify that the listener should listen on address
+  `localhost:12345`.
+- `http.HandleFunc(...)` registers an HTTP handler for the `/hello?name=<name>`
+  endpoint. The handler returns a `Hello, <name>!` greeting.
+- `http.Serve(lis, nil)` runs the HTTP server on the provided listener.
 
 Run `go mod tidy` and then `go run .`. The program should print out the name of
 the application and a unique deployment id. It should then block serving HTTP
@@ -145,11 +151,12 @@ Hello, Weaver!
 
 ## Components
 
-A Service Weaver application is composed of a number of **components**. A Service Weaver component
-is represented with a regular Go [interface][go_interfaces], and components
-interact with each other by calling the methods defined by these interfaces.
-In this section, we'll define a simple `Reverser` component that can reverse
-strings. Create a file `reverser.go` with the following contents:
+A Service Weaver application is composed of a number of **components**. A
+Service Weaver component is represented with a regular Go
+[interface][go_interfaces], and components interact with each other by calling
+the methods defined by these interfaces.  In this section, we'll define a simple
+`Reverser` component that can reverse strings. Create a file `reverser.go` with
+the following contents:
 
 ```go
 package main
@@ -214,16 +221,16 @@ func main() {
 invoke methods on the component like we would any regular interface. In this
 example, we call `reverser.Reverse`.
 
-Before we build and run the server, we need to run Service Weaver's code generator,
-called `weaver generate`:
+Before we build and run the server, we need to run Service Weaver's code
+generator, called `weaver generate`:
 
 ```go
 weaver generate .
 ```
 
 `weaver generate` should create a `weaver_gen.go` file. This file contains code
-needed by the Service Weaver runtime. We'll elaborate on what exactly `weaver generate`
-does and why we need to run it later. Finally, re-run the server.
+needed by the Service Weaver runtime. We'll elaborate on what exactly `weaver
+generate` does and why we need to run it later. Finally, re-run the server.
 
 ```console
 $ go run .
@@ -242,15 +249,11 @@ $ curl localhost:12345/hello?name=Weaver
 Hello, revaeW!
 ```
 
-Components are the core abstraction of Service Weaver. All code in a Service Weaver application
-runs as part of some component. Even the code inside of the `main` function runs
-as part of an implicitly created `main` component (i.e. the component returned
-by the `weaver.Init` function).
-
-You can run `weaver single status` to view the status of your Service Weaver applications.
+Run `weaver single status` to view the status of the Service Weaver application.
 The status shows every deployment, component, and listener.
 
 ```console
+$ weaver single status
 ╭────────────────────────────────────────────────────╮
 │ DEPLOYMENTS                                        │
 ├───────┬──────────────────────────────────────┬─────┤
@@ -277,9 +280,15 @@ The status shows every deployment, component, and listener.
 
 You can also run `weaver single dashboard` to open a dashboard in a web browser.
 
-The main advantage of components is that they aren't tied to the local process.
-They can run either in a separate process on the local machine or on a different
-machine. Here's a diagram illustrating this concept:
+Components are the core abstraction of Service Weaver. All code in a Service
+Weaver application runs as part of some component. Even the code inside of the
+`main` function runs as part of an implicitly created `main` component (as shown
+in the output of `weaver single status`).
+
+The main advantage of components is that they decouple how you *write* your code
+from how you *run* your code. They let you write your application as a monolith,
+but when you go to run your code, you can run components in a separate process
+or on a different machine entirely. Here's a diagram illustrating this concept:
 
 ![A diagram showing off various types of Service Weaver deployments](assets/images/components.svg)
 
@@ -298,11 +307,11 @@ following contents:
 binary = "./hello"
 ```
 
-This config file specifies the binary of the Service Weaver application. Next, build and
-run the app using `weaver multi deploy`:
+This config file specifies the binary of the Service Weaver application. Next,
+build and run the app using `weaver multi deploy`:
 
 ```console
-$ go build                      # build the ./hello binary
+$ go build                        # build the ./hello binary
 $ weaver multi deploy weaver.toml # deploy the application
 ╭───────────────────────────────────────────────────╮
 │ app        : hello                                │
@@ -326,15 +335,15 @@ Hello, revaeW!
 When the main component receives your `/hello` HTTP request, it calls the
 `reverser.Reverse` method. This method call is executed as an RPC to the
 `Reverser` component running in a different process. Remember earlier when we
-ran `weaver generate`, the Service Weaver code generator? One thing that `weaver generate`
-does is generate RPC clients and servers for every component to make this
-communication possible.
+ran `weaver generate`, the Service Weaver code generator? One thing that `weaver
+generate` does is generate RPC clients and servers for every component to make
+this communication possible.
 
-You can use `weaver multi status` to view the status of every Service Weaver application
-you deployed with `weaver multi deploy`. You can also run `weaver multi dashboard`
-to open a dashboard in a web browser.
+Run `weaver multi status` to view the status of the Service Weaver application.
+You can also run `weaver multi dashboard` to open a dashboard in a web browser.
 
 ```console
+$ weaver multi status
 ╭────────────────────────────────────────────────────╮
 │ DEPLOYMENTS                                        │
 ├───────┬──────────────────────────────────────┬─────┤
@@ -361,15 +370,15 @@ to open a dashboard in a web browser.
 
 ## Conclusion
 
-Service Weaver is a programming framework that makes it easy to write distributed
-services. By decomposing a system into a set of components, Service Weaver allows you to
-run and test your code locally and then deploy the exact same code across
-multiple processes or multiple machines.
+Service Weaver is a programming framework that makes it easy to write
+distributed services. By decomposing a system into a set of components, Service
+Weaver allows you to run and test your code locally and then deploy the exact
+same code across multiple processes or multiple machines.
 
-In this section, we showed you how to run Service Weaver applications in a single
-application using `go run` and across multiple processes using `weaver multi`. In
-the [GKE](#gke) section, we show you how to deploy Service Weaver applications across
-multiple machines in the cloud as easily as running a single command:
+We showed you how to run Service Weaver applications in a single process
+using `go run` and across multiple processes using `weaver multi`. In the
+[GKE](#gke) section, we show you how to deploy Service Weaver applications
+across multiple machines in the cloud as easily as running a single command:
 
 ```console
 weaver gke deploy weaver.toml
@@ -381,44 +390,40 @@ You can continue reading to get a better understanding of
 
 # Components
 
-**Components** are Service Weaver's core abstraction. A component is a long-lived,
-possibly replicated entity that exposes a set of methods. Concretely, a
-component is represented as a Go interface and corresponding implementation of
-that interface. Take the `Reverser` component from the
-[Getting Started](#getting-started) section for example:
+**Components** are Service Weaver's core abstraction. A component is a
+long-lived, possibly replicated entity that exposes a set of methods.
+Concretely, a component is represented as a Go interface and corresponding
+implementation of that interface. Consider the following `Adder` component for
+example:
 
 ```go
-type Reverser interface {
-    Reverse(context.Context, string) (string, error)
+type Adder interface {
+    Add(context.Context, int, int) (int, error)
 }
 
-type reverser struct{
-    weaver.Implements[Reverser]
+type adder struct {
+    weaver.Implements[Adder]
 }
 
-func (*reverser) Reverse(_ context.Context, s string) (string, error) {
-    runes := []rune(s)
-    n := len(runes)
-    for i := 0; i < n/2; i++ {
-        runes[i], runes[n-i-1] = runes[n-i-1], runes[i]
-    }
-    return string(runes), nil
+func (*adder) Add(_ context.Context, x, y int) (int, error) {
+    return x + y, nil
 }
 ```
 
-`Reverser` is the component's interface, implemented by the `reverser` type. You
-can use the `weaver.Get` function to get a client to a component (e.g., `r, err
-:= weaver.Get[Reverser](...)`). The returned client implements the component's
-interface, so you can invoke the component's methods as you would any go
-interface (e.g., `r.Reverse(ctx, "foo")`. When you invoke a component's method,
-the method call is performed by one of the possibly many component replicas.
+`Adder` defines the component's interface, and `adder` defines the component's
+implementation. The two are linked with the embedded `weaver.Implements[Adder]`
+field. You can call the `weaver.Get[Adder]` function to get a client to the
+`Adder` component. The returned client implements the component's interface, so
+you can invoke the component's methods as you would any regular go method. When
+you invoke a component's method, the method call is performed by one of the
+possibly many component replicas.
 
-Components are generally long-lived, but the Service Weaver runtime may scale up or scale
-down the number of replicas of a component over time based on load. Similarly,
-component replicas may fail and get restarted. Service Weaver may also move component
-replicas around, co-locating two chatty components in the same OS process, for
-example, so that communication between the components is done locally rather
-than over the network.
+Components are generally long-lived, but the Service Weaver runtime may scale up
+or scale down the number of replicas of a component over time based on load.
+Similarly, component replicas may fail and get restarted. Service Weaver may
+also move component replicas around, co-locating two chatty components in the
+same OS process, for example, so that communication between the components is
+done locally rather than over the network.
 
 ## Interfaces
 
@@ -456,13 +461,15 @@ type foo struct{
 ```
 
 -   It must be a struct.
--   It must embed a `weaver.Implements[C]` field where C is component interface it implements.
+-   It must embed a `weaver.Implements[C]` field where `C` is component
+    interface it implements.
 
 `weaver.Implements[T]` implements the `weaver.Instance` interface and therefore
-every component implementation (including `foo`) also implements `weaver.Instance`.
+every component implementation (including `foo`) also implements
+`weaver.Instance`.
 
-If a component implementation implements an `Init(context.Context) error` method
-it will be called when an instance of the component is created.
+If a component implementation implements an `Init(context.Context) error`
+method, it will be called when an instance of the component is created.
 
 ```go
 func (f *foo) Init(context.Context) error {
@@ -515,8 +522,8 @@ Noting the points above:
     guard access to `data` with the mutex `mu`.
 3.  There may be multiple replicas of a `Cache` component, so it is not
     guaranteed that one client's `Get` will be routed to the same replica as
-    another client's `Put`. For this example, this means that the `Cache` is not
-    very consistent.
+    another client's `Put`. For this example, this means that the `Cache` has
+    [weak consistency][weak_consistency].
 
 Method calls are executed with at-most-once semantics. This means that Service Weaver
 does not automatically retry method calls that fail. However, you can detect and
@@ -548,26 +555,88 @@ expensive. When deploying a Service Weaver application on the cloud, for example
 constructing a component may involve launching a container. For this reason, we
 recommend you call `weaver.Get` proactively to incur this overhead at
 initialization time rather than on the critical path of serving a client
-request. Concretely, we recommend you write code like this:
+request.
 
-```go
-// GOOD: Call weaver.Get ahead of time.
-reverser, err := weaver.Get[Reverser](root)
-http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-    // Use reverser here...
-})
-http.Serve(lis, nil)
+## Config
+
+Service Weaver uses [config files](#config-files), written in [TOML](#toml), to
+configure how applications are run. A minimal config file, for example, simply
+lists the application binary:
+
+```toml
+[serviceweaver]
+binary = "./hello"
 ```
 
-instead of writing code like this:
+A config file may additionally contain component-specific configuration
+sections, which allow you to configure the components in your application. For
+example, consider the following `Greeter` component.
 
 ```go
-http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-    // BAD: Don't call weaver.Get on the critical path.
-    reverser, err := weaver.Get[Reverser](root)
-    // Use reverser here...
-})
-http.Serve(lis, nil)
+type Greeter interface {
+    Greet(context.Context, string) (string, error)
+}
+
+type greeter struct {
+    weaver.Implements[Greeter]
+}
+
+func (g *greeter) Greet(_ context.Context, name string) (string, error) {
+    return fmt.Sprintf("Hello, %s!", name), nil
+}
+```
+
+Rather than hard-coding the greeting `"Hello"`, we can provide a greeting in a
+config file. First, we define a options struct.
+
+```go
+type greeterOptions struct {
+    Greeting string
+}
+```
+
+Next, we associate the options struct with the `greeter` implementation by
+embedding the `weaver.WithConfig[T]` struct.
+
+```go
+type greeter struct {
+    weaver.Implements[Greeter]
+    weaver.WithConfig[greeterOptions]
+}
+```
+
+Now, we can add a `Greeter` section to the config file. The section is keyed by
+the full path-prefixed name of the component.
+
+```toml
+["example.com/mypkg/Greeter"]
+Greeting = "Bonjour"
+```
+
+When the `Greeter` component is created, Service Weaver will automatically parse
+the `Greeter` section of the config file into a `greeterOptions` struct. You can
+access the populated struct via the `Config` method of the embedded `WithConfig`
+struct. For example:
+
+```go
+func (g *greeter) Greet(_ context.Context, name string) (string, error) {
+    greeting := g.Config().Greeting
+    if greeting == "" {
+        greeting = "Hello"
+    }
+    return fmt.Sprintf("%s, %s!", greeting, name), nil
+}
+```
+
+<div hidden class="todo">
+    Move the next part to the Single Process section and forward link.
+</div>
+
+If you run an application directly (i.e. using `go run`), you can pass the
+config file using the `SERVICEWEAVER_CONFIG` environment variable:
+
+```console
+SERVICEWEAVER_CONFIG=weaver.toml go run .
 ```
 
 # Logging
@@ -576,41 +645,49 @@ http.Serve(lis, nil)
 TODO(mwhittaker): Pick a better name for node ids?
 </div>
 
-Service Weaver provides a logging API, `weaver.Logger`. By using Service Weaver's logging API, you
-can cat, tail, search, and filter logs from every one of your Service Weaver applications
-(past or present). Service Weaver also integrates the logs into the environment where
-your application is deployed. If you
-[deploy a Service Weaver application to Google Cloud](#gke), for example, logs are
-automatically exported to [Google Cloud Logging][cloud_logging].
+Service Weaver provides a logging API, `weaver.Logger`. By using Service
+Weaver's logging API, you can cat, tail, search, and filter logs from every one
+of your Service Weaver applications (past or present). Service Weaver also
+integrates the logs into the environment where your application is deployed. If
+you [deploy a Service Weaver application to Google Cloud](#gke), for example,
+logs are automatically exported to [Google Cloud Logging][cloud_logging].
 
-Use the `Logger` method to get a logger scoped to the component. For example:
+Use the `Logger` method of a component implementation to get a logger scoped to
+the component. For example:
 
 ```go
-func (r *reverser) Reverse(_ context.Context, s string) (string, error) {
-    logger := r.Logger()
+type Adder interface {
+    Add(context.Context, int, int) (int, error)
+}
+
+type adder struct {
+    weaver.Implements[Adder]
+}
+
+func (a *adder) Add(_ context.Context, x, y int) (int, error) {
+    // adder embeds weaver.Implements[Adder] which provides the Logger method.
+    logger := a.Logger()
     logger.Debug("A debug log.")
     logger.Info("An info log.")
-    logger.Error("An error log.")
-    // ...
+    logger.Error("An error log.", fmt.Errorf("an error"))
+    return x + y, nil
 }
 ```
 
 Logs look like this:
 
 ```console
-D1103 08:55:15.650138 main.Reverser 73ddcd04 reverser.go:37] A debug log.
-I1103 08:55:15.650149 main.Reverser 73ddcd04 reverser.go:38] An info log.
-E1103 08:55:15.650158 main.Reverser 73ddcd04 reverser.go:39] An error log.
+D1103 08:55:15.650138 main.Adder 73ddcd04 adder.go:12] A debug log.
+I1103 08:55:15.650149 main.Adder 73ddcd04 adder.go:13] An info log.
+E1103 08:55:15.650158 main.Adder 73ddcd04 adder.go:14] An error log. err="an error"
 ```
 
-The first character indicates whether the log is a [D]ebug, [I]nfo, or [E]rror.
-Then comes the date in `MMDD` format, followed by the time. Then comes the
-component name followed by a logical node id. If two components are co-located
-in the same OS process, they are given the same node id. Then comes the file and
-line where the log was produced, followed finally by the contents of the log.
-
-When printing to a terminal, logs will typically be colored and when the same
-value occurs in consecutive lines, it is dimmed.
+The first character of a log line indicates whether the log is a [D]ebug,
+[I]nfo, or [E]rror log entry. Then comes the date in `MMDD` format, followed by
+the time. Then comes the component name followed by a logical node id. If two
+components are co-located in the same OS process, they are given the same node
+id. Then comes the file and line where the log was produced, followed finally by
+the contents of the log.
 
 The main component returned by `weaver.Init` has a Logger method as well (like
 all `weaver.Instance`s):
@@ -623,25 +700,26 @@ func main() {
 }
 ```
 
-Service Weaver also allows you to attach key-value labels to log entries.  These labels
-can be useful when searching and filtering logs.
+Service Weaver also allows you to attach key-value attributes to log entries.
+These attributes can be useful when searching and filtering logs.
 
 ```go
-logger.Info("A labeled log.", "foo", "bar")  // adds foo:bar
+logger.Info("A log with attributes.", "foo", "bar")  // adds foo="bar"
 ```
 
-If you find yourself adding the same set of key-value labels repeatedly,
-you can pre-create a logger that will add those labels to all log entries:
+If you find yourself adding the same set of key-value attributes repeatedly, you
+can pre-create a logger that will add those attributes to all log entries:
 
 ```go
 fooLogger = logger.With("foo", "bar")
-fooLogger.Info("A labeled log.")  // adds foo:bar
+fooLogger.Info("A log with attributes.")  // adds foo="bar"
 ```
 
 Note that you can also add normal print statements to your code. These prints
-will be captured and logged by Service Weaver, but they won't be associated with a
-particular component, they won't have `file:line` information, and they won't
-have any labels, so we recommend you use a `weaver.Logger` whenever possible.
+will be captured and logged by Service Weaver, but they won't be associated with
+a particular component, they won't have `file:line` information, and they won't
+have any attributes, so we recommend you use a `weaver.Logger` whenever
+possible.
 
 ```console
 S1027 14:40:55.210541 stdout d772dcad] This was printed by fmt.Println
@@ -657,49 +735,54 @@ Service Weaver provides an API for [metrics][metric_types]; specifically
 [counters][prometheus_counter], [gauges][prometheus_gauge], and
 [histograms][prometheus_histogram].
 
-- A **counter** is a float-valued number that can only increase over time. It
-  never decreases. You can use a counter to measure things like the number of
-  HTTP requests your program has processed so far.
-- A **gauge** is a float-valued number that can increase *or* decrease over
-  time. You can use a gauge to measure things like the current amount of memory
-  your program is using, in bytes.
-- A **histogram** is a collection of float-valued numbers that are grouped into
-  buckets. You can use a histogram to measure things like the latency of every
-  HTTP request your program has received so far.
+- A **counter** is a number that can only increase over time. It never
+  decreases. You can use a counter to measure things like the number of HTTP
+  requests your program has processed so far.
+- A **gauge** is a number that can increase *or* decrease over time. You can use
+  a gauge to measure things like the current amount of memory your program is
+  using, in bytes.
+- A **histogram** is a collection of numbers that are grouped into buckets. You
+  can use a histogram to measure things like the latency of every HTTP request
+  your program has received so far.
 
 Service Weaver integrates these metrics into the environment where your application is
 deployed. If you [deploy a Service Weaver application to Google Cloud](#gke), for
 example, metrics are automatically exported to the [Google Cloud Metrics
 Explorer][metrics_explorer] where they can be queried, aggregated, and graphed.
 
-Here's an example of how to add metrics to the `Reverser` component from the
-[Getting Started](#getting-started) section.
+Here's an example of how to add metrics to a simple `Adder` component.
 
 ```go
 var (
-    reverseCount = weaver.NewCounter(
-        "reverse_count",
-        "The number of times Reverser.Reverse has been called",
+    addCount = weaver.NewCounter(
+        "add_count",
+        "The number of times Adder.Add has been called",
     )
-    reverseConcurrent = weaver.NewGauge(
-        "reverse_concurrent",
-        "The number of concurrent Reverser.Reverse calls",
+    addConcurrent = weaver.NewGauge(
+        "add_concurrent",
+        "The number of concurrent Adder.Add calls",
     )
-    reverseLen = weaver.NewHistogram(
-        "reverse_len",
-        "The length of strings, in bytes, passed to Reverser.Reverse",
+    addSum = weaver.NewHistogram(
+        "add_sum",
+        "The sums returned by Adder.Add",
         []float64{1, 10, 100, 1000, 10000},
     )
 )
 
-type reverser struct{}
+type Adder interface {
+    Add(context.Context, int, int) (int, error)
+}
 
-func (reverser) Reverse(_ context.Context, s string) (string, error) {
-    reverseCount.Add(1.0)
-    reverseConcurrent.Add(1.0)
-    defer reverseConcurrent.Sub(1.0)
-    reverseLen.Put(float64(len(s)))
-    // ...
+type adder struct {
+    weaver.Implements[Adder]
+}
+
+func (*adder) Add(_ context.Context, x, y int) (int, error) {
+    addCount.Add(1.0)
+    addConcurrent.Add(1.0)
+    defer addConcurrent.Sub(1.0)
+    addSum.Put(float64(x + y))
+    return x + y, nil
 }
 ```
 
@@ -709,9 +792,9 @@ and [GKE](#gke-metrics) deployments.
 
 ## Labels
 
-Metrics can also have a set of key-value labels. Service Weaver represents labels using
-structs. Here's an example of how to declare and use a labeled counter to count
-the parity of the argument to a `Halve` method.
+Metrics can also have a set of key-value labels. Service Weaver represents
+labels using structs. Here's an example of how to declare and use a labeled
+counter to count the parity of the argument to a `Halve` method.
 
 ```go
 type halveLabels struct {
@@ -727,7 +810,13 @@ var (
     evenCount = halveCounts.Get(halveLabels{"even"})
 )
 
-type halver struct{}
+type Halver interface {
+    Halve(context.Context, int) (int, error)
+}
+
+type halver struct {
+    weaver.Implements[Halver]
+}
 
 func (halver) Halve(_ context.Context, val int) (int, error) {
     if val % 2 == 0 {
@@ -739,10 +828,10 @@ func (halver) Halve(_ context.Context, val int) (int, error) {
 }
 ```
 
-To adhere to [popular metric naming conventions][prometheus_naming], Service Weaver
-lowercases the first letter of every label by default. The `Parity` field for
-example is exported as `parity`. You can override this behavior and provide a
-custom label name using a `weaver` annotation.
+To adhere to [popular metric naming conventions][prometheus_naming], Service
+Weaver lowercases the first letter of every label by default. The `Parity` field
+for example is exported as `parity`. You can override this behavior and provide
+a custom label name using a `weaver` annotation.
 
 ```go
 type labels struct {
@@ -751,10 +840,30 @@ type labels struct {
 }
 ```
 
+## Auto-Generated Metrics
+
+Service Weaver automatically creates and maintains the following set of metrics, which
+measure the count, latency, and chattiness of every remote component method
+invocation. Every metric is labeled by the calling component as well as the
+invoked component and method.
+
+-   `serviceweaver_remote_method_count`: Count of Service Weaver component
+    method invocations.
+-   `serviceweaver_remote_method_error_count`: Count of Service Weaver component
+    method invocations that result in an error.
+-   `serviceweaver_remote_method_latency_micros`: Duration, in microseconds, of
+    Service Weaver component method execution.
+-   `serviceweaver_remote_method_bytes_request`: Number of bytes in Service
+    Weaver component method requests.
+-   `serviceweaver_remote_method_bytes_reply`: Number of bytes in Service Weaver
+    component method replies.
+
+Note that these metrics only measure *remote* method calls. Local method calls,
+like those between two co-located components, are not measured.
+
 ## HTTP Metrics
 
-Service Weaver declares the following set of HTTP related metrics. Every metric is
-labeled with an HTTP endpoint (e.g., `/foo/bar`)
+Service Weaver declares the following set of HTTP related metrics.
 
 -   `serviceweaver_http_request_count`: Count of HTTP requests.
 -   `serviceweaver_http_error_count`: Count of HTTP requests resulting in a 4XX or 5XX
@@ -768,42 +877,24 @@ labeled with an HTTP endpoint (e.g., `/foo/bar`)
 
 If you pass an [`http.Handler`](https://pkg.go.dev/net/http#Handler) to the
 `weaver.InstrumentHandler` function, it will return a new `http.Handler` that
-updates these metrics automatically. For example:
+updates these metrics automatically, labeled with the provided label. For
+example:
 
 ```go
+// Metrics are recorded for fooHandler with label "foo".
 var mux http.ServeMux
-mux.Handle("/foo", weaver.InstrumentHandler("foo", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {...})))
-mux.Handle("/bar", weaver.InstrumentHandler("bar", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {...})))
+var fooHandler http.Handler = ...
+mux.Handle("/foo", weaver.InstrumentHandler("foo", fooHandler))
 ```
-
-## Auto-Generated Metrics
-
-Service Weaver automatically creates and maintains the following set of metrics, which
-measure the count, latency, and chattiness of every remote component method
-invocation. Every metric is labeled by the calling component as well as the
-invoked component and method.
-
--   `serviceweaver_remote_method_count`: Count of Service Weaver component method invocations.
--   `serviceweaver_remote_method_error_count`: Count of Service Weaver component method
-    invocations that result in an error.
--   `serviceweaver_remote_method_latency_micros`: Duration, in microseconds, of Service Weaver
-    component method execution.
--   `serviceweaver_remote_method_bytes_request`: Number of bytes in Service Weaver component
-    method requests.
--   `serviceweaver_remote_method_bytes_reply`: Number of bytes in Service Weaver component method
-    replies.
-
-Note that these metrics only measure *remote* method calls. Local method calls,
-like those between two co-located components, are not measured.
 
 # Tracing
 
-Service Weaver relies on [OpenTelemetry][otel] to trace your application. Service Weaver exports
-these traces into the environment where your application is deployed. If you
-[deploy a Service Weaver application to Google Cloud](#gke), for example, traces are
-automatically exported to [Google Cloud Trace][cloud_trace]. Here's an example
-of how to enable tracing for the `Hello, World!` application from the [Getting
-Started](#getting-started) section:
+Service Weaver relies on [OpenTelemetry][otel] to trace your application.
+Service Weaver exports these traces into the environment where your application
+is deployed. If you [deploy a Service Weaver application to Google Cloud](#gke),
+for example, traces are automatically exported to [Google Cloud
+Trace][cloud_trace]. Here's an example of how to enable tracing for a simple
+`Hello, World!` application.
 
 ```go
 import (
@@ -962,21 +1053,32 @@ routed.
 
 We expect most Service Weaver applications to persist their data in some way. For
 example, an e-commerce application may store its products catalog and user
-information in a database and access them while serving the user requests.
+information in a database and access them while serving user requests.
 
-By default, Service Weaver leaves the storage and retrieval of application data up to the
-developer. More specifically, you have to create the database, pre-populate
-it with data, and write the code to access the database from your Service Weaver
-application.
+By default, Service Weaver leaves the storage and retrieval of application data
+up to the developer. If you're using a database, for example, you have to create
+the database, pre-populate it with data, and write the code to access the
+database from your Service Weaver application.
 
-Below is an example of how database information can be passed to the
-`Reverser` component from the [Getting Started](#getting-started) section,
-using a [Service Weaver config file](#config-files). A similar process can be followed
-to pass database information using Go flags or environment variables.
+Below is an example of how database information can be passed to a simple
+`Adder` component using a [config file](#components-config). First, the config
+file:
+
+```toml
+["example.com/mypkg/Adder"]
+Driver = "mysql"
+Source = "root:@tcp(localhost:3306)/"
+```
+
+And the application that uses it:
 
 ```go
-type reverser struct{
-    weaver.Implements[Reverser]
+type Adder interface {
+    Add(context.Context, int, int) (int, error)
+}
+
+type adder struct {
+    weaver.Implements[Adder]
     weaver.WithConfig[config]
 
     db *sql.DB
@@ -987,42 +1089,36 @@ type config struct {
     Source string // DB data source.
 }
 
-func (r *reverser) Init(_ context.Context) error {
-    db, err := sql.Open(r.Config().Driver, r.Config().Source)
+func (a *adder) Init(_ context.Context) error {
+    db, err := sql.Open(a.Config().Driver, a.Config().Source)
     r.db = db
     return err
 }
 
-func (r *reverser) Reverse(ctx context.Context, s string) (string, error) {
+func (a *Adder) Add(ctx context.Context, x, y int) (int, error) {
     // Check in the database first.
-    var reversed string
-    q := "SELECT reversed FROM table WHERE str=?;"
-    if err := r.db.QueryRowContext(ctx, q, s).Scan(&reversed); err == nil {
-        return reversed, nil
+    var sum int
+    const q = "SELECT sum FROM table WHERE x=? AND y=?;"
+    if err := r.db.QueryRowContext(ctx, q, x, y).Scan(&sum); err == nil {
+        return sum, nil
     }
-
-    // Reverse.
-    runes := []rune(s)
-    n := len(runes)
-    for i := 0; i < n/2; i++ {
-        runes[i], runes[n-i-1] = runes[n-i-1], runes[i]
-    }
-    reversed = string(runes)
 
     // Make a best-effort attempt to store in the database.
-    q = "INSERT INTO table(str, reversed) VALUES (?, ?);"
-    r.db.ExecContext(ctx, q, s, reversed)
-    return reversed, nil
+    q = "INSERT INTO table(x, y, sum) VALUES (?, ?, ?);"
+    r.db.ExecContext(ctx, q, x, y, x + y)
+    return x + y, nil
 }
 ```
 
+A similar process can be followed to pass database information using Go flags or
+environment variables.
+
 # Testing
 
-Service Weaver includes a `weavertest` package that you can use to test your Service Weaver
-applications. Use `weavertest.Init` as a drop-in replacement for `weaver.Init`. To
-test the `Reverser` component from the [Getting Started](#getting-started)
-section, for example, create a `reverser_test.go` file with the following
-contents.
+Service Weaver includes a `weavertest` package that you can use to test your
+Service Weaver applications. Use `weavertest.Init` as a drop-in replacement for
+`weaver.Init`. To test an `Adder` component  with an `Add` method, for example,
+create an `adder_test.go` file with the following contents.
 
 ```go
 package main
@@ -1035,18 +1131,18 @@ import (
     "github.com/ServiceWeaver/weaver/weavertest"
 )
 
-func TestReverse(t *testing.T) {
+func TestAdd(t *testing.T) {
     ctx := context.Background()
     root := weavertest.Init(ctx, t, weavertest.Options{})
-    reverser, err := weaver.Get[Reverser](root)
+    adder, err := weaver.Get[Adder](root)
     if err != nil {
         t.Fatal(err)
     }
-    got, err := reverser.Reverse(ctx, "diaper drawer")
+    got, err := adder.Add(ctx, 1, 2)
     if err != nil {
         t.Fatal(err)
     }
-    if want := "reward repaid"; got != want {
+    if want := 3; got != want {
         t.Fatalf("got %q, want %q", got, want)
     }
 }
@@ -1063,12 +1159,12 @@ work whether they are co-located in the same process or distributed across
 multiple processes.
 
 ```go
-func TestReverse(t *testing.T) {
+func TestAdd(t *testing.T) {
     for _, single := range []bool{true, false} {
         t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
             opts := weavertest.Options{SingleProcess: single}
             root := weavertest.Init(context.Background(), t, opts)
-            reverser, err := weaver.Get[Reverser](root)
+            adder, err := weaver.Get[Adder](root)
             // ...
         })
     }
@@ -1105,9 +1201,9 @@ interactions between multiple versions of a system:
 >    assumption._
 
 
-Service Weaver takes a different approach to rollouts, avoiding these complex
-cross-version interactions entirely. Service Weaver ensures that client requests are
-executed entirely within a single version of a system. A component in one
+Service Weaver takes a different approach to rollouts and sidesteps these
+complex cross-version interactions. Service Weaver ensures that client requests
+are executed entirely within a single version of a system. A component in one
 version will *never* communicate with a component in a different version. This
 eliminates the leading cause of update failures, allowing you to roll out new
 versions of your Service Weaver application safely and with less headache.
@@ -1173,8 +1269,8 @@ You can also run `weaver single dashboard` to open a dashboard in a web browser.
 
 ## Listeners
 
-Recall from the [Getting Started](#getting-started) section that you can call
-the `Listener` method to get a network listener.
+Recall from the [Step by Step tutorial](#step-by-step-tutorial) section that you
+can call the `Listener` method to get a network listener.
 
 ```go
 opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
@@ -1352,8 +1448,8 @@ You can also run `weaver multi dashboard` to open a dashboard in a web browser.
 
 ## Listeners
 
-Recall from the [Getting Started](#getting-started) section that you can call
-the `Listener` method to get a network listener.
+Recall from the [Step by Step Tutorial](#step-by-step-tutorial) section that you
+can call the `Listener` method to get a network listener.
 
 ```go
 opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
@@ -1534,9 +1630,17 @@ a GKE deployment locally on your machine.
 
 ## Installation
 
-Before running on GKE, you must install the `gcloud` command to your local
-machine. To do so, follow [these instructions][gcloud_install], or run the
-following command and follow its prompts:
+First, [ensure you have Service Weaver installed](#installation). Next, install
+the `weaver-gke` and `weaver-gke-local` commands:
+
+```console
+go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke@latest
+go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke-local@latest
+```
+
+Install the `gcloud` command to your local machine. To do so, follow [these
+instructions][gcloud_install], or run the following command and follow its
+prompts:
 
 ```console
 curl https://sdk.cloud.google.com | bash
@@ -1571,12 +1675,12 @@ finalize that design.
 
 ## Getting Started
 
-Consider again the "Hello, World!" Service Weaver application from the
-[Getting Started](#getting-started) section. The application runs an HTTP server
-on a listener named `hello` with a `/hello?name=<name>` endpoint that returns a
-`Hello, <name>!` greeting. To deploy this application to GKE, first create a
-[Service Weaver config file](#config-files), say `weaver.toml`, with the following
-contents:
+Consider again the "Hello, World!" Service Weaver application from the [Step by
+Step Tutorial](#step-by-step-tutorial) section. The application runs an HTTP
+server on a listener named `hello` with a `/hello?name=<name>` endpoint that
+returns a `Hello, <name>!` greeting. To deploy this application to GKE, first
+create a [Service Weaver config file](#config-files), say `weaver.toml`, with
+the following contents:
 
 ```toml
 [serviceweaver]
@@ -1619,7 +1723,7 @@ accessibly load balancer that forwards traffic to the public listeners in your
 application. `weaver gke deploy` prints out the IP address of this load balancer
 as well as instructions on how to interact with it:
 
-```
+```text
 NOTE: The applications' public listeners will be accessible via an
 L7 load-balancer managed by Service Weaver running at the public IP address:
 
@@ -2318,46 +2422,8 @@ fields:
 | colocate | optional | List of colocation groups. When two components in the same colocation group are deployed, they are deployed in the same OS process, where all method calls between them are performed as regular Go method calls. To avoid ambiguity, components must be prefixed by their full package path (e.g., `github.com/example/sandy/`). Note that the full package path of the main package in an executable is `main`. |
 | rollout | optional | How long it will take to roll out a new version of the application. See the [GKE Deployments](#gke-multi-region) section for more information on rollouts. |
 
-A config file may additionally contain any number of component-specific
-configuration sections. These sections allow you to provide configuration
-options to your components.
-
-For example, suppose your application has a component `MyComponent` that opens a
-database. In Go code, declare a configuration struct and associate it with the
-component implementation by embedding a `weaver.WithConfig[T]` field in the
-implementation type. Component methods can find configuration information by calling
-the `Config` methid of the implementation.
-
-```go
-type config struct {
-    Database string
-}
-
-type reverser struct {
-    weaver.Implements[MyComponent]
-    weaver.WithConfig[config]
-}
-
-func (r *reverser) Init(_ context.Context) error {
-    open(r.Config().Database)
-    ...
-}
-```
-
-The config file can now contain a section that sets the database`
-name:
-
-```toml
-["example.com/mypkg/MyComponent"]
-Database = "/tmp/my.db"
-```
-
-If you wish to run the application directly, e.g., using `go run`, you can pass
-the config file using the `SERVICEWEAVER_CONFIG` environment variable:
-
-```console
-SERVICEWEAVER_CONFIG=weaver.toml go run .
-```
+A config file may also contain component-specific configuration. See the
+[Component Config](#components-config) section for details.
 
 # Architecture
 
@@ -2379,7 +2445,9 @@ TODO: Explain the internals of Service Weaver.
 [gke]: https://cloud.google.com/kubernetes-engine
 [gke_create_project]: https://cloud.google.com/resource-manager/docs/creating-managing-projects#gcloud
 [go_generate]: https://pkg.go.dev/cmd/go/internal/generate
+[go_install]: https://go.dev/doc/install
 [go_interfaces]: https://go.dev/tour/methods/9
+[hello_app]: https://github.com/ServiceWeaver/weaver/tree/main/examples/hello
 [http_pprof]: https://pkg.go.dev/net/http/pprof
 [isolation]: https://sre.google/workbook/canarying-releases/#dependencies-and-isolation
 [kubernetes]: https://kubernetes.io/
@@ -2387,6 +2455,7 @@ TODO: Explain the internals of Service Weaver.
 [metric_types]: https://prometheus.io/docs/concepts/metric_types/
 [metrics_explorer]: https://cloud.google.com/monitoring/charts/metrics-explorer
 [n_queens]: https://en.wikipedia.org/wiki/Eight_queens_puzzle
+[net_listen]: https://pkg.go.dev/net#Listen
 [otel]: https://opentelemetry.io/docs/instrumentation/go/getting-started/
 [otel_all_you_need]: https://lightstep.com/blog/opentelemetry-go-all-you-need-to-know#adding-detail
 [perfetto]: https://ui.perfetto.dev/
@@ -2398,4 +2467,5 @@ TODO: Explain the internals of Service Weaver.
 [prometheus_histogram]: https://prometheus.io/docs/concepts/metric_types/#histogram
 [prometheus_naming]: https://prometheus.io/docs/practices/naming/
 [update_failures_paper]: https://scholar.google.com/scholar?cluster=4116586908204898847
+[weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
 [xdg]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
