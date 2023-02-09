@@ -31,16 +31,12 @@ pre {
   padding: 1ch;
 }
 
-code {
-  color: #d63384;
-}
-
-pre code {
-  color: inherit;
-}
-
-a code {
-  color: inherit;
+:not(pre) > code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  white-space: break-spaces;
+  background-color: rgba(175,184,193,0.2);
+  border-radius: 6px;
 }
 
 /* Limit the page content width to keep lines readable. */
