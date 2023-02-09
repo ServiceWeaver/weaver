@@ -30,9 +30,9 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ServiceWeaver/weaver/internal/files"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
-	"github.com/ServiceWeaver/weaver/internal/files"
 )
 
 // TODO(rgrandl): Modify the generator code to use only the types package. Right
@@ -242,21 +242,39 @@ func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
 		//         b struct{} // Spec 2
 		//     )
 		for _, spec := range gendecl.Specs {
-			pos := g.fileset.Position(spec.Pos())
+			pos := spec.Pos()
+			position := g.fileset.Position(pos)
 			typespec, ok := spec.(*ast.TypeSpec)
 			if !ok {
-				panic(fmt.Errorf("%v: type declaration has non-TypeSpec spec: %v", pos, spec))
+				panic(fmt.Errorf("%v: type declaration has non-TypeSpec spec: %v", position, spec))
 			}
 
 			// Extract the type's name.
 			def, ok := g.pkg.TypesInfo.Defs[typespec.Name]
 			if !ok {
-				panic(fmt.Errorf("%v: name %v not found", pos, typespec.Name))
+				panic(fmt.Errorf("%v: name %v not found", position, typespec.Name))
 			}
+
+			// Check for an embedded AutoMarshal.
 			n, ok := def.Type().(*types.Named)
 			if !ok {
 				// For type aliases like `type Int = int`, Int has type int and
 				// not type Named. We ignore these.
+				continue
+			}
+			t, ok := g.typeof(typespec.Type).(*types.Struct)
+			if !ok {
+				continue
+			}
+			automarshal := false
+			for i := 0; i < t.NumFields(); i++ {
+				f := t.Field(i)
+				if f.Embedded() && isWeaverAutoMarshal(f.Type()) {
+					automarshal = true
+					break
+				}
+			}
+			if !automarshal {
 				continue
 			}
 
@@ -275,30 +293,13 @@ func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
 			// complications, we ignore generic types.
 			//
 			// TODO(mwhittaker): Handle generics somehow?
-			//
-			// TODO(mwhittaker): If this type embeds AutoMarshal, 'weaver
-			// generate' will silently ignore it. Instead, print a warning to
-			// the user.
-			if n.TypeParams() != nil {
+			if n.TypeParams() != nil { // generics have non-nil TypeParams()
+				name := g.tset.typeString(n)
+				g.addError(pos, fmt.Errorf("generic struct %v cannot embed weaver.AutoMarshal. See serviceweaver.dev/docs.html#serializable-types for more information.", name))
 				continue
 			}
 
-			// Check for an embedded AutoMarshal.
-			t, ok := g.typeof(typespec.Type).(*types.Struct)
-			if !ok {
-				continue
-			}
-			automarshal := false
-			for i := 0; i < t.NumFields(); i++ {
-				f := t.Field(i)
-				if f.Embedded() && isWeaverAutoMarshal(f.Type()) {
-					automarshal = true
-					break
-				}
-			}
-			if automarshal {
-				automarshals = append(automarshals, n)
-			}
+			automarshals = append(automarshals, n)
 		}
 	}
 	return automarshals
