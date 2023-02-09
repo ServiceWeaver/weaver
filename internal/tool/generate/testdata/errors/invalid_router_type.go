@@ -32,6 +32,8 @@ type impl struct {
 	weaver.WithRouter[fooRouter]
 }
 
+func (impl) A(context.Context) error { return nil }
+
 type fooRouter struct{}
 
 type key struct {

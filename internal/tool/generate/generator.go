@@ -311,12 +311,12 @@ func (g *generator) typeof(e ast.Expr) types.Type {
 }
 
 func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec) {
-	t, ok := spec.(*ast.TypeSpec)
+	ts, ok := spec.(*ast.TypeSpec)
 	if !ok {
 		return
 	}
-	implName := t.Name.Name
-	s, ok := t.Type.(*ast.StructType)
+	implName := ts.Name.Name
+	s, ok := ts.Type.(*ast.StructType)
 	if !ok {
 		return
 	}
@@ -347,8 +347,25 @@ func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec
 				g.errorf(spec.Pos(), "weaver.Implements argument %s is a type outside the current package.", g.tset.typeString(cn))
 				return
 			}
-			if _, ok = cn.Underlying().(*types.Interface); !ok {
+			intf, ok := cn.Underlying().(*types.Interface)
+			if !ok {
 				g.errorf(f.Pos(), "weaver.Implements argument %s is not an interface.", g.tset.typeString(cn))
+				return
+			}
+
+			def, ok := g.pkg.TypesInfo.Defs[ts.Name]
+			if !ok {
+				loc := g.fileset.Position(ts.Pos())
+				panic(fmt.Errorf("%v: name %v not found", loc, ts.Name))
+			}
+			n, ok := def.Type().(*types.Named)
+			if !ok {
+				// For type aliases like `type Int = int`, Int has type int and
+				// not type Named. We ignore these.
+				break
+			}
+			if !types.Implements(types.NewPointer(n), intf) {
+				g.errorf(f.Pos(), "type %s embeds %s but does not implement interface %v.", g.tset.typeString(n), g.tset.typeString(t), g.tset.typeString(cn))
 				return
 			}
 			componentType = cn
@@ -369,7 +386,7 @@ func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec
 		return
 	}
 
-	if t.TypeParams != nil && t.TypeParams.NumFields() != 0 {
+	if ts.TypeParams != nil && ts.TypeParams.NumFields() != 0 {
 		g.errorf(spec.Pos(), "component implementation cannot be generic")
 		return
 	}

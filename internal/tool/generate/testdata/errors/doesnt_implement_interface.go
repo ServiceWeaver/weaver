@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// EXPECTED
-// serviceweaver_enc_ptr_t
-// serviceweaver_dec_ptr_t
-// func (x *t) WeaverMarshal(enc *codegen.Encoder)
-// func (x *t) WeaverUnmarshal(dec *codegen.Decoder)
-
-// Verify that AutoMarshal structs can be received by value and by pointer.
+// ERROR: does not implement interface
 package foo
 
 import (
@@ -27,16 +21,10 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
-type t struct {
-	weaver.AutoMarshal
+type Foo interface {
+	M(context.Context) error
 }
 
-type foo interface {
-	ByValue(context.Context, t) (t, error)
-	ByPointer(context.Context, *t) (*t, error)
+type foo struct {
+	weaver.Implements[Foo]
 }
-
-type impl struct{ weaver.Implements[foo] }
-
-func (impl) ByValue(context.Context, t) (t, error)     { return t{}, nil }
-func (impl) ByPointer(context.Context, *t) (*t, error) { return &t{}, nil }

@@ -33,3 +33,5 @@ type Foo interface {
 }
 
 type foo struct{ weaver.Implements[Foo] }
+
+func (foo) M(context.Context, WeIgnoreEmbeddedBinaryMarshalers) error { return nil }
