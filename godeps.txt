@@ -60,9 +60,11 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     strings
 github.com/ServiceWeaver/weaver/dev/docgen
     bytes
+    flag
     fmt
     github.com/alecthomas/chroma/v2
     github.com/alecthomas/chroma/v2/styles
+    github.com/fsnotify/fsnotify
     github.com/yuin/goldmark
     github.com/yuin/goldmark-highlighting/v2
     github.com/yuin/goldmark/extension
