@@ -111,7 +111,7 @@ func (t Text) dimmed() Text {
 // [2]: https://github.com/muesli/duf
 type Tabularizer struct {
 	w      io.Writer // where to write
-	title  Atom      // table title
+	title  []Text    // table title
 	rows   [][]Text  // buffered rows
 	widths []int     // column widths
 	dim    func(prev, row []string) []bool
@@ -119,7 +119,7 @@ type Tabularizer struct {
 
 // NewTabularizer returns a new tabularizer. The provided dim function
 // determines which columns in a row, if any, are dimmed.
-func NewTabularizer(w io.Writer, title Atom, dim func(prev, row []string) []bool) *Tabularizer {
+func NewTabularizer(w io.Writer, title []Text, dim func(prev, row []string) []bool) *Tabularizer {
 	return &Tabularizer{w: w, title: title, dim: dim}
 }
 
@@ -181,11 +181,19 @@ func (t *Tabularizer) Flush() {
 		width += w + 3 // space before + space after + vertical line after
 	}
 
-	fmt.Fprintf(t.w, "╭%s╮\n", strings.Repeat("─", width-2))
-	fmt.Fprintf(t.w, "│ %-*s │\n", width-4+len(t.title.String())-len(t.title.S), t.title.String())
-	writeRow("├", "┬", "┤", func(i, w int) string {
-		return strings.Repeat("─", w+2)
-	})
+	if t.title != nil {
+		fmt.Fprintf(t.w, "╭%s╮\n", strings.Repeat("─", width-2))
+		for _, title := range t.title {
+			fmt.Fprintf(t.w, "│ %-*s │\n", width-4+len(title.String())-title.len(), title.String())
+		}
+		writeRow("├", "┬", "┤", func(i, w int) string {
+			return strings.Repeat("─", w+2)
+		})
+	} else {
+		writeRow("╭", "┬", "╮", func(i, w int) string {
+			return strings.Repeat("─", w+2)
+		})
+	}
 	writeRow("│", "│", "│", func(i, w int) string {
 		text := t.rows[0][i]
 		s := text.String()

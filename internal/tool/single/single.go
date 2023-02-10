@@ -38,6 +38,7 @@ var (
 	Commands = map[string]*tool.Command{
 		"status":    status.StatusCommand("weaver single", defaultRegistry),
 		"dashboard": status.DashboardCommand(dashboardSpec),
+		"metrics":   status.MetricsCommand("weaver single", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver single", defaultRegistry),
 	}
 )

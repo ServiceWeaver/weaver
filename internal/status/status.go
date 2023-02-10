@@ -95,7 +95,8 @@ func formatId(id string) (prefix, suffix colors.Atom) {
 
 // formatDeployments pretty-prints the set of deployments.
 func formatDeployments(w io.Writer, statuses []*Status) {
-	t := colors.NewTabularizer(w, colors.Atom{S: "DEPLOYMENTS", Bold: true}, colors.PrefixDim)
+	title := []colors.Text{{{S: "DEPLOYMENTS", Bold: true}}}
+	t := colors.NewTabularizer(w, title, colors.PrefixDim)
 	defer t.Flush()
 	t.Row("APP", "DEPLOYMENT", "AGE")
 	for _, status := range statuses {
@@ -107,7 +108,8 @@ func formatDeployments(w io.Writer, statuses []*Status) {
 
 // formatDeployments pretty-prints the set of components.
 func formatComponents(w io.Writer, statuses []*Status) {
-	t := colors.NewTabularizer(w, colors.Atom{S: "COMPONENTS", Bold: true}, colors.PrefixDim)
+	title := []colors.Text{{{S: "COMPONENTS", Bold: true}}}
+	t := colors.NewTabularizer(w, title, colors.PrefixDim)
 	defer t.Flush()
 	t.Row("APP", "DEPLOYMENT", "COMPONENT", "REPLICA PIDS")
 	for _, status := range statuses {
@@ -131,7 +133,8 @@ func formatComponents(w io.Writer, statuses []*Status) {
 
 // formatDeployments pretty-prints the set of listeners.
 func formatListeners(w io.Writer, statuses []*Status) {
-	t := colors.NewTabularizer(w, colors.Atom{S: "LISTENERS", Bold: true}, colors.PrefixDim)
+	title := []colors.Text{{{S: "LISTENERS", Bold: true}}}
+	t := colors.NewTabularizer(w, title, colors.PrefixDim)
 	defer t.Flush()
 	t.Row("APP", "DEPLOYMENT", "LISTENER", "ADDRESS")
 	for _, status := range statuses {
