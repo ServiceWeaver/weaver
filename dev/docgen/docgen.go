@@ -33,6 +33,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"html/template"
 	"os"
@@ -43,10 +44,13 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/fsnotify/fsnotify"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
 )
+
+var watch = flag.Bool("watch", false, "Automatically rebuild website on change")
 
 var files = []file{
 	{dst: "index.html", html: "index.html", template: "basic.html", title: "Service Weaver", license: true},
@@ -96,15 +100,67 @@ func staticFile(name string) file {
 }
 
 func main() {
+	flag.Parse()
+
 	if err := os.Chdir("website"); err != nil {
 		fmt.Fprintln(os.Stderr, err, "(make sure you are in the top-level weaver directory)")
 		os.Exit(1)
 	}
 
-	err := build("public", "templates/*", files)
-	if err != nil {
+	if err := build("public", "templates/*", files); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	if *watch {
+		if err := watchAndBuild("public", "templates/*", files); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+}
+
+func watchAndBuild(dstDir, templateGlob string, files []file) error {
+	// Gather the set of directories to watch. As per the fsnotify
+	// documentation [1], we don't watch the files individually.
+	//
+	// [1]: https://pkg.go.dev/github.com/fsnotify/fsnotify#NewWatcher
+	dirs := map[string]bool{}
+	for _, f := range files {
+		switch {
+		case f.copy != "":
+			dirs[filepath.Dir(f.copy)] = true
+		case f.markdown != "":
+			dirs[filepath.Dir(f.markdown)] = true
+		case f.html != "":
+			dirs[filepath.Dir(f.html)] = true
+		}
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+	for dir := range dirs {
+		fmt.Printf("Watching %q\n", dir)
+		if err := watcher.Add(dir); err != nil {
+			return err
+		}
+	}
+
+	for {
+		select {
+		case event := <-watcher.Events:
+			if event.Op != fsnotify.Write {
+				continue
+			}
+			fmt.Println(event)
+			if err := build(dstDir, templateGlob, files); err != nil {
+				return err
+			}
+		case err := <-watcher.Errors:
+			return err
+		}
 	}
 }
 
