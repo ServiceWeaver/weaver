@@ -13,6 +13,9 @@ And to preview the resulting structure:
 (cd website/public && python3 -m http.server)
 ```
 
+You can also run `go run dev/docgen/docgen.go --watch` to automatically rebuild
+the website whenever the source files change.
+
 ## Directory structure
 
 | Name         | Description |
