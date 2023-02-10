@@ -28,9 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
@@ -44,6 +41,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // singleprocessEnv implements the env used for singleprocess Service Weaver applications.
@@ -326,7 +326,14 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 func (e *singleprocessEnv) Metrics(context.Context) (*status.Metrics, error) {
 	m := &status.Metrics{}
 	for _, snap := range metrics.Snapshot() {
-		m.Metrics = append(m.Metrics, snap.ToProto())
+		proto := snap.ToProto()
+		if proto.Labels == nil {
+			proto.Labels = map[string]string{}
+		}
+		proto.Labels["serviceweaver_app"] = e.deployment.App.Name
+		proto.Labels["serviceweaver_version"] = e.deployment.Id
+		proto.Labels["serviceweaver_node"] = e.weavelet.Id
+		m.Metrics = append(m.Metrics, proto)
 	}
 	return m, nil
 }
