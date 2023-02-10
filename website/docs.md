@@ -340,7 +340,8 @@ generate` does is generate RPC clients and servers for every component to make
 this communication possible.
 
 Run `weaver multi status` to view the status of the Service Weaver application.
-You can also run `weaver multi dashboard` to open a dashboard in a web browser.
+Note that the `main` and `Reverser` components are replicated twice, and every
+replica is run in its own OS process.
 
 ```console
 $ weaver multi status
@@ -368,25 +369,55 @@ $ weaver multi status
 ╰───────┴────────────┴──────────┴─────────────────╯
 ```
 
-## Conclusion
+You can also run `weaver multi dashboard` to open a dashboard in a web browser.
 
-Service Weaver is a programming framework that makes it easy to write
-distributed services. By decomposing a system into a set of components, Service
-Weaver allows you to run and test your code locally and then deploy the exact
-same code across multiple processes or multiple machines.
+## Deploying to the Cloud
 
-We showed you how to run Service Weaver applications in a single process
-using `go run` and across multiple processes using `weaver multi`. In the
-[GKE](#gke) section, we show you how to deploy Service Weaver applications
-across multiple machines in the cloud as easily as running a single command:
+The ability to run Service Weaver applications locally &mdash; either in a
+single process with `go run` or across multiple processes with `weaver multi
+deploy` &mdash; makes it easy to quickly develop, debug, and test your
+applications. When your application is ready for production, however, you'll
+often want to deploy it to the cloud. Service Weaver makes this easy too.
+
+For example, we can deploy our "Hello, World" application to [Google Kubernetes
+Engine][gke], Google Cloud's hosted Kubernetes offering, as easily as running a
+single command (see the [GKE](#gke) section for details):
 
 ```console
 weaver gke deploy weaver.toml
 ```
 
-You can continue reading to get a better understanding of
-[components](#components) or learn about other features of Service Weaver like
-[logging](#logging), [metrics](#metrics), [routing](#routing), and so on.
+When you run this command, Service Weaver will
+
+- wrap your application binary into a container;
+- upload the container to the cloud project of your choosing;
+- create and provision the appropriate Kubernetes clusters;
+- set up all load balancers and networking infrastructure; and
+- deploy your application on Kubernetes, with components distributed across
+  machines in multiple regions.
+
+Service Weaver also integrates your application with existing cloud tooling.
+Logs are uploaded to [Google Cloud Logging][cloud_logging], metrics are uploaded
+to [Google Cloud Monitoring][cloud_metrics], traces are uploaded to [Google
+Cloud Tracing][cloud_trace], etc.
+
+## Next Steps
+
+- Continue reading to get a better understanding of [components](#components)
+  and learn about other fundamental features of Service Weaver like
+  [logging](#logging), [metrics](#metrics), [routing](#routing), and so on.
+- Dive deeper into the various ways you can deploy a Service Weaver application,
+  including [single process](#single-process), [multiprocess](#multiprocess),
+  and [GKE](#gke) deployers.
+- Read through [example Service Weaver applications][weaver_examples] that
+  demonstrate what Service Weaver has to offer.
+- Check out [Service Weaver's source code on GitHub][weaver_github].
+- Read [our blog](/blog).
+
+<div hidden class="todo">
+    TODO(mwhittaker): Link to API docs.
+    TODO(mwhittaker): Link to slack.
+</div>
 
 # Components
 
@@ -2468,4 +2499,6 @@ TODO: Explain the internals of Service Weaver.
 [prometheus_naming]: https://prometheus.io/docs/practices/naming/
 [update_failures_paper]: https://scholar.google.com/scholar?cluster=4116586908204898847
 [weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
+[weaver_examples]: https://github.com/ServiceWeaver/weaver/tree/main/examples
+[weaver_github]: https://github.com/ServiceWeaver/weaver
 [xdg]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
