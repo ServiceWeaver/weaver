@@ -223,6 +223,8 @@ github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/pprof/profile
     github.com/pkg/browser
+    golang.org/x/exp/maps
+    golang.org/x/exp/slices
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb

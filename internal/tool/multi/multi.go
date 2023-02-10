@@ -51,6 +51,7 @@ var (
 		}),
 		"dashboard": status.DashboardCommand(dashboardSpec),
 		"status":    status.StatusCommand("weaver multi", defaultRegistry),
+		"metrics":   status.MetricsCommand("weaver multi", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver multi", defaultRegistry),
 	}
 )

@@ -24,7 +24,11 @@ func TestTabularizer(t *testing.T) {
 	blue := Color256(27)
 	green := Color256(40)
 
-	tab := NewTabularizer(os.Stdout, Atom{S: "CATS", Bold: true}, NoDim)
+	title := []Text{
+		{{S: "CATS", Bold: true}},
+		{{S: "felis catus", Color: Color256(254)}},
+	}
+	tab := NewTabularizer(os.Stdout, title, NoDim)
 	defer tab.Flush()
 	tab.Row("NAME", "AGE", "COLOR")
 	tab.Row("belle", "1y", Atom{S: "tortie", Color: red})
