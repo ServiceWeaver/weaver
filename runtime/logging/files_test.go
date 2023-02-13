@@ -25,11 +25,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/runtime/protomsg"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
-	"github.com/ServiceWeaver/weaver/runtime/protomsg"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 const testTimeout = 10 * time.Second
@@ -42,7 +42,7 @@ var (
 		`app=="test" && version=="v1"`,
 		`app=="test" && component=="a"`,
 		`app=="test" && node=="1"`,
-		`app=="test" && payload.contains("")`,
+		`app=="test" && msg.contains("")`,
 		`app=="test" && version=="v1" && component != "b"`,
 	}
 
@@ -53,8 +53,8 @@ var (
 		`app=="test" && version=="v3"`,
 		`app=="test" && component=="c"`,
 		`app=="test" && node=="5"`,
-		`app=="test" && severity=="debug"`,
-		`app=="test" && payload=="zardoz"`,
+		`app=="test" && level=="debug"`,
+		`app=="test" && msg=="zardoz"`,
 	}
 
 	logdir string
@@ -65,7 +65,7 @@ func opts() []cmp.Option {
 	return []cmp.Option{
 		cmpopts.SortSlices(func(x, y *protos.LogEntry) bool {
 			key := func(e *protos.LogEntry) string {
-				return fmt.Sprintf("%s/%s", e.Node, e.Payload)
+				return fmt.Sprintf("%s/%s", e.Node, e.Msg)
 			}
 			return key(x) < key(y)
 		}),
@@ -133,10 +133,10 @@ func (l *testLogger) Log(ctx context.Context, sleep time.Duration) error {
 			Component:  l.component,
 			Node:       l.weavelet,
 			TimeMicros: time.Now().UnixMicro(),
-			Severity:   "info",
+			Level:      "info",
 			File:       "",
 			Line:       -1,
-			Payload:    fmt.Sprint(i),
+			Msg:        fmt.Sprint(i),
 		})
 
 		timer := time.NewTimer(sleep)
@@ -160,10 +160,10 @@ func (l *testLogger) Entries() []*protos.LogEntry {
 			Component:  l.component,
 			Node:       l.weavelet,
 			TimeMicros: time.Now().UnixMicro(),
-			Severity:   "info",
+			Level:      "info",
 			File:       "",
 			Line:       -1,
-			Payload:    strconv.Itoa(i),
+			Msg:        strconv.Itoa(i),
 		}
 	}
 	return entries

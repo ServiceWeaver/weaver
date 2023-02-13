@@ -18,18 +18,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/cel-go/parser"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/cel-go/parser"
 )
 
 func TestValidQueries(t *testing.T) {
 	for _, query := range []string{
 		`app == "todo"`,
 		`app != "todo"`,
-		`line < 1`,
-		`line <= 1`,
-		`line > 1`,
-		`line >= 1`,
 		`app.contains("todo")`,
 		`app.matches("todo")`,
 		`attrs["name"] == "foo"`,
@@ -44,10 +40,9 @@ func TestValidQueries(t *testing.T) {
 		    (version == "v1" || version == "v2") &&
 		    !(node == "123") &&
 		    time < timestamp("1972-01-01T10:00:20.021-05:00") &&
-		    severity.contains("e") &&
-		    ((file == "main.go" && line >= 10 && line <= 20) ||
-		     (file == "foo.go" && line >= 20 && line <= 200)) &&
-		    payload.matches("error") &&
+		    level.contains("e") &&
+		    (source.matches("^main.go") || source.matches("^foo.go")) &&
+		    msg.matches("error") &&
 			"foo" in attrs &&
 			attrs["foo"] == "bar"`,
 	} {
@@ -66,15 +61,9 @@ func TestValidQueries(t *testing.T) {
 func TestInvalidQueries(t *testing.T) {
 	for _, query := range []string{
 		// Unsupported operations and calls.
-		`line == 1 + 1`, // add
-		`line == 1 - 1`, // subtract
-		`line == 1 * 1`, // multiply
-		`line == 1 / 1`, // divide
-		`line == 1 % 1`, // modulo
 		`app == "todo" ? app == "todo" : app == "todo"`, // conditional
 		`app == ["todo"][0]`,                            // index
 		`app == {"key": "todo"}["key"]`,                 // index
-		`line == -(1)`,                                  // negate
 		`true in [true]`,                                // in
 		`"key" in {"key": true}`,                        // in
 		`bool(true)`,                                    // bool
@@ -86,28 +75,16 @@ func TestInvalidQueries(t *testing.T) {
 		`type(1)`,                                       // type
 		`"foo".startsWith("foo")`,                       // startsWith
 		`"foo".endsWith("foo")`,                         // endsWith
-		`line == size("foo")`,                           // size
-		`line == timestamp("1972-01-01").getDate()`,         // getDate
-		`line == timestamp("1972-01-01").getDayOfMonth()`,   // getDayOfMonth
-		`line == timestamp("1972-01-01").getDayOfWeek()`,    // getDayOfWeek
-		`line == timestamp("1972-01-01").getDayOfYear()`,    // getDayOfYear
-		`line == timestamp("1972-01-01").getFullYear()`,     // getFullYear
-		`line == timestamp("1972-01-01").getHours()`,        // getHours
-		`line == timestamp("1972-01-01").getMilliseconds()`, // getMilliseconds
-		`line == timestamp("1972-01-01").getMinutes()`,      // getMinutes
-		`line == timestamp("1972-01-01").getMonth()`,        // getMonth
-		`line == timestamp("1972-01-01").getSeconds()`,      // getSeconds
 
 		// Bad LHS.
 		`"todo" == app`,
 		`"todo" == attrs["foo"]`,
-		`file in attrs`,
+		`source in attrs`,
 		`attrs["foo"] in attrs`,
-		`1 == line`,
 		`timestamp("1972-01-01T10:00:20.021-05:00") > time`,
 
 		// Bad RHS.
-		`line == line`,
+		`source == source`,
 		`attrs["foo"] == attrs["foo"]`,
 
 		// Unsupported root operations.
@@ -145,10 +122,6 @@ func TestRewrite(t *testing.T) {
 	}{
 		{`app == "todo"`, `app == "todo"`},
 		{`app != "todo"`, `app != "todo"`},
-		{`line < 1`, `line < 1`},
-		{`line <= 1`, `line <= 1`},
-		{`line > 1`, `line > 1`},
-		{`line >= 1`, `line >= 1`},
 		{`app.contains("todo")`, `app.contains("todo")`},
 		{`app.matches("todo")`, `app.matches("todo")`},
 		{`attrs["name"] == "foo"`, `"name" in attrs && attrs["name"] == "foo"`},
@@ -206,10 +179,9 @@ func TestQueryMatches(t *testing.T) {
 		node != "123" &&
 		time >= timestamp("2000-01-01T00:00:10.000-00:00") &&
 		time <= timestamp("2000-01-01T00:00:20.000-00:00") &&
-		(severity == "debug" || severity == "info" || severity == "warn") &&
-		(file == "foo.go" || file == "bar.go") &&
-		!(file == "bar.go" && line >= 10 && line <= 20) &&
-		payload.contains("a")
+		(level == "debug" || level == "info" || level == "warn") &&
+		(!source.matches("^foo.go") && source.matches("^bar.go")) &&
+		msg.contains("a")
 	`
 
 	for _, test := range []struct {
@@ -223,9 +195,9 @@ func TestQueryMatches(t *testing.T) {
 		{"Simple/Version", simple, &protos.LogEntry{App: "a", Version: "v1", Component: "o"}, true},
 		{"Simple/Node", simple, &protos.LogEntry{App: "a", Component: "o", Node: "123"}, true},
 		{"Simple/Time", simple, &protos.LogEntry{App: "a", Component: "o", TimeMicros: at(10)}, true},
-		{"Simple/Severity", simple, &protos.LogEntry{App: "a", Component: "o", Severity: "warn"}, true},
+		{"Simple/Level", simple, &protos.LogEntry{App: "a", Component: "o", Level: "warn"}, true},
 		{"Simple/Source", simple, &protos.LogEntry{App: "a", Component: "o", File: "foo.go", Line: 10}, true},
-		{"Simple/Payload", simple, &protos.LogEntry{App: "a", Component: "o", Payload: "foo"}, true},
+		{"Simple/Msg", simple, &protos.LogEntry{App: "a", Component: "o", Msg: "foo"}, true},
 
 		// Simple doesn't match.
 		{"Simple/nil", simple, nil, false},
@@ -239,10 +211,10 @@ func TestQueryMatches(t *testing.T) {
 			Component:  "not o",
 			Node:       "not 123",
 			TimeMicros: at(15),
-			Severity:   "info",
+			Level:      "info",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, true},
 
 		// Advanced doesn't match.
@@ -253,10 +225,10 @@ func TestQueryMatches(t *testing.T) {
 			Component:  "not o",
 			Node:       "not 123",
 			TimeMicros: at(15),
-			Severity:   "info",
+			Level:      "info",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, false},
 		{"Advanced/BadComponent", advanced, &protos.LogEntry{
 			App:        "a",
@@ -264,10 +236,10 @@ func TestQueryMatches(t *testing.T) {
 			Component:  "o",
 			Node:       "not 123",
 			TimeMicros: at(15),
-			Severity:   "info",
+			Level:      "info",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, false},
 		{"Advanced/BadNode", advanced, &protos.LogEntry{
 			App:        "a",
@@ -275,10 +247,10 @@ func TestQueryMatches(t *testing.T) {
 			Component:  "not o",
 			Node:       "123",
 			TimeMicros: at(15),
-			Severity:   "info",
+			Level:      "info",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, false},
 		{"Advanced/BadTime", advanced, &protos.LogEntry{
 			App:        "a",
@@ -286,22 +258,22 @@ func TestQueryMatches(t *testing.T) {
 			Component:  "not o",
 			Node:       "not 123",
 			TimeMicros: at(5),
-			Severity:   "info",
+			Level:      "info",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, false},
 
-		{"Advanced/BadSeverity", advanced, &protos.LogEntry{
+		{"Advanced/BadLevel", advanced, &protos.LogEntry{
 			App:        "a",
 			Version:    "v1",
 			Component:  "not o",
 			Node:       "not 123",
 			TimeMicros: at(15),
-			Severity:   "error",
+			Level:      "error",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, false},
 		{"Advanced/BadSource", advanced, &protos.LogEntry{
 			App:        "a",
@@ -309,21 +281,21 @@ func TestQueryMatches(t *testing.T) {
 			Component:  "not o",
 			Node:       "not 123",
 			TimeMicros: at(15),
-			Severity:   "info",
-			File:       "bar.go",
+			Level:      "info",
+			File:       "foo.go",
 			Line:       15,
-			Payload:    "banana",
+			Msg:        "banana",
 		}, false},
-		{"Advanced/BadPayload", advanced, &protos.LogEntry{
+		{"Advanced/BadMsg", advanced, &protos.LogEntry{
 			App:        "a",
 			Version:    "v1",
 			Component:  "not o",
 			Node:       "not 123",
 			TimeMicros: at(15),
-			Severity:   "info",
+			Level:      "info",
 			File:       "bar.go",
 			Line:       5,
-			Payload:    "bnn",
+			Msg:        "bnn",
 		}, false},
 
 		// Attr matches.

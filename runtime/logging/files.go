@@ -27,13 +27,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/google/cel-go/cel"
 	"github.com/ServiceWeaver/weaver/internal/cond"
 	"github.com/ServiceWeaver/weaver/internal/heap"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/fsnotify/fsnotify"
+	"github.com/google/cel-go/cel"
 )
 
 // This file contains code to read and write log entries to and from files.
@@ -47,7 +47,7 @@ type FileStore struct {
 	mu  sync.Mutex
 	pp  *PrettyPrinter
 
-	// We segregate into log files by app,deployment,node,severity.
+	// We segregate into log files by app,deployment,node,level.
 	files map[string]*os.File
 }
 
@@ -92,7 +92,7 @@ func (fs *FileStore) Add(e *protos.LogEntry) {
 	}
 
 	// Get the log file, creating it if necessary.
-	fname := filename(e.App, e.Version, e.Node, e.Severity)
+	fname := filename(e.App, e.Version, e.Node, e.Level)
 	f, ok := fs.files[fname]
 	if !ok {
 		var err error
@@ -121,10 +121,10 @@ func (fs *FileStore) Add(e *protos.LogEntry) {
 }
 
 // filename returns the log file for the specified (app, deployment, weavelet,
-// severity) tuple.
+// level) tuple.
 //
 // These files are typically stored in DefaultLogDir. The directory contains
-// one log file for every (app, deployment, weavelet, severity) tuple. For
+// one log file for every (app, deployment, weavelet, level) tuple. For
 // example, the logs directory might look like this:
 //
 //	/tmp/serviceweaver/logs
@@ -144,36 +144,36 @@ func (fs *FileStore) Add(e *protos.LogEntry) {
 // the performance.
 //
 // TODO(mwhittaker): We store the application, deployment, weavelet id,
-// severity redundantly in every log entry. Omit them from the log entries and
+// level redundantly in every log entry. Omit them from the log entries and
 // infer them from the log name.
-func filename(app, deployment, weavelet, severity string) string {
-	return fmt.Sprintf("%s.%s.%s.%s.log", app, deployment, weavelet, severity)
+func filename(app, deployment, weavelet, level string) string {
+	return fmt.Sprintf("%s.%s.%s.%s.log", app, deployment, weavelet, level)
 }
 
 // logfile represents a log file for a specific (app, deployment, weavelet,
-// severity) tuple.
+// level) tuple.
 type logfile struct {
 	app        string
 	deployment string
 	weavelet   string
-	severity   string
+	level      string
 }
 
 // parseLogfile parses a logfile filename.
 func parseLogfile(filename string) (logfile, error) {
-	// TODO(mwhittaker): Ensure that apps, deployments, weavelet ids,
-	// severities don't contain a ".". Or, switch to some other delimiter that
-	// doesn't show up.
+	// TODO(mwhittaker): Ensure that apps, deployments, weavelet ids, levels
+	// don't contain a ".". Or, switch to some other delimiter that doesn't
+	// show up.
 	parts := strings.SplitN(filename, ".", 5)
 	if len(parts) < 5 || parts[4] != "log" {
-		want := "<app>.<deployment>.<weavelet>.<severity>.log"
+		want := "<app>.<deployment>.<weavelet>.<level>.log"
 		return logfile{}, fmt.Errorf("filename %q must have format %q", filename, want)
 	}
 	return logfile{
 		app:        parts[0],
 		deployment: parts[1],
 		weavelet:   parts[2],
-		severity:   parts[3],
+		level:      parts[3],
 	}, nil
 }
 
@@ -181,22 +181,22 @@ func parseLogfile(filename string) (logfile, error) {
 // entries in this logfile.
 func (l *logfile) matches(prog cel.Program) (bool, error) {
 	// Note that prog may query fields besides app, version, node, and
-	// severity. For example, a query might look like this:
+	// level. For example, a query might look like this:
 	//
-	//     payload == "a" && app == "todo"
+	//     msg == "a" && app == "todo"
 	//
-	// How do we evaluate such a query if we don't provide a payload? CEL does
-	// not implement short circuting boolean algebra, and will instead try to
+	// How do we evaluate such a query if we don't provide a msg? CEL does not
+	// implement short circuting boolean algebra, and will instead try to
 	// evaluate the query fully if possible. For example, if app is "foo", then
 	// CEL will evaluate the previous query as
 	//
-	//     payload == "a" && app == "todo" // original query
-	//     ??? == "a" && "foo" == "todo"   // substitute known values
-	//     ??? == "a" && false             // simplify
-	//     false                           // simplify
+	//     msg == "a" && app == "todo"   // original query
+	//     ??? == "a" && "foo" == "todo" // substitute known values
+	//     ??? == "a" && false           // simplify
+	//     false                         // simplify
 	//
 	// If CEL cannot fully evaluate the query it will return an error. For
-	// example, the query `payload == "a"` cannot be fully evaluated given only
+	// example, the query `msg == "a"` cannot be fully evaluated given only
 	// app, deployment, and node, so it evaluates to an error.
 	//
 	// In summary, when we evaluate a query on a file, we have the following
@@ -213,7 +213,7 @@ func (l *logfile) matches(prog cel.Program) (bool, error) {
 		"full_version": l.deployment,
 		"node":         Shorten(l.weavelet),
 		"full_node":    l.weavelet,
-		"severity":     l.severity,
+		"level":        l.level,
 	})
 
 	// See [1] for an explanation of the values returned by Eval.

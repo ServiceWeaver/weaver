@@ -549,18 +549,18 @@ message MetricSnapshot {
   repeated uint64 counts = 8;
 }
 
-// LogEntry is a log entry. Every log entry consists of a payload (the thing the
-// user logged) and a set of metadata describing the payload.
+// LogEntry is a log entry. Every log entry consists of a message (the thing the
+// user logged) and a set of metadata describing the message.
 message LogEntry {
-  string app = 1;          // application name (e.g., todo)
-  string version = 2;      // deployment id (e.g., uuid.New().String())
-  string component = 3;    // component  (e.g., Todo, stdout, stderr, global)
-  string node = 4;         // weavelet id (e.g., uuid.New().String())
-  sfixed64 time_micros = 5; // time when logged (microseconds since epoch)
-  string severity = 6;     // log severity (e.g., debug, info, warn, error, fatal)
-  string file = 7;         // source file (e.g., // /tmp/serviceweaver/server.go)
-  int32 line = 8;          // source line // (e.g., 80)
-  string payload = 9;      // user provided payload (e.g., "Hello!")
+  string app = 1;            // application name (e.g., todo)
+  string version = 2;        // deployment id (e.g., uuid.New().String())
+  string component = 3;      // component  (e.g., Todo, stdout, stderr, global)
+  string node = 4;           // weavelet id (e.g., uuid.New().String())
+  sfixed64 time_micros = 5;  // time when logged (microseconds since epoch)
+  string level = 6;  // log level (e.g., debug, info, warn, error, fatal)
+  string file = 7;   // source file (e.g., // /tmp/serviceweaver/server.go)
+  int32 line = 8;    // source line // (e.g., 80)
+  string msg = 9;    // user provided msg (e.g., "Hello!")
 
   // User-provided attributes and their associated values. The storage format
   // is a name followed by its value, i.e.:

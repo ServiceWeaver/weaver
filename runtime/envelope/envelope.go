@@ -27,7 +27,6 @@ import (
 	"sync"
 	"syscall"
 
-	"go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
@@ -36,6 +35,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 // EnvelopeHandler implements the envelope side processing of messages
@@ -392,7 +392,7 @@ func (e *Envelope) copyLines(component string, src io.Reader) error {
 		Version:   e.weavelet.Dep.Id,
 		Component: component,
 		Node:      e.weavelet.Id,
-		Severity:  component, // Either "stdout" or "stderr"
+		Level:     component, // Either "stdout" or "stderr"
 		File:      "",
 		Line:      -1,
 	}
@@ -401,7 +401,7 @@ func (e *Envelope) copyLines(component string, src io.Reader) error {
 		line, err := rdr.ReadBytes('\n')
 		// Note: both line and err may be present.
 		if len(line) > 0 {
-			entry.Payload = string(dropNewline(line))
+			entry.Msg = string(dropNewline(line))
 			entry.TimeMicros = 0 // In case previous logSaver() call set it
 			e.handler.RecvLogEntry(entry)
 		}

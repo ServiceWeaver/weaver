@@ -28,9 +28,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -38,6 +35,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // The result of running os.Executable(). Populated by TestMain.
@@ -141,7 +141,7 @@ func wlet(binary string, args ...string) *protos.Weavelet {
 }
 
 // pidSaver is a log saver that parses and stores pids from the log entries'
-// payloads.
+// messages.
 type pidSaver struct {
 	mu   sync.Mutex
 	pids map[int]bool
@@ -150,7 +150,7 @@ type pidSaver struct {
 func (p *pidSaver) save(entry *protos.LogEntry) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	pid, err := strconv.Atoi(entry.Payload)
+	pid, err := strconv.Atoi(entry.Msg)
 	if err != nil {
 		panic(err)
 	}
