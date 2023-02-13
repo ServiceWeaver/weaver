@@ -781,31 +781,8 @@ func (g *generator) generateLocalStubs(p printFn) {
 		p(`}`)
 		for _, m := range comp.methods {
 			mt := m.Type().(*types.Signature)
-			{
-				// Make list of args for function signature.
-				b.Reset()
-				for i := 1; i < mt.Params().Len(); i++ { // Skip initial context.Context
-					at := mt.Params().At(i).Type()
-					fmt.Fprintf(&b, ", a%d %s", i-1, g.tset.genTypeString(at))
-				}
-				argList := b.String()
-
-				// Make list of results for function signature.
-				b.Reset()
-				for i := 0; i < mt.Results().Len()-1; i++ { // Skip final error
-					rt := mt.Results().At(i).Type()
-					fmt.Fprintf(&b, "r%d %s, ", i, g.tset.genTypeString(rt))
-				}
-				resultList := b.String()
-
-				p(``)
-				p(`func (s %s) %s(ctx context.Context%s) (%serr error) {`,
-					stub,
-					m.Name(),
-					argList,
-					resultList,
-				)
-			}
+			p(``)
+			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
 
 			// Create a child span iff tracing is enabled in ctx.
 			p(`	span := %s(ctx)`, g.trace().qualify("SpanFromContext"))
@@ -825,7 +802,11 @@ func (g *generator) generateLocalStubs(p printFn) {
 			b.Reset()
 			fmt.Fprintf(&b, "ctx")
 			for i := 1; i < mt.Params().Len(); i++ {
-				fmt.Fprintf(&b, ", a%d", i-1)
+				if mt.Variadic() && i == mt.Params().Len()-1 {
+					fmt.Fprintf(&b, ", a%d...", i-1)
+				} else {
+					fmt.Fprintf(&b, ", a%d", i-1)
+				}
 			}
 			argList := b.String()
 			p(``)
@@ -865,30 +846,8 @@ func (g *generator) generateClientStubs(p printFn) {
 
 		for _, m := range comp.methods {
 			mt := m.Type().(*types.Signature)
-
-			// Make list of args for function signature.
-			b.Reset()
-			for i := 1; i < mt.Params().Len(); i++ { // Skip initial context.Context
-				at := mt.Params().At(i).Type()
-				fmt.Fprintf(&b, ", a%d %s", i-1, g.tset.genTypeString(at))
-			}
-			argList := b.String()
-
-			// Make list of results for function signature.
-			b.Reset()
-			for i := 0; i < mt.Results().Len()-1; i++ { // Skip final error
-				rt := mt.Results().At(i).Type()
-				fmt.Fprintf(&b, "r%d %s, ", i, g.tset.genTypeString(rt))
-			}
-			resultList := b.String()
-
 			p(``)
-			p(`func (s %s) %s(ctx context.Context%s) (%serr error) {`,
-				stub,
-				m.Name(),
-				argList,
-				resultList,
-			)
+			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
 
 			// Update metrics.
 			p(`	// Update metrics.`)
@@ -1022,6 +981,37 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`}`)
 		}
 	}
+}
+
+// args returns a textual representation of the arguments of the provided
+// signature. The first argument must be a context.Context. The returned code
+// names the first argument ctx and all subsequent arguments a0, a1, and so on.
+func (g *generator) args(sig *types.Signature) string {
+	var args strings.Builder
+	for i := 1; i < sig.Params().Len(); i++ { // Skip initial context.Context
+		at := sig.Params().At(i).Type()
+		if !sig.Variadic() || i != sig.Params().Len()-1 {
+			fmt.Fprintf(&args, ", a%d %s", i-1, g.tset.genTypeString(at))
+			continue
+		}
+		// For variadic functions, the final argument is guaranteed to be a
+		// slice. Instead of passing an argument of type []t, we pass ...t.
+		subtype := at.(*types.Slice).Elem()
+		fmt.Fprintf(&args, ", a%d ...%s", i-1, g.tset.genTypeString(subtype))
+	}
+	return fmt.Sprintf("ctx context.Context%s", args.String())
+}
+
+// returns returns a textual representation of the returns of the provided
+// signature. The last return must be an error. The returned code names the
+// returns r0, r1, and so on. The returned error is called err.
+func (g *generator) returns(sig *types.Signature) string {
+	var returns strings.Builder
+	for i := 0; i < sig.Results().Len()-1; i++ { // Skip final error
+		rt := sig.Results().At(i).Type()
+		fmt.Fprintf(&returns, "r%d %s, ", i, g.tset.genTypeString(rt))
+	}
+	return fmt.Sprintf("%serr error", returns.String())
 }
 
 // preallocatable returns whether we can preallocate a buffer of the right size
@@ -1370,7 +1360,11 @@ func (g *generator) generateServerStubs(p printFn) {
 			b.Reset()
 			fmt.Fprintf(&b, "ctx")
 			for i := 1; i < mt.Params().Len(); i++ {
-				fmt.Fprintf(&b, ", a%d", i-1)
+				if mt.Variadic() && i == mt.Params().Len()-1 {
+					fmt.Fprintf(&b, ", a%d...", i-1)
+				} else {
+					fmt.Fprintf(&b, ", a%d", i-1)
+				}
 			}
 			argList := b.String()
 
