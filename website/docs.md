@@ -1528,19 +1528,19 @@ weaver multi logs --follow
 weaver multi logs 'app == "todo"'
 
 # Display all of the debug logs for the "todo" app.
-weaver multi logs 'app=="todo" && severity=="debug"'
+weaver multi logs 'app=="todo" && level=="debug"'
 
 # Display all of the logs for the "todo" app in files called foo.go.
-weaver multi logs 'app=="todo" && file.matches("/foo.go$")'
+weaver multi logs 'app=="todo" && source.contains("foo.go")'
 
 # Display all of the logs that contain the string "error".
-weaver multi logs 'payload.contains("error")'
+weaver multi logs 'msg.contains("error")'
 
 # Display all of the logs that match a regex.
-weaver multi logs 'payload.matches("error: file .* already closed")'
+weaver multi logs 'msg.matches("error: file .* already closed")'
 
-# Display all of the logs that have a label "foo" with value "bar".
-weaver multi logs 'labels["foo"] == "bar"'
+# Display all of the logs that have an attribute "foo" with value "bar".
+weaver multi logs 'attrs["foo"] == "bar"'
 
 # Display all of the logs in JSON format. This is useful if you want to
 # perform some sort of post-processing on the logs.
@@ -1869,19 +1869,19 @@ weaver gke logs --follow
 weaver gke logs 'app == "todo"'
 
 # Display all of the debug logs for the "todo" app.
-weaver gke logs 'app=="todo" && severity=="debug"'
+weaver gke logs 'app=="todo" && level=="debug"'
 
 # Display all of the logs for the "todo" app in files called foo.go.
-weaver gke logs 'app=="todo" && file.matches("/foo.go$")'
+weaver gke logs 'app=="todo" && source.contains("foo.go")'
 
 # Display all of the logs that contain the string "error".
-weaver gke logs 'payload.contains("error")'
+weaver gke logs 'msg.contains("error")'
 
 # Display all of the logs that match a regex.
-weaver gke logs 'payload.matches("error: file .* already closed")'
+weaver gke logs 'msg.matches("error: file .* already closed")'
 
-# Display all of the logs that have a label "foo" with value "bar".
-weaver gke logs 'labels["foo"] == "bar"'
+# Display all of the logs that have an attribute "foo" with value "bar".
+weaver gke logs 'attrs["foo"] == "bar"'
 
 # Display all of the logs in JSON format. This is useful if you want to
 # perform some sort of post-processing on the logs.
@@ -2252,19 +2252,19 @@ weaver gke-local logs --follow
 weaver gke-local logs 'app == "todo"'
 
 # Display all of the debug logs for the "todo" app.
-weaver gke-local logs 'app=="todo" && severity=="debug"'
+weaver gke-local logs 'app=="todo" && level=="debug"'
 
 # Display all of the logs for the "todo" app in files called foo.go.
-weaver gke-local logs 'app=="todo" && file.matches("/foo.go$")'
+weaver gke-local logs 'app=="todo" && source.contains("foo.go")'
 
 # Display all of the logs that contain the string "error".
-weaver gke-local logs 'payload.contains("error")'
+weaver gke-local logs 'msg.contains("error")'
 
 # Display all of the logs that match a regex.
-weaver gke-local logs 'payload.matches("error: file .* already closed")'
+weaver gke-local logs 'msg.matches("error: file .* already closed")'
 
-# Display all of the logs that have a label "foo" with value "bar".
-weaver gke-local logs 'labels["foo"] == "bar"'
+# Display all of the logs that have an attribute "foo" with value "bar".
+weaver gke-local logs 'attrs["foo"] == "bar"'
 
 # Display all of the logs in JSON format. This is useful if you want to
 # perform some sort of post-processing on the logs.

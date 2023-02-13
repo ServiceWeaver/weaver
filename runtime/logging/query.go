@@ -22,13 +22,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
 	"github.com/google/cel-go/common/operators"
 	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 // Query is a filter for log entries.
@@ -47,10 +47,9 @@ import (
 //   - node: string
 //   - full_node: string
 //   - time: timestamp
-//   - severity: string
-//   - file: string
-//   - line: int
-//   - payload: string
+//   - level: string
+//   - source: string
+//   - msg: string
 //   - attrs: map[string]string
 //
 // A query is restricted to:
@@ -110,10 +109,9 @@ func env() (*cel.Env, error) {
 		decls.NewVar("node", decls.String),
 		decls.NewVar("full_node", decls.String),
 		decls.NewVar("time", decls.Timestamp),
-		decls.NewVar("severity", decls.String),
-		decls.NewVar("file", decls.String),
-		decls.NewVar("line", decls.Int),
-		decls.NewVar("payload", decls.String),
+		decls.NewVar("level", decls.String),
+		decls.NewVar("source", decls.String),
+		decls.NewVar("msg", decls.String),
 		decls.NewVar("attrs", decls.NewMapType(decls.String, decls.String)),
 	))
 }
@@ -497,10 +495,9 @@ func matches(prog cel.Program, entry *protos.LogEntry) (bool, error) {
 		"node":           Shorten(entry.Node),
 		"full_node":      entry.Node,
 		"time":           timestamppb.New(time.UnixMicro(entry.TimeMicros)),
-		"severity":       entry.Severity,
-		"file":           entry.File,
-		"line":           entry.Line,
-		"payload":        entry.Payload,
+		"level":          entry.Level,
+		"source":         fmt.Sprintf("%s:%d", entry.File, entry.Line),
+		"msg":            entry.Msg,
 		"attrs":          attrs,
 	})
 	if err != nil {

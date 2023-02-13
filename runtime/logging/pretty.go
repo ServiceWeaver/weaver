@@ -83,49 +83,49 @@ func (pp *PrettyPrinter) Format(e *protos.LogEntry) string {
 	// Compute some diffs for dimming.
 	sameComponent := pp.prev != nil && e.Component == pp.prev.Component
 	sameNode := pp.prev != nil && e.Node == pp.prev.Node
-	sameSeverity := pp.prev != nil && e.Severity == pp.prev.Severity
+	sameLevel := pp.prev != nil && e.Level == pp.prev.Level
 	sameFile := pp.prev != nil && e.File == pp.prev.File
 	sameLine := pp.prev != nil && e.Line == pp.prev.Line
 
-	// Write the abbreviated severity and time. If the severity is "error", we
-	// color the severity and time. Otherwise, we don't.
-	severity := " "
-	if len(e.Severity) > 0 {
-		severity = strings.ToUpper(e.Severity[:1])
+	// Write the abbreviated level and time. If the level is "error", we color
+	// the level and time. Otherwise, we don't.
+	level := " "
+	if len(e.Level) > 0 {
+		level = strings.ToUpper(e.Level[:1])
 	}
-	severityColor := colors.Reset
-	if e.Severity == "error" {
-		severityColor = errorColor
+	levelColor := colors.Reset
+	if e.Level == "error" {
+		levelColor = errorColor
 	}
 
 	cur := time.UnixMicro(e.TimeMicros)
-	if !sameComponent || !sameNode || !sameSeverity || pp.prev == nil {
-		// If we have a different component, node, or severity, we don't dim the
-		// severity and time. If we did, then things like the day and year
-		// would almost always be dimmed.
-		pp.b.WriteString(pp.colorize(severityColor, severity))
-		pp.b.WriteString(pp.colorize(severityColor, cur.Format("0102 15:04:05.000000")))
+	if !sameComponent || !sameNode || !sameLevel || pp.prev == nil {
+		// If we have a different component, node, or level, we don't dim the
+		// level and time. If we did, then things like the day and year would
+		// almost always be dimmed.
+		pp.b.WriteString(pp.colorize(levelColor, level))
+		pp.b.WriteString(pp.colorize(levelColor, cur.Format("0102 15:04:05.000000")))
 	} else {
-		pp.b.WriteString(pp.colorize(dimColor, severity))
+		pp.b.WriteString(pp.colorize(dimColor, level))
 		prevTime := time.UnixMicro(pp.prev.TimeMicros)
 		switch {
 		case cur.Month() != prevTime.Month():
-			pp.b.WriteString(pp.colorize(severityColor, cur.Format("0102 15:04:05.000000")))
+			pp.b.WriteString(pp.colorize(levelColor, cur.Format("0102 15:04:05.000000")))
 		case cur.Day() != prevTime.Day():
 			pp.b.WriteString(pp.colorize(dimColor, cur.Format("01")))
-			pp.b.WriteString(pp.colorize(severityColor, cur.Format("02 15:04:05.000000")))
+			pp.b.WriteString(pp.colorize(levelColor, cur.Format("02 15:04:05.000000")))
 		case cur.Hour() != prevTime.Hour():
 			pp.b.WriteString(pp.colorize(dimColor, cur.Format("0102")))
-			pp.b.WriteString(pp.colorize(severityColor, cur.Format("15:04:05.000000")))
+			pp.b.WriteString(pp.colorize(levelColor, cur.Format("15:04:05.000000")))
 		case cur.Minute() != prevTime.Minute():
 			pp.b.WriteString(pp.colorize(dimColor, cur.Format("0102 15:")))
-			pp.b.WriteString(pp.colorize(severityColor, cur.Format("04:05.000000")))
+			pp.b.WriteString(pp.colorize(levelColor, cur.Format("04:05.000000")))
 		case cur.Second() != prevTime.Second():
 			pp.b.WriteString(pp.colorize(dimColor, cur.Format("0102 15:04:")))
-			pp.b.WriteString(pp.colorize(severityColor, cur.Format("05.000000")))
+			pp.b.WriteString(pp.colorize(levelColor, cur.Format("05.000000")))
 		case cur.Nanosecond()/1000 != prevTime.Nanosecond()/1000:
 			pp.b.WriteString(pp.colorize(dimColor, cur.Format("0102 15:04:05.")))
-			pp.b.WriteString(pp.colorize(severityColor, fmt.Sprintf("%06d", cur.Nanosecond()/1000)))
+			pp.b.WriteString(pp.colorize(levelColor, fmt.Sprintf("%06d", cur.Nanosecond()/1000)))
 		default:
 			pp.b.WriteString(pp.colorize(dimColor, cur.Format("0102 15:04:05.000000")))
 		}
@@ -172,9 +172,9 @@ func (pp *PrettyPrinter) Format(e *protos.LogEntry) string {
 		fmt.Fprintf(&pp.b, "%*s", -pp.sourcePadding, "")
 	}
 
-	// Write the payload.
+	// Write the message.
 	pp.b.WriteString("] ")
-	pp.b.WriteString(pp.colorize(severityColor, e.Payload))
+	pp.b.WriteString(pp.colorize(levelColor, e.Msg))
 
 	// Write the attributes, if present.
 	if len(e.Attrs) > 0 {

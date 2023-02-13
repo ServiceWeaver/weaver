@@ -52,9 +52,9 @@ func (r *exampleReader) Close() {
 func getLogReader() *exampleReader {
 	return &exampleReader{
 		entries: []*protos.LogEntry{
-			{Payload: "1"},
-			{Payload: "2"},
-			{Payload: "3"},
+			{Msg: "1"},
+			{Msg: "2"},
+			{Msg: "3"},
 		},
 	}
 }
