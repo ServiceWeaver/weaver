@@ -54,10 +54,10 @@ type fullEntry struct {
 	Node          string `json:"node"`
 	FullNode      string `json:"full_node"`
 	Time          string `json:"time"`
-	Severity      string `json:"severity"`
+	Level         string `json:"level"`
 	File          string `json:"file"`
 	Line          int32  `json:"line"`
-	Payload       string `json:"payload"`
+	Msg           string `json:"msg"`
 }
 
 // LogsCmd returns a command to query log entries.
@@ -79,19 +79,18 @@ Flags:
 Queries:
   Every log entry has the following fields:
 
-      * app          : the application name
-      * version      : the abbreviated application version
-      * full_version : the unabbreviated application version
-      * component       : the abbreviated Service Weaver component name
-      * full_component  : the unabbreviated Service Weaver component name
-      * node         : the abbreviated node name
-      * full_node    : the unabbreviated node name
-      * time         : the time the log entry was logged
-      * severity     : the severity of the log (e.g., debug, info)
-      * file         : the file from which the log entry was logged
-      * line         : the line on which the log entry was logged
-      * payload      : the logged message
-      * attrs        : the user provided attributes
+      * app            : the application name
+      * version        : the abbreviated application version
+      * full_version   : the unabbreviated application version
+      * component      : the abbreviated Service Weaver component name
+      * full_component : the unabbreviated Service Weaver component name
+      * node           : the abbreviated node name
+      * full_node      : the unabbreviated node name
+      * time           : the time the log entry was logged
+      * level          : the level of the log (e.g., debug, info)
+      * source         : the file:line from which the log entry was logged
+      * msg            : the logged message
+      * attrs          : the user provided attributes
 
   Queries are boolean expressions over these fields. For example, the query
   'app == "todo" && component == "Store"' matches every log entry with the app
@@ -132,24 +131,24 @@ Examples:
   date --rfc-3339=s --date="3 hours ago" | tr ' ' 'T'
 
   # Display all of the debug logs for the "todo" app.
-  {{.Tool}} logs 'app=="todo" && severity=="debug"'
+  {{.Tool}} logs 'app=="todo" && level=="debug"'
 
   # Display all of the info and error logs for the "todo" app.
-  {{.Tool}} logs 'app=="todo" && (severity=="info" || severity=="error")'
+  {{.Tool}} logs 'app=="todo" && (level=="info" || level=="error")'
 
   # Display all of the logs for the "todo" app, except for the debug logs.
-  {{.Tool}} logs 'app=="todo" && severity!="debug"'
+  {{.Tool}} logs 'app=="todo" && level!="debug"'
 
   # Display all of the logs for the "todo" app in files called foo.go.
-  {{.Tool}} logs 'app=="todo" && file.matches("/foo.go$")'
+  {{.Tool}} logs 'app=="todo" && source.contains("foo.go")'
 
   # Display all of the logs that contain the string "error".
-  {{.Tool}} logs 'payload.contains("error")'
+  {{.Tool}} logs 'msg.contains("error")'
 
   # Display all of the logs that match the regex "error: file .* already
   # closed". Regular expressions follow the RE2 syntax. See
   # https://github.com/google/re2/wiki/Syntax for details.
-  {{.Tool}} logs 'payload.matches("error: file .* already closed")'
+  {{.Tool}} logs 'msg.matches("error: file .* already closed")'
 
   # Display all of the logs that have an attribute "foo" with value "bar". Note that
   # when you write attrs["foo"], there is an implicit check that the "foo"
@@ -196,10 +195,9 @@ Query Reference:
       * node: string
       * full_node: string
       * time: timestamp
-      * severity: string
-      * file: string
-      * line: int
-      * payload: string
+      * level: string
+      * source: string
+      * msg: string
       * attrs: map[string]string
 
   A query is restricted to:
@@ -295,10 +293,10 @@ func (s *LogsSpec) logFn(ctx context.Context, args []string) error {
 				Node:          logging.Shorten(entry.Node),
 				FullNode:      entry.Node,
 				Time:          time.UnixMicro(entry.TimeMicros).Format(time.RFC3339Nano),
-				Severity:      entry.Severity,
+				Level:         entry.Level,
 				File:          entry.File,
 				Line:          entry.Line,
-				Payload:       entry.Payload,
+				Msg:           entry.Msg,
 			}, "", "    ")
 			if err != nil {
 				return err

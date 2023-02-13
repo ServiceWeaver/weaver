@@ -24,10 +24,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/uuid"
 )
 
 // Options configures the log entries produced by a logger.
@@ -43,12 +43,12 @@ type Options struct {
 	Attrs []string
 }
 
-// makeEntry returns an entry that is fully populated with the provided
-// severity, msg, and attributes. The file and line information is taken from the call
+// makeEntry returns an entry that is fully populated with the provided level,
+// msg, and attributes. The file and line information is taken from the call
 // stack after skipping frameskip entries up. For example, a frameskip of 0
 // will use the file and line of the call to makeEntry, and a frameskip of 1
 // will use the file and line of the caller's parent.
-func makeEntry(severity, msg string, attrs []any, frameskip int, opts Options) *protos.LogEntry {
+func makeEntry(level, msg string, attrs []any, frameskip int, opts Options) *protos.LogEntry {
 	// TODO(sanjay): Is it necessary to copy opts.Attrs even if no new attrs
 	// are being added?
 	entry := protos.LogEntry{
@@ -57,10 +57,10 @@ func makeEntry(severity, msg string, attrs []any, frameskip int, opts Options) *
 		Component:  opts.Component,
 		Node:       opts.Weavelet,
 		TimeMicros: time.Now().UnixMicro(),
-		Severity:   severity,
+		Level:      level,
 		File:       "",
 		Line:       -1,
-		Payload:    msg,
+		Msg:        msg,
 		Attrs:      logtype.AppendAttrs(opts.Attrs, attrs),
 	}
 
