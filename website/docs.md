@@ -1250,17 +1250,20 @@ avoiding cross-version communication in a resource-efficient manner.
 
 # Single Process
 
-The simplest and easiest way to deploy a Service Weaver application is to run it directly
-via `go run`. When you `go run` a Service Weaver application, every component is
-co-located in a single process, and method calls between components are executed
-as regular Go method calls.
+## Getting Started
+
+The simplest and easiest way to deploy a Service Weaver application is to run it
+directly via `go run`. When you `go run` a Service Weaver application, every
+component is co-located in a single process, and method calls between components
+are executed as regular Go method calls. Refer to the [Step by Step
+Tutorial](#step-by-step-tutorial) section for a full example.
 
 ```console
 go run .
 ```
 
-You can run `weaver single status` to view the status of all active Service Weaver
-applications deployed using `go run`.
+You can run `weaver single status` to view the status of all active Service
+Weaver applications deployed using `go run`.
 
 ```console
 $ weaver single status
@@ -1300,27 +1303,25 @@ You can also run `weaver single dashboard` to open a dashboard in a web browser.
 
 ## Listeners
 
-Recall from the [Step by Step tutorial](#step-by-step-tutorial) section that you
-can call the `Listener` method to get a network listener.
+You can call the `Listener` method on a `weaver.Instance` to get a network
+listener (see the [Step by Step Tutorial](#step-by-step-tutorial) section for
+context).
 
 ```go
 opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
 lis, err := root.Listener("hello", opts)
-if err != nil {
-    ...
-}
-logger.Debug("Hello listener available", "address", lis)
 ```
 
-When you deploy an application using `go run`, `Listener` returns a listener
-that listens on the address specified by the `LocalAddress` field of the
-`ListenerOptions` struct.
+When you deploy an application using `go run`, the `Listener` method returns a
+listener on the address specified by the `LocalAddress` field of the
+`ListenerOptions` struct. In this way, the `Listener` method behaves pretty much
+identically to the built-in [`net.Listen`](https://pkg.go.dev/net#Listen).
 
 ## Logging
 
-When you deploy a Service Weaver application with `go run`, logs are printed to standard
-out. These logs are not persisted. You can optionally save the logs for later
-analysis using basic shell constructs:
+When you deploy a Service Weaver application with `go run`, [logs](#logging) are
+printed to standard out. These logs are not persisted. You can optionally save
+the logs for later analysis using basic shell constructs:
 
 ```console
 go run . | tee mylogs.txt
@@ -1328,9 +1329,11 @@ go run . | tee mylogs.txt
 
 ## Metrics
 
-Every deployment's page on the dashboard launched by `weaver single dashboard`
-has a link to the deployment's metrics. The metrics are exported in [Prometheus
-format][prometheus] and looks something like this:
+Run `weaver single dashboard` to open a dashboard in a web browser. The
+dashboard has a page for every Service Weaver application deployed via `go run
+.`.  Every deployment's page has a link to the deployment's [metrics](#metrics).
+The metrics are exported in [Prometheus format][prometheus] and looks something
+like this:
 
 ```txt
 # Metrics in Prometheus text format [1].
@@ -1365,10 +1368,11 @@ serviceweaver_method_count{caller="main",component="main.Example",serviceweaver_
 
 As the header explains, you can visualize and query the metrics by installing
 Prometheus and configuring it, using the provided stanza, to periodically scrape
-the `/debug/serviceweaver/prometheus` endpoint of the provided target. You can also
-inspect the metrics manually. The metrics page shows the latest value of every
-metric in your application followed by [the metrics that Service Weaver automatically
-creates for you](#metrics-auto-generated-metrics).
+the `/debug/serviceweaver/prometheus` endpoint of the provided target
+(`127.0.0.1:43087` in the example above). You can also inspect the metrics
+manually. The metrics page shows the latest value of every metric in your
+application followed by [the metrics that Service Weaver automatically creates
+for you](#metrics-auto-generated-metrics).
 
 ## Profiling
 
@@ -1399,7 +1403,7 @@ example:
 
 ```console
 $ profile=$(weaver single profile <deployment>) # Collect the profile.
-$ go tool pprof -http=localhost:9000 $profile  # Visualize the profile.
+$ go tool pprof -http=localhost:9000 $profile   # Visualize the profile.
 ```
 
 Refer to `weaver single profile --help` for more details. Refer to `go tool pprof
@@ -1408,9 +1412,11 @@ to [*Profiling Go Programs*][pprof_blog] for a tutorial.
 
 ## Tracing
 
-Every deployment's page on the dashboard launched by `weaver single dashboard`
-has a link to a [Perfetto][perfetto] tracing page. Here's an example of what the
-tracing page looks like:
+Run `weaver single dashboard` to open a dashboard in a web browser. The
+dashboard has a page for every Service Weaver application deployed via `go run
+.`.  Every deployment's page has a link to the deployment's [traces](#tracing)
+accessible via [Perfetto][perfetto]. Here's an example of what the tracing page
+looks like:
 
 ![An example trace page](assets/images/trace_single.png)
 
@@ -1419,9 +1425,11 @@ to learn more about how to use the tracing UI.
 
 # Multiprocess
 
-You can use `weaver multi` to deploy a Service Weaver application across multiple
-processes on your local machine, with each component replica running in a
-separate OS process. Create [a config file](#config-files), say `weaver.toml`,
+## Getting Started
+
+You can use `weaver multi` to deploy a Service Weaver application across
+multiple processes on your local machine, with each component replica running in
+a separate OS process. Create [a config file](#config-files), say `weaver.toml`,
 that points to your compiled Service Weaver application.
 
 ```toml
@@ -1435,6 +1443,9 @@ Deploy the application using `weaver multi deploy`:
 weaver multi deploy weaver.toml
 ```
 
+Refer to the [Step by Step Tutorial](#step-by-step-tutorial) section for a full
+example.
+
 When `weaver multi deploy` terminates (e.g., when you press `ctrl+c`), the
 application is destroyed and all processes are terminated.
 
@@ -1442,7 +1453,7 @@ You can run `weaver multi status` to view the status of all active Service Weave
 applications deployed using `weaver multi`.
 
 ```console
-$ weaver single status
+$ weaver multi status
 ╭────────────────────────────────────────────────────╮
 │ DEPLOYMENTS                                        │
 ├───────┬──────────────────────────────────────┬─────┤
@@ -1479,26 +1490,25 @@ You can also run `weaver multi dashboard` to open a dashboard in a web browser.
 
 ## Listeners
 
-Recall from the [Step by Step Tutorial](#step-by-step-tutorial) section that you
-can call the `Listener` method to get a network listener.
+You can call the `Listener` method on a `weaver.Instance` to get a network
+listener (see the [Step by Step Tutorial](#step-by-step-tutorial) section for
+context).
 
 ```go
 opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
 lis, err := root.Listener("hello", opts)
-if err != nil {
-    ...
-}
-logger.Debug("Hello listener available", "address", lis)
 ```
 
-When you deploy an application using `weaver multi deploy`, `Listener` does
-two things. First, it returns a network listener listening on localhost on a
-random port chosen by the operating system (i.e. listening on `localhost:0`).
-Second, it ensures that an HTTP proxy is running on the address specified by the
-`LocalAddress` field of the `ListenerOptions` struct. This proxy forwards
-traffic to the listener returned by `Listener`. In fact, the proxy balances
-traffic across every replica of the listener. (Recall that components may be
-replicated, and `Listener` is called once per replica.)
+When you deploy an application using `weaver multi deploy`, the `Listener`
+method does two things.
+
+1. It returns a network listener listening on localhost on a random port chosen
+   by the operating system (i.e. listening on `localhost:0`).
+2. It ensures that an HTTP proxy is running on the address specified by the
+   `LocalAddress` field of the `ListenerOptions` struct. This proxy forwards
+   traffic to the listener returned by `Listener`. In fact, the proxy balances
+   traffic across every replica of the listener. (Recall that components may be
+   replicated, and `Listener` is called once per replica.)
 
 ## Logging
 
@@ -1507,7 +1517,7 @@ a set of files in `/tmp/serviceweaver/logs/weaver-multi`. Every file contains a 
 log entries encoded as protocol buffers. You can cat, follow, and filter these
 logs using `weaver multi logs`. For example:
 
-```txt
+```shell
 # Display all of the application logs
 weaver multi logs
 
@@ -1546,8 +1556,10 @@ along with many more examples.
 
 ## Metrics
 
-Every deployment's page on the dashboard launched by `weaver multi dashboard`
-has a link to the deployment's metrics. The metrics are exported in [Prometheus
+Run `weaver multi dashboard` to open a dashboard in a web browser. The dashboard
+has a page for every Service Weaver application deployed via `weaver muli
+deploy`.  Every deployment's page has a link to the deployment's
+[metrics](#metrics). The metrics are exported in [Prometheus
 format][prometheus] and looks something like this:
 
 ```txt
@@ -1584,10 +1596,11 @@ serviceweaver_method_count{caller="main",component="main.Example",serviceweaver_
 
 As the header explains, you can visualize and query the metrics by installing
 Prometheus and configuring it, using the provided stanza, to periodically scrape
-the `/debug/serviceweaver/prometheus` endpoint of the provided target. You can also
-inspect the metrics manually. The metrics page shows the latest value of every
-metric in your application followed by [the metrics that Service Weaver automatically
-creates for you](#metrics-auto-generated-metrics).
+the `/debug/serviceweaver/prometheus` endpoint of the provided target (e.g.,
+`127.0.0.1:43087`). You can also inspect the metrics manually. The metrics page
+shows the latest value of every metric in your application followed by [the
+metrics that Service Weaver automatically creates for
+you](#metrics-auto-generated-metrics).
 
 ## Profiling
 
@@ -1627,9 +1640,11 @@ to [*Profiling Go Programs*][pprof_blog] for a tutorial.
 
 ## Tracing
 
-Every deployment's page on the dashboard launched by `weaver multi dashboard` has
-a link to a [Perfetto][perfetto] tracing page. Here's an example of what the
-tracing page looks like:
+Run `weaver multi dashboard` to open a dashboard in a web browser. The
+dashboard has a page for every Service Weaver application deployed via `go run
+.`.  Every deployment's page has a link to the deployment's [traces](#tracing)
+accessible via [Perfetto][perfetto]. Here's an example of what the tracing page
+looks like:
 
 ![An example trace page](assets/images/trace_multi.png)
 
@@ -1662,11 +1677,10 @@ a GKE deployment locally on your machine.
 ## Installation
 
 First, [ensure you have Service Weaver installed](#installation). Next, install
-the `weaver-gke` and `weaver-gke-local` commands:
+the `weaver-gke` command:
 
 ```console
 go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke@latest
-go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke-local@latest
 ```
 
 Install the `gcloud` command to your local machine. To do so, follow [these
@@ -1783,8 +1797,7 @@ We can inspect the Service Weaver applications running on GKE using the `weaver 
 status` command.
 
 <div hidden class="todo">
-TODO(mwhittaker): This is a `weaver gke-local` command; replace with a
-`weaver gke` command. Also add colors.
+TODO(mwhittaker): Update command output.
 </div>
 
 ```console
@@ -1814,7 +1827,12 @@ region. The two replicas of the `main` component each export a `hello` listener.
 The global load balancer that we curled earlier balances traffic evenly across
 these two listeners. The final section of the output details the rollout
 schedule of the application. We'll discuss rollouts later in the
-[Rollouts](#gke-multi-region) section.
+[Rollouts](#gke-multi-region) section. You can also run `weaver gke dashboard`
+to open a dashboard in a web browser.
+
+<div hidden class="todo">
+TODO(mwhittaker): Remove rollout section?
+</div>
 
 Note that `weaver gke` configures GKE to autoscale your application. As the load
 on your application increases, the number of replicas of the overloaded
@@ -1822,11 +1840,6 @@ components will increase. Conversely, as the load on your application decreases,
 the number of replicas decreases. Service Weaver can independently scale the different
 components of your application, meaning that heavily loaded components can be
 scaled up while lesser loaded components can simultaneously be scaled down.
-
-<div hidden class="todo">
-TODO(spetrovic): Should we have a dedicated autoscaling section where we
-elaborate on autoscaling?
-</div>
 
 You can use the `weaver gke kill` command to kill your deployed application.
 
@@ -1842,10 +1855,10 @@ Enter (y)es to continue: y
 ## Logging
 
 `weaver gke deploy` logs to stdout. It additionally exports all log entries to
-[Cloud Logging][cloud_logging]. You can cat, follow, and filter these logs from
+[Cloud Logging][cloud_logging].  You can cat, follow, and filter these logs from
 the command line using `weaver gke logs`. For example:
 
-```console
+```shell
 # Display all of the application logs
 weaver gke logs
 
@@ -1882,19 +1895,22 @@ weaver gke logs --system
 Refer to `weaver gke logs --help` for a full explanation of the query language,
 along with many more examples.
 
-You can also view the logs using [Google Cloud's Logs Explorer][logs_explorer].
-Service Weaver logs are exported to a log named `"projects/$PROJECT/logs/serviceweaver"` where
-`$PROJECT` is the name of your cloud project. You can query for these logs using
-the Cloud Logging query `logName="projects/$PROJECT/logs/serviceweaver"`:
+You can also run `weaver gke dashboard` to open a dashboard in a web browser.
+The dashboard has a page for every Service Weaver application deployed via
+`weaver gke deploy`. Every deployment's page has a link to the deployment's logs
+on [Google Cloud's Logs Explorer][logs_explorer].
 
 ![A screenshot of Service Weaver logs in the Logs Explorer](assets/images/logs_explorer.png)
 
 <div hidden class="todo">
-TODO(mwhittaker): Provide a direct link to the logs explorer page, if that's
-possible.
+TODO(mwhittaker): Update screenshot.
 </div>
 
 ## Metrics
+
+<div hidden class="todo">
+TODO(mwhittaker): Update these screenshots.
+</div>
 
 `weaver gke` exports metrics to the
 [Google Cloud Monitoring console][cloud_metrics]. You can view and graph these
@@ -1913,11 +1929,6 @@ You can use the Metrics Explorer to graph the metric you selected.
 ![A screenshot of a metric graph in Metrics Explorer](assets/images/cloud_metrics_3.png)
 
 Refer to the [Cloud Metrics][cloud_metrics] documentation for more information.
-
-<div hidden class="todo">
-TODO(mwhittaker): Provide a direct link to the metrics explorer page, if that's
-possible.
-</div>
 
 ## Profiling
 
@@ -1990,12 +2001,16 @@ rollout = "1h" # Perform a one hour slow rollout.
 ...
 ```
 
+<div hidden class="todo">
+TODO(mwhittaker): Remove this part?
+</div>
+
 You can monitor the rollout of an application using `weaver gke status`. For
 example, here is the rollout schedule produced by `weaver gke status` for a one
 hour deployment of the `hello` app across the us-central1, us-west1, us-south1,
 and us-east1 regions.
 
-```
+```console
 [ROLLOUT OF hello]
                  us-west1  us-central1  us-south1  us-east1
 TIME             a838cf1d  a838cf1d     a838cf1d   a838cf1d
@@ -2030,13 +2045,17 @@ out *within* regions. Within each region, `weaver gke` updates the global load
 balancer to slowly shift traffic from the old version of the application to the
 new version.
 
+<div hidden class="todo">
+TODO(mwhittaker): Remove this part?
+</div>
+
 We can again use `weaver gke status` to monitor the rollout of a new application
 version. For example, here is the rollout schedule produced by `weaver gke
 status` for a one hour update of the `hello` app across the us-west1 and
 us-east1 regions. The new version of the app `45a521a3` is replacing the old
 version `def1f485`.
 
-```
+```console
 [ROLLOUT OF hello]
                  us-west1  us-west1  us-east1  us-east1
 TIME             def1f485  45a521a3  def1f485  45a521a3
@@ -2123,11 +2142,20 @@ also uses [the same config as a `weaver gke`](#gke-config), meaning that after y
 test your application locally using `weaver gke-local`, you can deploy the same
 application to GKE without any code *or* config changes.
 
+## Installation
+
+First, [ensure you have Service Weaver installed](#installation). Next, install
+the `weaver-gke-local` command:
+
+```console
+go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke-local@latest
+```
+
 ## Getting Started
 
-In the [`weaver gke`](#gke) section, we deployed a "Hello, World!" application to
-GKE using `weaver gke deploy`. We can deploy the same app locally using
-`weaver gke-local deploy`:
+In the [`weaver gke`](#gke-getting-started) section, we deployed a "Hello,
+World!" application to GKE using `weaver gke deploy`. We can deploy the same app
+locally using `weaver gke-local deploy`:
 
 ```console
 $ cat weaver.toml
@@ -2150,6 +2178,10 @@ Tailing the logs...
 
 You can run `weaver gke-local status` to check the status of all the applications
 deployed using `weaver gke-local`.
+
+<div hidden class="todo">
+TODO(mwhittaker): Update output.
+</div>
 
 ```console
 $ weaver gke-local status
@@ -2209,7 +2241,7 @@ entries in a set of files in `/tmp/serviceweaver/logs/weaver-gke-local`. Every f
 contains a stream of log entries encoded as protocol buffers. You can cat,
 follow, and filter these logs using `weaver gke-local logs`. For example:
 
-```console
+```shell
 # Display all of the application logs
 weaver gke-local logs
 
@@ -2248,12 +2280,13 @@ language, along with many more examples.
 
 ## Metrics
 
-In addition to running the proxy on port 8000, `weaver gke-local` also runs a
-status server on port 8001. This server's `/metrics` endpoint exports the
-metrics of all running Service Weaver applications in [Prometheus format][prometheus],
+In addition to running the proxy on port 8000 (see the [Getting
+Started](#local-gke-getting-started)), `weaver gke-local` also runs a status
+server on port 8001. This server's `/metrics` endpoint exports the metrics of
+all running Service Weaver applications in [Prometheus format][prometheus],
 which looks like this:
 
-```
+```console
 # HELP example_count An example counter.
 # TYPE example_count counter
 example_count{serviceweaver_node="bbc9beb5"} 42
@@ -2279,7 +2312,7 @@ Use the `weaver gke-local profile` command to collect a profile of your Service 
 application. Invoke the command with the name (and optionally version) of the
 app you wish to profile. For example:
 
-```console
+```shell
 # Collect a CPU profile of the latest version of the hello app.
 $ weaver gke-local profile hello
 
@@ -2379,17 +2412,19 @@ type NotSerializable struct {
 }
 ```
 
-`weaver.AutoMarshal` does not work when embedded in generic structs. To use
-generic structs, implement `BinaryMarshaler` and `BinaryUnmarshaler`.
+Also note that `weaver.AutoMarshal` can *not* be embedded in generic structs.
 
 ```go
-// WARNING: weaver.AutoMarshal is ignored! Pair is not serializable.
+// ERROR: Cannot embed weaver.AutoMarshal in a generic struct.
 type Pair[A any] struct {
     weaver.AutoMarshal
     x A
     y A
 }
 ```
+
+To serialize generic structs, implement `BinaryMarshaler` and
+`BinaryUnmarshaler`.
 
 Finally note that while [Service Weaver requires every component method to
 return an `error`](#components-interfaces), `error` is not a
