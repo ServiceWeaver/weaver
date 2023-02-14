@@ -45,7 +45,7 @@ func Run(tool string, commands map[string]*Command) {
 			Description: "Print help for a sub-command",
 			Fn: func(_ context.Context, args []string) error {
 				if len(args) == 0 {
-					fmt.Fprintln(os.Stderr, mainHelp(tool, commands))
+					fmt.Fprintln(os.Stderr, MainHelp(tool, commands))
 					return nil
 				}
 				if len(args) != 1 {
@@ -64,7 +64,7 @@ func Run(tool string, commands map[string]*Command) {
 	// Catch -h or --help.
 	flags := flag.NewFlagSet(tool, flag.ContinueOnError)
 	flags.Usage = func() {
-		fmt.Fprintln(os.Stderr, mainHelp(tool, commands))
+		fmt.Fprintln(os.Stderr, MainHelp(tool, commands))
 	}
 	if err := flags.Parse(os.Args[1:]); err == flag.ErrHelp {
 		os.Exit(0)
@@ -76,7 +76,7 @@ func Run(tool string, commands map[string]*Command) {
 	// Get sub-command.
 	cmd, ok := commands[flags.Arg(0)]
 	if !ok {
-		fmt.Fprintln(os.Stderr, mainHelp(tool, commands))
+		fmt.Fprintln(os.Stderr, MainHelp(tool, commands))
 		os.Exit(1)
 	}
 
@@ -103,7 +103,8 @@ func Run(tool string, commands map[string]*Command) {
 	}
 }
 
-func mainHelp(tool string, commands map[string]*Command) string {
+// MainHelp returns the help message for the provided set of commands.
+func MainHelp(tool string, commands map[string]*Command) string {
 	var sorted []string
 	for name, cmd := range commands {
 		if !cmd.Hidden {
@@ -131,6 +132,7 @@ Flags:
 Use "%s help <command>" for more information about a command.`, tool, cmds.String(), tool)
 }
 
+// commandHelp returns the help message for the provided command.
 func commandHelp(cmd *Command) string {
 	if cmd.Help == "" {
 		return cmd.Description
