@@ -68,6 +68,7 @@ github.com/ServiceWeaver/weaver/dev/docgen
     github.com/yuin/goldmark
     github.com/yuin/goldmark-highlighting/v2
     github.com/yuin/goldmark/extension
+    github.com/yuin/goldmark/renderer/html
     html/template
     os
     os/exec

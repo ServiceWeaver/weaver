@@ -42,7 +42,7 @@ func newServer(root weaver.Instance) (*server, error) {
 	}
 	s := &server{root: root, odd: odd, even: even}
 	s.mux.Handle("/", weaver.InstrumentHandler("collatz", http.HandlerFunc(s.handle)))
-	s.mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {})
+	s.mux.Handle("/healthz", weaver.InstrumentHandler("/healthz", http.HandlerFunc(s.handleHealthz)))
 	return s, nil
 }
 
@@ -82,4 +82,8 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(&builder, "%d\n", x)
 	fmt.Fprint(w, builder.String())
+}
+
+func (s *server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprintln(w, "ok")
 }
