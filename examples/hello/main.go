@@ -46,5 +46,5 @@ func main() {
 		}
 		fmt.Fprintf(w, "Hello, %s!\n", reversed)
 	})
-	http.Serve(lis, nil)
+	http.Serve(lis, weaver.InstrumentHandler("hello", http.DefaultServeMux))
 }
