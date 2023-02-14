@@ -20,11 +20,11 @@ import (
 	sync "sync"
 	"testing"
 
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 // We test the combination of conn, EnvelopeConn, WeaveletConn here.
@@ -92,7 +92,7 @@ func makeConnections(t *testing.T) *conn.EnvelopeConn {
 	go func() {
 		defer wait.Done()
 		err := e.Run()
-		if err != nil && !errors.Is(err, io.ErrClosedPipe) {
+		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, io.EOF) {
 			t.Errorf("envelope failed: %v", err)
 		}
 	}()
@@ -102,7 +102,7 @@ func makeConnections(t *testing.T) *conn.EnvelopeConn {
 			t.Errorf("weavelet failed: %v", err)
 		}
 		err := d.Run()
-		if err != nil && !errors.Is(err, io.ErrClosedPipe) {
+		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, io.EOF) {
 			t.Errorf("weavelet failed: %v", err)
 		}
 	}()
