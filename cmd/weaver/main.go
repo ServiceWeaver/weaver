@@ -45,7 +45,7 @@ DESCRIPTION
   Use the "weaver" command to deploy and manage Weaver applications.
 
   The "weaver generate", "weaver single", "weaver multi", and "weaver ssh"
-  subcommands are built-in, but all other subcommands of the form
+  subcommands are baked in, but all other subcommands of the form
   "weaver <deployer>" dispatch to a binary called "weaver-<deployer>".
   "weaver gke status", for example, dispatches to "weaver-gke status".
 `
@@ -59,8 +59,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Handle the built-in subcommands.
-	switch flag.Args()[0] {
+	// Handle the internal deployers.
+	internals := map[string]map[string]*tool.Command{
+		"single": single.Commands,
+		"multi":  multi.Commands,
+		"ssh":    ssh.Commands,
+	}
+
+	switch flag.Arg(0) {
 	case "generate":
 		generateFlags := flag.NewFlagSet("generate", flag.ExitOnError)
 		generateFlags.Usage = func() {
@@ -72,40 +78,67 @@ func main() {
 			os.Exit(1)
 		}
 		return
-	case "single":
+
+	case "single", "multi", "ssh":
 		os.Args = os.Args[1:]
-		tool.Run("weaver single", single.Commands)
+		tool.Run("weaver "+flag.Arg(0), internals[flag.Arg(0)])
 		return
-	case "multi":
-		os.Args = os.Args[1:]
-		tool.Run("weaver multi", multi.Commands)
-		return
-	case "ssh":
-		os.Args = os.Args[1:]
-		tool.Run("weaver ssh", ssh.Commands)
+
+	case "help":
+		n := len(flag.Args())
+		command := flag.Arg(1)
+		switch {
+		case n == 1:
+			// weaver help
+			fmt.Fprint(os.Stdout, usage)
+		case n == 2 && command == "generate":
+			// weaver help generate
+			fmt.Fprintln(os.Stdout, generate.Usage)
+		case n == 2 && internals[command] != nil:
+			// weaver help <command>
+			fmt.Fprintln(os.Stdout, tool.MainHelp("weaver "+command, internals[command]))
+		case n == 2:
+			// weaver help <external>
+			code, err := run(command, []string{"--help"})
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err.Error())
+				os.Exit(code)
+			}
+		case n > 2:
+			fmt.Fprintf(os.Stderr, "help: too many arguments. Try 'weaver %s %s --help'\n", command, strings.Join(flag.Args()[2:], " "))
+		}
 		return
 	}
 
 	// Handle all other "weaver <deployer>" subcommands.
-	binary := "weaver-" + flag.Args()[0]
-	if _, err := exec.LookPath(binary); err != nil {
-		msg := fmt.Sprintf(`"weaver %s" is not a weaver command. See "weaver --help". If you're trying to invoke a custom deployer, the %q binary was not found. You may need to install the %q binary or add it to your PATH.`, flag.Args()[0], binary, binary)
-		fmt.Fprintln(os.Stderr, wrap(msg, 80))
-		os.Exit(1)
+	code, err := run(flag.Args()[0], flag.Args()[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(code)
 	}
-	cmd := exec.Command(binary, flag.Args()[1:]...)
+}
+
+// run runs "weaver-<deployer> [arg]..." in a subprocess and returns the
+// subprocess' exit code and any error.
+func run(deployer string, args []string) (int, error) {
+	binary := "weaver-" + deployer
+	if _, err := exec.LookPath(binary); err != nil {
+		msg := fmt.Sprintf(`"weaver %s" is not a weaver command. See "weaver --help". If you're trying to invoke a custom deployer, the %q binary was not found. You may need to install the %q binary or add it to your PATH.`, deployer, binary, binary)
+		return 1, fmt.Errorf(wrap(msg, 80))
+	}
+	cmd := exec.Command(binary, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err == nil {
-		return
+		return 0, nil
 	}
 	exitError := &exec.ExitError{}
 	if errors.As(err, &exitError) {
-		os.Exit(exitError.ExitCode())
+		return exitError.ExitCode(), err
 	}
-	os.Exit(1)
+	return 1, err
 }
 
 // wrap trims whitespace in the provided string and wraps it to n characters.
