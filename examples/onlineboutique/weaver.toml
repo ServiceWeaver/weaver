@@ -1,0 +1,10 @@
+[serviceweaver]
+binary = "./onlineboutique"
+rollout = "5m"
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "boutique", hostname = "onlineboutique.example.com"},
+]
+
