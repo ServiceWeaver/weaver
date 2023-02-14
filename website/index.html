@@ -119,16 +119,18 @@ $ weaver gke deploy weaver.toml   # Run in the cloud.
       <h2><a href="docs.html#serializable-types">Highly Performant ⚡</a></h2>
       <p>
       Co-located components communicate via <strong>direct method
-      call</strong>. Remote components communicate using custom serialization
-      and RPC protocols with up to 2.5x less CPU and up to 2x better latency
-      when compared to gRPC.
+      call</strong>. Remote components communicate using highly-efficient
+      custom serialization and RPC protocols.
+      <!--TODO(mwhittaker): Add performance numbers.-->
       <!--TODO(mwhittaker): Replace code with graph.-->
       </p>
 <markdown>
 ```go
 // Automatically encoded and decoded.
-type pair struct { x, y int32 }
-var _ weaver.AutoMarshal = &Pair{}
+type pair struct {
+    weaver.AutoMarshal
+    x, y int32
+}
 </markdown>
     </div>
   </div>
