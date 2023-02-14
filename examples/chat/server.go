@@ -45,7 +45,7 @@ type server struct {
 
 func newServer(store SQLStore, scaler ImageScaler, cache LocalCache) *server {
 	s := &server{store: store, scaler: scaler, cache: cache}
-	s.httpServer.Handler = s
+	s.httpServer.Handler = instrument(s.label, s)
 	return s
 }
 
@@ -56,6 +56,27 @@ func (s *server) run(root weaver.Instance) error {
 	}
 	root.Logger().Debug("Chat service available", "address", lis)
 	return s.httpServer.Serve(lis)
+}
+
+// instrument instruments the provided handler with weaver.InstrumentHandler.
+// The label for each request is determined by the provided labeler.
+func instrument(labeler func(r *http.Request) string, handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		weaver.InstrumentHandler(labeler(r), handler).ServeHTTP(w, r)
+	})
+}
+
+func (s *server) label(r *http.Request) string {
+	if r.URL.Query().Get("name") == "" {
+		return "login"
+	}
+
+	switch r.URL.Path {
+	case "/", "/thumbnail", "/newthread", "/newpost", "/healthz":
+		return r.URL.Path
+	default:
+		return "unknown"
+	}
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
