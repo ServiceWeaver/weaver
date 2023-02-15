@@ -17,8 +17,8 @@ package cartservice
 import (
 	"context"
 
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/ServiceWeaver/weaver"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 const cacheSize = 1 << 20 // 1M entries
@@ -28,42 +28,6 @@ type errNotFound struct{}
 var _ error = errNotFound{}
 
 func (e errNotFound) Error() string { return "not found" }
-
-type cache[K, V any] struct {
-	lru *lru.Cache
-}
-
-func newCache[K, V any]() (*cache[K, V], error) {
-	l, err := lru.New(cacheSize)
-	if err != nil {
-		return nil, err
-	}
-	return &cache[K, V]{
-		lru: l,
-	}, nil
-}
-
-// Add adds the given (key, val) pair to the cache.
-func (c *cache[K, V]) Add(_ context.Context, key K, val V) error {
-	c.lru.Add(key, val)
-	return nil
-}
-
-// Get returns the value associated with the given key in the cache, or
-// ErrNotFound if there is no associated value.
-func (c *cache[K, V]) Get(_ context.Context, key K) (V, error) {
-	val, ok := c.lru.Get(key)
-	if !ok {
-		var v V
-		return v, errNotFound{}
-	}
-	return val.(V), nil
-}
-
-// Remove removes an entry with the given key from the cache.
-func (c *cache[K, V]) Remove(_ context.Context, key K) (bool, error) {
-	return c.lru.Remove(key), nil
-}
 
 // TODO(spetrovic): Allow the cache struct to reside in a different package.
 
@@ -77,13 +41,34 @@ type cartCacheImpl struct {
 	weaver.Implements[cartCache]
 	weaver.WithRouter[cartCacheRouter]
 
-	*cache[string, []CartItem]
+	cache *lru.Cache[string, []CartItem]
 }
 
 func (c *cartCacheImpl) Init(context.Context) error {
-	cache, err := newCache[string, []CartItem]()
+	cache, err := lru.New[string, []CartItem](cacheSize)
 	c.cache = cache
 	return err
+}
+
+// Add adds the given (key, val) pair to the cache.
+func (c *cartCacheImpl) Add(_ context.Context, key string, val []CartItem) error {
+	c.cache.Add(key, val)
+	return nil
+}
+
+// Get returns the value associated with the given key in the cache, or
+// ErrNotFound if there is no associated value.
+func (c *cartCacheImpl) Get(_ context.Context, key string) ([]CartItem, error) {
+	val, ok := c.cache.Get(key)
+	if !ok {
+		return nil, errNotFound{}
+	}
+	return val, nil
+}
+
+// Remove removes an entry with the given key from the cache.
+func (c *cartCacheImpl) Remove(_ context.Context, key string) (bool, error) {
+	return c.cache.Remove(key), nil
 }
 
 type cartCacheRouter struct{}
