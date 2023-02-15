@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Run various build and test steps.
+#
+# Usage: ./build_and_test [command]...
+#
+# The available commands are:
+#
+#       tidy            -- Runs go mod tidy
+#       generate        -- Generates code
+#       build           -- Builds the module
+#       vet             -- Runs go vet
+#       lint            -- Runs golangci-lint
+#       test            -- Tests the module
+#       testrace        -- Tests the module for data races
+#
+# If no commands are specified every action is run.
+
+set -euo pipefail
+
+function exists() {
+  command -v "$1" &> /dev/null
+}
+
+function cmd_tidy() {
+  go mod tidy
+}
+
+function cmd_generate() {
+  # Generate go files.
+  (cd cmd/weaver && go build)
+  go generate ./...
+
+  # Add license headers.
+  if ! exists addlicense; then
+    printf "addlicense not found; install via\ngo install github.com/google/addlicense@latest\n" >&2
+    exit 1
+  fi
+  addlicense -c "Google LLC" -l apache .
+}
+
+function cmd_build() {
+  go build ./...
+
+  # Also build the important binaries (go build does not build them if passed
+  # any arguments). Note; we build cmd/weaver since user may have skipped the
+  # generate phase.
+  (cd cmd/weaver && go build)
+}
+
+function cmd_vet() {
+  go vet ./...
+}
+
+function cmd_lint() {
+  if ! exists golangci-lint; then
+    printf "golangci-lint not found; install via\ngo install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0\n" >&2
+    exit 1
+  fi
+
+  golangci-lint run ./...
+
+  # Run unused check while skipping uses found in tests. This helps us
+  # identify non-test code that is only used from tests.
+  golangci-lint run --enable unused --tests=false ./...
+}
+
+function cmd_test() {
+  go test ./...
+}
+
+function cmd_testrace() {
+  go test -race ./...
+}
+
+function main() {
+  cmds="$@"
+  if [[ $# == 0 ]]; then
+    cmds="tidy generate build vet lint test testrace"
+  fi
+
+  for cmd in $cmds; do
+    echo "=== $cmd ==="
+    cmd_$cmd
+    echo "Success ✅"
+    echo ""
+  done
+}
+
+main "$@"
