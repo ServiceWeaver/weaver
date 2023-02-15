@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -39,12 +40,36 @@ func MetricsCommand(tool string, registry func(context.Context) (*Registry, erro
 		Name:        "metrics",
 		Description: "Show application metrics",
 		Help: fmt.Sprintf(`Usage:
-  %s metrics [metric]...
+  %s metrics [metric regex]
 
 Flags:
-  -h, --help	Print this help message.`, tool),
+  -h, --help	Print this help message.
+
+Description:
+  "%s metrics" shows the latest value of every metric. You can filter
+  metrics by providing a regular expression. Only the metrics with names that
+  match the regular expression are shown. The command expects RE2 regular
+  expressions, the same used by the built-in regexp module. See "go doc
+  regexp/syntax" for details.
+
+Examples:
+  # Show all metrics
+  %s metrics
+
+  # Show metrics matching the regular expression "error"
+  %s metrics error
+
+  # Show metrics matching the regular expression "http"
+  %s metrics http
+
+  # Show metrics matching the regular expression "error" or "http"
+  %s metrics 'error|http'`, tool, tool, tool, tool, tool, tool),
 		Flags: flag.NewFlagSet("metrics", flag.ContinueOnError),
 		Fn: func(ctx context.Context, args []string) error {
+			if len(args) > 1 {
+				return fmt.Errorf("too many arguments")
+			}
+
 			r, err := registry(ctx)
 			if err != nil {
 				return err
@@ -56,9 +81,13 @@ Flags:
 
 			// Only show the metrics provided on the command line, or if there
 			// are no command line arguments, show all metrics.
-			filters := map[string]bool{}
-			for _, arg := range args {
-				filters[arg] = true
+			matches := func(string) bool { return true }
+			if len(args) == 1 {
+				r, err := regexp.Compile(args[0])
+				if err != nil {
+					return fmt.Errorf("invalid regexp %q: %w", args[0], err)
+				}
+				matches = r.MatchString
 			}
 
 			var metrics []*protos.MetricSnapshot
@@ -68,7 +97,7 @@ Flags:
 					return err
 				}
 				for _, metric := range reply.Metrics {
-					if len(filters) == 0 || filters[metric.Name] {
+					if matches(metric.Name) {
 						metrics = append(metrics, metric)
 					}
 				}
