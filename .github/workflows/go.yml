@@ -64,22 +64,22 @@ jobs:
         run: go install github.com/google/addlicense@v1.1.1
 
       - name: Tidy
-        run: ./dev/allmodules tidy
+        run: ./dev/build_and_test tidy
 
       - name: Generate
-        run: ./dev/allmodules generate
+        run: ./dev/build_and_test generate
 
       - name: Build
-        run: ./dev/allmodules build
+        run: ./dev/build_and_test build
 
       - name: Vet
-        run: ./dev/allmodules vet
+        run: ./dev/build_and_test vet
 
       - name: Lint
-        run: ./dev/allmodules lint
+        run: ./dev/build_and_test lint
 
       - name: Test
-        run: ./dev/allmodules test
+        run: ./dev/build_and_test test
 
       - name: Test Race
-        run: ./dev/allmodules testrace
+        run: ./dev/build_and_test testrace
