@@ -29,3 +29,10 @@
 .blog-author {
   font-style: italic;
 }
+
+blockquote {
+    background: #f9f9f9e4;
+    border-left: 8px solid rgba(204, 204, 204, 0.553);
+    margin: 0.5em 20px;
+    padding: 0.1em 10px;
+}

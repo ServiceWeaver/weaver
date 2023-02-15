@@ -57,8 +57,7 @@ var files = []file{
 	{dst: "docs.html", markdown: "docs.md", template: "guide.html", license: true},
 
 	{dst: "blog/index.html", html: "blog/index.html", template: "basic.html", license: true},
-	{dst: "blog/hello_world.html", markdown: "blog/hello_world.md", template: "basic.html", license: true},
-	{dst: "blog/deployers.html", markdown: "blog/deployers.md", template: "basic.html", license: true},
+	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "basic.html", license: true},
 
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
@@ -220,6 +219,10 @@ func buildMarkdown(t *template.Template, md goldmark.Markdown, dstDir string, f 
 	if err != nil {
 		return err
 	}
+	if len(input) == 0 {
+		return fmt.Errorf("empty markdown file")
+	}
+
 	var buf bytes.Buffer
 	if err := md.Convert(input, &buf); err != nil {
 		return err
