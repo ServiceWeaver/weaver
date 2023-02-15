@@ -48,6 +48,7 @@ import (
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/renderer/html"
 )
 
 var watch = flag.Bool("watch", false, "Automatically rebuild website on change")
@@ -188,6 +189,8 @@ func build(dstDir, templateGlob string, files []file) error {
 			),
 			extension.Table,
 		),
+		// Render raw HTML tags.
+		goldmark.WithRendererOptions(html.WithUnsafe()),
 	)
 	for _, f := range files {
 		var err error
