@@ -7,10 +7,9 @@ We'd love to accept your patches and contributions to this project.
 ### Sign our Contributor License Agreement
 
 Contributions to this project must be accompanied by a
-[Contributor License Agreement](https://cla.developers.google.com/about) (CLA).
-You (or your employer) retain the copyright to your contribution; this simply
-gives us permission to use and redistribute your contributions as part of the
-project.
+[Contributor License Agreement][cla] (CLA). You (or your employer) retain the
+copyright to your contribution; this simply gives us permission to use and
+redistribute your contributions as part of the project.
 
 If you or your current employer have already signed the Google CLA (even if it
 was for a different project), you probably don't need to do it again.
@@ -108,7 +107,7 @@ Weaver.
    (typically using an interactive rebase).
 
    If you picked up new changes or made any changes, push your branch
-   again to github. as described in step 7.
+   again to github, as described in step 7.
 
 9. Ask somebody who has permissions (or do it yourself if you
    have permissions) to merge your branch into the main branch
@@ -121,6 +120,14 @@ Weaver.
 ### Code Reviews
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
-information on using pull requests.
+use GitHub pull requests for this purpose. Consult [GitHub Help][github_help]
+for more information on using pull requests.
+
+To make sure changes are well coordinated, we ask you to discuss any significant
+change prior to sending a pull request. To do so, either file a
+[new issue][new_issue] or claim an [existing one][issues].
+
+[cla]: https://cla.developers.google.com/about
+[github_help]: https://help.github.com/articles/about-pull-requests/
+[new_issue]: https://github.com/ServiceWeaver/weaver/issues/new
+[issues]: https://github.com/ServiceWeaver/weaver/issues
