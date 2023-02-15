@@ -21,7 +21,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/metrics"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 var (
@@ -46,12 +46,12 @@ type LocalCache interface {
 type localCache struct {
 	weaver.Implements[LocalCache]
 	mu    sync.Mutex
-	cache *lru.Cache
+	cache *lru.Cache[string, string]
 	// TODO: Eviction policy.
 }
 
 func (c *localCache) Init(context.Context) error {
-	cache, err := lru.New(cacheSize)
+	cache, err := lru.New[string, string](cacheSize)
 	c.cache = cache
 	return err
 }
@@ -66,7 +66,7 @@ func (c *localCache) Get(_ context.Context, key string) (string, error) {
 		misses.Add(1)
 		return "", fmt.Errorf("key %q not found in cache", key)
 	}
-	return v.(string), nil
+	return v, nil
 }
 
 // Put stores key,val in the cache.

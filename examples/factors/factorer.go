@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/ServiceWeaver/weaver"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 // The size of a factorer's LRU cache.
@@ -36,11 +37,11 @@ type factorer struct {
 	weaver.Implements[Factorer] // factorer implements the Factorer component
 	weaver.WithRouter[router]   // factorer's methods are routed by router
 
-	cache *LRU[int, []int] // maps integers to their factors
+	cache *lru.Cache[int, []int] // maps integers to their factors
 }
 
 func (f *factorer) Init(_ context.Context) error {
-	cache, err := NewLRU[int, []int](cacheSize)
+	cache, err := lru.New[int, []int](cacheSize)
 	f.cache = cache
 	return err
 }
@@ -67,7 +68,7 @@ func (f *factorer) Factors(_ context.Context, x int) ([]int, error) {
 			factors = append(factors, i)
 		}
 	}
-	f.cache.Put(x, factors)
+	f.cache.Add(x, factors)
 	return factors, nil
 }
 

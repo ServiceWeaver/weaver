@@ -236,6 +236,7 @@ github.com/ServiceWeaver/weaver/internal/status
     os
     path/filepath
     reflect
+    regexp
     sort
     strings
     sync
