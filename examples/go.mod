@@ -9,7 +9,6 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mattn/go-sqlite3 v1.14.16
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.39.0

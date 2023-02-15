@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +36,6 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -118,8 +118,8 @@ func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
+	_, id := filepath.Split(r.URL.Path)
 	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
-	id := mux.Vars(r)["id"]
 	if id == "" {
 		fe.renderHTTPError(r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
@@ -177,6 +177,19 @@ func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		logger.Error("generate product page", err)
 	}
+}
+
+func (fe *Server) cartHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		fe.viewCartHandler(w, r)
+		return
+	}
+	if r.Method == http.MethodPost {
+		fe.addToCartHandler(w, r)
+		return
+	}
+	msg := fmt.Sprintf("method %q not allowed", r.Method)
+	http.Error(w, msg, http.StatusMethodNotAllowed)
 }
 
 func (fe *Server) addToCartHandler(w http.ResponseWriter, r *http.Request) {

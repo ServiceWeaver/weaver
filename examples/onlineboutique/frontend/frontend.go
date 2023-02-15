@@ -31,7 +31,6 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice"
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -156,23 +155,37 @@ func NewServer(root weaver.Instance) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 
 	// Helper that adds a handler with HTTP metric instrumentation.
-	handleInstrumented := func(path, label string, fn func(http.ResponseWriter, *http.Request)) *mux.Route {
-		return r.Handle(path, weaver.InstrumentHandler(label, http.HandlerFunc(fn)))
+	instrument := func(label string, fn func(http.ResponseWriter, *http.Request), methods []string) http.Handler {
+		allowed := map[string]struct{}{}
+		for _, method := range methods {
+			allowed[method] = struct{}{}
+		}
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if _, ok := allowed[r.Method]; len(allowed) > 0 && !ok {
+				msg := fmt.Sprintf("method %q not allowed", r.Method)
+				http.Error(w, msg, http.StatusMethodNotAllowed)
+				return
+			}
+			fn(w, r)
+		}
+		return weaver.InstrumentHandler(label, http.HandlerFunc(handler))
 	}
 
-	handleInstrumented("/", "home", s.homeHandler).Methods(http.MethodGet, http.MethodHead)
-	handleInstrumented("/product/{id}", "product", s.productHandler).Methods(http.MethodGet, http.MethodHead)
-	handleInstrumented("/cart", "cart_view", s.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
-	handleInstrumented("/cart", "cart_add", s.addToCartHandler).Methods(http.MethodPost)
-	handleInstrumented("/cart/empty", "cart_empty", s.emptyCartHandler).Methods(http.MethodPost)
-	handleInstrumented("/setCurrency", "setcurrency", s.setCurrencyHandler).Methods(http.MethodPost)
-	handleInstrumented("/logout", "logout", s.logoutHandler).Methods(http.MethodGet)
-	handleInstrumented("/cart/checkout", "cart_checkout", s.placeOrderHandler).Methods(http.MethodPost)
-	r.PathPrefix("/static/").Handler(weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))
-	handleInstrumented("/robots.txt", "robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
+	const get = http.MethodGet
+	const post = http.MethodPost
+	const head = http.MethodHead
+	r.Handle("/", instrument("home", s.homeHandler, []string{get, head}))
+	r.Handle("/product/", instrument("product", s.productHandler, []string{get, head}))
+	r.Handle("/cart", instrument("cart", s.cartHandler, []string{get, head, post}))
+	r.Handle("/cart/empty", instrument("cart_empty", s.emptyCartHandler, []string{post}))
+	r.Handle("/setCurrency", instrument("setcurrency", s.setCurrencyHandler, []string{post}))
+	r.Handle("/logout", instrument("logout", s.logoutHandler, []string{get}))
+	r.Handle("/cart/checkout", instrument("cart_checkout", s.placeOrderHandler, []string{post}))
+	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))
+	r.Handle("/robots.txt", instrument("robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") }, nil))
 
 	// No instrumentation of /healthz
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
