@@ -67,8 +67,6 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The collatz sequence is not in the cache. Compute the sequence, and
-	// store it in the cache.
 	var builder strings.Builder
 	for x != 1 {
 		fmt.Fprintf(&builder, "%d\n", x)
