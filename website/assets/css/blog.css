@@ -14,6 +14,18 @@
  * limitations under the License.
  */
 
+div {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+/* Limit the page content width to keep lines readable. */
+.page_blog {
+  max-width: 60em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .blog-listing {
   margin-bottom: 12pt;
 }
@@ -30,9 +42,15 @@
   font-style: italic;
 }
 
+.emphasize-title {
+  color:#e06666;
+  font-weight:normal;
+}
+
 blockquote {
-    background: #f9f9f9e4;
-    border-left: 8px solid rgba(204, 204, 204, 0.553);
-    margin: 0.5em 20px;
+    background: #c9d7e9;
+    border-left: 8px solid rgba(180,	193,	209, 0.553);
+    margin: 0px;
     padding: 0.1em 10px;
+    font-family:"Courier New";
 }

@@ -21,7 +21,7 @@ breaks down. Our beautiful application ends up a nightmare of broken-down
 business logic interspersed with networking calls, cloud integration points,
 and configuration files.
 
-### Oh no, it is time to integrate with the cloud!!!
+<h3 class="emphasize-title">Oh no, it is time to integrate with the cloud!!!</h3>
 
 Our cloud integration journey requires us to first learn about configuring and
 building containers for our application binary. Next, we learn about cloud
@@ -44,7 +44,7 @@ distracted from our initial focus: application business logic.
 >provider. 
 
 
-### Huh, what are microservices and do we really need them?
+<h3 class="emphasize-title">Huh, what are microservices and do we really need them?</h3>
 
 Once we migrate our application to the cloud, we often ask ourselves how to
 structure the application code due to the distributed nature of the cloud.
@@ -65,7 +65,7 @@ to develop, deploy, and manage.
 >components as desired. During deployment, you easily configure which components
 >run together in the same microservice and which run in separate microservices.
 
-### OMG, how do we manage our application?
+<h3 class="emphasize-title">OMG, how do we manage our application?</h3>
 
 As mentioned above, the complex nature of the cloud leads to a more difficult
 application to develop, deploy, and manage.
@@ -94,7 +94,7 @@ application services, as opposed to running end-to-end tests.
 >binary. You can also easily run and test your application locally, before
 >deploying it in the cloud.
 
-### Finally it works. Oh, performance?
+<h3 class="emphasize-title">Finally it works. Oh, performance?</h3>
 
 Once we got our microservice-based application to run correctly in the cloud,
 we realize that its performance is terrible. We do some digging and find out
@@ -179,7 +179,7 @@ Service Weaver provides mechanisms to easily test, debug and deploy new versions
 of your application, without the headaches and the burden a cloud developer has
 to face today.
 
-### Deploying
+<h3 class="emphasize-title">Deploying</h3>
 
 Service Weaver makes it as easy to run an application on the cloud as it is to
 run it locally on your laptop:
@@ -190,7 +190,7 @@ $ weaver multi deploy weaver.toml    # Run locally, in multiple OS processes.
 $ weaver gke deploy weaver.toml      # Run in the cloud.
 ```
 
-### Configuration
+<h3 class="emphasize-title">Configuration</h3>
 
 Service Weaver requires a tiny amount of configuration to deploy to the cloud.
 The Online Boutique demo application has over 1,500 lines of configuration.
@@ -212,7 +212,7 @@ We just need to specify the application binary, the duration of the rollout,
 the regions where the application should be deployed, and which network
 listeners should be publicly accessible. That’s it.
 
-### Rolling out New Versions
+<h3 class="emphasize-title">Rolling out New Versions</h3>
 
 Serving systems evolve over time. Whether you're fixing bugs or adding new
 features, it is inevitable that you will have to roll out a new version of your
@@ -239,7 +239,7 @@ When you make changes to your application, simply rebuild and rerun it. Service
 Weaver will take care of gradually shifting traffic from the old version to the
 new version. 
 
-### Instrumenting
+<h3 class="emphasize-title">Instrumenting</h3>
 
 Service Weaver provides libraries for logging, metrics, and tracing. This
 telemetry is automatically integrated into the environment where an application
@@ -261,7 +261,7 @@ func (reverser) Reverse(_ context.Context, s string) (string, error) {
 }
 ```
 
-### Testing
+<h3 class="emphasize-title">Testing</h3>
 
 The development cycle of a microservices based application is slow. If you want
 to iterate on an application’s business logic, you have to install heavy cloud
@@ -280,11 +280,11 @@ tests as easy as writing unit tests.
 Service Weaver applications are not only easier to write, run, and manage;
 they’re also faster.
 
->We found out that Service Weaver improves application latency by 2x and reduces
->VM costs by 2.5x when compared to a typical microservices solution built on top
+>We found out that Service Weaver improves application latency by 15x and reduces
+>VM costs by 9x when compared to a typical microservices solution built on top
 >of gRPC and protocol buffers.
 
-### No RPCs, No Protos, An Efficient Network Protocol
+<h3 class="emphasize-title">No RPCs, No Protos, An Efficient Network Protocol</h3>
 
 The fact that all application components run at the same code version allows
 Service Weaver to heavily optimize its serialization and communication
@@ -294,7 +294,7 @@ data-structures and a custom RPC protocol. Both the serialization and the RPC
 protocols are more efficient than gRPC and Protocol Buffers because they avoid
 the overhead needed to resolve versioning issues.
 
-### Efficient Autoscaling and Load Balancing
+<h3 class="emphasize-title">Efficient Autoscaling and Load Balancing</h3>
 
 Another benefit of running all components at the same version in a single
 application binary is that Service Weaver has a bird’s-eye view into the
@@ -302,7 +302,7 @@ application and the interactions between components. This allows Service Weaver
 to make intelligent component placement decisions and employ efficient
 autoscaling solutions.
 
-### Flexible Placement
+<h3 class="emphasize-title">Flexible Placement</h3>
 
 Service Weaver provides flexible component placement. For example, we can
 co-locate two components that communicate often with each other in the same
@@ -311,7 +311,7 @@ bottleneck on different machines to improve resource utilization or to improve
 fault-isolation. Service Weaver enables us to do all this with a single-line
 config change. 
 
-### Sharding
+<h3 class="emphasize-title">Sharding</h3>
 
 Service Weaver enables you to shard application requests across component
 replicas with application specific sharding keys. This allows you to more
