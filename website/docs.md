@@ -2491,20 +2491,120 @@ fields:
 A config file may also contain component-specific configuration. See the
 [Component Config](#components-config) section for details.
 
-# Architecture
-
 <div hidden class="todo">
+Architecture
 TODO: Explain the internals of Service Weaver.
 </div>
+
+# FAQ
+
+### What types of distributed applications does Service Weaver target?
+
+Service Weaver primarily targets distributed serving systems. These are online 
+systems that need to handle user requests as they arrive. A web application or
+an API server are serving systems, for example. Service Weaver tailors its
+feature set and runtime assumptions towards serving systems in the following
+ways:
+
+* *Network servers are integrated into the framework*. The application can
+easily obtain a network listener and create an HTTP server on top of it.
+* *Rollouts are built into the framework*. The user specifies the rollout
+duration and the framework gradually shifts network traffic from the old
+version to the new.
+* *All components are replicated*. A request for a component can go to any one
+of its replicas. Replicas may automatically be scaled up and down depending on
+the load.
+
+### What about data-processing applications? Can I use Service Weaver for those?
+
+In theory, you may be able to use Service Weaver for data-processing
+applications, though you will find that it provides little support for some of
+the common data-processing features such as checkpointing, failure recovery,
+restarts etc.
+
+Additionally, Service Weaver's replication model means that component replicas
+may automatically be scaled up and down depending on the load. This is likely
+something that you wouldn't want in your data-processing application. This
+scale-up/scale-down behavior translates even to the application's `main()`
+function and may cause your data-processing program to run multiple times.
+
+### Why doesn't Service Weaver provide its own data storage?
+
+Different applications have different storage needs (e.g., global replication,
+performance, SQL/NoSQL). There are also a [myriad][db_engines] of storage
+systems out there that make different tradeoffs along various dimensions
+(e.g., price, performance, API).
+
+We didn't feel like we could provide enough value by inserting ourselves
+into the application's data model. We also didn't want to restrict how
+applications interact with their data (e.g., offline DB updates). For those
+reasons, we left the choice of data storage up to the application.
+
+### Doesn't the lack of data storage integration limit the portability of Service Weaver applications?
+
+Yes, to a degree. If you use a globally reachable data storage system, then you
+can truly run your application anywhere, removing any portability concerns.
+
+If, however, you run your storage system inside your deployment environment
+(e.g., a MySQL instance running in the Cloud VPN), then if you start your
+application in a different environment (e.g., your desktop), it may not have
+access to the storage system. In such cases, we generally recommend that you
+create different storage systems for different application environments, and
+use Service Weaver [config files](#config-files) to point your application to
+the right storage system for the given execution environment.
+
+If you're using SQL, Go's [sql package][sql_package] helps isolate your
+code from some differences in the underlying storage systems. See the
+Service Weaver's [chat application example][chat_example] for how to setup
+your application to use the environment-local storage systems.
+
+### Does the Service Weaver versioning approach mean I will end up running multiple instances of my app during a rollout? Isn't that expensive?
+
+As we described in the GKE [versioning](#versioning) section, we utilize the
+combination of auto-scaling and blue/green deployment to minimize the cost
+of running multiple versions of the same application during rollouts.
+
+In general, it is up to the deployer implementation to ensure that the
+rollout cost is minimized. We envision that most cloud deployers will use a
+similar technique to GKE to minimize their rollout costs. Other deployers
+may choose to simply run full per-version serving trees, like the
+[multiprocess](#multiprocess) deployer.
+
+### Service Weaver's microservice development model is quite unique. Is it making a stand against traditional microservices development?
+
+No. We acknowledge that there are still valid reasons why developers may
+choose to run separate binaries for different microservices (e.g.,
+different teams controlling their own binaries). We believe, however,
+that Service Weaver's *modular monolith* model is applicable to a lot of
+common use-cases and can be used in conjunction with the traditional
+microservices model.
+
+For example, a team may decide to unify all of the services in their control
+into a single Service Weaver application. Cross-team interactions will still
+be handled in the traditional model, with all of the versioning and development
+implications that come with that model.
+
+### Isn't writing "monoliths" a step in the wrong direction for distributed application development?
+
+Service Weaver is trying to encourage a *modular monolith* model, where
+the application is written as a single modularized binary that runs as separate
+microservices. This is different from the monolith model, where the binary runs
+as a single (replicated) service.
+
+We believe that the Service Weaver's *modular monolith* model has the best of
+both worlds: the ease of development of monolithic applications, with the
+runtime benefits of microservices.
 
 [binary_marshaler]: https://pkg.go.dev/encoding#BinaryMarshaler
 [binary_unmarshaler]: https://pkg.go.dev/encoding#BinaryUnmarshaler
 [blue_green]: https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html
 [canary]: https://sre.google/workbook/canarying-releases/
+[chat_example]: https://github.com/ServiceWeaver/weaver/tree/main/examples/chat/
 [chrome_tracing]: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
 [cloud_logging]: https://cloud.google.com/logging
 [cloud_metrics]: https://cloud.google.com/monitoring/api/metrics_gcp
 [cloud_trace]: https://cloud.google.com/trace
+[db_engines]: https://db-engines.com/en/ranking
 [gcloud_billing]: https://console.cloud.google.com/billing
 [gcloud_billing_projects]: https://console.cloud.google.com/billing/projects
 [gcloud_install]: https://cloud.google.com/sdk/docs/install
@@ -2532,6 +2632,7 @@ TODO: Explain the internals of Service Weaver.
 [prometheus_gauge]: https://prometheus.io/docs/concepts/metric_types/#gauge
 [prometheus_histogram]: https://prometheus.io/docs/concepts/metric_types/#histogram
 [prometheus_naming]: https://prometheus.io/docs/practices/naming/
+[sql_package]: https://pkg.go.dev/database/sql
 [update_failures_paper]: https://scholar.google.com/scholar?cluster=4116586908204898847
 [weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
 [weaver_examples]: https://github.com/ServiceWeaver/weaver/tree/main/examples
