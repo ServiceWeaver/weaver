@@ -58,7 +58,7 @@ var files = []file{
 	{dst: "docs.html", markdown: "docs.md", template: "guide.html", license: true},
 
 	{dst: "blog/index.html", html: "blog/index.html", template: "basic.html", license: true},
-	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "basic.html", license: true},
+	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog.html", license: true},
 
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
