@@ -15,28 +15,20 @@
 -->
 
 <html>
-  <!--TODO(rgrandl): the top menu is changing the position when you click on the blog. Fix it -->
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1">
-    <title>Service Weaver User Guide</title>
+    <title>{{.Title}}</title>
     <!-- <meta http-equiv="refresh" content="1"> -->
     <link rel="stylesheet" href="/assets/css/common.css">
-    <link rel="stylesheet" href="/assets/css/guide.css">
+    <link rel="stylesheet" href="/assets/css/blog.css">
   </head>
   <body>
-    <div class="page">
+    <div class="page_blog">
       {{template "header.html" .}}
-      <div class="holder">
-        <input type="checkbox" id="toc-toggle" checked/>
-        <label id="toc-button" for="toc-toggle" title="Click to toggle table of contents">☰</label>
-        <div class="toc" id="toc"></div>
-        <div class="contents" id="contents">
-          {{.Contents}}
-        </div>
+      <div class="contents">
+        {{.Contents}}
       </div>
     </div>
   </body>
-  <script src="/assets/js/toc.js"></script>
-  <script src="/assets/js/copy.js"></script>
 </html>
