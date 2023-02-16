@@ -23,6 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         version: ["1.19", "1.20"]
+        command: ["build", "vet", "lint", "test", "testrace"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
@@ -38,24 +39,11 @@ jobs:
         with:
           path: ~/go/bin/golangci-lint
           key: golangci-lint-v1.51.0
+        if: ${{ matrix.command == 'lint' }}
 
       - name: Install linter
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
+        if: ${{ matrix.command == 'lint' }}
 
-      - name: Tidy
-        run: ./dev/build_and_test tidy
-
-      - name: Build
-        run: ./dev/build_and_test build
-
-      - name: Vet
-        run: ./dev/build_and_test vet
-
-      - name: Lint
-        run: ./dev/build_and_test lint
-
-      - name: Test
-        run: ./dev/build_and_test test
-
-      - name: Test Race
-        run: ./dev/build_and_test testrace
+      - name: ${{ matrix.command }}
+        run: ./dev/build_and_test ${{ matrix.command }}
