@@ -39,35 +39,11 @@ jobs:
           path: ~/go/bin/golangci-lint
           key: golangci-lint-v1.51.0
 
-      - name: Cache protoc-gen-go
-        uses: actions/cache@v3
-        with:
-          path: ~/go/bin/protoc-gen-go
-          key: protoc-gen-go-v1.26
-
-      - name: Cache addlicense
-        uses: actions/cache@v3
-        with:
-          path: ~/go/bin/addlicense
-          key: addlicense-v1.1.1
-
       - name: Install linter
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
 
-      - name: Install protoc
-        run: sudo apt install -y protobuf-compiler
-
-      - name: Install protoc-gen-go
-        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26
-
-      - name: Install addlicense
-        run: go install github.com/google/addlicense@v1.1.1
-
       - name: Tidy
         run: ./dev/build_and_test tidy
-
-      - name: Generate
-        run: ./dev/build_and_test generate
 
       - name: Build
         run: ./dev/build_and_test build
