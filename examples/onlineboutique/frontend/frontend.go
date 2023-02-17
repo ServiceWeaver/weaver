@@ -171,7 +171,7 @@ func NewServer(root weaver.Instance) (*Server, error) {
 			}
 			fn(w, r)
 		}
-		return weaver.InstrumentHandler(label, http.HandlerFunc(handler))
+		return weaver.InstrumentHandlerFunc(label, handler)
 	}
 
 	const get = http.MethodGet

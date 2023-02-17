@@ -100,6 +100,12 @@ func InstrumentHandler(label string, handler http.Handler) http.Handler {
 	})
 }
 
+// InstrumentHandlerFunc is identical to [InstrumentHandler] but takes a
+// function instead of an http.Handler.
+func InstrumentHandlerFunc(label string, f func(http.ResponseWriter, *http.Request)) http.Handler {
+	return InstrumentHandler(label, http.HandlerFunc(f))
+}
+
 // responseWriterInstrumenter is a wrapper around an http.ResponseWriter that
 // records the status code of the response.
 type responseWriterInstrumenter struct {

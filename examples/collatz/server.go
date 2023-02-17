@@ -41,8 +41,8 @@ func newServer(root weaver.Instance) (*server, error) {
 		return nil, err
 	}
 	s := &server{root: root, odd: odd, even: even}
-	s.mux.Handle("/", weaver.InstrumentHandler("collatz", http.HandlerFunc(s.handle)))
-	s.mux.Handle("/healthz", weaver.InstrumentHandler("/healthz", http.HandlerFunc(s.handleHealthz)))
+	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
+	s.mux.Handle("/healthz", weaver.InstrumentHandlerFunc("/healthz", s.handleHealthz))
 	return s, nil
 }
 
