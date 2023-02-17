@@ -141,9 +141,9 @@ func TestListener(t *testing.T) {
 			// Run server on listener.
 			const response = "hello world"
 			srv := &http.Server{
-				Handler: weaver.InstrumentHandler("test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				Handler: weaver.InstrumentHandlerFunc("test", func(w http.ResponseWriter, r *http.Request) {
 					fmt.Fprint(w, response)
-				})),
+				}),
 			}
 			go srv.Serve(lis)
 			defer srv.Shutdown(ctx)
