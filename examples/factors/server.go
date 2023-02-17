@@ -34,8 +34,8 @@ func serve(ctx context.Context, root weaver.Instance, addr string) error {
 	}
 
 	s := &server{factorer}
-	http.Handle("/", weaver.InstrumentHandler("/", http.HandlerFunc(s.handleFactors)))
-	http.Handle("/healthz", weaver.InstrumentHandler("/healthz", http.HandlerFunc(s.handleHealthz)))
+	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
+	http.Handle("/healthz", weaver.InstrumentHandlerFunc("/healthz", s.handleHealthz))
 
 	lis, err := root.Listener("factors", weaver.ListenerOptions{LocalAddress: addr})
 	if err != nil {
