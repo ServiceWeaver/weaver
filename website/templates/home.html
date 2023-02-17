@@ -1,5 +1,5 @@
 <!--
- Copyright 2023 Google LLC
+ Copyright 2022 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,12 +14,19 @@
  limitations under the License.
 -->
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-GWZW7L8C6L"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-GWZW7L8C6L');
-</script>
+<html>
+  <head>
+    {{template "head.html" .}}
+    <title>Service Weaver</title>
+    <link rel="stylesheet" href="/assets/css/common.css">
+    <link rel="stylesheet" href="/assets/css/home.css">
+  </head>
+  <body>
+    <div class="page">
+      {{template "header.html" .}}
+      <div class="contents">
+        {{.Contents}}
+      </div>
+    </div>
+  </body>
+</html>
