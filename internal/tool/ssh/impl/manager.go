@@ -30,12 +30,9 @@ import (
 
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
-	proto2 "google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	handler "github.com/ServiceWeaver/weaver/internal/babysitter"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/proto"
@@ -46,6 +43,10 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
+	proto2 "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -150,17 +151,18 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	// Create the trace saver.
 	var mu sync.Mutex
 	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(dep.App.Name), dep.Id)
-	tracer := traceio.NewChromeTraceEncoder()
 	traceSaver := func(spans *protos.Spans) error {
 		var traces []trace.ReadOnlySpan
 		for _, span := range spans.Span {
 			traces = append(traces, &traceio.ReadSpan{Span: span})
 		}
+		encoded, err := perfetto.Encode(traces)
+		if err != nil {
+			return err
+		}
 
 		mu.Lock()
 		defer mu.Unlock()
-
-		encoded := tracer.Encode(traces)
 		f, err := os.OpenFile(traceFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			return err
@@ -194,7 +196,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 			m.logger.Error("Unable to run the manager", err)
 		}
 	}()
-	go traceio.RunTracerProvider(m.ctx)
+	go perfetto.ServeLocalTraces(m.ctx)
 	go m.statsProcessor.CollectMetrics(m.ctx, func() []*metrics.MetricSnapshot {
 		m.mu.Lock()
 		defer m.mu.Unlock()

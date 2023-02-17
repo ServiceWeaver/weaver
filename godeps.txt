@@ -19,6 +19,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
@@ -328,11 +329,11 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/status
-    github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/internal/versioned
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
@@ -512,11 +513,11 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     fmt
     github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/status
-    github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/tool
@@ -573,6 +574,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
@@ -595,11 +597,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     time
 github.com/ServiceWeaver/weaver/internal/traceio
     context
-    crypto/sha256
-    encoding/binary
-    encoding/json
-    fmt
-    github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     go.opentelemetry.io/otel/attribute
     go.opentelemetry.io/otel/codes
@@ -607,14 +604,8 @@ github.com/ServiceWeaver/weaver/internal/traceio
     go.opentelemetry.io/otel/sdk/instrumentation
     go.opentelemetry.io/otel/sdk/resource
     go.opentelemetry.io/otel/sdk/trace
-    go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
     math
-    net
-    net/http
-    os
-    strconv
-    strings
     sync
     time
 github.com/ServiceWeaver/weaver/internal/versioned
@@ -727,6 +718,23 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     sync/atomic
     unicode
     unicode/utf8
+github.com/ServiceWeaver/weaver/runtime/perfetto
+    context
+    crypto/sha256
+    encoding/binary
+    encoding/json
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/logging
+    go.opentelemetry.io/otel/sdk/trace
+    go.opentelemetry.io/otel/semconv/v1.4.0
+    go.opentelemetry.io/otel/trace
+    net
+    net/http
+    os
+    strconv
+    strings
+    sync
+    time
 github.com/ServiceWeaver/weaver/runtime/protomsg
     bytes
     context

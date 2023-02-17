@@ -39,6 +39,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
@@ -116,20 +117,20 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		return nil, err
 	}
 
-	tracer := traceio.NewChromeTraceEncoder()
-	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(dep.App.Name), dep.Id)
-
 	var mu sync.Mutex
+	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(dep.App.Name), dep.Id)
 	traceSaver := func(spans *protos.Spans) error {
-		mu.Lock()
-		defer mu.Unlock()
-
 		traces := make([]sdktrace.ReadOnlySpan, len(spans.Span))
 		for i, span := range spans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
 		}
+		encoded, err := perfetto.Encode(traces)
+		if err != nil {
+			return err
+		}
 
-		encoded := tracer.Encode(traces)
+		mu.Lock()
+		defer mu.Unlock()
 		f, err := os.OpenFile(traceFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			return err
@@ -153,7 +154,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		traceFile:      traceFile,
 	}
 	go env.statsProcessor.CollectMetrics(env.ctx, metrics.Snapshot)
-	go traceio.RunTracerProvider(env.ctx)
+	go perfetto.ServeLocalTraces(env.ctx)
 	return env, nil
 }
 
