@@ -28,18 +28,18 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/babysitter"
 	"github.com/ServiceWeaver/weaver/internal/status"
-	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 var deployCmd = tool.Command{
@@ -83,18 +83,21 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("cannot create log storage: %w", err)
 	}
 	logSaver := fs.Add
-
 	depId := uuid.New().String()
-	tracer := traceio.NewChromeTraceEncoder()
+
+	var mu sync.Mutex
+	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(app.Name), depId)
 
 	// Create the trace saver.
-	var mu sync.Mutex
 	traceSaver := func(spans []trace.ReadOnlySpan) error {
+		encoded, err := perfetto.Encode(spans)
+		if err != nil {
+			return err
+		}
+
 		mu.Lock()
 		defer mu.Unlock()
-
-		encoded := tracer.Encode(spans)
-		f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(app.Name), depId), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+		f, err := os.OpenFile(traceFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			return err
 		}

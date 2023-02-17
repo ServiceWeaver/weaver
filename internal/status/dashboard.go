@@ -29,14 +29,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/browser"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	dtool "github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/pkg/browser"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -66,7 +66,7 @@ var (
 			return x - 1
 		},
 		"traceurl": func(file string) string {
-			// See metrics.RunTracerProvider for an explanation of the URLs.
+			// See perfetto.ServeLocalTraces for an explanation of the URLs.
 			tracerURL := url.QueryEscape("http://127.0.0.1:9001" + file)
 			return "https://ui.perfetto.dev/#!/?url=" + tracerURL
 		},
