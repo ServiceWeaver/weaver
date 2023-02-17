@@ -54,16 +54,16 @@ import (
 var watch = flag.Bool("watch", false, "Automatically rebuild website on change")
 
 var files = []file{
-	{dst: "index.html", html: "index.html", template: "basic.html", title: "Service Weaver", license: true},
-	{dst: "docs.html", markdown: "docs.md", template: "guide.html", license: true},
+	{dst: "index.html", html: "index.html", template: "home.html", license: true},
+	{dst: "docs.html", markdown: "docs.md", template: "docs.html", license: true},
 
-	{dst: "blog/index.html", html: "blog/index.html", template: "basic.html", license: true},
-	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog.html", license: true},
+	{dst: "blog/index.html", html: "blog/index.html", template: "blog.html", license: true},
+	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog_entry.html", title: "A Quick Introduction to Service Weaver", license: true},
 
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
-	staticFile("assets/css/guide.css"),
+	staticFile("assets/css/docs.css"),
 	staticFile("assets/css/home.css"),
 	staticFile("assets/images/cloud_metrics_1.png"),
 	staticFile("assets/images/cloud_metrics_2.png"),
