@@ -58,11 +58,11 @@ function cmd_lint() {
     exit 1
   fi
 
-  golangci-lint run ./...
+  golangci-lint --timeout=10m run ./...
 
   # Run unused check while skipping uses found in tests. This helps us
   # identify non-test code that is only used from tests.
-  golangci-lint run --enable unused --tests=false ./...
+  golangci-lint --timeout=10m run --enable unused --tests=false ./...
 }
 
 function cmd_test() {
