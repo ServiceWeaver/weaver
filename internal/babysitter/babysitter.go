@@ -28,24 +28,24 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/status"
-	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/internal/versioned"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -128,7 +128,7 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		routingInfo:    versioned.NewMap[*protos.RoutingInfo](),
 		proxies:        map[string]*proxyInfo{},
 	}
-	go traceio.RunTracerProvider(b.ctx)
+	go perfetto.ServeLocalTraces(b.ctx)
 	go b.statsProcessor.CollectMetrics(b.ctx, b.readMetrics)
 	return b, nil
 }
