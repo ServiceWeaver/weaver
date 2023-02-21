@@ -2,5 +2,6 @@ cmd/weaver/weaver
 examples/chat/chat
 examples/collatz/collatz
 examples/factors/factors
+examples/onlineboutique/onlineboutique
 examples/hello/hello
 website/public/
