@@ -33,6 +33,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	dtool "github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/pkg/browser"
@@ -65,9 +66,11 @@ var (
 		"dec": func(x int) int {
 			return x - 1
 		},
-		"traceurl": func(file string) string {
-			// See perfetto.ServeLocalTraces for an explanation of the URLs.
-			tracerURL := url.QueryEscape("http://127.0.0.1:9001" + file)
+		"traceurl": func(app, version string) string {
+			v := url.Values{}
+			v.Set("app", app)
+			v.Set("version", version)
+			tracerURL := url.QueryEscape("http://127.0.0.1:9001?" + v.Encode())
 			return "https://ui.perfetto.dev/#!/?url=" + tracerURL
 		},
 	}).Parse(deploymentHTML))
@@ -128,6 +131,13 @@ Flags:
 				return err
 			}
 			url := "http://" + lis.Addr().String()
+
+			traceDB, err := perfetto.Open(ctx)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "cannot open Perfetto database: %w", err)
+			}
+			go traceDB.Serve(ctx)
+
 			fmt.Fprintln(os.Stderr, "Dashboard available at:", url)
 			go browser.OpenURL(url)
 			return http.Serve(lis, nil)
