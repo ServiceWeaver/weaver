@@ -84,8 +84,6 @@ type Babysitter struct {
 	// be thread safe.
 	traceSaver func([]trace.ReadOnlySpan) error
 
-	traceFile string // name of the file where traces are available for the deployment
-
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
@@ -104,7 +102,7 @@ type proxyInfo struct {
 var _ envelope.EnvelopeHandler = &Babysitter{}
 
 // NewBabysitter creates a new babysitter.
-func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*protos.LogEntry), traceSaver func([]trace.ReadOnlySpan) error) (*Babysitter, error) {
+func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*protos.LogEntry)) (*Babysitter, error) {
 	logger := logging.FuncLogger{
 		Opts: logging.Options{
 			App:       dep.App.Name,
@@ -114,12 +112,21 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		},
 		Write: logSaver,
 	}
+
+	// Create the trace saver.
+	traceDB, err := perfetto.Open(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
+	}
+	traceSaver := func(spans []trace.ReadOnlySpan) error {
+		return traceDB.Store(ctx, dep.App.Name, dep.Id, spans)
+	}
+
 	b := &Babysitter{
 		ctx:            ctx,
 		logger:         logger,
 		logSaver:       logSaver,
 		traceSaver:     traceSaver,
-		traceFile:      fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(dep.App.Name), dep.Id),
 		statsProcessor: imetrics.NewStatsProcessor(),
 		opts:           envelope.Options{Restart: envelope.Never, Retry: retry.DefaultOptions},
 		dep:            dep,
@@ -128,7 +135,6 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		routingInfo:    versioned.NewMap[*protos.RoutingInfo](),
 		proxies:        map[string]*proxyInfo{},
 	}
-	go perfetto.ServeLocalTraces(b.ctx)
 	go b.statsProcessor.CollectMetrics(b.ctx, b.readMetrics)
 	return b, nil
 }
@@ -599,7 +605,6 @@ func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
 		SubmissionTime: info.SubmissionTime,
 		Components:     components,
 		Listeners:      listeners,
-		TraceFile:      b.traceFile,
 		Config:         b.dep.App,
 	}, nil
 }

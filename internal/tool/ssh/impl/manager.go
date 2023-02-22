@@ -104,8 +104,6 @@ type manager struct {
 	// be thread safe.
 	traceSaver func(spans *protos.Spans) error
 
-	traceFile string // name of the file where traces are available for the deployment
-
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
@@ -149,31 +147,17 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	}
 
 	// Create the trace saver.
-	var mu sync.Mutex
-	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(dep.App.Name), dep.Id)
+	traceDB, err := perfetto.Open(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
+	}
 	traceSaver := func(spans *protos.Spans) error {
 		var traces []trace.ReadOnlySpan
 		for _, span := range spans.Span {
 			traces = append(traces, &traceio.ReadSpan{Span: span})
 		}
-		encoded, err := perfetto.Encode(traces)
-		if err != nil {
-			return err
-		}
-
-		mu.Lock()
-		defer mu.Unlock()
-		f, err := os.OpenFile(traceFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			return err
-		}
-		if _, err := f.Write(encoded); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
+		return traceDB.Store(ctx, dep.App.Name, dep.Id, traces)
 	}
-
 	m := &manager{
 		ctx:            ctx,
 		dep:            dep,
@@ -182,7 +166,6 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 		logDir:         logDir,
 		logSaver:       logSaver,
 		traceSaver:     traceSaver,
-		traceFile:      traceFile,
 		statsProcessor: imetrics.NewStatsProcessor(),
 		started:        map[string]bool{},
 		appInfo:        versioned.NewMap[*handler.AppVersionState](),
@@ -196,7 +179,6 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 			m.logger.Error("Unable to run the manager", err)
 		}
 	}()
-	go perfetto.ServeLocalTraces(m.ctx)
 	go m.statsProcessor.CollectMetrics(m.ctx, func() []*metrics.MetricSnapshot {
 		m.mu.Lock()
 		defer m.mu.Unlock()
@@ -358,7 +340,6 @@ func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 		SubmissionTime: info.SubmissionTime,
 		Components:     components,
 		Listeners:      listeners,
-		TraceFile:      m.traceFile,
 		Config:         m.dep.App,
 	}, nil
 }

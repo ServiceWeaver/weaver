@@ -28,20 +28,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.opentelemetry.io/otel/trace"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
+	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // readyMethodKey holds the key for a method used to check if a backend is ready.
@@ -145,7 +145,8 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s/%s", wletInfo.Process, wletInfo.Id[:4])),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
-			attribute.String("coloc_group", wletInfo.Group.Name),
+			traceio.GroupReplicaIDTraceKey.String(wletInfo.GroupReplicaId),
+			traceio.ColocationGroupNameTraceKey.String(wletInfo.Group.Name),
 		)),
 		// TODO(spetrovic): Allow the user to create new TracerProviders where
 		// they can control trace sampling and other options.

@@ -28,8 +28,7 @@ message Status {
   string status_addr = 4;                         // status server address
   repeated Component components = 5;              // active components
   repeated Listener listeners = 6;                // exported listeners
-  string trace_file = 7;                          // trace file
-  runtime.AppConfig config = 8;  // application config file contents
+  runtime.AppConfig config = 7;                   // application config
 }
 
 // Component describes a Service Weaver component.

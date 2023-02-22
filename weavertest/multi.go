@@ -81,7 +81,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 		}
 	}
 	dep := createDeployment(t, config)
-	b, err := babysitter.NewBabysitter(ctx, dep, logSaver, nil /*traceSaver*/)
+	b, err := babysitter.NewBabysitter(ctx, dep, logSaver)
 	if err != nil {
 		t.Fatal(err)
 	}
