@@ -56,7 +56,6 @@ type singleprocessEnv struct {
 
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
-	traceFile      string                   // name of the file where traces are available for the deployment
 	traceSaver     func(spans *protos.Spans) error
 
 	mu         sync.Mutex
@@ -67,6 +66,8 @@ type singleprocessEnv struct {
 var _ env = &singleprocessEnv{}
 
 func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error) {
+	ctx := context.Background()
+
 	// Get the config to use.
 	configFile := "[testconfig]"
 	config := bootstrap.TestConfig
@@ -117,44 +118,29 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		return nil, err
 	}
 
-	var mu sync.Mutex
-	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(dep.App.Name), dep.Id)
+	traceDB, err := perfetto.Open(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
+	}
 	traceSaver := func(spans *protos.Spans) error {
 		traces := make([]sdktrace.ReadOnlySpan, len(spans.Span))
 		for i, span := range spans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
 		}
-		encoded, err := perfetto.Encode(traces)
-		if err != nil {
-			return err
-		}
-
-		mu.Lock()
-		defer mu.Unlock()
-		f, err := os.OpenFile(traceFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			return err
-		}
-		if _, err := f.Write(encoded); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
+		return traceDB.Store(ctx, appConfig.Name, dep.Id, traces)
 	}
 
 	env := &singleprocessEnv{
+		ctx:            ctx,
 		deployment:     wlet.Dep,
 		group:          wlet.Group,
 		weavelet:       wlet,
-		ctx:            context.Background(),
 		submissionTime: time.Now(),
 		listeners:      map[string][]string{},
 		statsProcessor: imetrics.NewStatsProcessor(),
 		traceSaver:     traceSaver,
-		traceFile:      traceFile,
 	}
-	go env.statsProcessor.CollectMetrics(env.ctx, metrics.Snapshot)
-	go perfetto.ServeLocalTraces(env.ctx)
+	go env.statsProcessor.CollectMetrics(ctx, metrics.Snapshot)
 	return env, nil
 }
 
@@ -318,7 +304,6 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 		SubmissionTime: timestamppb.New(e.submissionTime),
 		Components:     components,
 		Listeners:      listeners,
-		TraceFile:      e.traceFile,
 		Config:         e.deployment.App,
 	}, nil
 }

@@ -26,7 +26,6 @@ github.com/ServiceWeaver/weaver
     github.com/google/uuid
     github.com/lightstep/varopt
     go.opentelemetry.io/otel
-    go.opentelemetry.io/otel/attribute
     go.opentelemetry.io/otel/propagation
     go.opentelemetry.io/otel/sdk/resource
     go.opentelemetry.io/otel/sdk/trace
@@ -461,6 +460,7 @@ github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/tool
@@ -517,19 +517,16 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
     io
     net
     net/http
     os
     os/signal
     path/filepath
-    sync
     syscall
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
@@ -719,21 +716,27 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     unicode
     unicode/utf8
 github.com/ServiceWeaver/weaver/runtime/perfetto
+    bytes
     context
     crypto/sha256
+    database/sql
     encoding/binary
     encoding/json
+    errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/retry
+    github.com/hashicorp/golang-lru/v2
+    github.com/mattn/go-sqlite3
     go.opentelemetry.io/otel/sdk/trace
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
     net
     net/http
     os
+    path/filepath
     strconv
-    strings
-    sync
     time
 github.com/ServiceWeaver/weaver/runtime/protomsg
     bytes

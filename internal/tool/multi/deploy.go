@@ -25,7 +25,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/babysitter"
@@ -34,12 +33,10 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
-	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 var deployCmd = tool.Command{
@@ -83,39 +80,15 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("cannot create log storage: %w", err)
 	}
 	logSaver := fs.Add
-	depId := uuid.New().String()
-
-	var mu sync.Mutex
-	traceFile := fmt.Sprintf("%s/%s_%s.trace", os.TempDir(), logging.Shorten(app.Name), depId)
-
-	// Create the trace saver.
-	traceSaver := func(spans []trace.ReadOnlySpan) error {
-		encoded, err := perfetto.Encode(spans)
-		if err != nil {
-			return err
-		}
-
-		mu.Lock()
-		defer mu.Unlock()
-		f, err := os.OpenFile(traceFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			return err
-		}
-		if _, err := f.Write(encoded); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
-	}
 
 	// Create the babysitter.
 	dep := &protos.Deployment{
-		Id:                depId,
+		Id:                uuid.New().String(),
 		App:               app,
 		UseLocalhost:      true,
 		ProcessPicksPorts: true,
 	}
-	b, err := babysitter.NewBabysitter(ctx, dep, logSaver, traceSaver)
+	b, err := babysitter.NewBabysitter(ctx, dep, logSaver)
 	if err != nil {
 		return fmt.Errorf("create babysitter: %w", err)
 	}
@@ -164,7 +137,7 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("create registry: %w", err)
 	}
 	reg := status.Registration{
-		DeploymentId: depId,
+		DeploymentId: dep.Id,
 		App:          app.Name,
 		Addr:         lis.Addr().String(),
 	}
@@ -179,7 +152,7 @@ func deploy(ctx context.Context, args []string) error {
 	go func() {
 		<-done // Will block here until user hits ctrl+c
 		fmt.Fprintf(os.Stderr, "Application %s terminated\n", app.Name)
-		if err := registry.Unregister(ctx, depId); err != nil {
+		if err := registry.Unregister(ctx, dep.Id); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
 		}
 		os.Exit(1)
