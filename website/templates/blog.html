@@ -22,8 +22,8 @@
     <link rel="stylesheet" href="/assets/css/blog.css">
   </head>
   <body>
+    {{template "header.html" .}}
     <div class="page">
-      {{template "header.html" .}}
       <div class="contents">
         {{.Contents}}
       </div>
