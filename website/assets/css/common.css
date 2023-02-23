@@ -55,6 +55,9 @@ header {
   padding-bottom: 1ch;
   padding-left: 2ch;
   padding-right: 2ch;
+  max-width: 80em;
+  margin-left: auto;
+  margin-right: auto;
 }
 header .logo {
   font-size: 1.5em;
