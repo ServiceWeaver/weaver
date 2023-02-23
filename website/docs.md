@@ -1641,10 +1641,10 @@ to [*Profiling Go Programs*][pprof_blog] for a tutorial.
 ## Tracing
 
 Run `weaver multi dashboard` to open a dashboard in a web browser. The
-dashboard has a page for every Service Weaver application deployed via `go run
-.`.  Every deployment's page has a link to the deployment's [traces](#tracing)
-accessible via [Perfetto][perfetto]. Here's an example of what the tracing page
-looks like:
+dashboard has a page for every Service Weaver application deployed via
+`weaver multi deploy`. Every deployment's page has a link to the deployment's
+[traces](#tracing) accessible via [Perfetto][perfetto]. Here's an example of
+what the tracing page looks like:
 
 ![An example trace page](assets/images/trace_multi.png)
 
@@ -2339,9 +2339,16 @@ Refer to `weaver gke-local profile --help` for more details.
 
 ## Tracing
 
-<div hidden class="todo">
-TODO(spetrovic): Explain how to integrate with jaeger.
-</div>
+Run `weaver gke-local dashboard` to open a dashboard in a web browser. The
+dashboard has a page for every Service Weaver application deployed via
+`weaver gke-local deploy`. Every deployment's page has a link to the
+deployment's [traces](#tracing) accessible via [Perfetto][perfetto]. Here's an
+example of what the tracing page looks like:
+
+![An example trace page](assets/images/trace_gke_local.png)
+
+Refer to [Perfetto UI Docs](https://perfetto.dev/docs/visualization/perfetto-ui)
+to learn more about how to use the tracing UI.
 
 ## Versioning
 
