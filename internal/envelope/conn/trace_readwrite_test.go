@@ -16,21 +16,19 @@ package conn_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"math"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
+	"github.com/ServiceWeaver/weaver/internal/traceio"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/protobuf/testing/protocmp"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
-	"github.com/ServiceWeaver/weaver/internal/traceio"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 type pipeForTest struct {
@@ -261,7 +259,8 @@ func TestTracesReadWrite(t *testing.T) {
 		ChildSpanCount:        8,
 	}
 
-	pipe := makePipe(t)
+	pipe := &pipeForTest{}
+	pipe.envelopeConn, pipe.wletConn = makeConnections(t, pipe)
 	msg, err := writeAndRead(&traceio.ReadSpan{Span: expect}, pipe)
 	if err != nil {
 		t.Fatal(err)
@@ -280,51 +279,4 @@ func TestTracesReadWrite(t *testing.T) {
 	); diff != "" {
 		t.Fatalf("span: (-want,+got):\n%s\n", diff)
 	}
-}
-
-func makePipe(t *testing.T) *pipeForTest {
-	t.Helper()
-	dReader, mWriter := io.Pipe() // envelope -> weavelet
-	mReader, dWriter := io.Pipe() // weavelet -> envelope
-
-	p := &pipeForTest{}
-	wletConn := conn.NewWeaveletConn(dReader, dWriter)
-	envelopeConn := conn.NewEnvelopeConn(mReader, mWriter, p)
-	p.envelopeConn = envelopeConn
-	p.wletConn = wletConn
-
-	// Start Run goroutines for both side.
-	wait := &sync.WaitGroup{}
-	wait.Add(2)
-	go func() {
-		defer wait.Done()
-		err := p.envelopeConn.Run()
-		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, io.EOF) {
-			// TODO(mwhittaker): Very rarely, err will be EOF. Figure out how
-			// that's possible and prevent it. For now, we ignore EOFs to avoid
-			// flakes.
-			t.Errorf("envelope failed: %v", err)
-		}
-	}()
-	go func() {
-		defer wait.Done()
-		err := p.wletConn.Run()
-		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, io.EOF) {
-			// TODO(mwhittaker): Very rarely, err will be EOF. Figure out how
-			// that's possible and prevent it. For now, we ignore EOFs to avoid
-			// flakes.
-			t.Errorf("weavelet failed: %v", err)
-		}
-	}()
-
-	// Stop goroutines when test has finished.
-	t.Cleanup(func() {
-		dReader.Close()
-		mReader.Close()
-		mWriter.Close()
-		dWriter.Close()
-		wait.Wait()
-	})
-
-	return p
 }

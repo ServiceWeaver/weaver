@@ -475,7 +475,11 @@ func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int
 	b.mu.Unlock()
 
 	// Create a connection between the weavelet for the main process and the envelope.
-	econn := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, b)
+	econn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, b, mainWlet)
+	if err != nil {
+		return 0, 0, fmt.Errorf("cannot create envelope conn: %v", err)
+	}
+	go econn.Run()
 
 	// Create and run an envelope for the main process.
 	options := envelope.Options{
@@ -487,11 +491,7 @@ func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot create envelope: %v", err)
 	}
-	go econn.Run()
-	go func() {
-		e.Run(b.ctx)
-		econn.SendWeaveletInfoRPC(mainWlet)
-	}()
+	go e.Run(b.ctx)
 
 	return int(toWeaveletReader.Fd()), int(fromWeaveletWriter.Fd()), nil
 }

@@ -20,7 +20,6 @@ import (
 	"os"
 	"sync"
 
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
@@ -28,6 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // remoteEnv implements the env used for non-single-process Service Weaver applications.
@@ -48,13 +48,11 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap) (*remoteEnv,
 	if err != nil {
 		return nil, err
 	}
-	conn := conn.NewWeaveletConn(toWeavelet, toEnvelope)
-
-	// Wait for the envelope to send the weavelet info to run.
-	wlet, err := conn.GetWeaveletInfo()
+	conn, err := conn.NewWeaveletConn(toWeavelet, toEnvelope)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new weavelet conn: %w", err)
 	}
+	wlet := conn.Weavelet()
 
 	env := &remoteEnv{
 		deployment: wlet.Dep,
