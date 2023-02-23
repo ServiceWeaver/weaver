@@ -440,9 +440,10 @@ func (d *DB) fetch(ctx context.Context, app, version string) ([]byte, error) {
 	const query = `
 		SELECT GROUP_CONCAT(events, ',')
 		FROM traces
-		WHERE app=? AND version=?;
+		WHERE
+		(app=? OR ?="") AND (version=? OR ?="");
 	`
-	rows, err := d.queryDB(ctx, query, app, version)
+	rows, err := d.queryDB(ctx, query, app, app, version, version)
 	if err != nil {
 		return nil, err
 	}
@@ -481,13 +482,18 @@ func (d *DB) execDB(ctx context.Context, query string, args ...any) (sql.Result,
 }
 
 // Serve runs an HTTP server that serves traces stored in the database.
+// In order to view the traces, open the following URL in a Chrome browser:
+//
+//	https://ui.perfetto.dev/#!/?url=http://<hostname>:9001?app=<app>&version=<version>
+//
+// , where <hostname> is the hostname of the machine running this server
+// (e.g., "127.0.0.1"), <app> is the application name, and <version> is the
+// application version. If <version> is empty, all of the application's traces
+// will be displayed. If <app> is also empty, all of the database traces will be
+// displayed.
 //
 // Perfetto UI requires that the server runs on the local port 9001. For that
 // reason, this method will block until port 9001 becomes available.
-//
-// Because the server handles *all* traces stored in the database, as long as
-// some other server is serving the database, trace data stored in the database
-// will be served.
 func (d *DB) Serve(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
