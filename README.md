@@ -22,4 +22,5 @@ instructions and information on getting started.
 Please read our [contribution guide](./CONTRIBUTING.md) for details on how
 to contribute.
 
+[website]: https://serviceweaver.dev
 [docs]: https://serviceweaver.dev/docs.html
