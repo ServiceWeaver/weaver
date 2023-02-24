@@ -37,8 +37,9 @@ message EnvelopeMsg {
   // data.
   RunProfiling run_profiling = 4;
 
-  // A request to the weavelet to receive its weavelet information and respond with acknowledgment.
-  Weavelet weavelet_info = 5;
+  // A request to the weavelet to receive its weavelet information and respond
+  // with acknowledgment.
+  WeaveletInfo weavelet_info = 5;
 
   // A reply to the weavelet with the latest routing info.
   RoutingInfo routing_info = 6;
@@ -127,6 +128,11 @@ message Deployment {
   string network_storage_dir = 8;
 }
 
+// A group of components.
+message ComponentGroup {
+  repeated string components = 1;
+}
+
 // AppConfig holds configuration for a Service Weaver application.
 message AppConfig {
   // Application name (derived from binary if missing).
@@ -142,11 +148,6 @@ message AppConfig {
   // form "key=value". If a key appears more than once, only the last value of
   // the key is used.
   repeated string env = 6;
-
-  // A group of components.
-  message ComponentGroup {
-    repeated string components = 1;
-  }
 
   // Groups of components that must be co-located in the same process.
   //
@@ -198,24 +199,22 @@ message ColocationGroup {
   string name = 1;
 }
 
-// Weavelet holds internal information that describes a weavelet, i.e.,
-// an OS process running inside a colocation group replica, hosting Service Weaver
-// components.
-message Weavelet {
-  // Unique id for the weavelet.
-  string id = 1;
-
-  // Deployment weavelet belongs to.
-  Deployment dep = 2;
-
-  // Colocation group weavelet belongs to.
-  ColocationGroup group = 3;
-
-  // Unique id of the colocation group replica weavelet belongs to.
-  string group_replica_id = 4;
-
-  // Name of the OS process this weavelet corresponds to.
-  string process = 5;
+// WeaveletInfo contains information provided to a weavelet from its deployer.
+message WeaveletInfo {
+  // TODO(mwhittaker): Remove the notion of a colocation group?
+  // TODO(mwhittaker): Pick a better name for process.
+  string app = 1;                            // app name
+  string deployment_id = 2;                  // deployment id
+  ColocationGroup group = 3;                 // colocation group
+  string group_id = 4;                       // colocation group replica id
+  string process = 5;                        // process name
+  string id = 6;                             // weavelet id
+  repeated ComponentGroup same_process = 7;  // See AppConfig.SameProcess.
+  map<string, string> sections = 8;          // See AppConfig.Sections.
+  bool single_process = 9;                   // is a single process?
+  bool use_localhost = 10;                   // listeners listen on localhost?
+  bool process_picks_ports = 11;             // a weavelet picks its own port?
+  string network_storage_dir = 12;           // colocation group storage dir
 }
 
 // GetRoutingInfo is a request to retrieve routing information for a given

@@ -77,7 +77,7 @@ type EnvelopeConn struct {
 // Synthesized high-level events are passed to h.
 //
 // NewEnvelopeConn sends the provided protos.Weavelet to the weavelet.
-func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, weavelet *protos.Weavelet) (*EnvelopeConn, error) {
+func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, weavelet *protos.WeaveletInfo) (*EnvelopeConn, error) {
 	e := &EnvelopeConn{
 		handler: h,
 		conn:    conn{name: "envelope", reader: r, writer: w},
