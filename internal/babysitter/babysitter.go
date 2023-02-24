@@ -379,14 +379,21 @@ func (b *Babysitter) startProcess(dep *protos.Deployment, group *protos.Colocati
 		id := uuid.NewHash(sha256.New(), uuid.Nil, []byte(fmt.Sprintf("%d", r)), 0).String()
 
 		// Start the weavelet and capture its logs, traces, and metrics.
-		wlet := &protos.Weavelet{
-			Id:             uuid.New().String(),
-			Dep:            dep,
-			Group:          group,
-			GroupReplicaId: id,
-			Process:        proc,
+		wlet := &protos.WeaveletInfo{
+			App:               dep.App.Name,
+			DeploymentId:      dep.Id,
+			Group:             group,
+			GroupId:           id,
+			Process:           proc,
+			Id:                uuid.New().String(),
+			SameProcess:       dep.App.SameProcess,
+			Sections:          dep.App.Sections,
+			SingleProcess:     dep.SingleProcess,
+			UseLocalhost:      dep.UseLocalhost,
+			ProcessPicksPorts: dep.ProcessPicksPorts,
+			NetworkStorageDir: dep.NetworkStorageDir,
 		}
-		e, err := envelope.NewEnvelope(wlet, b, b.opts)
+		e, err := envelope.NewEnvelope(wlet, dep.App, b, b.opts)
 		if err != nil {
 			return err
 		}
@@ -425,7 +432,7 @@ func (b *Babysitter) getProcessesToStart(group string, version *call.Version) (
 
 // CreateAndRunEnvelopeForMain creates an envelope for an already started main.
 // It is used by weavertest where the main process is already running.
-func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int, int, error) {
+func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.WeaveletInfo, config *protos.AppConfig) (int, int, error) {
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -487,7 +494,7 @@ func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int
 		Retry:           retry.DefaultOptions,
 		GetEnvelopeConn: func() *conn.EnvelopeConn { return econn },
 	}
-	e, err := envelope.NewEnvelope(mainWlet, b, options)
+	e, err := envelope.NewEnvelope(mainWlet, config, b, options)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot create envelope: %v", err)
 	}

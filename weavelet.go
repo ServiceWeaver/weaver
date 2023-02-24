@@ -53,14 +53,12 @@ var readyMethodKey = call.MakeMethodKey("", "ready")
 // implemented by multiple weavelets.
 type weavelet struct {
 	ctx               context.Context
-	env               env                     // Manages interactions with execution environment
-	deployment        *protos.Deployment      // Deployment the weavelet was instantiated in
-	group             *protos.ColocationGroup // ColocationGroup this weavelet was instantiated in
-	info              *protos.Weavelet        // Information about this weavelet
-	internalTransport *transport              // Transport for intra-colocation-group communication
-	externalTransport *transport              // Transport for inter-colocation-group communication
-	externalDialAddr  call.NetworkAddress     // Address this weavelet is reachable from the outside
-	tracer            trace.Tracer            // Tracer for this weavelet
+	env               env                  // Manages interactions with execution environment
+	info              *protos.WeaveletInfo // Information about this weavelet
+	internalTransport *transport           // Transport for intra-colocation-group communication
+	externalTransport *transport           // Transport for inter-colocation-group communication
+	externalDialAddr  call.NetworkAddress  // Address this weavelet is reachable from the outside
+	tracer            trace.Tracer         // Tracer for this weavelet
 
 	root             *component                  // The automatically created "root" component
 	componentsByName map[string]*component       // component name -> component
@@ -107,8 +105,6 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	d := &weavelet{
 		ctx:              ctx,
 		env:              env,
-		deployment:       wletInfo.Dep,
-		group:            wletInfo.Group,
 		info:             wletInfo,
 		componentsByName: byName,
 		componentsByType: byType,
@@ -133,7 +129,7 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	main.impl = &componentImpl{component: main}
 
 	// Place components into colocation groups and OS processes.
-	if err := place(byName, wletInfo.Dep); err != nil {
+	if err := place(byName, wletInfo); err != nil {
 		return nil, err
 	}
 
@@ -145,10 +141,10 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s/%s", wletInfo.Process, wletInfo.Id[:4])),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
-			traceio.AppNameTraceKey.String(wletInfo.Dep.App.Name),
-			traceio.VersionTraceKey.String(wletInfo.Dep.Id),
+			traceio.AppNameTraceKey.String(wletInfo.App),
+			traceio.VersionTraceKey.String(wletInfo.DeploymentId),
 			traceio.ColocationGroupNameTraceKey.String(wletInfo.Group.Name),
-			traceio.GroupReplicaIDTraceKey.String(wletInfo.GroupReplicaId),
+			traceio.GroupReplicaIDTraceKey.String(wletInfo.GroupId),
 		)),
 		// TODO(spetrovic): Allow the user to create new TracerProviders where
 		// they can control trace sampling and other options.
@@ -234,7 +230,7 @@ func (d *weavelet) start() (Instance, error) {
 		// Set appropriate logger and tracer for main.
 		logSaver := d.env.CreateLogSaver(d.ctx, "main")
 		d.root.logger = newAttrLogger(
-			d.root.info.Name, d.deployment.Id, d.root.info.Name, d.info.Id, logSaver)
+			d.root.info.Name, d.info.DeploymentId, d.root.info.Name, d.info.Id, logSaver)
 	}
 
 	// Every weavelet launches two servers to handle remote method invocations
@@ -246,7 +242,7 @@ func (d *weavelet) start() (Instance, error) {
 	// For a singleprocess deployment, no servers are launched because all
 	// method invocations are process-local and executed as regular go function
 	// calls.
-	if !d.deployment.SingleProcess {
+	if !d.info.SingleProcess {
 		var internalLis net.Listener
 		if d.internalTransport != nil {
 			internalAddr, err := d.internalAddress(d.info.Process)
@@ -263,7 +259,7 @@ func (d *weavelet) start() (Instance, error) {
 		// TODO(mwhittaker): Right now, we resolve our hostname to get a
 		// dialable IP address. Double check that this always works.
 		host := "localhost"
-		if !d.deployment.UseLocalhost {
+		if !d.info.UseLocalhost {
 			var err error
 			host, err = os.Hostname()
 			if err != nil {
@@ -393,9 +389,9 @@ func (d *weavelet) logRolodexCard() {
 	header := fmt.Sprintf(" weavelet %s started ", d.info.Id)
 	lines := []string{
 		fmt.Sprintf("   hostname   : %s ", hostname),
-		fmt.Sprintf("   deployment : %s ", d.info.Dep.Id),
+		fmt.Sprintf("   deployment : %s ", d.info.DeploymentId),
 		fmt.Sprintf("   group      : %s ", logging.ShortenComponent(d.info.Group.Name)),
-		fmt.Sprintf("   group id   : %s ", d.info.GroupReplicaId),
+		fmt.Sprintf("   group id   : %s ", d.info.GroupId),
 		fmt.Sprintf("   process    : %s ", logging.ShortenComponent(d.info.Process)),
 		fmt.Sprintf("   components : %v ", localComponents),
 		fmt.Sprintf("   address    : %s", string(d.externalDialAddr)),
@@ -441,7 +437,7 @@ func (d *weavelet) getInstance(c *component, requester string) (interface{}, err
 
 	var local bool // should we perform local, in-process communication?
 	switch {
-	case d.deployment.SingleProcess:
+	case d.info.SingleProcess:
 		local = true
 	case c.info.Routed:
 		// TODO(mwhittaker): If the instance of the component that the slice
@@ -475,7 +471,7 @@ func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 		return nil, errors.New("empty listener name")
 	}
 
-	if d.deployment.SingleProcess {
+	if d.info.SingleProcess {
 		l, err := net.Listen("tcp", opts.LocalAddress)
 		if err != nil {
 			return nil, err
@@ -492,14 +488,14 @@ func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	// TODO(mwhittaker): Right now, we resolve our hostname to get a
 	// dialable IP address. Double check that this always works.
 	host := "localhost"
-	if !d.deployment.UseLocalhost {
+	if !d.info.UseLocalhost {
 		var err error
 		host, err = os.Hostname()
 		if err != nil {
 			return nil, fmt.Errorf("error getting local hostname: %w", err)
 		}
 	}
-	if d.deployment.ProcessPicksPorts {
+	if d.info.ProcessPicksPorts {
 		l, _, err := d.listen("tcp", fmt.Sprintf("%s:0", host))
 		if err != nil {
 			return nil, err
@@ -540,7 +536,7 @@ func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 // inLocalColocGroup returns whether the component is hosted in the same colocation
 // group as us.
 func (d *weavelet) inLocalColocGroup(c *component) bool {
-	return c.colocGroupName == d.group.Name
+	return c.colocGroupName == d.info.Group.Name
 }
 
 // inLocalProcess returns whether the component is hosted in the same process
@@ -565,7 +561,7 @@ func numProcsIn(group *protos.ColocationGroup, components map[string]*component)
 // hosting the given Service Weaver process; the returned address must be dialable from
 // all weavelets in the same colocation group instance as us.
 func (d *weavelet) internalAddress(proc string) (string, error) {
-	dir := d.deployment.NetworkStorageDir
+	dir := d.info.NetworkStorageDir
 	if dir == "" {
 		dir = filepath.Join(os.TempDir(), "serviceweaver", "network")
 	}
@@ -573,9 +569,9 @@ func (d *weavelet) internalAddress(proc string) (string, error) {
 		return "", fmt.Errorf("cannot create network storage directory %q: %w", dir, err)
 	}
 	return filepath.Join(dir, fmt.Sprintf("%s.%s.%s.proc%s",
-		d.deployment.App.Name,
-		d.deployment.Id[:8],
-		d.info.GroupReplicaId[:8],
+		d.info.App,
+		d.info.DeploymentId[:8],
+		d.info.GroupId[:8],
 		uuid.NewHash(sha256.New(), uuid.Nil, []byte(proc), 0).String()[:8],
 	)), nil
 }
@@ -654,8 +650,8 @@ func (d *weavelet) reportLoad() error {
 		case <-ticker.C:
 			ticker.Reset(pick())
 			report := &protos.WeaveletLoadReport{
-				App:          d.deployment.App.Name,
-				DeploymentId: d.deployment.Id,
+				App:          d.info.App,
+				DeploymentId: d.info.DeploymentId,
 				Process:      d.info.Process,
 				Replica:      string(d.externalDialAddr),
 				Loads:        map[string]*protos.WeaveletLoadReport_ComponentLoad{},
@@ -737,7 +733,7 @@ func (d *weavelet) getImpl(c *component) (*componentImpl, error) {
 		// way to make this less error-prone.
 		c.impl = &componentImpl{component: c}
 		logSaver := d.env.CreateLogSaver(d.ctx, c.info.Name)
-		logger := newAttrLogger(d.deployment.App.Name, d.deployment.Id, c.info.Name, d.info.Id, logSaver)
+		logger := newAttrLogger(d.info.App, d.info.DeploymentId, c.info.Name, d.info.Id, logSaver)
 		c.logger = logger
 		c.tracer = d.tracer
 
@@ -765,7 +761,7 @@ func createComponent(ctx context.Context, c *component) error {
 
 	if c.info.ConfigFn != nil {
 		cfg := c.info.ConfigFn(obj)
-		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.deployment.App, cfg); err != nil {
+		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.info.Sections, cfg); err != nil {
 			return err
 		}
 	}
@@ -947,8 +943,8 @@ func (d *weavelet) getTCPClient(component *component) (*client, error) {
 //
 // TODO(spetrovic): Consult envelope for placement.
 // TODO(spetrovic): Add colocation group placement spec to the config.
-func place(registry map[string]*component, d *protos.Deployment) error {
-	if d.SingleProcess {
+func place(registry map[string]*component, w *protos.WeaveletInfo) error {
+	if w.SingleProcess {
 		// If we are running a singleprocess deployment, all the components are
 		// assigned to the same process.
 		for _, c := range registry {
@@ -960,7 +956,7 @@ func place(registry map[string]*component, d *protos.Deployment) error {
 
 	// NOTE: the config should already have been checked to ensure that each
 	// component appears at most once in the same_process entry.
-	for _, components := range d.App.SameProcess {
+	for _, components := range w.SameProcess {
 		// Verify components and assign the (same) process name for them.
 		var procName string
 		for _, component := range components.Components {
