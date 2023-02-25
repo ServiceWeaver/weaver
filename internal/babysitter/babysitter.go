@@ -297,8 +297,13 @@ func (b *Babysitter) ReportLoad(*protos.WeaveletLoadReport) error {
 	return nil
 }
 
+// GetAddress implements the protos.EnvelopeHandler interface.
+func (b *Babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	return &protos.GetAddressReply{Address: "localhost:0"}, nil
+}
+
 // ExportListener implements the protos.EnvelopeHandler interface.
-func (b *Babysitter) ExportListener(req *protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -325,7 +330,8 @@ func (b *Babysitter) ExportListener(req *protos.ListenerToExport) (*protos.Expor
 
 	lis, err := net.Listen("tcp", req.LocalAddress)
 	if errors.Is(err, syscall.EADDRINUSE) {
-		return &protos.ExportListenerReply{AlreadyInUse: true}, nil
+		// Don't retry if this address is already in use.
+		return &protos.ExportListenerReply{Error: err.Error()}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("proxy listen: %w", err)
@@ -389,8 +395,6 @@ func (b *Babysitter) startProcess(dep *protos.Deployment, group *protos.Colocati
 			SameProcess:       dep.App.SameProcess,
 			Sections:          dep.App.Sections,
 			SingleProcess:     dep.SingleProcess,
-			UseLocalhost:      dep.UseLocalhost,
-			ProcessPicksPorts: dep.ProcessPicksPorts,
 			NetworkStorageDir: dep.NetworkStorageDir,
 		}
 		e, err := envelope.NewEnvelope(wlet, dep.App, b, b.opts)

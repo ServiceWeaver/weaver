@@ -47,11 +47,14 @@ message EnvelopeMsg {
   // A reply to the weavelet with the latest list of components to start.
   ComponentsToStart components_to_start = 7;
 
-  // A reply to the weavelet with the exported listener information.
-  ExportListenerReply export_listener_reply = 8;
+  // A reply to a GetAddressRequest.
+  GetAddressReply get_address_reply = 8;
+
+  // A reply to an ExportListenerRequest.
+  ExportListenerReply export_listener_reply = 9;
 
   // A reply to the weavelet with an error status.
-  string error = 9;
+  string error = 10;
 }
 
 // WeaveletMsg holds a message sent by a weavelet to the envelope that manages it.
@@ -98,8 +101,11 @@ message WeaveletMsg {
   // Request to get the list of components to be started.
   GetComponentsToStart get_components_to_start = 13;
 
+  // Request to get the address for a listener.
+  GetAddressRequest get_address_request = 14;
+
   // Request to export a listener.
-  ListenerToExport listener_to_export = 14;
+  ExportListenerRequest export_listener_request = 15;
 }
 
 // Deployment holds internal information necessary for an application
@@ -112,16 +118,6 @@ message Deployment {
 
   // Run as a single process locally.
   bool single_process = 10;
-
-  // If true, all network traffic is sent via localhost. This option should only
-  // be set if all weavelets are running on the same machine (e.g., when using
-  // the weaver-gke-local or weaver-multi deployers).
-  bool use_localhost = 9;
-
-  // If true, the process is expected to pick the first available port on the
-  // local machine when creating a new listener; otherwise, the process should
-  // consult the runtime to pick the listener ports.
-  bool process_picks_ports = 5;
 
   // Storage directory for files that facilitate internal communication
   // between Service Weaver processes. If empty, defaults to "$TMP_DIR/serviceweaver/network".
@@ -348,32 +344,46 @@ message ComponentsToStart {
   repeated string components = 3;
 }
 
-// ListenerToExport is a request to the envelope to export a process's network
-// listener.
-message ListenerToExport {
-  string app = 1;            // Service Weaver application
-  string deployment_id = 2;  // Service Weaver deployment id
-  string process = 3;        // name of the process whose weavelet exports listener
-
-  Listener listener = 5;      // listener specification.
-  string local_address = 6;   // LocalAddress argument in ListenerOptions
-  ColocationGroup group = 7;  // colocation group exporting the listener
+// GetAddressRequest is a request for the address a weavelet should listen on
+// for a particular listener.
+//
+// Imagine a weavelet calls GetListener with LocalAdress localhost:9000. Here
+// are some examples of how different deployers may handle a GetAddressRequest.
+//
+// - The singleprocess deployer may instruct the weavelet to listen directly
+//   on localhost:9000.
+// - The multiprocess deployer may instruct the weavelet to listen on
+//   localhost:0. It will separately start a proxy on localhost:9000.
+// - The SSH deployer may instruct the weavelet to listen on
+//   $HOSTNAME:0. It will separately start a proxy on localhost:9000.
+message GetAddressRequest {
+  string name = 1;           // listener name
+  string local_address = 2;  // LocalAddress argument in ListenerOptions
 }
 
-// ExportListenerReply is a result of the ListenerToExport request.
+// GetAddressReply is a reply to a GetAddressRequest.
+message GetAddressReply {
+  string address = 1;  // address to listen on
+}
+
+// ExportListenerRequest is a request to export the provided listener.
+message ExportListenerRequest {
+  Listener listener = 1;     // listener
+  string local_address = 2;  // LocalAddress argument in ListenerOptions
+}
+
+// ExportListenerReply is a reply to a ExportListenerRequest.
 message ExportListenerReply {
-  int32 port = 1;
-
-  // The address of the proxy that forwards traffic to the returned listener, or
-  // empty if there is no proxy.
-  string proxy_address = 2;
-
-  // True, if the address is already in use.
+  // If non-empty, a non-retriable error.
   //
   // TODO(mwhittaker): This field exists as a hack to avoid a weavelet retrying
   // this error. In the future, we should have a more robust way to avoid
   // retrying certain errors.
-  bool already_in_use = 3;
+  string error = 1;
+
+  // The address of the proxy that forwards traffic to the returned listener, or
+  // empty if there is no proxy.
+  string proxy_address = 2;
 }
 
 // Listener holds information about a network listener.

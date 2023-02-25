@@ -53,9 +53,11 @@ type EnvelopeHandler interface {
 	// ReportLoad reports the given weavelet load information.
 	ReportLoad(entry *protos.WeaveletLoadReport) error
 
-	// ExportListener exports the given listener, returning the export
-	// information (e.g,. any port assigned).
-	ExportListener(request *protos.ListenerToExport) (*protos.ExportListenerReply, error)
+	// GetAddress gets the address a weavelet should listen on for a listener.
+	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
+
+	// ExportListener exports the given listener.
+	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
 	// GetRoutingInfo returns the latest routing information for the weavelet.
 	//

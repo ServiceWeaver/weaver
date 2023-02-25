@@ -133,8 +133,6 @@ func createDeployment(t testing.TB, config string) *protos.Deployment {
 	dep := &protos.Deployment{
 		Id:                uuid.New().String(),
 		App:               appConfig,
-		UseLocalhost:      true,
-		ProcessPicksPorts: true,
 		NetworkStorageDir: t.TempDir(),
 	}
 	return dep
@@ -154,8 +152,6 @@ func createWeaveletForMain(dep *protos.Deployment) *protos.WeaveletInfo {
 		SameProcess:       dep.App.SameProcess,
 		Sections:          dep.App.Sections,
 		SingleProcess:     dep.SingleProcess,
-		UseLocalhost:      dep.UseLocalhost,
-		ProcessPicksPorts: dep.ProcessPicksPorts,
 		NetworkStorageDir: dep.NetworkStorageDir,
 	}
 	return wlet

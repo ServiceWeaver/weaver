@@ -163,15 +163,20 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, process string,
 	return reply, &call.Version{Opaque: reply.Version}, nil
 }
 
+// GetAddress implements the Env interface.
+func (e *remoteEnv) GetAddress(_ context.Context, name string, opts ListenerOptions) (*protos.GetAddressReply, error) {
+	request := &protos.GetAddressRequest{
+		Name:         name,
+		LocalAddress: opts.LocalAddress,
+	}
+	return e.conn.GetAddressRPC(request)
+}
+
 // ExportListener implements the Env interface.
 func (e *remoteEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
-	request := &protos.ListenerToExport{
-		App:          e.weavelet.App,
-		DeploymentId: e.weavelet.DeploymentId,
-		Process:      e.weavelet.Process,
+	request := &protos.ExportListenerRequest{
 		Listener:     lis,
 		LocalAddress: opts.LocalAddress,
-		Group:        e.weavelet.Group,
 	}
 	return e.conn.ExportListenerRPC(request)
 }

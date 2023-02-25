@@ -173,6 +173,10 @@ func (e *singleprocessEnv) GetRoutingInfo(context.Context, string, *call.Version
 	return nil, nil, fmt.Errorf("routing info not useful for singleprocess execution")
 }
 
+func (e *singleprocessEnv) GetAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error) {
+	return &protos.GetAddressReply{Address: opts.LocalAddress}, nil
+}
+
 func (e *singleprocessEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -468,59 +468,24 @@ func (d *weavelet) getInstance(c *component, requester string) (interface{}, err
 // getListener returns a network listener with the given name.
 func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, error) {
 	if name == "" {
-		return nil, errors.New("empty listener name")
+		return nil, fmt.Errorf("getListener(%q): empty listener name", name)
 	}
 
-	if d.info.SingleProcess {
-		l, err := net.Listen("tcp", opts.LocalAddress)
-		if err != nil {
-			return nil, err
-		}
-		lis := &protos.Listener{Name: name, Addr: l.Addr().String()}
-		reply, err := d.env.ExportListener(d.ctx, lis, opts)
-		if err != nil {
-			return nil, err
-		}
-		return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, err
+	// Get the address to listen on.
+	addr, err := d.env.GetAddress(d.ctx, name, opts)
+	if err != nil {
+		return nil, fmt.Errorf("getListener(%q): %w", name, err)
 	}
 
-	lis := &protos.Listener{Name: name}
-	// TODO(mwhittaker): Right now, we resolve our hostname to get a
-	// dialable IP address. Double check that this always works.
-	host := "localhost"
-	if !d.info.UseLocalhost {
-		var err error
-		host, err = os.Hostname()
-		if err != nil {
-			return nil, fmt.Errorf("error getting local hostname: %w", err)
-		}
-	}
-	if d.info.ProcessPicksPorts {
-		l, _, err := d.listen("tcp", fmt.Sprintf("%s:0", host))
-		if err != nil {
-			return nil, err
-		}
-		lis.Addr = l.Addr().String()
-		errMsg := fmt.Sprintf("error exporting listener %v", lis.Addr)
-		var reply *protos.ExportListenerReply
-		if err := d.repeatedly(errMsg, func() error {
-			// TODO(mwhittaker): Don't repeat this operation if the proxy
-			// address is unavailable. Repeating it will likely continue to
-			// fail.
-			var err error
-			reply, err = d.env.ExportListener(d.ctx, lis, opts)
-			return err
-		}); err != nil {
-			return nil, err
-		}
-		if reply.AlreadyInUse {
-			return nil, fmt.Errorf("listener %q: %v already in use", name, opts.LocalAddress)
-		}
-		return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, nil
+	// Listen on the address.
+	l, err := net.Listen("tcp", addr.Address)
+	if err != nil {
+		return nil, fmt.Errorf("getListener(%q): %w", name, err)
 	}
 
-	// Process doesn't pick the port.
-	const errMsg = "error exporting listener for auto-assigned port"
+	// Export the listener.
+	lis := &protos.Listener{Name: name, Addr: l.Addr().String()}
+	errMsg := fmt.Sprintf("getListener(%q): error exporting listener %v", name, lis.Addr)
 	var reply *protos.ExportListenerReply
 	if err := d.repeatedly(errMsg, func() error {
 		var err error
@@ -529,8 +494,10 @@ func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	}); err != nil {
 		return nil, err
 	}
-	l, _, err := d.listen("tcp", fmt.Sprintf("%s:%d", host, int(reply.Port)))
-	return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, err
+	if reply.Error != "" {
+		return nil, fmt.Errorf("getListener(%q): %s", name, reply.Error)
+	}
+	return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, nil
 }
 
 // inLocalColocGroup returns whether the component is hosted in the same colocation

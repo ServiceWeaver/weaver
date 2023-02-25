@@ -22,19 +22,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
-
 	"github.com/ServiceWeaver/weaver/internal/logtype"
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
-
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 // babysitter starts and manages weavelets belonging to a single colocation
@@ -210,8 +208,6 @@ func (b *babysitter) startProcess(proc string) error {
 		SameProcess:       b.dep.App.SameProcess,
 		Sections:          b.dep.App.Sections,
 		SingleProcess:     b.dep.SingleProcess,
-		UseLocalhost:      b.dep.UseLocalhost,
-		ProcessPicksPorts: b.dep.ProcessPicksPorts,
 		NetworkStorageDir: b.dep.NetworkStorageDir,
 	}
 
@@ -267,7 +263,15 @@ func (b *babysitter) ReportLoad(*protos.WeaveletLoadReport) error {
 }
 
 // ExportListener implements the protos.EnvelopeHandler interface.
-func (b *babysitter) ExportListener(req *protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (b *babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	return &protos.GetAddressReply{Address: fmt.Sprintf("%s:0", host)}, nil
+}
+
+func (b *babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	reply := &protos.ExportListenerReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,

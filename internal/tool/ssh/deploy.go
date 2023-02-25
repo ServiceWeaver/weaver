@@ -82,10 +82,8 @@ func deploy(ctx context.Context, args []string) error {
 
 	// Create a deployment.
 	dep := &protos.Deployment{
-		Id:                uuid.New().String(),
-		App:               app,
-		ProcessPicksPorts: true,
-		UseLocalhost:      false,
+		Id:  uuid.New().String(),
+		App: app,
 	}
 
 	// Copy the binaries to each location.
