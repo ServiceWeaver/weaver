@@ -17,10 +17,10 @@ package protomsg
 import (
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 var (
@@ -33,13 +33,10 @@ var (
 		Pid:            42,
 	}
 
-	msg2 = &protos.ListenerToExport{
+	msg2 = &protos.ExportListenerRequest{
 		Listener: &protos.Listener{
 			Name: "lis",
 			Addr: "lis_addr",
-		},
-		Group: &protos.ColocationGroup{
-			Name: "group1",
 		},
 	}
 

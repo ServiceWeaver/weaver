@@ -63,11 +63,11 @@ type env interface {
 	// any).
 	GetRoutingInfo(ctx context.Context, process string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
 
-	// ExportListener returns the port number that the caller should listen on
-	// for the given network listener. If the environment was configured for
-	// the calling process to pick ports, lis.Addr contains the address the
-	// process listens on. Otherwise, lis.Addr is ignored and a new port number
-	// is returned.
+	// GetAddress returns the address a weavelet should listen on for a
+	// listener.
+	GetAddress(ctx context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error)
+
+	// ExportListener exports a listener.
 	ExportListener(ctx context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error)
 
 	// CreateLogSaver creates and returns a function that saves log entries
