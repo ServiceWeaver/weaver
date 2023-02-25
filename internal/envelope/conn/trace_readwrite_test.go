@@ -58,7 +58,10 @@ func (p *pipeForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInf
 func (p *pipeForTest) GetComponentsToStart(*protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
 	return nil, nil
 }
-func (p *pipeForTest) ExportListener(*protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (p *pipeForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	return nil, nil
+}
+func (p *pipeForTest) ExportListener(*protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, nil
 }
 

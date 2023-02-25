@@ -430,7 +430,7 @@ func (m *manager) registerReplica(_ context.Context, req *protos.ReplicaToRegist
 	return nil
 }
 
-func (m *manager) exportListener(_ context.Context, req *protos.ListenerToExport) (
+func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRequest) (
 	*protos.ExportListenerReply, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -458,7 +458,8 @@ func (m *manager) exportListener(_ context.Context, req *protos.ListenerToExport
 
 	lis, err := net.Listen("tcp", req.LocalAddress)
 	if errors.Is(err, syscall.EADDRINUSE) {
-		return &protos.ExportListenerReply{AlreadyInUse: true}, nil
+		// Don't retry if the address is already in use.
+		return &protos.ExportListenerReply{Error: err.Error()}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("proxy listen: %w", err)

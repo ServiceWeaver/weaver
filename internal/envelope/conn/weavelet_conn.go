@@ -178,14 +178,24 @@ func (d *WeaveletConn) GetComponentsToStartRPC(info *protos.GetComponentsToStart
 	return reply.ComponentsToStart, nil
 }
 
-// ExportListenerRPC requests the envelope to export a listener.
-func (d *WeaveletConn) ExportListenerRPC(lis *protos.ListenerToExport) (*protos.ExportListenerReply, error) {
-	reply, err := d.rpc(&protos.WeaveletMsg{ListenerToExport: lis})
+func (d *WeaveletConn) GetAddressRPC(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	reply, err := d.rpc(&protos.WeaveletMsg{GetAddressRequest: req})
+	if err != nil {
+		return nil, err
+	}
+	if reply.GetAddressReply == nil {
+		return nil, fmt.Errorf("nil GetAddressReply recieved from envelope")
+	}
+	return reply.GetAddressReply, nil
+}
+
+func (d *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+	reply, err := d.rpc(&protos.WeaveletMsg{ExportListenerRequest: req})
 	if err != nil {
 		return nil, err
 	}
 	if reply.ExportListenerReply == nil {
-		return nil, fmt.Errorf("nil listener reply recieved from envelope")
+		return nil, fmt.Errorf("nil ExportListenerReply recieved from envelope")
 	}
 	return reply.ExportListenerReply, nil
 }
