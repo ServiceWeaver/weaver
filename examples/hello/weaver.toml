@@ -1,2 +1,8 @@
 [serviceweaver]
 binary = "./hello"
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "hello", hostname = "hello.com"},
+]

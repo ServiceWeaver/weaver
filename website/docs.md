@@ -1701,7 +1701,7 @@ gcloud init
 The above command will prompt you to select the Google account and cloud project
 you wish to use. If you don't have a cloud project, the command will prompt you
 to create one. Make sure to select a unique project name or the command will
-fail. If that happens, follow [these instructions](gke_create_project) to create
+fail. If that happens, follow [these instructions][gke_create_project] to create
 a new project, or simply run:
 
 ```console
@@ -1902,15 +1902,7 @@ on [Google Cloud's Logs Explorer][logs_explorer].
 
 ![A screenshot of Service Weaver logs in the Logs Explorer](assets/images/logs_explorer.png)
 
-<div hidden class="todo">
-TODO(mwhittaker): Update screenshot.
-</div>
-
 ## Metrics
-
-<div hidden class="todo">
-TODO(mwhittaker): Update these screenshots.
-</div>
 
 `weaver gke` exports metrics to the
 [Google Cloud Monitoring console][cloud_metrics]. You can view and graph these
@@ -1920,7 +1912,7 @@ Metrics Explorer, click `SELECT A METRIC`.
 ![A screenshot of the Metrics Explorer](assets/images/cloud_metrics_1.png)
 
 All Service Weaver metrics are exported under the `custom.googleapis.com` domain. Query
-for `custom` to view these metrics and select the metric you're interested in.
+for `serviceweaver` to view these metrics and select the metric you're interested in.
 
 ![A screenshot of selecting a metric in Metrics Explorer](assets/images/cloud_metrics_2.png)
 
@@ -2095,11 +2087,6 @@ resource allocation. Simultaneously, as the new version receives more traffic,
 its load increases, and the autoscaler begins to increase its resource
 allocation. These two transitions cancel out causing the rollout to use a
 roughly constant number of resources.
-
-<div hidden class="todo">
-TODO(mwhittaker): Do we want to claim the rollouts use roughly constant
-resources? Have we tested this?
-</div>
 
 <div hidden class="todo">
 TODO(mwhittaker): What if the new version doesn't have the same regions as
