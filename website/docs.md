@@ -1796,27 +1796,38 @@ Hello, Weaver!
 We can inspect the Service Weaver applications running on GKE using the `weaver gke
 status` command.
 
-<div hidden class="todo">
-TODO(mwhittaker): Update command output.
-</div>
-
 ```console
 $ weaver gke status
-APP    ORDER  DEPLOYMENT                            AGE  STATUS
-hello  1      8e1c640a-d87b-4020-b3dd-4efc1850756c  21s  ACTIVE
-
-APP    DEPLOYMENT  LOCATION  COMPONENT      HEALTHY
-hello  8e1c640a    us-west1  main           2/2
-hello  8e1c640a    us-west1  main.Reverser  2/2
-
-HOST       VISIBILITY  APP    DEPLOYMENT  LOCATION  ADDRESS          TRAFFIC FRACTION
-hello.com  public      hello  8e1c640a    us-west1  127.0.0.1:36853  0.5
-hello.com  public      hello  8e1c640a    us-west1  127.0.0.1:38713  0.5
-
-[ROLLOUT OF hello]
-                 us-west1
-TIME             8e1c640a
-Nov  8 20:58:39  1.00
+╭───────────────────────────────────────────────────────────────╮
+│ Deployments                                                   │
+├───────┬──────────────────────────────────────┬───────┬────────┤
+│ APP   │ DEPLOYMENT                           │ AGE   │ STATUS │
+├───────┼──────────────────────────────────────┼───────┼────────┤
+│ hello │ 20c1d756-80b5-42a7-9e73-b0d3e717516e │ 1m10s │ ACTIVE │
+╰───────┴──────────────────────────────────────┴───────┴────────╯
+╭──────────────────────────────────────────────────────────╮
+│ COMPONENTS                                               │
+├───────┬────────────┬──────────┬────────────────┬─────────┤
+│ APP   │ DEPLOYMENT │ LOCATION │ COMPONENT      │ HEALTHY │
+├───────┼────────────┼──────────┼────────────────┼─────────┤
+│ hello │ 20c1d756   │ us-west1 │ hello.Reverser │ 1/1     │
+│ hello │ 20c1d756   │ us-west1 │ main           │ 1/1     │
+╰───────┴────────────┴──────────┴────────────────┴─────────╯
+╭─────────────────────────────────────────────────────────────────────────────────────╮
+│ TRAFFIC                                                                             │
+├───────────┬────────────┬───────┬────────────┬──────────┬─────────┬──────────────────┤
+│ HOST      │ VISIBILITY │ APP   │ DEPLOYMENT │ LOCATION │ ADDRESS │ TRAFFIC FRACTION │
+├───────────┼────────────┼───────┼────────────┼──────────┼─────────┼──────────────────┤
+│ hello.com │ public     │ hello │ 20c1d756   │ us-west1 │         │ 1                │
+╰───────────┴────────────┴───────┴────────────┴──────────┴─────────┴──────────────────╯
+╭────────────────────────────╮
+│ ROLLOUT OF hello           │
+├─────────────────┬──────────┤
+│                 │ us-west1 │
+├─────────────────┼──────────┤
+│ TIME            │ 20c1d756 │
+│ Feb 27 21:23:07 │ 1.00     │
+╰─────────────────┴──────────╯
 ```
 
 `weaver gke status` reports information about every app, deployment, component,
@@ -2169,27 +2180,39 @@ Tailing the logs...
 You can run `weaver gke-local status` to check the status of all the applications
 deployed using `weaver gke-local`.
 
-<div hidden class="todo">
-TODO(mwhittaker): Update output.
-</div>
-
 ```console
 $ weaver gke-local status
-APP    ORDER  DEPLOYMENT                            AGE  STATUS
-hello  1      a2bc7a7a-fcf6-45df-91fe-6e6af171885d  23s  ACTIVE
-
-APP    DEPLOYMENT  LOCATION  COMPONENT       HEALTHY
-hello  a2bc7a7a    us-west1  main            2/2
-hello  a2bc7a7a    us-west1  guide.Reverser  2/2
-
-HOST       VISIBILITY  APP    DEPLOYMENT  LOCATION  ADDRESS          TRAFFIC FRACTION
-hello.com  public      hello  a2bc7a7a    us-west1  127.0.0.1:37975  0.5
-hello.com  public      hello  a2bc7a7a    us-west1  127.0.0.1:42451  0.5
-
-[ROLLOUT OF hello]
-                 us-west1
-TIME             a2bc7a7a
-Nov 11 23:31:08  1.00
+╭─────────────────────────────────────────────────────────────╮
+│ Deployments                                                 │
+├───────┬──────────────────────────────────────┬─────┬────────┤
+│ APP   │ DEPLOYMENT                           │ AGE │ STATUS │
+├───────┼──────────────────────────────────────┼─────┼────────┤
+│ hello │ af09030c-b3a6-4d15-ba47-cd9e9e9ec2e7 │ 13s │ ACTIVE │
+╰───────┴──────────────────────────────────────┴─────┴────────╯
+╭──────────────────────────────────────────────────────────╮
+│ COMPONENTS                                               │
+├───────┬────────────┬──────────┬────────────────┬─────────┤
+│ APP   │ DEPLOYMENT │ LOCATION │ COMPONENT      │ HEALTHY │
+├───────┼────────────┼──────────┼────────────────┼─────────┤
+│ hello │ af09030c   │ us-west1 │ hello.Reverser │ 2/2     │
+│ hello │ af09030c   │ us-west1 │ main           │ 2/2     │
+╰───────┴────────────┴──────────┴────────────────┴─────────╯
+╭─────────────────────────────────────────────────────────────────────────────────────────────╮
+│ TRAFFIC                                                                                     │
+├───────────┬────────────┬───────┬────────────┬──────────┬─────────────────┬──────────────────┤
+│ HOST      │ VISIBILITY │ APP   │ DEPLOYMENT │ LOCATION │ ADDRESS         │ TRAFFIC FRACTION │
+├───────────┼────────────┼───────┼────────────┼──────────┼─────────────────┼──────────────────┤
+│ hello.com │ public     │ hello │ af09030c   │ us-west1 │ 127.0.0.1:46539 │ 0.5              │
+│ hello.com │ public     │ hello │ af09030c   │ us-west1 │ 127.0.0.1:43439 │ 0.5              │
+╰───────────┴────────────┴───────┴────────────┴──────────┴─────────────────┴──────────────────╯
+╭────────────────────────────╮
+│ ROLLOUT OF hello           │
+├─────────────────┬──────────┤
+│                 │ us-west1 │
+├─────────────────┼──────────┤
+│ TIME            │ af09030c │
+│ Feb 27 20:33:10 │ 1.00     │
+╰─────────────────┴──────────╯
 ```
 
 The output is, unsurprisingly, identical to that of `weaver gke status`. There is
