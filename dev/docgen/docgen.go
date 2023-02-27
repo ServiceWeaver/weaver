@@ -73,6 +73,7 @@ var files = []file{
 	staticFile("assets/images/logs_explorer.png"),
 	staticFile("assets/images/trace_multi.png"),
 	staticFile("assets/images/trace_single.png"),
+	staticFile("assets/images/trace_gke.png"),
 	staticFile("assets/images/trace_gke_local.png"),
 	staticFile("assets/js/copy.js"),
 	staticFile("assets/js/placement.js"),
