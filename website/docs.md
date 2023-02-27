@@ -1963,9 +1963,12 @@ Refer to `weaver gke profile --help` for more details.
 
 ## Tracing
 
-<div hidden class="todo">
-TODO(spetrovic): Write this section.
-</div>
+Run `weaver gke dashboard` to open a dashboard in a web browser. The
+dashboard has a page for every Service Weaver application deployed via
+`weaver gke deploy`. Every deployment's page has a link to the deployment's
+[traces](#tracing) accessible via [Google Cloud Trace][trace_service].
+
+![A screenshot of a Google Cloud Trace page](assets/images/trace_gke.png)
 
 ## Multi-Region
 
@@ -2640,6 +2643,7 @@ runtime benefits of microservices.
 [prometheus_histogram]: https://prometheus.io/docs/concepts/metric_types/#histogram
 [prometheus_naming]: https://prometheus.io/docs/practices/naming/
 [sql_package]: https://pkg.go.dev/database/sql
+[trace_service]: https://cloud.google.com/trace
 [update_failures_paper]: https://scholar.google.com/scholar?cluster=4116586908204898847
 [weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
 [weaver_examples]: https://github.com/ServiceWeaver/weaver/tree/main/examples
