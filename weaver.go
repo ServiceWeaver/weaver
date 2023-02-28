@@ -21,7 +21,7 @@
 // to be invoked over the network. This flexibility allows Service Weaver
 // to decompose the program execution across many processes and machines.
 //
-// [single-image distributed programs]: https://example.com/weaver/XXX/TODO
+// [single-image distributed programs]: https://serviceweaver.dev
 package weaver
 
 import (
