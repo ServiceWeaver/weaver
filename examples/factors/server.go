@@ -35,7 +35,6 @@ func serve(ctx context.Context, root weaver.Instance, addr string) error {
 
 	s := &server{factorer}
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
-	http.Handle("/healthz", weaver.InstrumentHandlerFunc("/healthz", s.handleHealthz))
 
 	lis, err := root.Listener("factors", weaver.ListenerOptions{LocalAddress: addr})
 	if err != nil {
@@ -64,9 +63,4 @@ func (s *server) handleFactors(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintln(w, factors)
-}
-
-// handleHealthz handles the /healthz endpoint.
-func (s *server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintln(w, "ok")
 }
