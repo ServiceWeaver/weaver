@@ -56,6 +56,7 @@ var watch = flag.Bool("watch", false, "Automatically rebuild website on change")
 var files = []file{
 	{dst: "index.html", html: "index.html", template: "home.html", license: true},
 	{dst: "docs.html", markdown: "docs.md", template: "docs.html", license: true},
+	{dst: "contact.html", markdown: "contact.md", template: "contact.html", license: true},
 
 	{dst: "blog/index.html", html: "blog/index.html", template: "blog.html", license: true},
 	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog_entry.html", title: "A Quick Introduction to Service Weaver", license: true},
