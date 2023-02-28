@@ -17,7 +17,9 @@ package conn_test
 import (
 	"errors"
 	"io"
-	sync "sync"
+	"os"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -35,7 +37,7 @@ var (
 )
 
 func TestMetricPropagation(t *testing.T) {
-	envelope := makeConnections(t)
+	envelope, _ := makeConnections(t, &handlerForTest{})
 
 	// Add metrics on the weavelet side and check that we can observe them in the envelope.
 	var metrics map[string]float64
@@ -78,36 +80,24 @@ func TestMetricPropagation(t *testing.T) {
 	checkValue("TestMetricPropagation.hist", 1000)
 }
 
-func makeConnections(t *testing.T) *conn.EnvelopeConn {
+func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.EnvelopeConn, *conn.WeaveletConn) {
 	t.Helper()
-	dReader, mWriter := io.Pipe() // envelope -> weavelet
-	mReader, dWriter := io.Pipe() // weavelet -> envelope
-	h := &handlerForTest{}
-	e := conn.NewEnvelopeConn(mReader, mWriter, h)
-	d := conn.NewWeaveletConn(dReader, dWriter)
 
-	// Start Run goroutines for both side.
-	wait := &sync.WaitGroup{}
-	wait.Add(2)
-	go func() {
-		defer wait.Done()
-		err := e.Run()
-		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, io.EOF) {
-			t.Errorf("envelope failed: %v", err)
-		}
-	}()
-	go func() {
-		defer wait.Done()
-		if _, err := d.GetWeaveletInfo(); err != nil {
-			t.Errorf("weavelet failed: %v", err)
-		}
-		err := d.Run()
-		if err != nil && !errors.Is(err, io.ErrClosedPipe) && !errors.Is(err, io.EOF) {
-			t.Errorf("weavelet failed: %v", err)
-		}
-	}()
+	// Create the pipes. Note that We use os.Pipe instead of io.Pipe. The pipes
+	// returned by io.Pipe are synchronous, meaning that a write blocks until a
+	// corresponding read (or set of reads) reads the written bytes. This
+	// behavior is unlike the normal pipe behavior and complicates things, so
+	// we avoid it.
+	wReader, eWriter, err := os.Pipe() // envelope -> weavelet
+	if err != nil {
+		t.Fatal(err)
+	}
+	eReader, wWriter, err := os.Pipe() // weavelet -> envelope
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Transfer the Weavelet.
+	// Construct the conns.
 	wlet := &protos.Weavelet{
 		Id: uuid.New().String(),
 		Dep: &protos.Deployment{
@@ -122,18 +112,40 @@ func makeConnections(t *testing.T) *conn.EnvelopeConn {
 		GroupReplicaId: uuid.New().String(),
 		Process:        "process",
 	}
-	if err := e.SendWeaveletInfoRPC(wlet); err != nil {
-		t.Errorf("envelope failed: %v", err)
+	e, err := conn.NewEnvelopeConn(eReader, eWriter, handler, wlet)
+	if err != nil {
+		t.Fatal(err)
 	}
+	w, err := conn.NewWeaveletConn(wReader, wWriter)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Start Run goroutines for both conns.
+	wait := &sync.WaitGroup{}
+	wait.Add(2)
+	go func() {
+		defer wait.Done()
+		if err := e.Run(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+			t.Errorf("envelope failed: %#v", err)
+		}
+	}()
+	go func() {
+		defer wait.Done()
+		if err := w.Run(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+			t.Errorf("weavelet failed: %#v", err)
+		}
+	}()
 
 	// Stop goroutines when test has finished.
 	t.Cleanup(func() {
-		dReader.Close()
-		mReader.Close()
+		wReader.Close()
+		eReader.Close()
+		// NOTE(mwhittaker): wWriter and eWriter are closed by the conns.
 		wait.Wait()
 	})
 
-	return e
+	return e, w
 }
 
 type handlerForTest struct{}

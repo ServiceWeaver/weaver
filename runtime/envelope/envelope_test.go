@@ -348,9 +348,7 @@ func createWeaveletConn() (*conn.WeaveletConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable make weavelet<->envelope pipes: %w", err)
 	}
-	conn := conn.NewWeaveletConn(toWeavelet, toEnvelope)
-	conn.GetWeaveletInfo() // ensures the connection is established
-	return conn, nil
+	return conn.NewWeaveletConn(toWeavelet, toEnvelope)
 }
 
 func writeTraces(conn *conn.WeaveletConn) error {

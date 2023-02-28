@@ -38,17 +38,12 @@ type WeaveletConn struct {
 // NewWeaveletConn creates the weavelet side of the connection between a
 // weavelet and its envelope. The connection uses (r,w) to carry messages.
 // Synthesized high-level events are passed to h.
-func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) *WeaveletConn {
-	return &WeaveletConn{conn: conn{name: "weavelet", reader: r, writer: w}}
-}
-
-// GetWeaveletInfo blocks waiting for the peer to send us weavelet information.
 //
-// This method must be called right after NewWeaveletConn() and before Run().
-// The weavelet information is expected to be the first message sent by
-// the peer, and we cannot successfully process any other message before
-// we've received it.
-func (d *WeaveletConn) GetWeaveletInfo() (*protos.Weavelet, error) {
+// NewWeaveletConn blocks until it receives a protos.Weavelet from the
+// envelope.
+func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
+	d := &WeaveletConn{conn: conn{name: "weavelet", reader: r, writer: w}}
+
 	// Block until a weavelet is received.
 	msg := &protos.EnvelopeMsg{}
 	if err := d.conn.recv(msg); err != nil {
@@ -66,8 +61,7 @@ func (d *WeaveletConn) GetWeaveletInfo() (*protos.Weavelet, error) {
 		d.conn.cleanup(err)
 		return nil, err
 	}
-	d.send(&protos.WeaveletMsg{Id: -msg.Id})
-	return d.wlet, nil
+	return d, nil
 }
 
 // Run interacts with the peer. Messages that are received are
@@ -82,6 +76,11 @@ func (d *WeaveletConn) Run() error {
 			return err
 		}
 	}
+}
+
+// Weavelet returns the protos.Weavelet for this weavelet.
+func (d *WeaveletConn) Weavelet() *protos.Weavelet {
+	return d.wlet
 }
 
 // handleMessage handles all messages initiated by the envelope. Note that

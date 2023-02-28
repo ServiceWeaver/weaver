@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"io"
 
-	"go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 // EnvelopeHandler implements the envelope side processing of messages
@@ -73,13 +73,19 @@ type EnvelopeConn struct {
 }
 
 // NewEnvelopeConn creates the envelope side of the connection between a
-// weavelet and the envelope The connection uses (r,w) to carry
-// messages. Synthesized high-level events are passed to h.
-func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler) *EnvelopeConn {
-	return &EnvelopeConn{
+// weavelet and an envelope. The connection uses (r,w) to carry messages.
+// Synthesized high-level events are passed to h.
+//
+// NewEnvelopeConn sends the provided protos.Weavelet to the weavelet.
+func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, weavelet *protos.Weavelet) (*EnvelopeConn, error) {
+	e := &EnvelopeConn{
 		handler: h,
 		conn:    conn{name: "envelope", reader: r, writer: w},
 	}
+
+	req := &protos.EnvelopeMsg{WeaveletInfo: weavelet}
+	err := e.send(req)
+	return e, err
 }
 
 // Run interacts with the peer. Messages that are received are
@@ -180,12 +186,6 @@ func (e *EnvelopeConn) send(msg *protos.EnvelopeMsg) error {
 		return err
 	}
 	return nil
-}
-
-// SendWeaveletInfoRPC sends weavelet information to the weavelet and waits for its acknowledgment.
-func (e *EnvelopeConn) SendWeaveletInfoRPC(weavelet *protos.Weavelet) error {
-	_, err := e.rpc(&protos.EnvelopeMsg{WeaveletInfo: weavelet})
-	return err
 }
 
 // GetMetricsRPC requests the weavelet to return its up-to-date metrics.

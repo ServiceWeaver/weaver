@@ -275,7 +275,11 @@ func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("cannot create weavelet response pipe: %w", err)
 	}
 
-	conn := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler)
+	conn, err := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
+		return false, err
+	}
 
 	// Create pipes that capture child outputs.
 	outpipe, err := cmd.StdoutPipe()
@@ -317,12 +321,6 @@ func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 	e.mu.Lock()
 	e.process = cmd.Process
 	e.mu.Unlock()
-
-	// Send the weavelet information to the subprocess.
-	if err := conn.SendWeaveletInfoRPC(e.weavelet); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to send weavelet to start: %v\n", err)
-		return false, err
-	}
 
 	// Set the connection only after the weavelet information was sent to the
 	// subprocess. Otherwise, it is possible to send over the pipe information
