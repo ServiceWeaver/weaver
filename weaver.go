@@ -28,6 +28,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 
@@ -75,6 +76,11 @@ func init() {
 		LocalStubFn:  func(any, trace.Tracer) any { return nil },
 		ClientStubFn: func(codegen.Stub, string) any { return nil },
 		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
+	})
+
+	// Add a trivial /healthz handler to the default mux.
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("ok"))
 	})
 }
 
