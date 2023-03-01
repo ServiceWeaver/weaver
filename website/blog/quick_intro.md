@@ -1,13 +1,28 @@
 # A Quick Introduction to Service Weaver
->Write your application like it is a monolith. Deploy it like it is a set of
->microservices.
 
-**TL;DR;** Service Weaver is a programming framework for writing, deploying, and
+<div style='
+    background-color: #FFF6CF;
+    border-radius: 16px;
+    padding:0.7em;
+    border-width: 1px;
+    border-style: none;'
+>
+<p style='
+    font-size: 1.2em;
+    text-align: left;
+    margin-top: 0.5em;
+    color: #e06666'>
+📝 <i><b>Write your application like a modular monolith. Deploy it like it is a set
+of microservices!</b></i></p>
+
+<p style='text-align: justify; margin-bottom: 0.5em;'>
+<b>TL;DR:</b> Service Weaver is a programming framework for writing, deploying, and
 managing distributed applications in Go. With Service Weaver, you write your
 application like it is a traditional, single-process Go executable that runs on
 your local machine. Then, you deploy it to the Cloud, and the framework breaks
 it down into a set of connected microservices and integrates it with the cloud
-provider (e.g., monitoring, tracing, logging).
+provider (e.g., monitoring, tracing, logging).</p>
+</div>
 
 ## Why Service Weaver?
 
