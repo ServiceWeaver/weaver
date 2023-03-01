@@ -33,6 +33,8 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend"
 )
 
+//go:generate ../../cmd/weaver/weaver generate ./...
+
 var localAddr = flag.String("local_addr", ":12345", "Local address")
 
 func main() {
