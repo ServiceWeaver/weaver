@@ -12,7 +12,7 @@
     text-align: left;
     margin-top: 0.5em;
     color: #e06666'>
-📝 <i><b>Write your application like a modular monolith. Deploy it like it is a set
+📝 <i><b>Write your application as a modular binary. Deploy it is a set
 of microservices!</b></i></p>
 
 <p style='text-align: justify; margin-bottom: 0.5em;'>
