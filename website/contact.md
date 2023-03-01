@@ -14,15 +14,15 @@
  limitations under the License.
 -->
 
-For general questions and discussions, consider joining our
+* For general questions and discussions, consider joining our
 [discussion list][sw_group].
 
-For bugs and code-related issues, please create a [GitHub issue][issue].
+* For bugs and code-related issues, please create a [GitHub issue][issue].
 
-If you're interested in contributing, please read our
+* If you're interested in contributing, please read our
 [contribution guide][contrib_guide].
 
-If you need to get in touch with us, feel free to [e-mail](mailto:serviceweaver@google.com) us.
+* If you need to get in touch with us, feel free to [e-mail](mailto:serviceweaver@google.com) us.
 
 [sw_group]: https://groups.google.com/g/serviceweaver
 [issue]: https://github.com/ServiceWeaver/weaver/issues
