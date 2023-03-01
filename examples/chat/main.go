@@ -23,6 +23,8 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
+//go:generate ../../cmd/weaver/weaver generate
+
 func main() {
 	flag.Parse()
 	ctx := context.Background()

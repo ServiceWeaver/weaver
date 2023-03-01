@@ -22,6 +22,8 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
+//go:generate ../../cmd/weaver/weaver generate
+
 func main() {
 	// Get a network listener on address "localhost:12345".
 	root := weaver.Init(context.Background())
