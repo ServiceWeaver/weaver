@@ -39,7 +39,7 @@ Ensure you have [Go installed][go_install], version 1.19 or higher. Then, run
 the following to install the `weaver` command:
 
 ```console
-go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
+$ go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
 ```
 
 `go install` installs the `weaver` command to `$GOBIN`, which defaults to
@@ -48,7 +48,7 @@ accomplish this, for example, by adding the following to your `.bashrc` and
 running `source ~/.bashrc`:
 
 ```console
-export PATH="$PATH:$GOPATH/bin"
+$ export PATH="$PATH:$GOPATH/bin"
 ```
 
 If the installation was successful, you should be able to run `weaver --help`:
@@ -63,6 +63,13 @@ USAGE
   ...
 ```
 
+**Note**: For GKE deployments you should also install the `weaver gke` command
+(see the [GKE](#gke) section for details):
+
+```console
+$ go install github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke@latest
+```
+
 # Step by Step Tutorial
 
 In this section, we show you how to write Service Weaver applications. To follow
@@ -72,13 +79,12 @@ examples directory on the project's GitHub page][hello_app].
 
 ## Listeners and Servers
 
-We begin with a simple "Hello, World!" HTTP server. Create and `cd` into a
-`hello/` directory.  Run `go mod init hello` to create a go module.
+We begin with a simple "Hello, World!" HTTP server. Run `go mod init hello` to create a go module.
 
 ```console
-mkdir hello/
-cd hello/
-go mod init hello
+$ mkdir hello/
+$ cd hello/
+$ go mod init hello
 ```
 
 Create a file called `main.go` with the following contents:
@@ -224,8 +230,8 @@ example, we call `reverser.Reverse`.
 Before we build and run the server, we need to run Service Weaver's code
 generator, called `weaver generate`:
 
-```go
-weaver generate .
+```console
+$ weaver generate .
 ```
 
 `weaver generate` should create a `weaver_gen.go` file. This file contains code
@@ -321,7 +327,7 @@ S1205 10:21:15.450917 stdout  26b601c4] hello listener available on 127.0.0.1:12
 S1205 10:21:15.454387 stdout  88639bf8] hello listener available on 127.0.0.1:12345
 ```
 
-Note that `weaver multi` replicates every component twice, which is why you see
+**Note**: `weaver multi` replicates every component twice, which is why you see
 two log entries. We elaborate on replication more in the
 [Components](#components) section later.
 
@@ -384,7 +390,7 @@ Engine][gke], Google Cloud's hosted Kubernetes offering, as easily as running a
 single command (see the [GKE](#gke) section for details):
 
 ```console
-weaver gke deploy weaver.toml
+$ weaver gke deploy weaver.toml
 ```
 
 When you run this command, Service Weaver will
@@ -392,7 +398,7 @@ When you run this command, Service Weaver will
 - wrap your application binary into a container;
 - upload the container to the cloud project of your choosing;
 - create and provision the appropriate Kubernetes clusters;
-- set up all load balancers and networking infrastructure; and
+- set up all load balancers and networking infrastructure;
 - deploy your application on Kubernetes, with components distributed across
   machines in multiple regions.
 
@@ -445,7 +451,7 @@ func (*adder) Add(_ context.Context, x, y int) (int, error) {
 implementation. The two are linked with the embedded `weaver.Implements[Adder]`
 field. You can call the `weaver.Get[Adder]` function to get a client to the
 `Adder` component. The returned client implements the component's interface, so
-you can invoke the component's methods as you would any regular go method. When
+you can invoke the component's methods as you would any regular Go method. When
 you invoke a component's method, the method call is performed by one of the
 possibly many component replicas.
 
@@ -492,7 +498,7 @@ type foo struct{
 ```
 
 -   It must be a struct.
--   It must embed a `weaver.Implements[C]` field where `C` is component
+-   It must embed a `weaver.Implements[T]` field where `T` is the component
     interface it implements.
 
 `weaver.Implements[T]` implements the `weaver.Instance` interface and therefore
@@ -667,7 +673,7 @@ If you run an application directly (i.e. using `go run`), you can pass the
 config file using the `SERVICEWEAVER_CONFIG` environment variable:
 
 ```console
-SERVICEWEAVER_CONFIG=weaver.toml go run .
+$ SERVICEWEAVER_CONFIG=weaver.toml go run .
 ```
 
 # Logging
@@ -721,7 +727,7 @@ id. Then comes the file and line where the log was produced, followed finally by
 the contents of the log.
 
 The main component returned by `weaver.Init` has a Logger method as well (like
-all `weaver.Instance`s):
+all `weaver.Instances`):
 
 ```go
 func main() {
@@ -746,7 +752,7 @@ fooLogger = logger.With("foo", "bar")
 fooLogger.Info("A log with attributes.")  // adds foo="bar"
 ```
 
-Note that you can also add normal print statements to your code. These prints
+**Note**: You can also add normal print statements to your code. These prints
 will be captured and logged by Service Weaver, but they won't be associated with
 a particular component, they won't have `file:line` information, and they won't
 have any attributes, so we recommend you use a `weaver.Logger` whenever
@@ -889,7 +895,7 @@ invoked component and method.
 -   `serviceweaver_remote_method_bytes_reply`: Number of bytes in Service Weaver
     component method replies.
 
-Note that these metrics only measure *remote* method calls. Local method calls,
+**Note**: These metrics only measure *remote* method calls. Local method calls,
 like those between two co-located components, are not measured.
 
 ## HTTP Metrics
@@ -1071,7 +1077,7 @@ type cache struct {
 }
 ```
 
-**NOTE** that routing is done on a best-effort basis. Service Weaver will try to route
+**NOTE**: Routing is done on a best-effort basis. Service Weaver will try to route
 method invocations with the same key to the same replica, but this is *not*
 guaranteed. As a corollary, you should *never* depend on routing for
 correctness. Only use routing to increase performance in the common case.
@@ -1259,7 +1265,7 @@ are executed as regular Go method calls. Refer to the [Step by Step
 Tutorial](#step-by-step-tutorial) section for a full example.
 
 ```console
-go run .
+$ go run .
 ```
 
 You can run `weaver single status` to view the status of all active Service
@@ -1324,7 +1330,7 @@ printed to standard out. These logs are not persisted. You can optionally save
 the logs for later analysis using basic shell constructs:
 
 ```console
-go run . | tee mylogs.txt
+$ go run . | tee mylogs.txt
 ```
 
 ## Metrics
@@ -1440,7 +1446,7 @@ binary = "./your_compiled_serviceweaver_binary"
 Deploy the application using `weaver multi deploy`:
 
 ```console
-weaver multi deploy weaver.toml
+$ weaver multi deploy weaver.toml
 ```
 
 Refer to the [Step by Step Tutorial](#step-by-step-tutorial) section for a full
@@ -1680,7 +1686,7 @@ First, [ensure you have Service Weaver installed](#installation). Next, install
 the `weaver-gke` command:
 
 ```console
-go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke@latest
+$ go install github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke@latest
 ```
 
 Install the `gcloud` command to your local machine. To do so, follow [these
@@ -1688,14 +1694,14 @@ instructions][gcloud_install], or run the following command and follow its
 prompts:
 
 ```console
-curl https://sdk.cloud.google.com | bash
+$ curl https://sdk.cloud.google.com | bash
 ```
 
 After installing `gcloud`, run the following command to initialize your local
 environment:
 
 ```console
-gcloud init
+$ gcloud init
 ```
 
 The above command will prompt you to select the Google account and cloud project
@@ -1705,7 +1711,7 @@ fail. If that happens, follow [these instructions][gke_create_project] to create
 a new project, or simply run:
 
 ```console
-gcloud projects create my-unique-project-name
+$ gcloud projects create my-unique-project-name
 ```
 
 Before you can use your cloud project, however, you must add a billing account
@@ -1810,15 +1816,17 @@ $ weaver gke status
 ├───────┬────────────┬──────────┬────────────────┬─────────┤
 │ APP   │ DEPLOYMENT │ LOCATION │ COMPONENT      │ HEALTHY │
 ├───────┼────────────┼──────────┼────────────────┼─────────┤
-│ hello │ 20c1d756   │ us-west1 │ hello.Reverser │ 1/1     │
-│ hello │ 20c1d756   │ us-west1 │ main           │ 1/1     │
+│ hello │ 20c1d756   │ us-west1 │ hello.Reverser │ 2/2     │
+│ hello │ 20c1d756   │ us-west1 │ main           │ 2/2     │
 ╰───────┴────────────┴──────────┴────────────────┴─────────╯
 ╭─────────────────────────────────────────────────────────────────────────────────────╮
 │ TRAFFIC                                                                             │
 ├───────────┬────────────┬───────┬────────────┬──────────┬─────────┬──────────────────┤
 │ HOST      │ VISIBILITY │ APP   │ DEPLOYMENT │ LOCATION │ ADDRESS │ TRAFFIC FRACTION │
 ├───────────┼────────────┼───────┼────────────┼──────────┼─────────┼──────────────────┤
-│ hello.com │ public     │ hello │ 20c1d756   │ us-west1 │         │ 1                │
+│ hello.com │ public     │ hello │ 20c1d756   │ us-west1 │         │ 0.5              │
+├───────────┼────────────┼───────┼────────────┼──────────┼─────────┼──────────────────┤
+│ hello.com │ public     │ hello │ 20c1d756   │ us-west1 │         │ 0.5              │
 ╰───────────┴────────────┴───────┴────────────┴──────────┴─────────┴──────────────────╯
 ╭────────────────────────────╮
 │ ROLLOUT OF hello           │
@@ -1832,8 +1840,8 @@ $ weaver gke status
 
 `weaver gke status` reports information about every app, deployment, component,
 and listener in your cloud project. In this example, we have a single deployment
-(with id `8e1c640a`) of the `hello` app. Our app has two components (`main` and
-`main.Reverser`) each with two healthy replicas running in the `us-west1`
+(with id `20c1d756`) of the `hello` app. Our app has two components (`main` and
+`hello.Reverser`) each with two healthy replicas running in the `us-west1`
 region. The two replicas of the `main` component each export a `hello` listener.
 The global load balancer that we curled earlier balances traffic evenly across
 these two listeners. The final section of the output details the rollout
@@ -1845,7 +1853,7 @@ to open a dashboard in a web browser.
 TODO(mwhittaker): Remove rollout section?
 </div>
 
-Note that `weaver gke` configures GKE to autoscale your application. As the load
+**Note**: `weaver gke` configures GKE to autoscale your application. As the load
 on your application increases, the number of replicas of the overloaded
 components will increase. Conversely, as the load on your application decreases,
 the number of replicas decreases. Service Weaver can independently scale the different
@@ -1909,7 +1917,7 @@ along with many more examples.
 You can also run `weaver gke dashboard` to open a dashboard in a web browser.
 The dashboard has a page for every Service Weaver application deployed via
 `weaver gke deploy`. Every deployment's page has a link to the deployment's logs
-on [Google Cloud's Logs Explorer][logs_explorer].
+on [Google Cloud's Logs Explorer][logs_explorer] as shown below.
 
 ![A screenshot of Service Weaver logs in the Logs Explorer](assets/images/logs_explorer.png)
 
@@ -1958,7 +1966,7 @@ use the `go tool pprof` command to visualize and analyze the profile. For
 example:
 
 ```console
-$ profile=$(weaver gke profile <app>)          # Collect the profile.
+$ profile=$(weaver gke profile <app>)         # Collect the profile.
 $ go tool pprof -http=localhost:9000 $profile # Visualize the profile.
 ```
 
@@ -1969,7 +1977,8 @@ Refer to `weaver gke profile --help` for more details.
 Run `weaver gke dashboard` to open a dashboard in a web browser. The
 dashboard has a page for every Service Weaver application deployed via
 `weaver gke deploy`. Every deployment's page has a link to the deployment's
-[traces](#tracing) accessible via [Google Cloud Trace][trace_service].
+[traces](#tracing) accessible via [Google Cloud Trace][trace_service] as shown
+below.
 
 ![A screenshot of a Google Cloud Trace page](assets/images/trace_gke.png)
 
@@ -2088,7 +2097,7 @@ until the new version is receiving 100% of the global traffic. After the full
 one hour rollout is complete, the old version is considered obsolete and is
 deleted automatically.
 
-Note that while the load balancer balances traffic across application versions,
+**Note**: While the load balancer balances traffic across application versions,
 once a request is received, it is processed entirely by the version that
 received it. There is no cross-version communication.
 
@@ -2149,7 +2158,7 @@ First, [ensure you have Service Weaver installed](#installation). Next, install
 the `weaver-gke-local` command:
 
 ```console
-go install github.com/ServiceWeaver/weaver/gke/cmd/weaver-gke-local@latest
+$ go install github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke-local@latest
 ```
 
 ## Getting Started
@@ -2405,7 +2414,7 @@ The following types are not serializable:
 -   Function type `func(...)` is *not* serializable.
 -   Interface type `interface{...}` is *not* serializable.
 
-Note that named struct types that don't implement `proto.Message` or
+**Note**: Named struct types that don't implement `proto.Message` or
 `BinaryMarshaler` and `BinaryUnmarshaler` are *not* serializable by default.
 However, they can trivially be made serializable by embedding
 `weaver.AutoMarshal`.
