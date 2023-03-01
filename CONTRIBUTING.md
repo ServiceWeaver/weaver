@@ -92,7 +92,7 @@ Weaver.
 
    ```shell
    git switch my_branch
-   git push --force
+   git push --force origin my_branch
    ```
 
 8. Once reviewers are happy, pull any main branch changes that may
@@ -116,6 +116,10 @@ Weaver.
 
    Select the `Rebase and merge` option on https://github.com/ServiceWeaver/weaver
    or use the command line instructions found on that page.
+
+10. Delete the branch: Visit https://github.com/ServiceWeaver/weaver/branches
+    and check that `my_branch` is not marked as Open. If so, hit the delete
+    button (looks like a trash icon) next to `my_branch`.
 
 ### Code Reviews
 
