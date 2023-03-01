@@ -1,3 +1,5 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/ServiceWeaver/weaver.svg)](https://pkg.go.dev/github.com/ServiceWeaver/weaver)
+
 # Service Weaver
 
 Service Weaver is a programming framework for writing, deploying, and managing
