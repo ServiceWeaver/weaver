@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
+	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
@@ -207,7 +208,7 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	}
 
 	// Register the deployment.
-	dir, err := status.DefaultRegistryDir()
+	dir, err := files.DefaultDataDir()
 	if err != nil {
 		return err
 	}
