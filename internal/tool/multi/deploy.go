@@ -28,6 +28,7 @@ import (
 	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/babysitter"
+	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -178,7 +179,7 @@ func deploy(ctx context.Context, args []string) error {
 // $XDG_DATA_HOME/serviceweaver/multi_registry, or
 // ~/.local/share/serviceweaver/multi_registry if XDG_DATA_HOME is not set.
 func defaultRegistry(ctx context.Context) (*status.Registry, error) {
-	dir, err := status.DefaultRegistryDir()
+	dir, err := files.DefaultDataDir()
 	if err != nil {
 		return nil, err
 	}

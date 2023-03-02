@@ -27,11 +27,11 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
@@ -96,19 +96,11 @@ type DB struct {
 
 // Open opens the default trace database on the local machine.
 func Open(ctx context.Context) (*DB, error) {
-	dataDir := os.Getenv("XDG_DATA_HOME")
-	if dataDir == "" {
-		// Default to ~/.local/share
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, err
-		}
-		dataDir = filepath.Join(home, ".local", "share")
-	}
-	dataDir = filepath.Join(dataDir, "serviceweaver")
-	if err := os.MkdirAll(dataDir, 0700); err != nil {
+	dataDir, err := files.DefaultDataDir()
+	if err != nil {
 		return nil, err
 	}
+
 	fname := filepath.Join(dataDir, "perfetto.db")
 	return open(ctx, fname)
 }
