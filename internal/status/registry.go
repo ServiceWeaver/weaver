@@ -201,7 +201,9 @@ func (r *Registry) List(ctx context.Context) ([]Registration, error) {
 		// the server is dead, we consider the deployment dead, and we garbage
 		// collect its registration.
 		if r.dead(ctx, reg) {
-			r.Unregister(ctx, reg.DeploymentId)
+			if err := r.Unregister(ctx, reg.DeploymentId); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to unregister deployment: %v", err)
+			}
 			continue
 		}
 		alive = append(alive, reg)

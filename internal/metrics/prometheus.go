@@ -22,10 +22,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/exp/maps"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"golang.org/x/exp/maps"
 )
 
 // escaper is used to format the labels according to [1]. Prometheus labels can
@@ -213,7 +213,7 @@ func writeLabels(w *bytes.Buffer, labels map[string]string,
 	separator := "{"
 	for _, l := range sortedLabels {
 		w.WriteString(separator + l + `="`)
-		escaper.WriteString(w, labels[l])
+		escaper.WriteString(w, labels[l]) //nolint:errcheck // bytes.Buffer.Write does not error
 		w.WriteByte('"')
 		separator = ","
 	}

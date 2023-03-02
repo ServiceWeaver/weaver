@@ -237,12 +237,15 @@ func (b *babysitter) GetComponentsToStart(req *protos.GetComponentsToStart) (*pr
 
 // RecvLogEntry implements the protos.EnvelopeHandler interface.
 func (b *babysitter) RecvLogEntry(req *protos.LogEntry) {
-	protomsg.Call(b.ctx, protomsg.CallArgs{
+	err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.mgrAddr,
 		URLPath: recvLogEntryURL,
 		Request: req,
 	})
+	if err != nil {
+		b.logger.Error("Error receiving logs", err, "fromAddr", b.mgrAddr)
+	}
 }
 
 // RecvTraceSpans implements the protos.EnvelopeHandler interface.

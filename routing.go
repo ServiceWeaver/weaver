@@ -108,7 +108,7 @@ func (r *routelet) onChange(callback func(*protos.RoutingInfo)) {
 // manager to track the latest routing info. Whenever the routing info changes,
 // any resolvers and balancers returned by the Resolver() and Balancer()
 // methods are updated.
-func (r *routelet) watchRoutingInfo(ctx context.Context, env env, group string) error {
+func (r *routelet) watchRoutingInfo(ctx context.Context, env env, group string) {
 	var version *call.Version
 	for re := retry.Begin(); re.Continue(ctx); {
 		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, group, version)
@@ -125,7 +125,6 @@ func (r *routelet) watchRoutingInfo(ctx context.Context, env env, group string) 
 		}
 		re.Reset()
 	}
-	return ctx.Err()
 }
 
 // update updates the state of a routelet with the latest routing info.
