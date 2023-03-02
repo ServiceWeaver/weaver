@@ -51,6 +51,12 @@ running `source ~/.bashrc`:
 $ export PATH="$PATH:$GOPATH/bin"
 ```
 
+**Note** If you're a Windows user, you should set an environment variable that points to writable directory:
+
+```console
+$ export XDG_DATA_HOME=C:\\serviceweaver
+```
+
 If the installation was successful, you should be able to run `weaver --help`:
 
 ```console
