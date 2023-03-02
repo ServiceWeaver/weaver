@@ -40,11 +40,11 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/go/bin/golangci-lint
-          key: golangci-lint-v1.51.0
+          key: golangci-lint-v1.51.2
         if: ${{ matrix.command == 'lint' }}
 
       - name: Install linter
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
         if: ${{ matrix.command == 'lint' }}
 
       - name: ${{ matrix.command }}

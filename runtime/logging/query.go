@@ -367,8 +367,7 @@ func formatExpr(w io.Writer, e *exprpb.Expr) error {
 		fmt.Fprint(w, e.GetIdentExpr().Name)
 		return nil
 	case *exprpb.Expr_ConstExpr:
-		formatConst(w, e.GetConstExpr())
-		return nil
+		return formatConst(w, e.GetConstExpr())
 	case *exprpb.Expr_CallExpr:
 		// Note that CEL represents operators like || and ! as calls.
 		return formatCall(w, e.GetCallExpr())

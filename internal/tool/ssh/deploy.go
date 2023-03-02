@@ -28,9 +28,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
 	"github.com/google/uuid"
 
+	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
@@ -102,7 +102,9 @@ func deploy(ctx context.Context, args []string) error {
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-done // Will block here until user hits ctrl+c
-		terminateDeployment(locs, dep)
+		if err := terminateDeployment(locs, dep); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to terminate deployment: %v\n", err)
+		}
 		fmt.Fprintf(os.Stderr, "Application %s terminated\n", app.Name)
 		if err := stopFn(); err != nil {
 			fmt.Fprintf(os.Stderr, "stop the manager: %v\n", err)
