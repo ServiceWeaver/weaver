@@ -29,6 +29,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/ServiceWeaver/weaver/internal/files"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
@@ -740,7 +741,7 @@ func serveHTTP(ctx context.Context, lis net.Listener, handler http.Handler) erro
 // $XDG_DATA_HOME/serviceweaver/ssh_registry, or
 // ~/.local/share/serviceweaver/ssh_registry if XDG_DATA_HOME is not set.
 func DefaultRegistry(ctx context.Context) (*status.Registry, error) {
-	dir, err := status.DefaultRegistryDir()
+	dir, err := files.DefaultDataDir()
 	if err != nil {
 		return nil, err
 	}

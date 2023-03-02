@@ -100,3 +100,24 @@ func (w *Writer) Cleanup() {
 	w.tmp = nil
 	os.Remove(w.tmpName)
 }
+
+// DefaultDataDir returns the default directory for Service Weaver files:
+// $XDG_DATA_HOME/serviceweaver, or ~/.local/share/serviceweaver if
+// XDG_DATA_HOME is not set.
+func DefaultDataDir() (string, error) {
+	dataDir := os.Getenv("XDG_DATA_HOME")
+	if dataDir == "" {
+		// Default to ~/.local/share
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		dataDir = filepath.Join(home, ".local", "share")
+	}
+	regDir := filepath.Join(dataDir, "serviceweaver")
+	if err := os.MkdirAll(regDir, 0700); err != nil {
+		return "", err
+	}
+
+	return regDir, nil
+}

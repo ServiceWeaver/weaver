@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
@@ -44,7 +45,7 @@ var (
 )
 
 func defaultRegistry(ctx context.Context) (*status.Registry, error) {
-	dir, err := status.DefaultRegistryDir()
+	dir, err := files.DefaultDataDir()
 	if err != nil {
 		return nil, err
 	}
