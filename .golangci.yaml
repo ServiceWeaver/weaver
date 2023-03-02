@@ -13,10 +13,12 @@
 # limitations under the License.
 
 linters:
-  disable:
-    - errcheck # Currently too many places are ignoring errors
   enable:
     - nolintlint
+issues:
+  exclude-rules:
+    - path: '_test\.go'
+      linters: [errcheck] # Currently too many places are ignoring errors
 linters-settings:
   staticcheck:
     checks:
