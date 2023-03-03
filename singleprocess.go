@@ -161,6 +161,8 @@ func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string,
 }
 
 func (e *singleprocessEnv) GetComponentsToStart(context.Context, *call.Version) ([]string, *call.Version, error) {
+	// blocks forever to avoid excessive CPU consumption in weavelet.watchComponentsToStart
+	<-make(chan struct{})
 	return []string{}, nil, nil
 }
 
