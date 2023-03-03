@@ -160,7 +160,7 @@ func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string,
 	return nil
 }
 
-func (e *singleprocessEnv) GetComponentsToStart(ctx context.Context, _*call.Version) ([]string, *call.Version, error) {
+func (e *singleprocessEnv) GetComponentsToStart(ctx context.Context, _ *call.Version) ([]string, *call.Version, error) {
 	// Block forever since there's not going to be anything to start.
 	<-ctx.Done()
 	return []string{}, nil, nil
