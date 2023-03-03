@@ -107,7 +107,7 @@ details[open] .card-title {
   cursor: pointer;
   border: 0pt;
   background: white;
-  padding: 2pt;
+  padding: 0 2pt;
   border-radius: 4pt;
 }
 
