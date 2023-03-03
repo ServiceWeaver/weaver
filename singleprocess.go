@@ -160,9 +160,9 @@ func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string,
 	return nil
 }
 
-func (e *singleprocessEnv) GetComponentsToStart(context.Context, *call.Version) ([]string, *call.Version, error) {
-	// blocks forever to avoid excessive CPU consumption in weavelet.watchComponentsToStart
-	<-make(chan struct{})
+func (e *singleprocessEnv) GetComponentsToStart(ctx context.Context, _*call.Version) ([]string, *call.Version, error) {
+	// Block forever since there's not going to be anything to start.
+	<-ctx.Done()
 	return []string{}, nil, nil
 }
 
