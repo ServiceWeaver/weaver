@@ -1128,7 +1128,7 @@ type config struct {
 
 func (a *adder) Init(_ context.Context) error {
     db, err := sql.Open(a.Config().Driver, a.Config().Source)
-    r.db = db
+    a.db = db
     return err
 }
 
@@ -1136,13 +1136,13 @@ func (a *Adder) Add(ctx context.Context, x, y int) (int, error) {
     // Check in the database first.
     var sum int
     const q = "SELECT sum FROM table WHERE x=? AND y=?;"
-    if err := r.db.QueryRowContext(ctx, q, x, y).Scan(&sum); err == nil {
+    if err := a.db.QueryRowContext(ctx, q, x, y).Scan(&sum); err == nil {
         return sum, nil
     }
 
     // Make a best-effort attempt to store in the database.
     q = "INSERT INTO table(x, y, sum) VALUES (?, ?, ?);"
-    r.db.ExecContext(ctx, q, x, y, x + y)
+    a.db.ExecContext(ctx, q, x, y, x + y)
     return x + y, nil
 }
 ```
