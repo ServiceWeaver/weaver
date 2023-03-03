@@ -2624,6 +2624,16 @@ We believe that the Service Weaver's *modular monolith* model has the best of
 both worlds: the ease of development of monolithic applications, with the
 runtime benefits of microservices.
 
+### Service Weaver on macOS
+
+If you run into issues installing `weaver` on macOS, you may want to run the
+following command instead:
+
+```console
+$ export CGO_ENABLED=1; export CC=gcc; go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
+```
+
+
 [binary_marshaler]: https://pkg.go.dev/encoding#BinaryMarshaler
 [binary_unmarshaler]: https://pkg.go.dev/encoding#BinaryUnmarshaler
 [blue_green]: https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html
