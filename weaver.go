@@ -42,7 +42,7 @@ import (
 //go:generate ./dev/writedeps.sh
 
 // ErrRetriable indicates a component method call failed but may succeed if
-// retried. You can use ErrRetriable in conjuction with errors.Is to detect
+// retried. You can use ErrRetriable in conjunction with errors.Is to detect
 // and retry failed operations. For example:
 //
 //	// Retry the foo.Foo call up to three times.
