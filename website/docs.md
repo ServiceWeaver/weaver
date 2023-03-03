@@ -70,6 +70,13 @@ USAGE
 $ go install github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke@latest
 ```
 
+**Note**: If you run into issues installing `weaver` and `weaver gke` commands on
+macOS, you may want to prefix the install command with `export CGO_ENABLED=1; export CC=gcc`.
+For example:
+```console
+$ export CGO_ENABLED=1; export CC=gcc; go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
+```
+
 # Step by Step Tutorial
 
 In this section, we show you how to write Service Weaver applications. To follow
