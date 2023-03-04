@@ -179,7 +179,7 @@ func getLocations(app *protos.AppConfig) ([]string, error) {
 	const shortSSHKey = "ssh"
 
 	type sshConfigSchema struct {
-		LocationsFile string `serverweaver_metric:"locations_file"`
+		LocationsFile string `toml:"locations_file"`
 	}
 	parsed := &sshConfigSchema{}
 	if err := runtime.ParseConfigSection(sshKey, shortSSHKey, app, parsed); err != nil {
