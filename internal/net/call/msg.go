@@ -54,7 +54,7 @@ const currentVersion = initialVersion
 //	length	[7]byte		-- length of the remainder of the message
 //	payload	[length]byte	-- message-type-specific data
 //
-// The format of payload depends on the message tyoe.
+// The format of payload depends on the message typo.
 //
 // versionMessage: this is the first message sent on a connection by both sides.
 //      version  [4]byte

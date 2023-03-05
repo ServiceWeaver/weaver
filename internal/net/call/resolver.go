@@ -75,7 +75,7 @@ type Resolver interface {
 	//         // latest set of endpoints and its version.
 	//         endpoints, version, err := resolver.Resolve(ctx, nil)
 	//
-	//         // Peform a versioned Resolve that either (1) blocks until a set
+	//         // Perform a versioned Resolve that either (1) blocks until a set
 	//         // of endpoints exists with a version newer than `version`, or
 	//         // (2) returns `version`, indicating that the Resolve should be
 	//         // called again after an appropriate delay.

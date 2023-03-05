@@ -148,7 +148,7 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		return nil
 	case msg.GetComponentsToStart != nil:
 		// This is a blocking call and therefore we cannot process it inline:
-		// proces it in a separate goroutine. Note that this will cause routing
+		// process it in a separate goroutine. Note that this will cause routing
 		// info requests to be processed out-of-order w.r.t. other messages.
 		id := msg.Id
 		request := protomsg.Clone(msg.GetComponentsToStart)
