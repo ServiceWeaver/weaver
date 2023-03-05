@@ -5,3 +5,15 @@ examples/factors/factors
 examples/onlineboutique/onlineboutique
 examples/hello/hello
 website/public/
+
+# Eclipse
+.classpath
+.project
+.settings/**
+
+# ignore jetbrain IDE e.g. GoLand
+.idea/
+*.iml
+
+# Vscode file
+.vscode
