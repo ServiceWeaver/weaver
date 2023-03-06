@@ -88,7 +88,6 @@ github.com/ServiceWeaver/weaver/examples/chat
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/go-sql-driver/mysql
     github.com/hashicorp/golang-lru/v2
-    github.com/mattn/go-sqlite3
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     golang.org/x/image/draw
@@ -98,6 +97,7 @@ github.com/ServiceWeaver/weaver/examples/chat
     image/png
     io
     math
+    modernc.org/sqlite
     net/http
     net/url
     os
@@ -727,10 +727,11 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/hashicorp/golang-lru/v2
-    github.com/mattn/go-sqlite3
     go.opentelemetry.io/otel/sdk/trace
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
+    modernc.org/sqlite
+    modernc.org/sqlite/lib
     net
     net/http
     os
