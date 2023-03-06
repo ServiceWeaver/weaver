@@ -22,7 +22,7 @@
 // successfully copied.
 function addCopyButtons() {
   for (let e of document.querySelectorAll('.copyable')) {
-    const text = e.innerText;
+    const text = e.textContent;
     const button = document.createElement('button');
     button.innerText = '📋';
     button.classList.add('copy-button');

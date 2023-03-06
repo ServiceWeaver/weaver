@@ -88,7 +88,7 @@ type component struct {
 	processName    string                // read-only, once initialized
 	colocGroupName string                // read-only, once initialized
 
-	implInit sync.Once      // used to initialize impl,logger
+	implInit sync.Once      // used to initialize impl, logger
 	implErr  error          // non-nil if impl creation fails
 	impl     *componentImpl // only ever non-nil if this component is local
 	logger   Logger         // read-only after implInit.Do()
@@ -139,7 +139,7 @@ func (i *Implements[T]) setInstance(c *componentImpl) { i.componentImpl = c }
 //	    if err != nil {
 //	        log.Fatal(err)
 //	    }
-//	    root.Logger().Infof("Listener available at %v", lis)
+//	    root.Logger().Info("Listener available at %v", lis)
 //	    http.HandleFunc("/a", func(http.ResponseWriter, *http.Request) {...})
 //	    http.HandleFunc("/b", func(http.ResponseWriter, *http.Request) {...})
 //	    http.HandleFunc("/c", func(http.ResponseWriter, *http.Request) {...})
