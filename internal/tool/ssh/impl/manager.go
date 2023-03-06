@@ -603,7 +603,7 @@ func (m *manager) startBabysitter(loc string, group *protos.ColocationGroup, rep
 	}
 
 	env := fmt.Sprintf("%s=%s", BabysitterInfoKey, input)
-	binaryPath := filepath.Join(os.TempDir(), m.dep.Id, "serviceweaver")
+	binaryPath := filepath.Join(os.TempDir(), m.dep.Id, "weaver")
 	cmd := exec.Command("ssh", loc, env, binaryPath, "ssh", "babysitter")
 	return cmd.Start()
 }
