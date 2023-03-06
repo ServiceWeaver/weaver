@@ -35,6 +35,16 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Cache addlicense
+        uses: actions/cache@v3
+        with:
+          path: ~/go/bin/addlicense
+          key: addlicense-v1.1.1
+
+      # docgen.go requires addlicense.
+      - name: Install addlicense
+        run: go install github.com/google/addlicense@v1.1.1
+
       - name: Build site
         run: go run dev/docgen/docgen.go
 
