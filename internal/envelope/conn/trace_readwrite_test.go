@@ -267,7 +267,7 @@ func TestTracesReadWrite(t *testing.T) {
 	}
 	actual, ok := msg.(*traceio.ReadSpan)
 	if !ok {
-		t.Fatalf("invalid mesage type: want *protos.ReadSpan, got %T", msg)
+		t.Fatalf("invalid message type: want *protos.ReadSpan, got %T", msg)
 	}
 	if diff := cmp.Diff(expect,
 		actual.Span,

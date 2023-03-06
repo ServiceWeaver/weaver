@@ -29,12 +29,12 @@ import (
 	"testing"
 	"time"
 
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 	"github.com/ServiceWeaver/weaver/internal/cond"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type resolverMaker func(...call.Endpoint) call.Resolver
@@ -804,7 +804,7 @@ func TestDraining(t *testing.T) {
 	// Launch the caller goroutines.
 	caller := func() error {
 		// This call should last long enough for the connection to become
-		// stale, but it should still suceed.
+		// stale, but it should still succeed.
 		_, err := client.Call(ctx, sleepKey, []byte(delaySlop.String()), call.CallOptions{})
 		return err
 	}

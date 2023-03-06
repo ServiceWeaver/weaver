@@ -186,7 +186,7 @@ func (d *WeaveletConn) ExportListenerRPC(lis *protos.ListenerToExport) (*protos.
 		return nil, err
 	}
 	if reply.ExportListenerReply == nil {
-		return nil, fmt.Errorf("nil listener reply recieved from envelope")
+		return nil, fmt.Errorf("nil listener reply receieved from envelope")
 	}
 	return reply.ExportListenerReply, nil
 }

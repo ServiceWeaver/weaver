@@ -19,7 +19,7 @@ import (
 	"math/rand"
 )
 
-// A Balancer picks the endpoint to wich which an RPC client performs a call. A
+// A Balancer picks the endpoint to which which an RPC client performs a call. A
 // Balancer should only be used by a single goroutine.
 //
 // TODO(mwhittaker): Right now, balancers have no load information about
