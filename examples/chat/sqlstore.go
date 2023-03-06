@@ -23,7 +23,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 const dbName = "serviceweaver_chat_example"
@@ -99,7 +99,7 @@ func (s *sqlStore) Init(ctx context.Context) error {
 	var db *sql.DB
 	var err error
 	if cfg.Driver == "" {
-		cfg.Driver = "sqlite3"
+		cfg.Driver = "sqlite"
 		db, err = sql.Open(cfg.Driver, ":memory:")
 	} else {
 		// Ensure chat database exists.
@@ -158,8 +158,8 @@ func (s *sqlStore) Init(ctx context.Context) error {
 		},
 	} {
 		query := q.query
-		if cfg.Driver == "sqlite3" {
-			// sqlite3 does not work with AUTO_INCREMENT specified on primary keys.
+		if cfg.Driver == "sqlite" {
+			// sqlite does not work with AUTO_INCREMENT specified on primary keys.
 			query = strings.ReplaceAll(query, "AUTO_INCREMENT PRIMARY KEY", "PRIMARY KEY")
 		}
 

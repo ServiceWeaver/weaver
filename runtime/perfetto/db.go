@@ -36,10 +36,11 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/mattn/go-sqlite3"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 // completeEvent renders an event that contains a start time and a duration.
@@ -80,7 +81,7 @@ type replicaCacheKey struct {
 // [1] https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#
 // [2] https://ui.perfetto.dev/
 type DB struct {
-	// Trace data is stored in a sqlite3 DB spread across three tables:
+	// Trace data is stored in a sqlite DB spread across three tables:
 	// (1) traces:           trace data in a Perfetto-UI-compattible JSON format
 	// (2) replica_num:      map from colocation group replica id to a replica
 	//                       number
@@ -118,7 +119,7 @@ func open(ctx context.Context, fname string) (*DB, error) {
 	//   https://www.sqlite.org/pragma.html#pragma_locking_mode
 	//   https://www.sqlite.org/pragma.html#pragma_busy_timeout
 	const params = "?_locking_mode=NORMAL&_busy_timeout=10000"
-	db, err := sql.Open("sqlite3", fname+params)
+	db, err := sql.Open("sqlite", fname+params)
 	if err != nil {
 		return nil, fmt.Errorf("open perfetto db %q: %w", fname, err)
 	}
@@ -536,9 +537,9 @@ func (d *DB) Serve(ctx context.Context) error {
 
 // isLocked returns whether the error is a "database is locked" error.
 func isLocked(err error) bool {
-	var sqlError sqlite3.Error
+	sqlError := &sqlite.Error{}
 	ok := errors.As(err, &sqlError)
-	return ok && (sqlError.Code == sqlite3.ErrBusy || sqlError.Code == sqlite3.ErrLocked)
+	return ok && (sqlError.Code() == sqlite3.SQLITE_BUSY || sqlError.Code() == sqlite3.SQLITE_LOCKED)
 }
 
 func fp(name string) int {
