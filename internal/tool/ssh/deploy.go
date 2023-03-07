@@ -28,8 +28,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/google/uuid"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
+	"github.com/google/uuid"
 
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -182,7 +182,7 @@ func getLocations(app *protos.AppConfig) ([]string, error) {
 		LocationsFile string `toml:"locations_file"`
 	}
 	parsed := &sshConfigSchema{}
-	if err := runtime.ParseConfigSection(sshKey, shortSSHKey, app, parsed); err != nil {
+	if err := runtime.ParseConfigSection(sshKey, shortSSHKey, app.Sections, parsed); err != nil {
 		return nil, fmt.Errorf("unable to parse ssh config: %w", err)
 	}
 

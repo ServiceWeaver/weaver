@@ -20,9 +20,9 @@ import (
 	"reflect"
 	"sync"
 
-	"go.opentelemetry.io/otel/trace"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // globalRegistry is the global registry used by Register and Registered.
@@ -138,7 +138,7 @@ func ComponentConfigValidator(path, cfg string) error {
 	}
 	objConfig := info.ConfigFn(info.New())
 	config := &protos.AppConfig{Sections: map[string]string{path: cfg}}
-	if err := runtime.ParseConfigSection(path, "", config, objConfig); err != nil {
+	if err := runtime.ParseConfigSection(path, "", config.Sections, objConfig); err != nil {
 		return fmt.Errorf("%v: bad config: %w", info.Iface, err)
 	}
 	return nil

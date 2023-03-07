@@ -32,12 +32,10 @@ import (
 
 // remoteEnv implements the env used for non-single-process Service Weaver applications.
 type remoteEnv struct {
-	deployment *protos.Deployment
-	group      *protos.ColocationGroup
-	weavelet   *protos.Weavelet
-	sysLogger  Logger
-	conn       *conn.WeaveletConn
-	logmu      sync.Mutex
+	weavelet  *protos.WeaveletInfo
+	sysLogger Logger
+	conn      *conn.WeaveletConn
+	logmu     sync.Mutex
 }
 
 var _ env = &remoteEnv{}
@@ -55,10 +53,8 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap) (*remoteEnv,
 	wlet := conn.Weavelet()
 
 	env := &remoteEnv{
-		deployment: wlet.Dep,
-		group:      wlet.Group,
-		weavelet:   wlet,
-		conn:       conn,
+		weavelet: wlet,
+		conn:     conn,
 	}
 
 	go func() {
@@ -67,13 +63,13 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap) (*remoteEnv,
 		}
 	}()
 	logSaver := env.CreateLogSaver(ctx, "serviceweaver")
-	env.sysLogger = newAttrLogger(wlet.Dep.App.Name, wlet.Dep.Id, "weavelet", wlet.Id, logSaver)
+	env.sysLogger = newAttrLogger(wlet.App, wlet.DeploymentId, "weavelet", wlet.Id, logSaver)
 	env.sysLogger = env.sysLogger.With("serviceweaver/system", "")
 	return env, nil
 }
 
 // GetWeaveletInfo implements the Env interface.
-func (e *remoteEnv) GetWeaveletInfo() *protos.Weavelet {
+func (e *remoteEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 	return e.weavelet
 }
 
@@ -88,8 +84,8 @@ func (e *remoteEnv) StartColocationGroup(_ context.Context, targetGroup *protos.
 func (e *remoteEnv) RegisterComponentToStart(_ context.Context, targetProcess string,
 	targetGroup string, component string, isRouted bool) error {
 	request := &protos.ComponentToStart{
-		App:             e.deployment.App.Name,
-		DeploymentId:    e.deployment.Id,
+		App:             e.weavelet.App,
+		DeploymentId:    e.weavelet.DeploymentId,
 		ColocationGroup: targetGroup,
 		Process:         targetProcess,
 		Component:       component,
@@ -107,8 +103,8 @@ func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Versio
 	}
 
 	request := &protos.GetComponentsToStart{
-		App:          e.deployment.App.Name,
-		DeploymentId: e.deployment.Id,
+		App:          e.weavelet.App,
+		DeploymentId: e.weavelet.DeploymentId,
 		Process:      e.weavelet.Process,
 		Version:      v,
 	}
@@ -127,8 +123,8 @@ func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Versio
 // RegisterReplica implements the Env interface.
 func (e *remoteEnv) RegisterReplica(_ context.Context, myAddress call.NetworkAddress) error {
 	request := &protos.ReplicaToRegister{
-		App:          e.deployment.App.Name,
-		DeploymentId: e.deployment.Id,
+		App:          e.weavelet.App,
+		DeploymentId: e.weavelet.DeploymentId,
 		Process:      e.weavelet.Process,
 		Address:      string(myAddress),
 		Pid:          int64(os.Getpid()),
@@ -150,8 +146,8 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, process string,
 	}
 
 	request := &protos.GetRoutingInfo{
-		App:          e.deployment.App.Name,
-		DeploymentId: e.deployment.Id,
+		App:          e.weavelet.App,
+		DeploymentId: e.weavelet.DeploymentId,
 		Process:      process,
 		Version:      v,
 	}
@@ -170,12 +166,12 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, process string,
 // ExportListener implements the Env interface.
 func (e *remoteEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
 	request := &protos.ListenerToExport{
-		App:          e.deployment.App.Name,
-		DeploymentId: e.deployment.Id,
+		App:          e.weavelet.App,
+		DeploymentId: e.weavelet.DeploymentId,
 		Process:      e.weavelet.Process,
 		Listener:     lis,
 		LocalAddress: opts.LocalAddress,
-		Group:        e.group,
+		Group:        e.weavelet.Group,
 	}
 	return e.conn.ExportListenerRPC(request)
 }

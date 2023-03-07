@@ -17,18 +17,18 @@ package weaver
 import (
 	"context"
 
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // env provides the API by which a Service Weaver application process communicates with
 // its execution environment, e.g., to do thing like starting processes etc.
 type env interface {
 	// GetWeaveletInfo returns the weavelet information from the environment.
-	GetWeaveletInfo() *protos.Weavelet
+	GetWeaveletInfo() *protos.WeaveletInfo
 
 	// StartColocationGroup starts running the specified colocation group,
 	// if it's not already started.
