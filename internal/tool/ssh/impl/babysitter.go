@@ -25,9 +25,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 
+	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -200,15 +200,22 @@ func (b *babysitter) startProcess(proc string) error {
 
 	// Start the weavelet and capture its logs, traces, and metrics.
 	id := uuid.New().String()
-	wlet := &protos.Weavelet{
-		Id:             id,
-		Dep:            b.dep,
-		Group:          b.group,
-		GroupReplicaId: id,
-		Process:        proc,
+	wlet := &protos.WeaveletInfo{
+		App:               b.dep.App.Name,
+		DeploymentId:      b.dep.Id,
+		Group:             b.group,
+		GroupId:           id,
+		Process:           proc,
+		Id:                id,
+		SameProcess:       b.dep.App.SameProcess,
+		Sections:          b.dep.App.Sections,
+		SingleProcess:     b.dep.SingleProcess,
+		UseLocalhost:      b.dep.UseLocalhost,
+		ProcessPicksPorts: b.dep.ProcessPicksPorts,
+		NetworkStorageDir: b.dep.NetworkStorageDir,
 	}
 
-	e, err := envelope.NewEnvelope(wlet, b, b.opts)
+	e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
 	if err != nil {
 		return err
 	}

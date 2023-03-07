@@ -20,9 +20,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestBinaryPath(t *testing.T) {
@@ -91,7 +91,7 @@ func TestParseConfigSection(t *testing.T) {
 				t.Fatal(err)
 			}
 			got := c.initialValue
-			err = runtime.ParseConfigSection("section", "", config, &got)
+			err = runtime.ParseConfigSection("section", "", config.Sections, &got)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -65,11 +65,11 @@ func ParseConfig(file string, input string, sectionValidator func(string, string
 // ParseConfigSection parses the config section for key into dst.
 // If shortKey is not empty, either key or shortKey is accepted.
 // If the named section is not found, returns nil without changing dst.
-func ParseConfigSection(key, shortKey string, config *protos.AppConfig, dst any) error {
-	section, ok := config.Sections[key]
+func ParseConfigSection(key, shortKey string, sections map[string]string, dst any) error {
+	section, ok := sections[key]
 	if shortKey != "" {
 		// Fetch section listed for shortKey, if any
-		if shortKeySection, ok2 := config.Sections[shortKey]; ok2 {
+		if shortKeySection, ok2 := sections[shortKey]; ok2 {
 			if ok {
 				return fmt.Errorf("conflicting sections %q and %q", shortKey, key)
 			}
@@ -111,7 +111,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 	}
 
 	parsed := &appConfig{}
-	if err := ParseConfigSection(appKey, shortAppKey, config, parsed); err != nil {
+	if err := ParseConfigSection(appKey, shortAppKey, config.Sections, parsed); err != nil {
 		return err
 	}
 
@@ -122,7 +122,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 	config.Env = parsed.Env
 	config.RolloutNanos = int64(parsed.Rollout)
 	for _, colocate := range parsed.Colocate {
-		group := &protos.AppConfig_ComponentGroup{Components: colocate}
+		group := &protos.ComponentGroup{Components: colocate}
 		config.SameProcess = append(config.SameProcess, group)
 	}
 	if err := canonicalizeConfig(config, filepath.Dir(file)); err != nil {
