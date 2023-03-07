@@ -2541,6 +2541,25 @@ TODO: Explain the internals of Service Weaver.
 
 # FAQ
 
+### Do I need to worry about network errors when using Service Weaver?
+
+Yes. While Service Weaver allows you to *write* your application as a single
+binary, a distributed deployer (e.g., [multiprocess](#multiprocess),
+[gke](#gke)), may place your components on separate processes/machines.
+This means that method calls between those components will be executed as remote
+procedure calls, resulting in possible network errors surfacing in your
+application.
+
+To be safe, we recommend that you assume that all cross-component method calls
+involve a network, regardless of the actual component placement. If this is
+overly burdensome, you can explicitly place relevant components in the same
+[colocation group](#config-files), ensuring that they always run in the same OS
+process.
+
+**Note**: Service Weaver guarantees that all network errors are surfaced to the
+application code as `weaver.ErrRetriable`, which can be handled as described in
+an [earlier section](#components-semantics).
+
 ### What types of distributed applications does Service Weaver target?
 
 Service Weaver primarily targets distributed serving systems. These are online 
