@@ -158,7 +158,7 @@ hello listener available on 127.0.0.1:12345
 In a separate terminal, curl the server to receive a greeting:
 
 ```console
-$ curl localhost:12345/hello?name=Weaver
+$ curl localhost:12345/hello\?name\=Weaver
 Hello, Weaver!
 ```
 
@@ -258,7 +258,7 @@ hello listener available on 127.0.0.1:12345
 In a separate terminal, curl the server to receive a reversed greeting:
 
 ```console
-$ curl localhost:12345/hello?name=Weaver
+$ curl localhost:12345/hello\?name\=Weaver
 Hello, revaeW!
 ```
 
@@ -341,7 +341,7 @@ two log entries. We elaborate on replication more in the
 In a separate terminal, curl the server:
 
 ```console
-$ curl localhost:12345/hello?name=Weaver
+$ curl localhost:12345/hello\?name\=Weaver
 Hello, revaeW!
 ```
 
@@ -1809,7 +1809,7 @@ header. Since we configured our application to associate host name `hello.com`
 with the `hello` listener, we use the following command:
 
 ```console
-$ curl --header 'Host: hello.com' http://34.149.225.63/hello?name=Weaver
+$ curl --header 'Host: hello.com' http://34.149.225.63/hello\?name\=Weaver
 Hello, Weaver!
 ```
 
@@ -2249,7 +2249,7 @@ the global load balancer. Since we configured our application to associate host
 name `hello.com` with the `hello` listener, we use the following command:
 
 ```console
-$ curl --header 'Host: hello.com' localhost:8000/hello?name=Weaver
+$ curl --header 'Host: hello.com' localhost:8000/hello\?name\=Weaver
 Hello, Weaver!
 ```
 
