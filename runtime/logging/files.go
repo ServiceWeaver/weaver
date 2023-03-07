@@ -220,10 +220,10 @@ func (l *logfile) matches(prog cel.Program) (bool, error) {
 	//
 	// [1]: https://pkg.go.dev/github.com/google/cel-go/cel#Program
 	if out == nil && err != nil {
-		// The evaluation was unsucessful.
+		// The evaluation was unsuccessful.
 		return false, err
 	} else if err != nil {
-		// The evaluation was sucessful, but it resulted in an error. In this
+		// The evaluation was successful, but it resulted in an error. In this
 		// case, the query _may_ match some log entries in the file, so we
 		// return true. See above for more details.
 		return true, nil
@@ -398,7 +398,7 @@ func (fc *fileCatter) Close() {
 //        new data.
 //
 // A fileFollower addresses issue (1) by using an fsnotify.Watcher. A Watcher
-// watches a file sytem directory and is triggered whenever (a) a file is
+// watches a file system directory and is triggered whenever (a) a file is
 // created in the directory or (b) a file in the directory is written to. A
 // fileFollower addresses issue (2) by using a tailReader that is hooked up to
 // the Watcher. Whenever the Watcher detects that a file has been written to,
@@ -723,7 +723,7 @@ func (ff *fileFollower) scan(fs *fileScanner) error {
 		}
 
 		// Update the heap. If fs is not currently on the heap, you might
-		// expect that tryPush will always successfuly push fs onto the heap
+		// expect that tryPush will always successfully push fs onto the heap
 		// because we just buffered an entry into fs.buf. However, this is not
 		// the case. Between buffering entry and calling tryPush, the Read
 		// method may have already popped and returned the entry, leaving fs

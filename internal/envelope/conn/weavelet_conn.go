@@ -31,7 +31,7 @@ import (
 // and its envelope. It communicates with the envelope over a pair of pipes.
 type WeaveletConn struct {
 	conn    conn
-	wlet    *protos.Weavelet
+	wlet    *protos.WeaveletInfo
 	metrics metrics.Exporter
 }
 
@@ -56,8 +56,7 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
 		d.conn.cleanup(err)
 		return nil, err
 	}
-	if err := runtime.CheckWeavelet(d.wlet); err != nil {
-		err = fmt.Errorf("invalid WeaveletInfo: %w", err)
+	if err := runtime.CheckWeaveletInfo(d.wlet); err != nil {
 		d.conn.cleanup(err)
 		return nil, err
 	}
@@ -79,7 +78,7 @@ func (d *WeaveletConn) Run() error {
 }
 
 // Weavelet returns the protos.Weavelet for this weavelet.
-func (d *WeaveletConn) Weavelet() *protos.Weavelet {
+func (d *WeaveletConn) Weavelet() *protos.WeaveletInfo {
 	return d.wlet
 }
 
@@ -94,8 +93,8 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			if def.Labels == nil {
 				def.Labels = map[string]string{}
 			}
-			def.Labels["serviceweaver_app"] = d.wlet.Dep.App.Name
-			def.Labels["serviceweaver_version"] = d.wlet.Dep.Id
+			def.Labels["serviceweaver_app"] = d.wlet.App
+			def.Labels["serviceweaver_version"] = d.wlet.DeploymentId
 			def.Labels["serviceweaver_node"] = d.wlet.Id
 		}
 		return d.send(&protos.WeaveletMsg{Id: -msg.Id, Metrics: update})
@@ -186,7 +185,7 @@ func (d *WeaveletConn) ExportListenerRPC(lis *protos.ListenerToExport) (*protos.
 		return nil, err
 	}
 	if reply.ExportListenerReply == nil {
-		return nil, fmt.Errorf("nil listener reply recieved from envelope")
+		return nil, fmt.Errorf("nil listener reply receieved from envelope")
 	}
 	return reply.ExportListenerReply, nil
 }

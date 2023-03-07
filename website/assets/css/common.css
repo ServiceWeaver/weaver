@@ -69,9 +69,7 @@ header .active {
 header a {
   text-decoration: none;
   color: black;
-  padding: 0.75ch;
-  padding-left: 1ch;
-  padding-right: 1ch;
+  padding: 0.5ch;
 }
 header .navlink {
   color: #363434;
@@ -90,6 +88,8 @@ header ul {
 header li {
   display: inline-block;
   margin-left: 1ch;
+  padding-top: 0.5ch;
+  padding-bottom: 0.5ch;
 }
 
 .icon img {

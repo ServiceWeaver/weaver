@@ -469,6 +469,13 @@ also move component replicas around, co-locating two chatty components in the
 same OS process, for example, so that communication between the components is
 done locally rather than over the network.
 
+When invoking a component's method, be prepared that it may be executed via
+a remote procedure call. As a result, your call may fail with a network error
+instead of an application error. If you don't want to deal with network errors,
+you can explicitly place the two components in the same
+[colocation group](#config-files), ensuring that they always run in the
+same OS process.
+
 ## Interfaces
 
 Every method in a component interface must receive a `context.Context` as its

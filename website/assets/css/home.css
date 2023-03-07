@@ -31,6 +31,13 @@
   overflow-wrap: anywhere;
 }
 
+@media (max-width: 800px) {
+  #serviceweaver-jumbotron {
+    margin-left: 0pt;
+    margin-right: 0pt;
+  }
+}
+
 #serviceweaver-jumbotron h1 {
   font-size: 2em;
 }
