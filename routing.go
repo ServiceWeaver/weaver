@@ -112,15 +112,9 @@ func (r *routelet) watchRoutingInfo(ctx context.Context, env env, process string
 	var version *call.Version
 	for re := retry.Begin(); re.Continue(ctx); {
 		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, process, version)
-		if err != nil {
+		if err != nil || r.update(routingInfo, newVersion) != nil {
 			// TODO(mwhittaker): Handle errors more gracefully.
-			r.env.SystemLogger().Error("cannot get routing info", err)
-			continue
-		}
-		version = newVersion
-		if err := r.update(routingInfo, version); err != nil {
-			// TODO(mwhittaker): Handle errors more gracefully.
-			r.env.SystemLogger().Error("cannot update routing info", err)
+			r.env.SystemLogger().Error("cannot obtain routing info, waiting for next round", err)
 			continue
 		}
 		re.Reset()
