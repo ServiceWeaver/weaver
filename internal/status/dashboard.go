@@ -135,8 +135,9 @@ Flags:
 			traceDB, err := perfetto.Open(ctx)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "cannot open Perfetto database: %w", err)
+			} else {
+				go traceDB.Serve(ctx)
 			}
-			go traceDB.Serve(ctx)
 
 			fmt.Fprintln(os.Stderr, "Dashboard available at:", url)
 			go browser.OpenURL(url)
