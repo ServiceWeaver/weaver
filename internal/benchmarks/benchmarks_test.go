@@ -254,6 +254,13 @@ func (protoCodec) Decode(b []byte) *payloadC {
 //	(3) gob encoding
 func BenchmarkEncDec(b *testing.B) {
 	payloads := genWorkload(1000)
+	averageSize := func(c codec) int64 {
+		totalSize := 0
+		for _, p := range payloads {
+			totalSize += len(c.Encode(p))
+		}
+		return int64(totalSize / len(payloads))
+	}
 
 	for _, bench := range []struct {
 		name  string
@@ -271,6 +278,7 @@ func BenchmarkEncDec(b *testing.B) {
 	} {
 		// Encode only.
 		b.Run(fmt.Sprintf("%s/Encode", bench.name), func(b *testing.B) {
+			b.SetBytes(averageSize(bench.codec))
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -281,6 +289,7 @@ func BenchmarkEncDec(b *testing.B) {
 		// Decode only.
 		encoded := bench.codec.Encode(payloads[0])
 		b.Run(fmt.Sprintf("%s/Decode", bench.name), func(b *testing.B) {
+			b.SetBytes(averageSize(bench.codec))
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -290,6 +299,7 @@ func BenchmarkEncDec(b *testing.B) {
 
 		// Encode and decode.
 		b.Run(fmt.Sprintf("%s/EncodeDecode", bench.name), func(b *testing.B) {
+			b.SetBytes(averageSize(bench.codec))
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
