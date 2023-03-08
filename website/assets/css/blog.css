@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-div {
-  text-align: justify;
-  text-justify: inter-word;
-}
-
 /* Limit the page content width to keep lines readable. */
 .page_blog {
+  padding-left: 20px;
+  padding-right: 20px;
   max-width: 60em;
   margin-left: auto;
   margin-right: auto;
