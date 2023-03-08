@@ -23,13 +23,11 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"sort"
 	"sync"
 	"syscall"
 
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
@@ -60,9 +58,6 @@ const (
 	// appVersionStateKey is the key where we track the state for a given application version.
 	appVersionStateKey = "app_version_state"
 )
-
-// See createAndRunEnvelopeForMain.
-var dontGC []*os.File
 
 // Babysitter manages an application version deployment.
 type Babysitter struct {
@@ -346,79 +341,6 @@ func (b *Babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.Routing
 	}
 	state.Version = newVersion
 	return state, nil
-}
-
-// CreateAndRunEnvelopeForMain creates an envelope for an already started main.
-// It is used by weavertest where the main process is already running.
-func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.WeaveletInfo, config *protos.AppConfig) (int, int, error) {
-	// Set up the pipes between the envelope and the main weavelet. The
-	// pipes will be closed by the envelope and weavelet conns.
-	//
-	//         envelope                      weavelet
-	//         --------        +----+        --------
-	//   fromWeaveletReader <--| OS |<-- fromWeaveletWriter
-	//     toWeaveletWriter -->|    |--> toWeaveletReader
-	//                         +----+
-	fromWeaveletReader, fromWeaveletWriter, err := os.Pipe()
-	if err != nil {
-		return 0, 0, fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
-	}
-	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
-	if err != nil {
-		return 0, 0, fmt.Errorf("cannot create toWeavelet pipe: %v", err)
-	}
-
-	// There is a very subtle bug we have to avoid. As explained in the
-	// official godoc [1], if an *os.File is garbage collected, the underlying
-	// file is closed. Thus, if toWeaveletReader or fromWeaveletWriter are
-	// garbage collected, the underlying pipes are closed.
-	//
-	// The main weavelet, which is running in a separate goroutine, is reading
-	// from and writing to these pipes, but it doesn't use toWeaveletReader or
-	// fromWeaveletWriter directly. Instead components to start., it constructs new files using the
-	// two pipe's file descriptors. This means that Go is free to garbage
-	// collect fromWeaveletWriter and toWeaveletWriter even though the
-	// underlying pipes are still being used by the main weavelet.
-	//
-	// If the pipes get closed while the main weavelet is running, then the
-	// weavelet can crash with all sorts of errors (e.g., bad pipe, resource
-	// temporarily unavailable, nil pointer dereferences, etc). You can run [2]
-	// locally to reproduce this behavior. If the program doesn't crash on your
-	// machine, try increasing the number of iterations.
-	//
-	// To avoid this, we have to ensure that the pipes are not garbage
-	// collected prematurely. For now, we place them in a global variable. It's
-	// not a great solution, but it gets the job done.
-	//
-	// [1]: https://pkg.go.dev/os#File.Fd
-	// [2]: https://go.dev/play/p/9JG7voL2oHP
-	//
-	// TODO(mwhittaker): Think of a less janky solution to this bug.
-	b.mu.Lock()
-	dontGC = append(dontGC, fromWeaveletReader, fromWeaveletWriter,
-		toWeaveletReader, toWeaveletWriter)
-	b.mu.Unlock()
-
-	// Create a connection between the weavelet for the main process and the envelope.
-	econn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, b, mainWlet)
-	if err != nil {
-		return 0, 0, fmt.Errorf("cannot create envelope conn: %v", err)
-	}
-	go econn.Run()
-
-	// Create and run an envelope for the main process.
-	options := envelope.Options{
-		Restart:         envelope.Never,
-		Retry:           retry.DefaultOptions,
-		GetEnvelopeConn: func() *conn.EnvelopeConn { return econn },
-	}
-	e, err := envelope.NewEnvelope(mainWlet, config, b, options)
-	if err != nil {
-		return 0, 0, fmt.Errorf("cannot create envelope: %v", err)
-	}
-	go e.Run(b.ctx)
-
-	return int(toWeaveletReader.Fd()), int(fromWeaveletWriter.Fd()), nil
 }
 
 func (b *Babysitter) loadAppState(version string) (*AppVersionState, string, error) {
