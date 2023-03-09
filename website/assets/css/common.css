@@ -39,6 +39,11 @@ pre {
   border-radius: 6px;
 }
 
+code {
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.8em;
+}
+
 /* Limit the page content width to keep lines readable. */
 .page {
   max-width: 80em;
