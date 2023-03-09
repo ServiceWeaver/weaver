@@ -118,7 +118,7 @@ var _ Instance = &componentImpl{}
 //
 // Implements is embedded inside the component implementation, and therefore
 // methods of Implements (as well as methods of [weaver.Instance]) are available
-// as methods of the implementation type and can be invokded directly on an
+// as methods of the implementation type and can be invoked directly on an
 // implementation type instance.
 type Implements[T any] struct {
 	*componentImpl
