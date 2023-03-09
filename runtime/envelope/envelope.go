@@ -53,9 +53,11 @@ type EnvelopeHandler interface {
 	// ReportLoad reports the given weavelet load information.
 	ReportLoad(entry *protos.WeaveletLoadReport) error
 
-	// ExportListener exports the given listener, returning the export
-	// information (e.g,. any port assigned).
-	ExportListener(request *protos.ListenerToExport) (*protos.ExportListenerReply, error)
+	// GetAddress gets the address a weavelet should listen on for a listener.
+	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
+
+	// ExportListener exports the given listener.
+	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
 	// GetRoutingInfo returns the latest routing information for the weavelet.
 	//
@@ -149,8 +151,9 @@ type Envelope struct {
 
 func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h EnvelopeHandler, opts Options) (*Envelope, error) {
 	if h == nil {
-		return nil, fmt.Errorf("unable to create envelope for process %s due to nil handler",
-			logging.ShortenComponent(wlet.Process))
+		return nil, fmt.Errorf(
+			"unable to create envelope for group %s due to nil handler",
+			logging.ShortenComponent(wlet.Group.Name))
 	}
 	logger := logging.FuncLogger{
 		Opts: logging.Options{

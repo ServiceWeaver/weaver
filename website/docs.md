@@ -158,7 +158,7 @@ hello listener available on 127.0.0.1:12345
 In a separate terminal, curl the server to receive a greeting:
 
 ```console
-$ curl localhost:12345/hello?name=Weaver
+$ curl "localhost:12345/hello?name=Weaver"
 Hello, Weaver!
 ```
 
@@ -258,7 +258,7 @@ hello listener available on 127.0.0.1:12345
 In a separate terminal, curl the server to receive a reversed greeting:
 
 ```console
-$ curl localhost:12345/hello?name=Weaver
+$ curl "localhost:12345/hello?name=Weaver"
 Hello, revaeW!
 ```
 
@@ -341,7 +341,7 @@ two log entries. We elaborate on replication more in the
 In a separate terminal, curl the server:
 
 ```console
-$ curl localhost:12345/hello?name=Weaver
+$ curl "localhost:12345/hello?name=Weaver"
 Hello, revaeW!
 ```
 
@@ -1809,7 +1809,7 @@ header. Since we configured our application to associate host name `hello.com`
 with the `hello` listener, we use the following command:
 
 ```console
-$ curl --header 'Host: hello.com' http://34.149.225.63/hello?name=Weaver
+$ curl --header 'Host: hello.com' "http://34.149.225.63/hello?name=Weaver"
 Hello, Weaver!
 ```
 
@@ -2249,7 +2249,7 @@ the global load balancer. Since we configured our application to associate host
 name `hello.com` with the `hello` listener, we use the following command:
 
 ```console
-$ curl --header 'Host: hello.com' localhost:8000/hello?name=Weaver
+$ curl --header 'Host: hello.com' "localhost:8000/hello?name=Weaver"
 Hello, Weaver!
 ```
 
@@ -2540,6 +2540,25 @@ TODO: Explain the internals of Service Weaver.
 </div>
 
 # FAQ
+
+### Do I need to worry about network errors when using Service Weaver?
+
+Yes. While Service Weaver allows you to *write* your application as a single
+binary, a distributed deployer (e.g., [multiprocess](#multiprocess),
+[gke](#gke)), may place your components on separate processes/machines.
+This means that method calls between those components will be executed as remote
+procedure calls, resulting in possible network errors surfacing in your
+application.
+
+To be safe, we recommend that you assume that all cross-component method calls
+involve a network, regardless of the actual component placement. If this is
+overly burdensome, you can explicitly place relevant components in the same
+[colocation group](#config-files), ensuring that they always run in the same OS
+process.
+
+**Note**: Service Weaver guarantees that all network errors are surfaced to the
+application code as `weaver.ErrRetriable`, which can be handled as described in
+an [earlier section](#components-semantics).
 
 ### What types of distributed applications does Service Weaver target?
 

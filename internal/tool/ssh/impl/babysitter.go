@@ -19,22 +19,19 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
-
 	"github.com/ServiceWeaver/weaver/internal/logtype"
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
-
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 // babysitter starts and manages weavelets belonging to a single colocation
@@ -48,11 +45,7 @@ type babysitter struct {
 	mgrAddr       string
 	logger        logtype.Logger
 	traceExporter *traceio.Writer // to export traces to the manager
-
-	mu sync.RWMutex
-	// Envelopes managed by the babysitter, keyed by the Service Weaver process they
-	// correspond to.
-	envelopes map[string]*envelope.Envelope
+	envelope      *envelope.Envelope
 }
 
 var _ envelope.EnvelopeHandler = &babysitter{}
@@ -60,28 +53,28 @@ var _ envelope.EnvelopeHandler = &babysitter{}
 // RunBabysitter creates and runs a babysitter that was deployed using SSH.
 func RunBabysitter(ctx context.Context) error {
 	// Retrieve the deployment information.
-	depInfo := &BabysitterInfo{}
-	if err := proto.FromEnv(os.Getenv(BabysitterInfoKey), depInfo); err != nil {
+	info := &BabysitterInfo{}
+	if err := proto.FromEnv(os.Getenv(babysitterInfoKey), info); err != nil {
 		return fmt.Errorf("unable to retrieve deployment info: %w", err)
 	}
 
 	// Create the log saver.
-	fs, err := logging.NewFileStore(depInfo.LogDir)
+	fs, err := logging.NewFileStore(info.LogDir)
 	if err != nil {
 		return fmt.Errorf("cannot create log storage: %w", err)
 	}
 	logSaver := fs.Add
 
-	bs := &babysitter{
+	b := &babysitter{
 		ctx:       ctx,
-		dep:       depInfo.Deployment,
-		group:     depInfo.Group,
-		replicaId: depInfo.ReplicaId,
-		mgrAddr:   depInfo.ManagerAddr,
+		dep:       info.Deployment,
+		group:     info.Group,
+		replicaId: info.ReplicaId,
+		mgrAddr:   info.ManagerAddr,
 		logger: logging.FuncLogger{
 			Opts: logging.Options{
-				App:        depInfo.Deployment.App.Name,
-				Deployment: depInfo.Deployment.Id,
+				App:        info.Deployment.App.Name,
+				Deployment: info.Deployment.Id,
 				Component:  "Babysitter",
 				Weavelet:   uuid.NewString(),
 				Attrs:      []string{"serviceweaver/system", ""},
@@ -91,17 +84,33 @@ func RunBabysitter(ctx context.Context) error {
 		traceExporter: traceio.NewWriter(func(spans *protos.Spans) error {
 			return protomsg.Call(ctx, protomsg.CallArgs{
 				Client:  http.DefaultClient,
-				Addr:    depInfo.ManagerAddr,
+				Addr:    info.ManagerAddr,
 				URLPath: recvTraceSpansURL,
 				Request: spans,
 			})
 		}),
-		opts:      envelope.Options{Restart: envelope.OnFailure, Retry: retry.DefaultOptions},
-		envelopes: map[string]*envelope.Envelope{},
+		opts: envelope.Options{Restart: envelope.OnFailure, Retry: retry.DefaultOptions},
 	}
-	go bs.collectMetrics()
-	bs.run()
-	return nil
+
+	// Start the envelope.
+	id := uuid.New().String()
+	wlet := &protos.WeaveletInfo{
+		App:           b.dep.App.Name,
+		DeploymentId:  b.dep.Id,
+		Group:         b.group,
+		GroupId:       id,
+		Id:            id,
+		SameProcess:   b.dep.App.SameProcess,
+		Sections:      b.dep.App.Sections,
+		SingleProcess: b.dep.SingleProcess,
+	}
+	e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
+	if err != nil {
+		return err
+	}
+	b.envelope = e
+	go b.collectMetrics()
+	return e.Run(b.ctx)
 }
 
 func (b *babysitter) collectMetrics() {
@@ -110,14 +119,10 @@ func (b *babysitter) collectMetrics() {
 	for {
 		select {
 		case <-tickerCollectMetrics.C:
-			var ms []*metrics.MetricSnapshot
-			for _, e := range b.envelopes {
-				m, err := e.ReadMetrics()
-				if err != nil {
-					b.logger.Error("Unable to collect metrics", err, "weavelet", e.Weavelet().Id)
-					continue
-				}
-				ms = append(ms, m...)
+			ms, err := b.envelope.ReadMetrics()
+			if err != nil {
+				b.logger.Error("Unable to collect metrics", err, "weavelet", b.envelope.Weavelet().Id)
+				continue
 			}
 			ms = append(ms, metrics.Snapshot()...)
 
@@ -140,94 +145,6 @@ func (b *babysitter) collectMetrics() {
 	}
 }
 
-// run runs the Envelope management loop. This call will block until the
-// context passed to the babysitter is canceled.
-func (b *babysitter) run() error {
-	host, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	b.logger.Info("Running babysitter to manage", "group", b.group.Name, "location", host)
-	var version string
-	for r := retry.Begin(); r.Continue(b.ctx); {
-		procsToStart, newVersion, err := b.getProcessesToStart(b.ctx, version)
-		if err != nil {
-			continue
-		}
-		version = newVersion
-		for _, proc := range procsToStart {
-			if err := b.startProcess(proc); err != nil {
-				b.logger.Error("Error starting", err, "process", proc)
-			}
-		}
-		r.Reset()
-	}
-	return b.ctx.Err()
-}
-
-func (b *babysitter) getProcessesToStart(ctx context.Context, version string) ([]string, string, error) {
-	request := &protos.GetProcessesToStartRequest{
-		App:             b.dep.App.Name,
-		DeploymentId:    b.dep.Id,
-		ColocationGroup: b.group.Name,
-		Version:         version,
-	}
-	reply := &protos.GetProcessesToStartReply{}
-	err := protomsg.Call(ctx, protomsg.CallArgs{
-		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
-		URLPath: getProcessesToStartURL,
-		Request: request,
-		Reply:   reply,
-	})
-	if err != nil {
-		return nil, "", err
-	}
-	if reply.Unchanged {
-		return nil, "", fmt.Errorf("no new processes to start")
-	}
-	return reply.Processes, reply.Version, nil
-}
-
-func (b *babysitter) startProcess(proc string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if _, ok := b.envelopes[proc]; ok {
-		// Already started.
-		return nil
-	}
-
-	// Start the weavelet and capture its logs, traces, and metrics.
-	id := uuid.New().String()
-	wlet := &protos.WeaveletInfo{
-		App:               b.dep.App.Name,
-		DeploymentId:      b.dep.Id,
-		Group:             b.group,
-		GroupId:           id,
-		Process:           proc,
-		Id:                id,
-		SameProcess:       b.dep.App.SameProcess,
-		Sections:          b.dep.App.Sections,
-		SingleProcess:     b.dep.SingleProcess,
-		UseLocalhost:      b.dep.UseLocalhost,
-		ProcessPicksPorts: b.dep.ProcessPicksPorts,
-		NetworkStorageDir: b.dep.NetworkStorageDir,
-	}
-
-	e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
-	if err != nil {
-		return err
-	}
-	go func() {
-		if err := e.Run(b.ctx); err != nil {
-			b.logger.Error("e.Run", err)
-		}
-	}()
-	b.envelopes[proc] = e
-	return nil
-}
-
 // StartComponent implements the protos.EnvelopeHandler interface.
 func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
 	return protomsg.Call(b.ctx, protomsg.CallArgs{
@@ -240,18 +157,19 @@ func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
 
 // StartColocationGroup implements the protos.EnvelopeHandler interface.
 func (b *babysitter) StartColocationGroup(req *protos.ColocationGroup) error {
+	b.logger.Debug("Starting colocation group", "group", req.Name)
 	return protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.mgrAddr,
-		URLPath: startColocationGroupManagerURL,
+		URLPath: startColocationGroupURL,
 		Request: req,
 	})
 }
 
 // RegisterReplica implements the protos.EnvelopeHandler interface.
 func (b *babysitter) RegisterReplica(replica *protos.ReplicaToRegister) error {
-	b.logger.Info("Process (re)started with new address",
-		"process", logging.ShortenComponent(replica.Process),
+	b.logger.Info("Replica (re)started with new address",
+		"group", logging.ShortenComponent(replica.Group),
 		"address", replica.Address)
 	return protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
@@ -267,7 +185,15 @@ func (b *babysitter) ReportLoad(*protos.WeaveletLoadReport) error {
 }
 
 // ExportListener implements the protos.EnvelopeHandler interface.
-func (b *babysitter) ExportListener(req *protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (b *babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	return &protos.GetAddressReply{Address: fmt.Sprintf("%s:0", host)}, nil
+}
+
+func (b *babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	reply := &protos.ExportListenerReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,

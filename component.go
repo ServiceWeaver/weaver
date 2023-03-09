@@ -18,8 +18,8 @@ import (
 	"net"
 	"sync"
 
-	"go.opentelemetry.io/otel/trace"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Glossary of component related types:
@@ -83,10 +83,9 @@ type componentStub struct {
 
 // component represents a Service Weaver component and all corresponding metadata.
 type component struct {
-	wlet           *weavelet             // read-only, once initialized
-	info           *codegen.Registration // read-only, once initialized
-	processName    string                // read-only, once initialized
-	colocGroupName string                // read-only, once initialized
+	wlet      *weavelet             // read-only, once initialized
+	info      *codegen.Registration // read-only, once initialized
+	groupName string                // read-only, once initialized
 
 	implInit sync.Once      // used to initialize impl, logger
 	implErr  error          // non-nil if impl creation fails

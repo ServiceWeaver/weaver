@@ -78,11 +78,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -775,7 +775,7 @@ func (c *serverConnection) runHandler(hmap *HandlerMap, id uint64, msg []byte) {
 	var result []byte
 	fn, ok := hmap.handlers[hkey]
 	if !ok {
-		err = fmt.Errorf("unknown function")
+		err = fmt.Errorf("internal error: unknown function")
 	} else {
 		if err := c.startRequest(id, cancelFunc); err != nil {
 			logError(c.opts.Logger, "handle "+hmap.names[hkey], err)

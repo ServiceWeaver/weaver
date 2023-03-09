@@ -131,11 +131,8 @@ func createDeployment(t testing.TB, config string) *protos.Deployment {
 	// TODO: Forward os.Args[1:] as well?
 	appConfig.Args = []string{"-test.run", regexp.QuoteMeta(t.Name())}
 	dep := &protos.Deployment{
-		Id:                uuid.New().String(),
-		App:               appConfig,
-		UseLocalhost:      true,
-		ProcessPicksPorts: true,
-		NetworkStorageDir: t.TempDir(),
+		Id:  uuid.New().String(),
+		App: appConfig,
 	}
 	return dep
 }
@@ -145,18 +142,14 @@ func createWeaveletForMain(dep *protos.Deployment) *protos.WeaveletInfo {
 		Name: "main",
 	}
 	wlet := &protos.WeaveletInfo{
-		App:               dep.App.Name,
-		DeploymentId:      dep.Id,
-		Group:             group,
-		GroupId:           uuid.New().String(),
-		Process:           "main",
-		Id:                uuid.New().String(),
-		SameProcess:       dep.App.SameProcess,
-		Sections:          dep.App.Sections,
-		SingleProcess:     dep.SingleProcess,
-		UseLocalhost:      dep.UseLocalhost,
-		ProcessPicksPorts: dep.ProcessPicksPorts,
-		NetworkStorageDir: dep.NetworkStorageDir,
+		App:           dep.App.Name,
+		DeploymentId:  dep.Id,
+		Group:         group,
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SameProcess:   dep.App.SameProcess,
+		Sections:      dep.App.Sections,
+		SingleProcess: dep.SingleProcess,
 	}
 	return wlet
 }

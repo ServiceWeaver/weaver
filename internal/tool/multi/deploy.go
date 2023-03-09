@@ -83,10 +83,8 @@ func deploy(ctx context.Context, args []string) error {
 
 	// Create the babysitter.
 	dep := &protos.Deployment{
-		Id:                uuid.New().String(),
-		App:               app,
-		UseLocalhost:      true,
-		ProcessPicksPorts: true,
+		Id:  uuid.New().String(),
+		App: app,
 	}
 	b, err := babysitter.NewBabysitter(ctx, dep, logSaver)
 	if err != nil {
@@ -112,7 +110,6 @@ func deploy(ctx context.Context, args []string) error {
 		App:             dep.App.Name,
 		DeploymentId:    dep.Id,
 		ColocationGroup: group.Name,
-		Process:         "main",
 		Component:       "main",
 	}); err != nil {
 		return fmt.Errorf("start main process: %w", err)

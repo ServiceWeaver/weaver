@@ -35,20 +35,17 @@ type env interface {
 	// Succeeds without an error if it has already been started.
 	StartColocationGroup(context.Context, *protos.ColocationGroup) error
 
-	// RegisterComponentToStart registers a component to start in a given target
-	// process and in a given target colocation group.
+	// RegisterComponentToStart registers a component to start in a given
+	// target colocation group.
 	//
 	// The target colocation group periodically watches the set of registered
-	// processes and starts the processes that haven't already been started.
-	//
-	// The target process periodically watches the set of registered components
-	// and starts the components that haven't already been started (see GetComponentsToStart).
-	RegisterComponentToStart(ctx context.Context, targetProcess string, targetGroup string,
+	// components and starts the components that haven't already been started.
+	RegisterComponentToStart(ctx context.Context, targetGroup string,
 		component string, isRouted bool) error
 
-	// GetComponentsToStart returns the set of components a local process should start
-	// given a version. It also returns the version that corresponds to the set
-	// of components returned.
+	// GetComponentsToStart returns the set of components that should be
+	// started, given a version. It also returns the version that corresponds
+	// to the set of components returned.
 	GetComponentsToStart(ctx context.Context, version *call.Version) ([]string, *call.Version, error)
 
 	// RegisterReplica registers this process's address. This allows other processes
@@ -58,16 +55,16 @@ type env interface {
 	// ReportLoad reports load information for a weavelet.
 	ReportLoad(ctx context.Context, load *protos.WeaveletLoadReport) error
 
-	// GetRoutingInfo returns the routing info for the provided process,
-	// including the set of replicas and the current routing assignments (if
-	// any).
-	GetRoutingInfo(ctx context.Context, process string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
+	// GetRoutingInfo returns the routing info for the provided colocation
+	// group, including the set of replicas and the current routing assignments
+	// (if any).
+	GetRoutingInfo(ctx context.Context, group string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
 
-	// ExportListener returns the port number that the caller should listen on
-	// for the given network listener. If the environment was configured for
-	// the calling process to pick ports, lis.Addr contains the address the
-	// process listens on. Otherwise, lis.Addr is ignored and a new port number
-	// is returned.
+	// GetAddress returns the address a weavelet should listen on for a
+	// listener.
+	GetAddress(ctx context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error)
+
+	// ExportListener exports a listener.
 	ExportListener(ctx context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error)
 
 	// CreateLogSaver creates and returns a function that saves log entries

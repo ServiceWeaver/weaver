@@ -97,18 +97,16 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	appConfig.Args = os.Args[1:]
 
 	wlet := &protos.WeaveletInfo{
-		App:               appConfig.Name,
-		DeploymentId:      uuid.New().String(),
-		Group:             &protos.ColocationGroup{Name: "main"},
-		GroupId:           uuid.New().String(),
-		Process:           "main",
-		Id:                uuid.New().String(),
-		SameProcess:       appConfig.SameProcess,
-		Sections:          appConfig.Sections,
-		SingleProcess:     true,
-		UseLocalhost:      true,
-		ProcessPicksPorts: true,
-		NetworkStorageDir: "",
+		App:                appConfig.Name,
+		DeploymentId:       uuid.New().String(),
+		Group:              &protos.ColocationGroup{Name: "main"},
+		GroupId:            uuid.New().String(),
+		Id:                 uuid.New().String(),
+		SameProcess:        appConfig.SameProcess,
+		Sections:           appConfig.Sections,
+		SingleProcess:      true,
+		UseLocalhost:       true,
+		WeaveletPicksPorts: true,
 	}
 	if err := runtime.CheckWeaveletInfo(wlet); err != nil {
 		return nil, err
@@ -148,7 +146,7 @@ func (e *singleprocessEnv) StartColocationGroup(context.Context, *protos.Colocat
 	return fmt.Errorf("cannot start other colocation groups for a singleprocess execution")
 }
 
-func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, _ string, name string, _ bool) error {
+func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, name string, _ bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.components = append(e.components, name)
@@ -171,6 +169,10 @@ func (e *singleprocessEnv) ReportLoad(context.Context, *protos.WeaveletLoadRepor
 
 func (e *singleprocessEnv) GetRoutingInfo(context.Context, string, *call.Version) (*protos.RoutingInfo, *call.Version, error) {
 	return nil, nil, fmt.Errorf("routing info not useful for singleprocess execution")
+}
+
+func (e *singleprocessEnv) GetAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error) {
+	return &protos.GetAddressReply{Address: opts.LocalAddress}, nil
 }
 
 func (e *singleprocessEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
@@ -250,9 +252,9 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 	components := []*status.Component{{Name: "main", Pids: []int64{pid}}}
 	for _, component := range e.components {
 		c := &status.Component{
-			Name:    component,
-			Process: "main",
-			Pids:    []int64{pid},
+			Name:  component,
+			Group: "main",
+			Pids:  []int64{pid},
 		}
 		components = append(components, c)
 
