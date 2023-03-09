@@ -27,29 +27,24 @@ message AppVersionState {
   string deployment_id = 2;
   google.protobuf.Timestamp submission_time = 3;
   map<string, ColocationGroupState> groups = 4; // per group information
-  map<string, ProcessState> processes = 5;      // per process information
-  repeated runtime.Listener listeners = 6;      // per listener information
+  repeated runtime.Listener listeners = 5;      // per listener information
 }
 
 message ColocationGroupState {
-  // It contains the set of processes that a colocation group in a given
-  // deployment should be running.
-  repeated string processes = 1;
-}
+  string name = 1;  // Name of the colocation group.
 
-message ProcessState {
-  // It contains the set of components that a process in a given deployment
+  // Set of components that a colocation group in a given deployment
   // should be running, along with their routing status (whether a component is
   // routed).
-  map<string, bool> components = 1;
+  map<string, bool> components = 2;
 
-  // It contains the list of replica addresses for the process.
-  repeated string replicas = 2;
+  // List of replica addresses for the colocation group.
+  repeated string replicas = 3;
 
-  // It contains the list of replica pids for the process.
+  // List of replica pids for the colocation group.
   repeated int64 replica_pids = 4;
 
-  // It contains the list of assignments for the routed components that are
-  // running by a process.
-  map<string, runtime.Assignment> assignments = 3;
+  // List of assignments for the routed components that are running in a
+  // colocation group.
+  map<string, runtime.Assignment> assignments = 5;
 }

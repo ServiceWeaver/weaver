@@ -41,9 +41,6 @@ func CheckWeaveletInfo(w *protos.WeaveletInfo) error {
 	if _, err := uuid.Parse(w.GroupId); err != nil {
 		return fmt.Errorf("WeaveletInfo: invalid group id: %w", err)
 	}
-	if w.Process == "" {
-		return fmt.Errorf("WeaveletInfo: missing process name")
-	}
 	if _, err := uuid.Parse(w.Id); err != nil {
 		return fmt.Errorf("WeaveletInfo: invalid weavelet id: %w", err)
 	}

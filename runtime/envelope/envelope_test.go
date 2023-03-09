@@ -133,7 +133,6 @@ func wlet(binary string, args ...string) (*protos.WeaveletInfo, *protos.AppConfi
 		DeploymentId: uuid.New().String(),
 		Group:        &protos.ColocationGroup{Name: "main"},
 		GroupId:      uuid.New().String(),
-		Process:      "main",
 		Id:           uuid.New().String(),
 	}
 	config := &protos.AppConfig{Binary: binary, Args: args}

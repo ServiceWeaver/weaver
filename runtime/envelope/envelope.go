@@ -151,8 +151,9 @@ type Envelope struct {
 
 func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h EnvelopeHandler, opts Options) (*Envelope, error) {
 	if h == nil {
-		return nil, fmt.Errorf("unable to create envelope for process %s due to nil handler",
-			logging.ShortenComponent(wlet.Process))
+		return nil, fmt.Errorf(
+			"unable to create envelope for group %s due to nil handler",
+			logging.ShortenComponent(wlet.Group.Name))
 	}
 	logger := logging.FuncLogger{
 		Opts: logging.Options{

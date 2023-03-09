@@ -103,7 +103,6 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		DeploymentId: uuid.New().String(),
 		Group:        &protos.ColocationGroup{Name: "group"},
 		GroupId:      uuid.New().String(),
-		Process:      "process",
 		Id:           uuid.New().String(),
 	}
 	e, err := conn.NewEnvelopeConn(eReader, eWriter, handler, wlet)
