@@ -75,19 +75,16 @@ func (e *remoteEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 
 // StartColocationGroup implements the Env interface.
 func (e *remoteEnv) StartColocationGroup(_ context.Context, targetGroup *protos.ColocationGroup) error {
-	// Ask the envelope to start the process that hosts the component.
 	request := protomsg.Clone(targetGroup)
 	return e.conn.StartColocationGroupRPC(request)
 }
 
 // RegisterComponentToStart implements the Env interface.
-func (e *remoteEnv) RegisterComponentToStart(_ context.Context, targetProcess string,
-	targetGroup string, component string, isRouted bool) error {
+func (e *remoteEnv) RegisterComponentToStart(_ context.Context, targetGroup string, component string, isRouted bool) error {
 	request := &protos.ComponentToStart{
 		App:             e.weavelet.App,
 		DeploymentId:    e.weavelet.DeploymentId,
 		ColocationGroup: targetGroup,
-		Process:         targetProcess,
 		Component:       component,
 		IsRouted:        isRouted,
 	}
@@ -105,7 +102,7 @@ func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Versio
 	request := &protos.GetComponentsToStart{
 		App:          e.weavelet.App,
 		DeploymentId: e.weavelet.DeploymentId,
-		Process:      e.weavelet.Process,
+		Group:        e.weavelet.Group.Name,
 		Version:      v,
 	}
 	reply, err := e.conn.GetComponentsToStartRPC(request)
@@ -115,7 +112,7 @@ func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Versio
 
 	if reply.Unchanged {
 		// TODO(sanjay): Is there a store.Unchanged variant we want to return here?
-		return nil, nil, fmt.Errorf("no new components to start for process %q", e.weavelet.Process)
+		return nil, nil, fmt.Errorf("no new components to start for group %q", e.weavelet.Group)
 	}
 	return reply.Components, &call.Version{Opaque: reply.Version}, nil
 }
@@ -125,7 +122,7 @@ func (e *remoteEnv) RegisterReplica(_ context.Context, myAddress call.NetworkAdd
 	request := &protos.ReplicaToRegister{
 		App:          e.weavelet.App,
 		DeploymentId: e.weavelet.DeploymentId,
-		Process:      e.weavelet.Process,
+		Group:        e.weavelet.Group.Name,
 		Address:      string(myAddress),
 		Pid:          int64(os.Getpid()),
 	}
@@ -138,7 +135,7 @@ func (e *remoteEnv) ReportLoad(_ context.Context, request *protos.WeaveletLoadRe
 }
 
 // GetRoutingInfo implements the Env interface.
-func (e *remoteEnv) GetRoutingInfo(_ context.Context, process string,
+func (e *remoteEnv) GetRoutingInfo(_ context.Context, group string,
 	version *call.Version) (*protos.RoutingInfo, *call.Version, error) {
 	var v string
 	if version != nil {
@@ -148,7 +145,7 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, process string,
 	request := &protos.GetRoutingInfo{
 		App:          e.weavelet.App,
 		DeploymentId: e.weavelet.DeploymentId,
-		Process:      process,
+		Group:        group,
 		Version:      v,
 	}
 	reply, err := e.conn.GetRoutingInfoRPC(request)
@@ -158,7 +155,7 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, process string,
 
 	if reply.Unchanged {
 		// TODO(sanjay): Is there a store.Unchanged variant we want to return here?
-		return nil, nil, fmt.Errorf("no new routing info for process %q", process)
+		return nil, nil, fmt.Errorf("no new routing info for group %q", group)
 	}
 	return reply, &call.Version{Opaque: reply.Version}, nil
 }

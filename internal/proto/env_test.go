@@ -17,10 +17,10 @@ package proto
 import (
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 		App:            "foo",
 		GroupReplicaId: "1234",
 		DeploymentId:   "5678",
-		Process:        "bar",
+		Group:          "bar",
 		Address:        "qux",
 		Pid:            42,
 	}
