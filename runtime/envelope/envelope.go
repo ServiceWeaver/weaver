@@ -213,14 +213,14 @@ func (e *Envelope) Run(ctx context.Context) error {
 	}
 
 	for r := retry.BeginWithOptions(e.opts.Retry); r.Continue(ctx); {
-		badArg, err := e.runWeavelet(ctx)
+		err := e.runWeavelet(ctx)
 		if e.isStopped() {
-			// When an envelope is stopped, it kills its subprocesses. Theses
+			// When an envelope is stopped, it kills its subprocesses. These
 			// subprocesses will report errors, expectedly, since they're
 			// killed. We expect these errors, so we swallow them.
 			return nil
 		}
-		if badArg || e.opts.Restart == Never || (e.opts.Restart == OnFailure && err == nil) {
+		if e.opts.Restart == Never || (e.opts.Restart == OnFailure && err == nil) {
 			return err
 		}
 	}
@@ -261,9 +261,7 @@ func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*p
 }
 
 // runWeavelet with the provided environment and wait for it to terminate.
-//
-// It returns true,_ if some incoming argument is bad any retries should be stopped.
-func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
+func (e *Envelope) runWeavelet(ctx context.Context) error {
 	// Form the command.
 	cmd := pipe.CommandContext(ctx, e.config.Binary, e.config.Args...)
 	defer cmd.Cleanup()
@@ -272,28 +270,28 @@ func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 	// Pipe for messages to weavelet.
 	toWeaveletFd, toWeavelet, err := cmd.WPipe()
 	if err != nil {
-		return false, fmt.Errorf("cannot create weavelet request pipe: %w", err)
+		return fmt.Errorf("cannot create weavelet request pipe: %w", err)
 	}
 	// Pipe for messages to envelope.
 	toEnvelopeFd, toEnvelope, err := cmd.RPipe()
 	if err != nil {
-		return false, fmt.Errorf("cannot create weavelet response pipe: %w", err)
+		return fmt.Errorf("cannot create weavelet response pipe: %w", err)
 	}
 
 	conn, err := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
-		return false, err
+		return err
 	}
 
 	// Create pipes that capture child outputs.
 	outpipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return false, fmt.Errorf("create stdout pipe: %w", err)
+		return fmt.Errorf("create stdout pipe: %w", err)
 	}
 	errpipe, err := cmd.StderrPipe()
 	if err != nil {
-		return false, fmt.Errorf("create stderr pipe: %w", err)
+		return fmt.Errorf("create stderr pipe: %w", err)
 	}
 
 	cmd.Env = os.Environ()
@@ -321,7 +319,7 @@ func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 
 	// Start the command.
 	if err := cmd.Start(); err != nil {
-		return false, err
+		return err
 	}
 	e.mu.Lock()
 	e.process = cmd.Process
@@ -341,14 +339,14 @@ func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 	runErr := cmd.Wait()
 	for _, err := range []error{runErr, stdoutErr, stderrErr, weaveletConnErr} {
 		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, os.ErrClosed) && !errors.Is(err, syscall.ECHILD) {
-			return false, err
+			return err
 		}
 	}
 	e.mu.Lock()
 	e.process = nil
 	e.conn = nil
 	e.mu.Unlock()
-	return false, nil
+	return nil
 }
 
 // Stop permanently terminates the weavelet process managed by the envelope.
