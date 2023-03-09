@@ -47,12 +47,12 @@ type routelet struct {
 	callbacks   []func(*protos.RoutingInfo) // invoked when routing info changes
 }
 
-// newRoutelet returns a new routelet for the provided process. The lifetime of
-// the routelet is bound to the provided context. When the context is
+// newRoutelet returns a new routelet for the provided colocation group. The
+// lifetime of the routelet is bound to the provided context. When the context is
 // cancelled, the routelet stops tracking the latest routing information.
-func newRoutelet(ctx context.Context, env env, process string) *routelet {
+func newRoutelet(ctx context.Context, env env, group string) *routelet {
 	r := &routelet{env: env, balancers: map[string]*routingBalancer{}}
-	go r.watchRoutingInfo(ctx, env, process)
+	go r.watchRoutingInfo(ctx, env, group)
 	return r
 }
 
@@ -108,10 +108,10 @@ func (r *routelet) onChange(callback func(*protos.RoutingInfo)) {
 // manager to track the latest routing info. Whenever the routing info changes,
 // any resolvers and balancers returned by the Resolver() and Balancer()
 // methods are updated.
-func (r *routelet) watchRoutingInfo(ctx context.Context, env env, process string) error {
+func (r *routelet) watchRoutingInfo(ctx context.Context, env env, group string) error {
 	var version *call.Version
 	for re := retry.Begin(); re.Continue(ctx); {
-		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, process, version)
+		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, group, version)
 		if err != nil {
 			// TODO(mwhittaker): Handle errors more gracefully.
 			r.env.SystemLogger().Error("cannot get routing info", err)

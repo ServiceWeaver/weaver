@@ -28,7 +28,7 @@ var (
 		App:            "foo",
 		GroupReplicaId: "1234",
 		DeploymentId:   "5678",
-		Process:        "bar",
+		Group:          "bar",
 		Address:        "qux",
 		Pid:            42,
 	}

@@ -110,7 +110,6 @@ func deploy(ctx context.Context, args []string) error {
 		App:             dep.App.Name,
 		DeploymentId:    dep.Id,
 		ColocationGroup: group.Name,
-		Process:         "main",
 		Component:       "main",
 	}); err != nil {
 		return fmt.Errorf("start main process: %w", err)
