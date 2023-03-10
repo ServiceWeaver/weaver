@@ -1,7 +1,6 @@
 // Automatically generated; DO NOT EDIT
 github.com/ServiceWeaver/weaver
     context
-    crypto/sha256
     embed
     errors
     fmt
@@ -324,7 +323,6 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
-    github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/versioned
@@ -338,6 +336,7 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
+    golang.org/x/exp/maps
     google.golang.org/protobuf/proto
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
@@ -346,6 +345,7 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     net
     net/http
     os
+    path
     reflect
     sort
     sync
@@ -559,7 +559,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     context
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proto
@@ -576,6 +575,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
+    golang.org/x/exp/maps
     google.golang.org/protobuf/proto
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
@@ -585,6 +585,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     net/http
     os
     os/exec
+    path
     path/filepath
     reflect
     sort

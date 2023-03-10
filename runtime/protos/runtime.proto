@@ -37,8 +37,9 @@ message EnvelopeMsg {
   // data.
   RunProfiling run_profiling = 4;
 
-  // A request to the weavelet to receive its weavelet information and respond with acknowledgment.
-  Weavelet weavelet_info = 5;
+  // A request to the weavelet to receive its weavelet information and respond
+  // with acknowledgment.
+  WeaveletInfo weavelet_info = 5;
 
   // A reply to the weavelet with the latest routing info.
   RoutingInfo routing_info = 6;
@@ -46,11 +47,14 @@ message EnvelopeMsg {
   // A reply to the weavelet with the latest list of components to start.
   ComponentsToStart components_to_start = 7;
 
-  // A reply to the weavelet with the exported listener information.
-  ExportListenerReply export_listener_reply = 8;
+  // A reply to a GetAddressRequest.
+  GetAddressReply get_address_reply = 8;
+
+  // A reply to an ExportListenerRequest.
+  ExportListenerReply export_listener_reply = 9;
 
   // A reply to the weavelet with an error status.
-  string error = 9;
+  string error = 10;
 }
 
 // WeaveletMsg holds a message sent by a weavelet to the envelope that manages it.
@@ -97,8 +101,11 @@ message WeaveletMsg {
   // Request to get the list of components to be started.
   GetComponentsToStart get_components_to_start = 13;
 
+  // Request to get the address for a listener.
+  GetAddressRequest get_address_request = 14;
+
   // Request to export a listener.
-  ListenerToExport listener_to_export = 14;
+  ExportListenerRequest export_listener_request = 15;
 }
 
 // Deployment holds internal information necessary for an application
@@ -111,20 +118,12 @@ message Deployment {
 
   // Run as a single process locally.
   bool single_process = 10;
+}
 
-  // If true, all network traffic is sent via localhost. This option should only
-  // be set if all weavelets are running on the same machine (e.g., when using
-  // the weaver-gke-local or weaver-multi deployers).
-  bool use_localhost = 9;
-
-  // If true, the process is expected to pick the first available port on the
-  // local machine when creating a new listener; otherwise, the process should
-  // consult the runtime to pick the listener ports.
-  bool process_picks_ports = 5;
-
-  // Storage directory for files that facilitate internal communication
-  // between Service Weaver processes. If empty, defaults to "$TMP_DIR/serviceweaver/network".
-  string network_storage_dir = 8;
+// A group of components.
+// TODO(spetrovic): Unify with ColocationGroup.
+message ComponentGroup {
+  repeated string components = 1;
 }
 
 // AppConfig holds configuration for a Service Weaver application.
@@ -143,50 +142,49 @@ message AppConfig {
   // the key is used.
   repeated string env = 6;
 
-  // A group of components.
-  message ComponentGroup {
-    repeated string components = 1;
-  }
-
-  // Groups of components that must be co-located in the same process.
+  // Groups of components that must be co-located together in the same OS
+  // process.
   //
   // This grouping allows the developer a level of control on where the
-  // Service Weaver runtime wil place each component. For example, suppose that the
-  // application binary contains six components: A, B, C, D, E, and F.
+  // Service Weaver runtime wil place each component. For example, suppose that
+  // the application binary contains six components: A, B, C, D, E, and F.
   // Furthermore, suppose that the developer specifies the following
   // grouping in the config.
   //
   //  same_process = [[A, B], [C, D, E]]
   //
-  // In that case, no matter what algorithm the Service Weaver runtime uses to place
-  // components into processes, components A and B will always be placed in the
-  // same process, and components C, D, and E will always be placed in the same
-  // process. This means that a pair of replicas of the components can share
-  // in-memory state and communicate efficiently with each other (though not
-  // with other replicas).
+  // In that case, no matter what algorithm the Service Weaver runtime uses to
+  // place the components, components A and B will always be grouped together,
+  // and components C, D, and E will always be grouped together. This means that
+  // a pair of replicas of the components can share in-memory state and
+  // communicate efficiently with each other (though not with other replicas).
   //
   // The placement algorithm the Service Weaver runtime uses varies across
   // deployment environment. For example, a multiprocess deployer may choose
-  // to run each component in its own process, for maximum parallelism. A
-  // singleprocess deployer, on the other hand, may choose to run all components
-  // in the same process. Regardless of which deployment environment is used,
-  // however, the components that are placed in the same group are guaranteed
-  // to be placed in the same process.
+  // to place each component into its own group, for maximum parallelism. A
+  // singleprocess deployer, on the other hand, may choose to group all of the
+  // components together. Regardless of which deployment environment is used,
+  // however, this configuration option guarantees that specified components
+  // will end up in the same group.
   //
   // Components are identified using their full package paths, e.g.:
   //   "github.com/my/project/package/ComponentName"
   //
   // , with the exception of the component associated with the application
   // main(), which is identified using the name "main".
+  //
+  // TODO(spetrovic): Rename to colocate.
   repeated ComponentGroup same_process = 20;
 
-  // A knob that lets the user specifies how many nanoseconds it expects for the rollout to
-  // take. This is used internally by Service Weaver to figure out the rollout strategy.
+  // A knob that lets the user specifies how many nanoseconds it expects for
+  // the rollout to take. This is used internally by Service Weaver to figure
+  // out the rollout strategy.
   //
   // If not specified, Service Weaver will pick a default value.
   int64 rollout_nanos = 4;
 
-  // All config sections (includes [serviceweaver], [<deployer>], [<component>] sections).
+  // All config sections (includes [serviceweaver], [<deployer>], and
+  // [<component>] sections).
   map<string, string> sections = 7;
 }
 
@@ -198,36 +196,32 @@ message ColocationGroup {
   string name = 1;
 }
 
-// Weavelet holds internal information that describes a weavelet, i.e.,
-// an OS process running inside a colocation group replica, hosting Service Weaver
-// components.
-message Weavelet {
-  // Unique id for the weavelet.
-  string id = 1;
-
-  // Deployment weavelet belongs to.
-  Deployment dep = 2;
-
-  // Colocation group weavelet belongs to.
-  ColocationGroup group = 3;
-
-  // Unique id of the colocation group replica weavelet belongs to.
-  string group_replica_id = 4;
-
-  // Name of the OS process this weavelet corresponds to.
-  string process = 5;
+// WeaveletInfo contains information provided to a weavelet from its deployer.
+message WeaveletInfo {
+  string app = 1;                            // app name
+  string deployment_id = 2;                  // deployment id, in UUID format
+  ColocationGroup group = 3;                 // colocation group
+  string group_id = 4;                       // colocation group replica id
+  string id = 5;                             // weavelet id, in UUID format
+  // TODO(spetrovic): Rename to same_group.
+  repeated ComponentGroup same_process = 6;  // See AppConfig.SameProcess.
+  map<string, string> sections = 7;          // See AppConfig.Sections.
+  bool single_process = 8;                   // a single-process deployment?
+  bool use_localhost = 9;                    // listeners listen on localhost?
+  bool weavelet_picks_ports = 10;            // a weavelet picks its own port?
+  string network_storage_dir = 11;           // colocation group storage dir
 }
 
 // GetRoutingInfo is a request to retrieve routing information for a given
-// process.
+// colocation group.
 message GetRoutingInfo {
   string app = 1;
   string deployment_id = 2;
-  string process = 3;
+  string group = 3;
   string version = 4;
 }
 
-// RoutingInfo contains routing information for a process.
+// RoutingInfo contains routing information for a colocation group.
 message RoutingInfo {
   // unchanged is set to true if the request was ended prematurely without
   // detecting a change. In this case, version and replicas are empty.
@@ -239,7 +233,8 @@ message RoutingInfo {
   //    unix:///tmp/unix.sock
   repeated string replicas = 3;
 
-  // Assignments for all the routed components that are hosted by the process.
+  // Assignments for all the routed components that are hosted by the
+  // colocation group.
   repeated Assignment assignments = 4;
 }
 
@@ -254,7 +249,7 @@ enum ProfileType {
 message RunProfiling {
   string app_name = 1;
   string version_id = 2;
-  string process = 3; // If non-empty, only profile the given process.
+  string group = 3; // If non-empty, only profile the given colocation group.
 
   // Type of the profile we want to collect (e.g., heap, cpu).
   ProfileType profile_type = 4;
@@ -276,7 +271,7 @@ message Profile {
   repeated string errors = 4;
 }
 
-// HealthStatus specifies the possible types of health status for a process.
+// HealthStatus specifies the possible types of health status for a replica.
 enum HealthStatus {
   UNKNOWN = 0;
   HEALTHY = 1;
@@ -284,59 +279,38 @@ enum HealthStatus {
   TERMINATED = 3;
 }
 
-// HealthReport contains the health report for a given process.
+// HealthReport contains the health report for a given replica.
 message HealthReport {
   HealthStatus status = 1;
 }
 
 // ReplicaToRegister is a request to the envelope to register a replica of
-// a given process.
+// a given colocation group.
 message ReplicaToRegister {
   string app = 1;
   string group_replica_id = 2;
   string deployment_id = 3;
-  string process = 4;
+  string group = 4;
   string address = 5;  // Service Weaver RPC address for the replica.
   int64 pid = 6;       // Service Weaver RPC address for the replica.
 }
 
-// GetProcessesToStartRequest is a request to the envelope to retrieve the
-// set of processes that should be started by a given colocation group.
-message GetProcessesToStartRequest {
-  string app = 1;
-  string deployment_id = 2;
-  string colocation_group = 3;
-  string version = 4;
-}
-
-// GetProcessesToStartReply is a result of the GetProcessesToStartRequest sent
-// to the envelope.
-message GetProcessesToStartReply {
-  // unchanged is set to true if the request was ended prematurely without
-  // detecting a change. In this case, version and components to start are
-  // empty.
-  bool unchanged = 1;
-  string version = 2;
-  repeated string processes = 3;
-}
-
 // ComponentToStart is a request to the envelope to register a component that
-// should be started by the given process.
+// should be started by the given colocation group.
 message ComponentToStart {
   string app = 1;
   string deployment_id = 2;
   string colocation_group = 3;
-  string process = 4;
-  string component = 5;
-  bool isRouted = 6;  // whether the component is routed
+  string component = 4;
+  bool isRouted = 5;  // whether the component is routed
 }
 
-// GetComponentsToStart is a request to the envelope to retrieve the set of components
-// that should be started by a given process.
+// GetComponentsToStart is a request to the envelope to retrieve the set of
+// components that should be started by a given colocation group.
 message GetComponentsToStart {
   string app = 1;
   string deployment_id = 2;
-  string process = 3;
+  string group = 3;
   string version = 4;
 }
 
@@ -349,32 +323,46 @@ message ComponentsToStart {
   repeated string components = 3;
 }
 
-// ListenerToExport is a request to the envelope to export a process's network
-// listener.
-message ListenerToExport {
-  string app = 1;            // Service Weaver application
-  string deployment_id = 2;  // Service Weaver deployment id
-  string process = 3;        // name of the process whose weavelet exports listener
-
-  Listener listener = 5;      // listener specification.
-  string local_address = 6;   // LocalAddress argument in ListenerOptions
-  ColocationGroup group = 7;  // colocation group exporting the listener
+// GetAddressRequest is a request for the address a weavelet should listen on
+// for a particular listener.
+//
+// Imagine a weavelet calls GetListener with LocalAdress localhost:9000. Here
+// are some examples of how different deployers may handle a GetAddressRequest.
+//
+// - The singleprocess deployer may instruct the weavelet to listen directly
+//   on localhost:9000.
+// - The multiprocess deployer may instruct the weavelet to listen on
+//   localhost:0. It will separately start a proxy on localhost:9000.
+// - The SSH deployer may instruct the weavelet to listen on
+//   $HOSTNAME:0. It will separately start a proxy on localhost:9000.
+message GetAddressRequest {
+  string name = 1;           // listener name
+  string local_address = 2;  // LocalAddress argument in ListenerOptions
 }
 
-// ExportListenerReply is a result of the ListenerToExport request.
+// GetAddressReply is a reply to a GetAddressRequest.
+message GetAddressReply {
+  string address = 1;  // address to listen on
+}
+
+// ExportListenerRequest is a request to export the provided listener.
+message ExportListenerRequest {
+  Listener listener = 1;     // listener
+  string local_address = 2;  // LocalAddress argument in ListenerOptions
+}
+
+// ExportListenerReply is a reply to a ExportListenerRequest.
 message ExportListenerReply {
-  int32 port = 1;
-
-  // The address of the proxy that forwards traffic to the returned listener, or
-  // empty if there is no proxy.
-  string proxy_address = 2;
-
-  // True, if the address is already in use.
+  // If non-empty, a non-retriable error.
   //
   // TODO(mwhittaker): This field exists as a hack to avoid a weavelet retrying
   // this error. In the future, we should have a more robust way to avoid
   // retrying certain errors.
-  bool already_in_use = 3;
+  string error = 1;
+
+  // The address of the proxy that forwards traffic to the returned listener, or
+  // empty if there is no proxy.
+  string proxy_address = 2;
 }
 
 // Listener holds information about a network listener.
@@ -402,7 +390,7 @@ message Assignment {
     // The first slice should always set start to 0.
     uint64 start = 1;
 
-    // Replicas assigned to process this slice. The implementation will set
+    // Replicas assigned to host this slice. The implementation will set
     // these values to strings of the form "<net>://<addr>". E.g.,
     //  tcp://host:1234
     //  unix:///tmp/unix.sock
@@ -423,13 +411,12 @@ message Assignment {
   uint64 version = 5;
 }
 
-// WeaveletLoadReport includes load information for all of the routed components on
-// a particular weavelet. A weavelet periodically sends a WeaveletLoadReport to
-// the manager.
+// WeaveletLoadReport stores load information for all routed components hosted
+// by a particular weavelet.
 message WeaveletLoadReport {
-  // ComponentLoad includes load information for a Service Weaver component. The component's key
-  // space is divided into a number of slices, each of which is associated with
-  // a particular double-valued load.
+  // ComponentLoad includes load information for a component. The component's
+  // key space is divided into a number of slices, each of which is associated
+  // with a particular double-valued load.
   //
   // TODO(mwhittaker): In the short term, a weavelet will report one SliceLoad
   // for every slice it is assigned. In the future, however, we may report load
@@ -492,11 +479,11 @@ message WeaveletLoadReport {
     uint64 version = 3;
   }
 
-  string app = 1;            // Service Weaver application
-  string deployment_id = 2;  // Service Weaver deployment id
-  string process = 3;        // name of the process whose weavelet reports load
+  string app = 1;            // Application name
+  string deployment_id = 2;  // Deployment id.
+  string group = 3;          // Colocation group.
   string replica = 4;        // e.g., tcp://124.123.123.412:1291
-  map<string, ComponentLoad> loads = 6;  // load for every component on the weavelet
+  map<string, ComponentLoad> loads = 5;  // load for every component on the weavelet
 }
 
 // MetricType specifies a particular kind of metric.

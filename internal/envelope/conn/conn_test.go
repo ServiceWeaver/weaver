@@ -98,19 +98,12 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	}
 
 	// Construct the conns.
-	wlet := &protos.Weavelet{
-		Id: uuid.New().String(),
-		Dep: &protos.Deployment{
-			Id: uuid.New().String(),
-			App: &protos.AppConfig{
-				Name: "app",
-			},
-		},
-		Group: &protos.ColocationGroup{
-			Name: "group",
-		},
-		GroupReplicaId: uuid.New().String(),
-		Process:        "process",
+	wlet := &protos.WeaveletInfo{
+		App:          "app",
+		DeploymentId: uuid.New().String(),
+		Group:        &protos.ColocationGroup{Name: "group"},
+		GroupId:      uuid.New().String(),
+		Id:           uuid.New().String(),
 	}
 	e, err := conn.NewEnvelopeConn(eReader, eWriter, handler, wlet)
 	if err != nil {
@@ -164,6 +157,9 @@ func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.Routing
 func (h *handlerForTest) GetComponentsToStart(*protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
 	return nil, nil
 }
-func (h *handlerForTest) ExportListener(*protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (h *handlerForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	return nil, nil
+}
+func (h *handlerForTest) ExportListener(*protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, nil
 }

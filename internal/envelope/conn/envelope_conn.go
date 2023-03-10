@@ -40,9 +40,11 @@ type EnvelopeHandler interface {
 	// ReportLoad reports the given weavelet load information.
 	ReportLoad(entry *protos.WeaveletLoadReport) error
 
-	// ExportListener exports the given listener, returning the export
-	// information (e.g,. any port assigned).
-	ExportListener(request *protos.ListenerToExport) (*protos.ExportListenerReply, error)
+	// GetAddress gets the address a weavelet should listen on for a listener.
+	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
+
+	// ExportListener exports the given listener.
+	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
 	// GetRoutingInfo returns the latest routing information for the weavelet.
 	//
@@ -77,7 +79,7 @@ type EnvelopeConn struct {
 // Synthesized high-level events are passed to h.
 //
 // NewEnvelopeConn sends the provided protos.Weavelet to the weavelet.
-func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, weavelet *protos.Weavelet) (*EnvelopeConn, error) {
+func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, weavelet *protos.WeaveletInfo) (*EnvelopeConn, error) {
 	e := &EnvelopeConn{
 		handler: h,
 		conn:    conn{name: "envelope", reader: r, writer: w},
@@ -121,8 +123,14 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		return e.send(errReply(e.handler.RegisterReplica(msg.ReplicaToRegister)))
 	case msg.LoadReport != nil:
 		return e.send(errReply(e.handler.ReportLoad(msg.LoadReport)))
-	case msg.ListenerToExport != nil:
-		reply, err := e.handler.ExportListener(msg.ListenerToExport)
+	case msg.GetAddressRequest != nil:
+		reply, err := e.handler.GetAddress(msg.GetAddressRequest)
+		if err != nil {
+			return e.send(errReply(err))
+		}
+		return e.send(&protos.EnvelopeMsg{Id: -msg.Id, GetAddressReply: reply})
+	case msg.ExportListenerRequest != nil:
+		reply, err := e.handler.ExportListener(msg.ExportListenerRequest)
 		if err != nil {
 			// Reply with error.
 			return e.send(errReply(err))

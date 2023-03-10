@@ -34,7 +34,7 @@ mkdir -p "$tmpdir"
 
 # Run tests and collect coverage info.
 # To run GKE tests as well: go test -coverprofile=$covfile -coverpkg=./... ./...
-rm -f "$covfile"
+rm -f "$covfile" "$covstripped"
 go test -coverprofile="$covfile" -coverpkg=./... $(go list ./... | grep -v gke)
 
 # Filter out generated code from coverage reports.
@@ -47,5 +47,3 @@ go tool cover -html="$covstripped" -o "$htmlfile"
 
 # Create function list.
 go tool cover -func="$covstripped" | sort -k3n > "$funcfile"
-
-rm -f "$covfile" "$covstripped"

@@ -28,8 +28,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/google/uuid"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
+	"github.com/google/uuid"
 
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -82,10 +82,8 @@ func deploy(ctx context.Context, args []string) error {
 
 	// Create a deployment.
 	dep := &protos.Deployment{
-		Id:                uuid.New().String(),
-		App:               app,
-		ProcessPicksPorts: true,
-		UseLocalhost:      false,
+		Id:  uuid.New().String(),
+		App: app,
 	}
 
 	// Copy the binaries to each location.
@@ -182,7 +180,7 @@ func getLocations(app *protos.AppConfig) ([]string, error) {
 		LocationsFile string `toml:"locations_file"`
 	}
 	parsed := &sshConfigSchema{}
-	if err := runtime.ParseConfigSection(sshKey, shortSSHKey, app, parsed); err != nil {
+	if err := runtime.ParseConfigSection(sshKey, shortSSHKey, app.Sections, parsed); err != nil {
 		return nil, fmt.Errorf("unable to parse ssh config: %w", err)
 	}
 

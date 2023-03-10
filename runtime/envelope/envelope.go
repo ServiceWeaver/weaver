@@ -53,9 +53,11 @@ type EnvelopeHandler interface {
 	// ReportLoad reports the given weavelet load information.
 	ReportLoad(entry *protos.WeaveletLoadReport) error
 
-	// ExportListener exports the given listener, returning the export
-	// information (e.g,. any port assigned).
-	ExportListener(request *protos.ListenerToExport) (*protos.ExportListenerReply, error)
+	// GetAddress gets the address a weavelet should listen on for a listener.
+	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
+
+	// ExportListener exports the given listener.
+	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
 	// GetRoutingInfo returns the latest routing information for the weavelet.
 	//
@@ -134,7 +136,8 @@ type Options struct {
 // weavelet's tracing, logging, and metrics information.
 type Envelope struct {
 	// Fields below are constant after construction.
-	weavelet *protos.Weavelet
+	weavelet *protos.WeaveletInfo
+	config   *protos.AppConfig
 	handler  EnvelopeHandler
 	opts     Options
 	logger   logtype.Logger
@@ -146,15 +149,16 @@ type Envelope struct {
 	profiling bool               // are we currently collecting a profile?
 }
 
-func NewEnvelope(wlet *protos.Weavelet, h EnvelopeHandler, opts Options) (*Envelope, error) {
+func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h EnvelopeHandler, opts Options) (*Envelope, error) {
 	if h == nil {
-		return nil, fmt.Errorf("unable to create envelope for process %s due to nil handler",
-			logging.ShortenComponent(wlet.Process))
+		return nil, fmt.Errorf(
+			"unable to create envelope for group %s due to nil handler",
+			logging.ShortenComponent(wlet.Group.Name))
 	}
 	logger := logging.FuncLogger{
 		Opts: logging.Options{
-			App:        wlet.Dep.App.Name,
-			Deployment: wlet.Dep.Id,
+			App:        wlet.App,
+			Deployment: wlet.DeploymentId,
 			Component:  "envelope",
 			Weavelet:   wlet.Id,
 			Attrs:      []string{"serviceweaver/system", ""},
@@ -163,6 +167,7 @@ func NewEnvelope(wlet *protos.Weavelet, h EnvelopeHandler, opts Options) (*Envel
 	}
 	return &Envelope{
 		weavelet: wlet,
+		config:   config,
 		handler:  h,
 		opts:     opts,
 		logger:   logger,
@@ -260,7 +265,7 @@ func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*p
 // It returns true,_ if some incoming argument is bad any retries should be stopped.
 func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 	// Form the command.
-	cmd := pipe.CommandContext(ctx, e.weavelet.Dep.App.Binary, e.weavelet.Dep.App.Args...)
+	cmd := pipe.CommandContext(ctx, e.config.Binary, e.config.Args...)
 	defer cmd.Cleanup()
 
 	// Create the pipes first, so we can fill env and detect any errors early.
@@ -294,7 +299,7 @@ func (e *Envelope) runWeavelet(ctx context.Context) (bool, error) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.Itoa(toWeaveletFd)))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.Itoa(toEnvelopeFd)))
-	cmd.Env = append(cmd.Env, e.weavelet.Dep.App.Env...)
+	cmd.Env = append(cmd.Env, e.config.Env...)
 
 	// Different sources are read from by different go-routines.
 	var stdoutErr, stderrErr, weaveletConnErr error
@@ -386,8 +391,8 @@ func (e *Envelope) isStopped() bool {
 func (e *Envelope) copyLines(component string, src io.Reader) error {
 	// Fill partial log entry.
 	entry := &protos.LogEntry{
-		App:       e.weavelet.Dep.App.Name,
-		Version:   e.weavelet.Dep.Id,
+		App:       e.weavelet.App,
+		Version:   e.weavelet.DeploymentId,
 		Component: component,
 		Node:      e.weavelet.Id,
 		Level:     component, // Either "stdout" or "stderr"
@@ -409,7 +414,7 @@ func (e *Envelope) copyLines(component string, src io.Reader) error {
 	}
 }
 
-func (e *Envelope) Weavelet() *protos.Weavelet {
+func (e *Envelope) Weavelet() *protos.WeaveletInfo {
 	return e.weavelet
 }
 

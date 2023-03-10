@@ -17,37 +17,32 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/uuid"
 )
 
-// CheckWeavelet checks that weavelet information is well-formed.
-func CheckWeavelet(d *protos.Weavelet) error {
-	if d == nil {
-		return fmt.Errorf("nil weavelet")
+// CheckWeaveletInfo checks that weavelet information is well-formed.
+func CheckWeaveletInfo(w *protos.WeaveletInfo) error {
+	if w == nil {
+		return fmt.Errorf("WeaveletInfo: nil")
 	}
-	if d.Process == "" {
-		return fmt.Errorf("empty process name in weavelet")
+	if w.App == "" {
+		return fmt.Errorf("WeaveletInfo: missing app name")
 	}
-	if _, err := uuid.Parse(d.Id); err != nil {
-		return fmt.Errorf("invalid weavelet id for %s: %w", d.Process, err)
+	if _, err := uuid.Parse(w.DeploymentId); err != nil {
+		return fmt.Errorf("WeaveletInfo: invalid deployment id: %w", err)
 	}
-	if err := CheckDeployment(d.Dep); err != nil {
-		return err
+	if w.Group == nil {
+		return fmt.Errorf("WeaveletInfo: nil colocation group")
 	}
-	if err := checkColocationGroup(d.Group); err != nil {
-		return err
+	if w.Group.Name == "" {
+		return fmt.Errorf("WeaveletInfo: missing colocation group name")
 	}
-	return nil
-}
-
-// checkColocationGroup checks that a colocation group is well-formed.
-func checkColocationGroup(g *protos.ColocationGroup) error {
-	if g == nil {
-		return fmt.Errorf("nil colocation group")
+	if w.GroupId == "" {
+		return fmt.Errorf("WeaveletInfo: missing colocation group replica id")
 	}
-	if g.Name == "" {
-		return fmt.Errorf("empty colocation group name")
+	if _, err := uuid.Parse(w.Id); err != nil {
+		return fmt.Errorf("WeaveletInfo: invalid weavelet id: %w", err)
 	}
 	return nil
 }

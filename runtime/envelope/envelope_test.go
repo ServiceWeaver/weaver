@@ -126,18 +126,17 @@ func checkFile() error {
 	return nil
 }
 
-// wlet returns a runtime.Weavelet for testing.
-func wlet(binary string, args ...string) *protos.Weavelet {
-	return &protos.Weavelet{
-		Id: uuid.New().String(),
-		Dep: &protos.Deployment{
-			Id:  uuid.New().String(),
-			App: &protos.AppConfig{Binary: binary, Args: args},
-		},
-		Group:          &protos.ColocationGroup{Name: "main"},
-		GroupReplicaId: uuid.New().String(),
-		Process:        "main",
+// wlet returns a WeaveletInfo and AppConfig for testing.
+func wlet(binary string, args ...string) (*protos.WeaveletInfo, *protos.AppConfig) {
+	weavelet := &protos.WeaveletInfo{
+		App:          "app",
+		DeploymentId: uuid.New().String(),
+		Group:        &protos.ColocationGroup{Name: "main"},
+		GroupId:      uuid.New().String(),
+		Id:           uuid.New().String(),
 	}
+	config := &protos.AppConfig{Binary: binary, Args: args}
+	return weavelet, config
 }
 
 // pidSaver is a log saver that parses and stores pids from the log entries'
@@ -200,7 +199,10 @@ func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.Routing
 func (h *handlerForTest) GetComponentsToStart(*protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
 	return nil, nil
 }
-func (h *handlerForTest) ExportListener(*protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (h *handlerForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	return nil, nil
+}
+func (h *handlerForTest) ExportListener(*protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, nil
 }
 
@@ -232,7 +234,8 @@ func TestRun(t *testing.T) {
 				},
 			}
 			args := append([]string{test.subcommand}, test.args...)
-			e, err := NewEnvelope(wlet(executable, args...), &handlerForTest{logSaver: pids.save}, opts)
+			wlet, config := wlet(executable, args...)
+			e, err := NewEnvelope(wlet, config, &handlerForTest{logSaver: pids.save}, opts)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -278,7 +281,8 @@ func TestBigPrints(t *testing.T) {
 	}}
 
 	n := 10000
-	e, err := NewEnvelope(wlet(executable, "bigprint", strconv.Itoa(n)), h, opts)
+	wlet, config := wlet(executable, "bigprint", strconv.Itoa(n))
+	e, err := NewEnvelope(wlet, config, h, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +311,8 @@ func TestCancel(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			opts := Options{}
-			e, err := NewEnvelope(wlet(executable, "loop"),
+			wlet, config := wlet(executable, "loop")
+			e, err := NewEnvelope(wlet, config,
 				&handlerForTest{logSaver: testSaver(t)}, opts)
 			if err != nil {
 				t.Fatal(err)
@@ -382,7 +387,8 @@ func writeTraces(conn *conn.WeaveletConn) error {
 func TestTraces(t *testing.T) {
 	h := &handlerForTest{logSaver: testSaver(t)}
 	ctx := context.Background()
-	e, err := NewEnvelope(wlet(executable, "writetraces"), h, Options{})
+	wlet, config := wlet(executable, "writetraces")
+	e, err := NewEnvelope(wlet, config, h, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +404,8 @@ func TestTraces(t *testing.T) {
 
 func startEnvelopeWithServing(ctx context.Context, t *testing.T) *Envelope {
 	h := &handlerForTest{logSaver: testSaver(t)}
-	e, err := NewEnvelope(wlet(executable, "serve_conn"), h, Options{})
+	wlet, config := wlet(executable, "serve_conn")
+	e, err := NewEnvelope(wlet, config, h, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

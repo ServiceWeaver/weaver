@@ -162,7 +162,7 @@
             <!-- We draw lines between different colocation groups. If this
                  component's group is different from the preceeding's group, we
                  add a separating line. -->
-            <tr {{if and (gt $i 0) (ne $c.Process (index $.Components (dec $i)).Process)}}class="colocation-group-boundary"{{end}}>
+            <tr {{if and (gt $i 0) (ne $c.Group (index $.Components (dec $i)).Group)}}class="colocation-group-boundary"{{end}}>
               <td>{{shorten $c.Name}}</td>
               <td>{{len $c.Pids}}</td>
               <td>{{pidjoin $c.Pids}}</td>

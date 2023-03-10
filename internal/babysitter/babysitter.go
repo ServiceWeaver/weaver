@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"sort"
 	"sync"
 	"syscall"
@@ -31,7 +32,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/versioned"
@@ -44,6 +44,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -52,7 +53,8 @@ const (
 	// The default replication factor for a component.
 	DefaultReplication = 2
 
-	// routingInfoKey is the key where we track routing information for a given process.
+	// routingInfoKey is the key where we track routing information for a
+	// given colocation group.
 	routingInfoKey = "routing_entries"
 
 	// appVersionStateKey is the key where we track the state for a given application version.
@@ -87,11 +89,11 @@ type Babysitter struct {
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
-	mu          sync.RWMutex
-	managed     map[string][]*envelope.Envelope
-	appInfo     *versioned.Map[*AppVersionState]
-	routingInfo *versioned.Map[*protos.RoutingInfo]
-	proxies     map[string]*proxyInfo // proxies, by listener name
+	mu           sync.RWMutex
+	managed      map[string][]*envelope.Envelope // replica envelopes, by group
+	appState     *versioned.Map[*AppVersionState]
+	routingState *versioned.Map[*protos.RoutingInfo]
+	proxies      map[string]*proxyInfo // proxies, by listener name
 }
 
 type proxyInfo struct {
@@ -131,8 +133,8 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		opts:           envelope.Options{Restart: envelope.Never, Retry: retry.DefaultOptions},
 		dep:            dep,
 		managed:        map[string][]*envelope.Envelope{},
-		appInfo:        versioned.NewMap[*AppVersionState](),
-		routingInfo:    versioned.NewMap[*protos.RoutingInfo](),
+		appState:       versioned.NewMap[*AppVersionState](),
+		routingState:   versioned.NewMap[*protos.RoutingInfo](),
 		proxies:        map[string]*proxyInfo{},
 	}
 	go b.statsProcessor.CollectMetrics(b.ctx, b.readMetrics)
@@ -145,17 +147,45 @@ func (b *Babysitter) RegisterStatusPages(mux *http.ServeMux) {
 }
 
 // StartColocationGroup implements the protos.EnvelopeHandler interface.
-func (b *Babysitter) StartColocationGroup(req *protos.ColocationGroup) error {
+func (b *Babysitter) StartColocationGroup(group *protos.ColocationGroup) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if _, ok := b.managed[req.Name]; ok {
+	envelopes, ok := b.managed[group.Name]
+	if ok && len(envelopes) == DefaultReplication {
+		// Already started.
 		return nil
 	}
-	b.managed[req.Name] = []*envelope.Envelope{}
 
-	// Manage the colocation group.
-	go b.manage(b.dep, req)
+	for r := 0; r < DefaultReplication; r++ {
+		// Note that we assign a unique UUID for each group replica. This is because
+		// we use the group replica ids to create replica-local addresses to
+		// communicate between the weavelets.
+		id := uuid.NewHash(sha256.New(), uuid.Nil, []byte(fmt.Sprintf("%d", r)), 0).String()
+
+		// Start the weavelet and capture its logs, traces, and metrics.
+		wlet := &protos.WeaveletInfo{
+			App:           b.dep.App.Name,
+			DeploymentId:  b.dep.Id,
+			Group:         group,
+			GroupId:       id,
+			Id:            uuid.New().String(),
+			SameProcess:   b.dep.App.SameProcess,
+			Sections:      b.dep.App.Sections,
+			SingleProcess: b.dep.SingleProcess,
+		}
+		e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
+		if err != nil {
+			return err
+		}
+		go func() {
+			// TODO(mwhittaker): Propagate errors.
+			if err := e.Run(b.ctx); err != nil {
+				b.logger.Error("e.Run", err)
+			}
+		}()
+		b.managed[group.Name] = append(b.managed[group.Name], e)
+	}
 	return nil
 }
 
@@ -164,53 +194,31 @@ func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// Note that the babysitter handles a single application deployment.
-	existing, _, err := b.appInfo.Read(b.ctx, appVersionStateKey, "")
+	// Load app state.
+	state, _, err := b.loadAppState("" /*version*/)
 	if err != nil {
 		return err
 	}
-	if existing == nil {
-		existing = &AppVersionState{
-			App:            req.App,
-			DeploymentId:   req.DeploymentId,
-			SubmissionTime: timestamppb.Now(),
-			Groups:         map[string]*ColocationGroupState{},
-			Processes:      map[string]*ProcessState{},
-		}
-	}
-	if _, found := existing.Groups[req.ColocationGroup]; !found {
-		existing.Groups[req.ColocationGroup] = &ColocationGroupState{}
-	}
-	group := existing.Groups[req.ColocationGroup]
-	found := false
-	for _, groupProc := range group.Processes {
-		if req.Process == groupProc {
-			found = true
-			break
-		}
-	}
-	if !found {
-		group.Processes = append(group.Processes, req.Process)
-	}
+	g := b.findOrAddGroup(state, req.ColocationGroup)
 
-	proc := findOrCreateProcess(req.App, req.DeploymentId, req.Process, existing)
-	if _, found := proc.Components[req.Component]; !found {
-		proc.Components[req.Component] = req.IsRouted
-	}
+	// Update routing information.
+	g.Components[req.Component] = req.IsRouted
 	if req.IsRouted {
-		if _, found := proc.Assignments[req.Component]; !found {
+		if _, ok := g.Assignments[req.Component]; !ok {
 			// Create an initial assignment for the component.
-			proc.Assignments[req.Component] = &protos.Assignment{
+			g.Assignments[req.Component] = &protos.Assignment{
 				App:          req.App,
 				DeploymentId: req.DeploymentId,
 				Component:    req.Component,
 			}
 		}
 	}
-	if err := b.mayGenerateNewRoutingInfo(existing, req.App, req.DeploymentId, req.Process); err != nil {
+	if err := b.mayGenerateNewRoutingInfo(g); err != nil {
 		return err
 	}
-	b.appInfo.Update(appVersionStateKey, existing)
+
+	// Store app state
+	b.appState.Update(appVersionStateKey, state)
 	return nil
 }
 
@@ -219,63 +227,49 @@ func (b *Babysitter) RegisterReplica(req *protos.ReplicaToRegister) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	existing, _, err := b.appInfo.Read(b.ctx, appVersionStateKey, "")
+	// Load app state.
+	state, _, err := b.loadAppState("" /*version*/)
 	if err != nil {
 		return err
 	}
-	proc := findOrCreateProcess(req.App, req.DeploymentId, req.Process, existing)
+	g := b.findOrAddGroup(state, req.Group)
 
+	// Append the replica, if not already appended.
 	var found bool
-	for _, replica := range proc.Replicas {
+	for _, replica := range g.Replicas {
 		if req.Address == replica {
-			// If the replica is already registered, then we skip any writes.
 			found = true
 			break
 		}
 	}
 	if !found {
-		proc.Replicas = append(proc.Replicas, req.Address)
-		proc.ReplicaPids = append(proc.ReplicaPids, req.Pid)
+		g.Replicas = append(g.Replicas, req.Address)
+		g.ReplicaPids = append(g.ReplicaPids, req.Pid)
 	}
 
-	if err := b.mayGenerateNewRoutingInfo(existing, req.App, req.DeploymentId, req.Process); err != nil {
+	// Generate routing info, now that the replica set has changed.
+	if err := b.mayGenerateNewRoutingInfo(g); err != nil {
 		return err
 	}
-	b.appInfo.Update(appVersionStateKey, existing)
-	return nil
-}
 
-// GetRoutingInfo implements the protos.EnvelopeHandler interface.
-func (b *Babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	existing, newVersion, err := b.routingInfo.Read(b.ctx, toKey(req.Process), req.Version)
-	if err != nil {
-		return nil, err
-	}
-	if existing == nil {
-		existing = &protos.RoutingInfo{}
-	}
-	existing.Version = newVersion
-	return existing, nil
+	// Store app state.
+	b.appState.Update(appVersionStateKey, state)
+	return nil
 }
 
 // GetComponentsToStart implements the protos.EnvelopeHandler interface.
 func (b *Babysitter) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	// Fetch components to start.
-	existing, newVersion, err := b.appInfo.Read(b.ctx, appVersionStateKey, req.Version)
+	// Load app state.
+	state, newVersion, err := b.loadAppState(req.Version)
 	if err != nil {
 		return nil, err
 	}
+	g := b.findOrAddGroup(state, req.Group)
 
+	// Return the components.
 	var reply protos.ComponentsToStart
 	reply.Version = newVersion
-
-	if existing != nil {
-		if ps, found := existing.Processes[req.Process]; found {
-			for c := range ps.Components {
-				reply.Components = append(reply.Components, c)
-			}
-		}
-	}
+	reply.Components = maps.Keys(g.Components)
 	return &reply, nil
 }
 
@@ -297,27 +291,27 @@ func (b *Babysitter) ReportLoad(*protos.WeaveletLoadReport) error {
 	return nil
 }
 
+// GetAddress implements the protos.EnvelopeHandler interface.
+func (b *Babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+	return &protos.GetAddressReply{Address: "localhost:0"}, nil
+}
+
 // ExportListener implements the protos.EnvelopeHandler interface.
-func (b *Babysitter) ExportListener(req *protos.ListenerToExport) (*protos.ExportListenerReply, error) {
+func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	existing, _, err := b.appInfo.Read(b.ctx, appVersionStateKey, "")
+	// Load app state.
+	state, _, err := b.loadAppState("" /*version*/)
 	if err != nil {
 		return nil, err
 	}
-	if existing == nil {
-		existing = &AppVersionState{
-			App:            b.dep.App.Name,
-			DeploymentId:   b.dep.Id,
-			SubmissionTime: timestamppb.Now(),
-			Groups:         map[string]*ColocationGroupState{},
-			Processes:      map[string]*ProcessState{},
-		}
-	}
-	existing.Listeners = append(existing.Listeners, req.Listener)
-	b.appInfo.Update(appVersionStateKey, existing)
 
+	// Update and store the state.
+	state.Listeners = append(state.Listeners, req.Listener)
+	b.appState.Update(appVersionStateKey, state)
+
+	// Update the proxy.
 	if p, ok := b.proxies[req.Listener.Name]; ok {
 		p.proxy.AddBackend(req.Listener.Addr)
 		return &protos.ExportListenerReply{ProxyAddress: p.addr}, nil
@@ -325,7 +319,8 @@ func (b *Babysitter) ExportListener(req *protos.ListenerToExport) (*protos.Expor
 
 	lis, err := net.Listen("tcp", req.LocalAddress)
 	if errors.Is(err, syscall.EADDRINUSE) {
-		return &protos.ExportListenerReply{AlreadyInUse: true}, nil
+		// Don't retry if this address is already in use.
+		return &protos.ExportListenerReply{Error: err.Error()}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("proxy listen: %w", err)
@@ -343,89 +338,19 @@ func (b *Babysitter) ExportListener(req *protos.ListenerToExport) (*protos.Expor
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
 }
 
-// manage runs the Envelope management loop for a given deployment group.
-func (b *Babysitter) manage(dep *protos.Deployment, group *protos.ColocationGroup) error {
-	var version *call.Version
-	for r := retry.Begin(); r.Continue(b.ctx); {
-		procsToStart, newVersion, err := b.getProcessesToStart(group.Name, version)
-		if err != nil {
-			continue
-		}
-		version = newVersion
-		for _, proc := range procsToStart {
-			if err := b.startProcess(dep, group, proc); err != nil {
-				b.logger.Error("Error starting process", err, "process", proc)
-			}
-		}
-		r.Reset()
-	}
-	return b.ctx.Err()
-}
-
-func (b *Babysitter) startProcess(dep *protos.Deployment, group *protos.ColocationGroup, proc string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	envelopes, ok := b.managed[proc]
-	if ok && len(envelopes) == DefaultReplication {
-		// Already started.
-		return nil
-	}
-
-	for r := 0; r < DefaultReplication; r++ {
-		// Note that we assign a unique UUID for each group replica. This is because
-		// we use the group replica ids to create replica-local addresses to
-		// communicate between the weavelets.
-		id := uuid.NewHash(sha256.New(), uuid.Nil, []byte(fmt.Sprintf("%d", r)), 0).String()
-
-		// Start the weavelet and capture its logs, traces, and metrics.
-		wlet := &protos.Weavelet{
-			Id:             uuid.New().String(),
-			Dep:            dep,
-			Group:          group,
-			GroupReplicaId: id,
-			Process:        proc,
-		}
-		e, err := envelope.NewEnvelope(wlet, b, b.opts)
-		if err != nil {
-			return err
-		}
-		go func() {
-			// TODO(mwhittaker): Propagate errors.
-			if err := e.Run(b.ctx); err != nil {
-				b.logger.Error("e.Run", err)
-			}
-		}()
-		b.managed[proc] = append(b.managed[proc], e)
-	}
-	return nil
-}
-
-func (b *Babysitter) getProcessesToStart(group string, version *call.Version) (
-	[]string, *call.Version, error) {
-	// Fetch processes to start.
-	var v string
-	if version != nil {
-		v = version.Opaque
-	}
-
-	existing, newVersion, err := b.appInfo.Read(b.ctx, appVersionStateKey, v)
+// GetRoutingInfo implements the protos.EnvelopeHandler interface.
+func (b *Babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
+	state, newVersion, err := b.loadRoutingState(req.Group, req.Version)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	var processes []string
-	if existing != nil {
-		if gs, found := existing.Groups[group]; found {
-			processes = append(processes, gs.Processes...)
-		}
-	}
-	return processes, &call.Version{Opaque: newVersion}, nil
+	state.Version = newVersion
+	return state, nil
 }
 
 // CreateAndRunEnvelopeForMain creates an envelope for an already started main.
 // It is used by weavertest where the main process is already running.
-func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int, int, error) {
+func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.WeaveletInfo, config *protos.AppConfig) (int, int, error) {
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -450,7 +375,7 @@ func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int
 	//
 	// The main weavelet, which is running in a separate goroutine, is reading
 	// from and writing to these pipes, but it doesn't use toWeaveletReader or
-	// fromWeaveletWriter directly. Instead, it constructs new files using the
+	// fromWeaveletWriter directly. Instead components to start., it constructs new files using the
 	// two pipe's file descriptors. This means that Go is free to garbage
 	// collect fromWeaveletWriter and toWeaveletWriter even though the
 	// underlying pipes are still being used by the main weavelet.
@@ -487,13 +412,54 @@ func (b *Babysitter) CreateAndRunEnvelopeForMain(mainWlet *protos.Weavelet) (int
 		Retry:           retry.DefaultOptions,
 		GetEnvelopeConn: func() *conn.EnvelopeConn { return econn },
 	}
-	e, err := envelope.NewEnvelope(mainWlet, b, options)
+	e, err := envelope.NewEnvelope(mainWlet, config, b, options)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot create envelope: %v", err)
 	}
 	go e.Run(b.ctx)
 
 	return int(toWeaveletReader.Fd()), int(fromWeaveletWriter.Fd()), nil
+}
+
+func (b *Babysitter) loadAppState(version string) (*AppVersionState, string, error) {
+	state, newVersion, err := b.appState.Read(b.ctx, appVersionStateKey, version)
+	if err != nil {
+		return nil, "", err
+	}
+	if state == nil {
+		state = &AppVersionState{
+			App:            b.dep.App.Name,
+			DeploymentId:   b.dep.Id,
+			SubmissionTime: timestamppb.Now(),
+		}
+	}
+	// TODO(spetrovic): Versioned map stores empty maps as nil maps.
+	// This means that it's not enough to initialize empty maps when
+	// creating the new AppVersionState above.
+	if state.Groups == nil {
+		state.Groups = map[string]*ColocationGroupState{}
+	}
+	return state, newVersion, nil
+}
+
+func (b *Babysitter) findOrAddGroup(state *AppVersionState, group string) *ColocationGroupState {
+	g := state.Groups[group]
+	if g == nil {
+		g = &ColocationGroupState{
+			Name: group,
+		}
+		state.Groups[group] = g
+	}
+	// TODO(spetrovic): Versioned map stores empty maps as nil maps.
+	// This means that it's not enough to initialize empty maps when
+	// creating the new ColocationGroupState above.
+	if g.Components == nil {
+		g.Components = map[string]bool{}
+	}
+	if g.Assignments == nil {
+		g.Assignments = map[string]*protos.Assignment{}
+	}
+	return g
 }
 
 func (b *Babysitter) getEnvelopes() []*envelope.Envelope {
@@ -542,19 +508,19 @@ func (b *Babysitter) Profile(_ context.Context, req *protos.RunProfiling) (*prot
 
 // Status implements the status.Server interface.
 func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
-	info, _, err := b.appInfo.Read(ctx, appVersionStateKey, "")
+	state, _, err := b.loadAppState("" /*version*/)
 	if err != nil {
 		return nil, err
 	}
 
 	stats := b.statsProcessor.GetStatsStatusz()
 	var components []*status.Component
-	for procName, proc := range info.Processes {
-		for component := range proc.Components {
+	for _, g := range state.Groups {
+		for component := range g.Components {
 			c := &status.Component{
-				Name:    component,
-				Process: procName,
-				Pids:    proc.ReplicaPids,
+				Name:  component,
+				Group: g.Name,
+				Pids:  g.ReplicaPids,
 			}
 			components = append(components, c)
 
@@ -600,9 +566,9 @@ func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
 	}
 
 	return &status.Status{
-		App:            info.App,
-		DeploymentId:   info.DeploymentId,
-		SubmissionTime: info.SubmissionTime,
+		App:            state.App,
+		DeploymentId:   state.DeploymentId,
+		SubmissionTime: state.SubmissionTime,
 		Components:     components,
 		Listeners:      listeners,
 		Config:         b.dep.App,
@@ -618,56 +584,58 @@ func (b *Babysitter) Metrics(ctx context.Context) (*status.Metrics, error) {
 	return m, nil
 }
 
-// mayGenerateNewRoutingInfo may generate new routing information for a given process.
+// mayGenerateNewRoutingInfo may generate new routing information for a given
+// colocation group.
 //
-// New routing information is generated when (1) new sharded components are managed
-// by the process and/or when (2) the process has new replicas.
+// This method is called whenever (1) the colocation group starts managing
+// new routed components, or (2) a new replica of the colocation group gets
+// started.
 //
 // REQUIRES: b.mu is held.
-func (b *Babysitter) mayGenerateNewRoutingInfo(existing *AppVersionState, app, id, process string) error {
-	// May compute new assignments.
-	proc := findOrCreateProcess(app, id, process, existing)
-
-	for component, currAssignment := range proc.Assignments {
-		newAssignment, err := routingAlgo(currAssignment, proc.Replicas)
+func (b *Babysitter) mayGenerateNewRoutingInfo(g *ColocationGroupState) error {
+	for component, assignment := range g.Assignments {
+		newAssignment, err := routingAlgo(assignment, g.Replicas)
 		if err != nil || newAssignment == nil {
 			continue // don't update assignments
 		}
-		proc.Assignments[component] = newAssignment
+		g.Assignments[component] = newAssignment
 	}
 
 	// Update the routing information.
-	sort.Strings(proc.Replicas)
-	routingInfo := protos.RoutingInfo{
-		Replicas: proc.Replicas,
+	sort.Strings(g.Replicas)
+	info := protos.RoutingInfo{
+		Replicas: g.Replicas,
 	}
-	for _, assignment := range proc.Assignments {
-		routingInfo.Assignments = append(routingInfo.Assignments, assignment)
+	for _, assignment := range g.Assignments {
+		info.Assignments = append(info.Assignments, assignment)
 	}
-	return b.updateRoutingInfo(process, &routingInfo)
+	return b.updateRoutingInfo(g, &info)
 }
 
-// updateRoutingInfo update the state with the latest routing info for a process.
-//
+// updateRoutingInfo update the state with the latest routing info for a
+// colocation group.
 // REQUIRES: b.mu is held.
-func (b *Babysitter) updateRoutingInfo(process string, routingInfo *protos.RoutingInfo) error {
-	key := toKey(process)
-
-	var existing *protos.RoutingInfo
-	existing, _, err := b.routingInfo.Read(b.ctx, key, "")
+func (b *Babysitter) updateRoutingInfo(g *ColocationGroupState, info *protos.RoutingInfo) error {
+	state, _, err := b.loadRoutingState(g.Name, "" /*version*/)
 	if err != nil {
 		return err
 	}
-	if existing == nil {
-		existing = &protos.RoutingInfo{}
+	if proto.Equal(state, info) { // Nothing to update
+		return nil
 	}
-	if !proto.Equal(existing, routingInfo) {
-		existing.Reset()
-		proto.Merge(existing, routingInfo)
-	}
-
-	b.routingInfo.Update(key, existing)
+	b.routingState.Update(routingKey(g.Name), info)
 	return nil
+}
+
+func (b *Babysitter) loadRoutingState(group, version string) (*protos.RoutingInfo, string, error) {
+	state, newVersion, err := b.routingState.Read(b.ctx, routingKey(group), version)
+	if err != nil {
+		return nil, "", err
+	}
+	if state == nil {
+		state = &protos.RoutingInfo{}
+	}
+	return state, newVersion, nil
 }
 
 // routingAlgo is an implementation of a routing algorithm that distributes the
@@ -739,48 +707,6 @@ func routingAlgo(currAssignment *protos.Assignment, candidates []string) (*proto
 	return newAssignment, nil
 }
 
-// nextPowerOfTwo returns the next power of 2 that is greater or equal to x.
-func nextPowerOfTwo(x int) int {
-	// If x is already power of 2, return x.
-	if x&(x-1) == 0 {
-		return x
-	}
-	return int(math.Pow(2, math.Ceil(math.Log2(float64(x)))))
-}
-
-func findOrCreateProcess(app string, id string, process string, ap *AppVersionState) *ProcessState {
-	if ap == nil {
-		ap = &AppVersionState{
-			App:            app,
-			DeploymentId:   id,
-			SubmissionTime: timestamppb.Now(),
-			Groups:         map[string]*ColocationGroupState{},
-			Processes:      map[string]*ProcessState{},
-		}
-	}
-	if ap.Processes == nil {
-		ap.Processes = map[string]*ProcessState{}
-	}
-	if _, found := ap.Processes[process]; !found {
-		ap.Processes[process] = &ProcessState{
-			Components:  map[string]bool{},
-			Assignments: map[string]*protos.Assignment{},
-		}
-	}
-	proc := ap.Processes[process]
-	if proc.Components == nil {
-		proc.Components = map[string]bool{}
-	}
-	if proc.Assignments == nil {
-		proc.Assignments = map[string]*protos.Assignment{}
-	}
-	return proc
-}
-
-func toKey(process string) string {
-	return routingInfoKey + "/" + process
-}
-
 // serveHTTP serves HTTP traffic on the provided listener using the provided
 // handler. The server is shut down when then provided context is cancelled.
 func serveHTTP(ctx context.Context, lis net.Listener, handler http.Handler) error {
@@ -793,4 +719,17 @@ func serveHTTP(ctx context.Context, lis net.Listener, handler http.Handler) erro
 	case <-ctx.Done():
 		return server.Shutdown(ctx)
 	}
+}
+
+// nextPowerOfTwo returns the next power of 2 that is greater or equal to x.
+func nextPowerOfTwo(x int) int {
+	// If x is already power of 2, return x.
+	if x&(x-1) == 0 {
+		return x
+	}
+	return int(math.Pow(2, math.Ceil(math.Log2(float64(x)))))
+}
+
+func routingKey(group string) string {
+	return path.Join(routingInfoKey, group)
 }

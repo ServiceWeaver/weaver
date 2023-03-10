@@ -87,7 +87,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 	}
 
 	// Deploy main.
-	toWeavelet, toEnvelope, err := b.CreateAndRunEnvelopeForMain(createWeaveletForMain(dep))
+	toWeavelet, toEnvelope, err := b.CreateAndRunEnvelopeForMain(createWeaveletForMain(dep), dep.App)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,25 +131,25 @@ func createDeployment(t testing.TB, config string) *protos.Deployment {
 	// TODO: Forward os.Args[1:] as well?
 	appConfig.Args = []string{"-test.run", regexp.QuoteMeta(t.Name())}
 	dep := &protos.Deployment{
-		Id:                uuid.New().String(),
-		App:               appConfig,
-		UseLocalhost:      true,
-		ProcessPicksPorts: true,
-		NetworkStorageDir: t.TempDir(),
+		Id:  uuid.New().String(),
+		App: appConfig,
 	}
 	return dep
 }
 
-func createWeaveletForMain(dep *protos.Deployment) *protos.Weavelet {
+func createWeaveletForMain(dep *protos.Deployment) *protos.WeaveletInfo {
 	group := &protos.ColocationGroup{
 		Name: "main",
 	}
-	wlet := &protos.Weavelet{
-		Id:             uuid.New().String(),
-		Dep:            dep,
-		Group:          group,
-		GroupReplicaId: uuid.New().String(),
-		Process:        "main",
+	wlet := &protos.WeaveletInfo{
+		App:           dep.App.Name,
+		DeploymentId:  dep.Id,
+		Group:         group,
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SameProcess:   dep.App.SameProcess,
+		Sections:      dep.App.Sections,
+		SingleProcess: dep.SingleProcess,
 	}
 	return wlet
 }

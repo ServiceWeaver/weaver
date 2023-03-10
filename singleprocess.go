@@ -49,10 +49,9 @@ import (
 
 // singleprocessEnv implements the env used for singleprocess Service Weaver applications.
 type singleprocessEnv struct {
-	ctx        context.Context
-	deployment *protos.Deployment
-	group      *protos.ColocationGroup
-	weavelet   *protos.Weavelet
+	ctx      context.Context
+	weavelet *protos.WeaveletInfo
+	config   *protos.AppConfig
 
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
@@ -97,24 +96,19 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	appConfig.Binary = os.Args[0]
 	appConfig.Args = os.Args[1:]
 
-	// TODO(mwhittaker): weaver * deploy takes a --version flag that can be
-	// used to set the uuid. Figure out if we want that feature for the
-	// singleprocess deployment as well, and if so, implement it.
-	dep := &protos.Deployment{
-		Id:                uuid.New().String(),
-		App:               appConfig,
-		SingleProcess:     true,
-		UseLocalhost:      true,
-		ProcessPicksPorts: true,
+	wlet := &protos.WeaveletInfo{
+		App:                appConfig.Name,
+		DeploymentId:       uuid.New().String(),
+		Group:              &protos.ColocationGroup{Name: "main"},
+		GroupId:            uuid.New().String(),
+		Id:                 uuid.New().String(),
+		SameProcess:        appConfig.SameProcess,
+		Sections:           appConfig.Sections,
+		SingleProcess:      true,
+		UseLocalhost:       true,
+		WeaveletPicksPorts: true,
 	}
-	wlet := &protos.Weavelet{
-		Id:             uuid.New().String(),
-		Dep:            dep,
-		Group:          &protos.ColocationGroup{Name: "main"},
-		GroupReplicaId: uuid.New().String(),
-		Process:        "main",
-	}
-	if err := runtime.CheckWeavelet(wlet); err != nil {
+	if err := runtime.CheckWeaveletInfo(wlet); err != nil {
 		return nil, err
 	}
 
@@ -127,14 +121,13 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		for i, span := range spans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
 		}
-		return traceDB.Store(ctx, appConfig.Name, dep.Id, traces)
+		return traceDB.Store(ctx, appConfig.Name, wlet.DeploymentId, traces)
 	}
 
 	env := &singleprocessEnv{
 		ctx:            ctx,
-		deployment:     wlet.Dep,
-		group:          wlet.Group,
 		weavelet:       wlet,
+		config:         appConfig,
 		submissionTime: time.Now(),
 		listeners:      map[string][]string{},
 		statsProcessor: imetrics.NewStatsProcessor(),
@@ -144,7 +137,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	return env, nil
 }
 
-func (e *singleprocessEnv) GetWeaveletInfo() *protos.Weavelet {
+func (e *singleprocessEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 	return e.weavelet
 }
 
@@ -153,7 +146,7 @@ func (e *singleprocessEnv) StartColocationGroup(context.Context, *protos.Colocat
 	return fmt.Errorf("cannot start other colocation groups for a singleprocess execution")
 }
 
-func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, _ string, name string, _ bool) error {
+func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, name string, _ bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.components = append(e.components, name)
@@ -176,6 +169,10 @@ func (e *singleprocessEnv) ReportLoad(context.Context, *protos.WeaveletLoadRepor
 
 func (e *singleprocessEnv) GetRoutingInfo(context.Context, string, *call.Version) (*protos.RoutingInfo, *call.Version, error) {
 	return nil, nil, fmt.Errorf("routing info not useful for singleprocess execution")
+}
+
+func (e *singleprocessEnv) GetAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error) {
+	return &protos.GetAddressReply{Address: opts.LocalAddress}, nil
 }
 
 func (e *singleprocessEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
@@ -220,8 +217,8 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 		return nil
 	}
 	reg := status.Registration{
-		DeploymentId: e.deployment.Id,
-		App:          e.deployment.App.Name,
+		DeploymentId: e.weavelet.DeploymentId,
+		App:          e.weavelet.App,
 		Addr:         lis.Addr().String(),
 	}
 	fmt.Fprint(os.Stderr, reg.Rolodex())
@@ -255,9 +252,9 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 	components := []*status.Component{{Name: "main", Pids: []int64{pid}}}
 	for _, component := range e.components {
 		c := &status.Component{
-			Name:    component,
-			Process: "main",
-			Pids:    []int64{pid},
+			Name:  component,
+			Group: "main",
+			Pids:  []int64{pid},
 		}
 		components = append(components, c)
 
@@ -301,12 +298,12 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 	}
 
 	return &status.Status{
-		App:            e.deployment.App.Name,
-		DeploymentId:   e.deployment.Id,
+		App:            e.weavelet.App,
+		DeploymentId:   e.weavelet.DeploymentId,
 		SubmissionTime: timestamppb.New(e.submissionTime),
 		Components:     components,
 		Listeners:      listeners,
-		Config:         e.deployment.App,
+		Config:         e.config,
 	}, nil
 }
 
@@ -318,8 +315,8 @@ func (e *singleprocessEnv) Metrics(context.Context) (*status.Metrics, error) {
 		if proto.Labels == nil {
 			proto.Labels = map[string]string{}
 		}
-		proto.Labels["serviceweaver_app"] = e.deployment.App.Name
-		proto.Labels["serviceweaver_version"] = e.deployment.Id
+		proto.Labels["serviceweaver_app"] = e.weavelet.App
+		proto.Labels["serviceweaver_version"] = e.weavelet.DeploymentId
 		proto.Labels["serviceweaver_node"] = e.weavelet.Id
 		m.Metrics = append(m.Metrics, proto)
 	}
@@ -330,8 +327,8 @@ func (e *singleprocessEnv) Metrics(context.Context) (*status.Metrics, error) {
 func (e *singleprocessEnv) Profile(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
 	data, err := conn.Profile(req)
 	profile := &protos.Profile{
-		AppName:   e.deployment.App.Name,
-		VersionId: e.deployment.Id,
+		AppName:   e.weavelet.App,
+		VersionId: e.weavelet.DeploymentId,
 		Data:      data,
 	}
 	if err != nil {
