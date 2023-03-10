@@ -199,10 +199,10 @@ message ColocationGroup {
 // WeaveletInfo contains information provided to a weavelet from its deployer.
 message WeaveletInfo {
   string app = 1;                            // app name
-  string deployment_id = 2;                  // deployment id
+  string deployment_id = 2;                  // deployment id, in UUID format
   ColocationGroup group = 3;                 // colocation group
   string group_id = 4;                       // colocation group replica id
-  string id = 5;                             // weavelet id
+  string id = 5;                             // weavelet id, in UUID format
   // TODO(spetrovic): Rename to same_group.
   repeated ComponentGroup same_process = 6;  // See AppConfig.SameProcess.
   map<string, string> sections = 7;          // See AppConfig.Sections.

@@ -991,10 +991,10 @@ type WeaveletInfo struct {
 	unknownFields protoimpl.UnknownFields
 
 	App          string           `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`                                       // app name
-	DeploymentId string           `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"` // deployment id
+	DeploymentId string           `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"` // deployment id, in UUID format
 	Group        *ColocationGroup `protobuf:"bytes,3,opt,name=group,proto3" json:"group,omitempty"`                                   // colocation group
 	GroupId      string           `protobuf:"bytes,4,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`                // colocation group replica id
-	Id           string           `protobuf:"bytes,5,opt,name=id,proto3" json:"id,omitempty"`                                         // weavelet id
+	Id           string           `protobuf:"bytes,5,opt,name=id,proto3" json:"id,omitempty"`                                         // weavelet id, in UUID format
 	// TODO(spetrovic): Rename to same_group.
 	SameProcess        []*ComponentGroup `protobuf:"bytes,6,rep,name=same_process,json=sameProcess,proto3" json:"same_process,omitempty"`                                                                // See AppConfig.SameProcess.
 	Sections           map[string]string `protobuf:"bytes,7,rep,name=sections,proto3" json:"sections,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` // See AppConfig.Sections.
