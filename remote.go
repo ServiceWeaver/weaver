@@ -25,7 +25,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
-	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -73,17 +72,9 @@ func (e *remoteEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 	return e.weavelet
 }
 
-// StartColocationGroup implements the Env interface.
-func (e *remoteEnv) StartColocationGroup(_ context.Context, targetGroup *protos.ColocationGroup) error {
-	request := protomsg.Clone(targetGroup)
-	return e.conn.StartColocationGroupRPC(request)
-}
-
 // RegisterComponentToStart implements the Env interface.
 func (e *remoteEnv) RegisterComponentToStart(_ context.Context, targetGroup string, component string, isRouted bool) error {
 	request := &protos.ComponentToStart{
-		App:             e.weavelet.App,
-		DeploymentId:    e.weavelet.DeploymentId,
 		ColocationGroup: targetGroup,
 		Component:       component,
 		IsRouted:        isRouted,

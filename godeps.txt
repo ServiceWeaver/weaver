@@ -7,6 +7,7 @@ github.com/ServiceWeaver/weaver
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/envelope/conn
+    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
@@ -19,7 +20,6 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/perfetto
-    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/google/uuid
@@ -511,6 +511,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/babysitter
+    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -530,6 +531,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
     fmt
+    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime/tool
     path/filepath
@@ -559,6 +561,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     context
     errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proto
@@ -724,6 +727,7 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     encoding/json
     errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/retry
@@ -735,7 +739,6 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     modernc.org/sqlite/lib
     net
     net/http
-    os
     path/filepath
     strconv
     time

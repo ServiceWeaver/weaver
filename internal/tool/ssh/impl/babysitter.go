@@ -155,17 +155,6 @@ func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
 	})
 }
 
-// StartColocationGroup implements the protos.EnvelopeHandler interface.
-func (b *babysitter) StartColocationGroup(req *protos.ColocationGroup) error {
-	b.logger.Debug("Starting colocation group", "group", req.Name)
-	return protomsg.Call(b.ctx, protomsg.CallArgs{
-		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
-		URLPath: startColocationGroupURL,
-		Request: req,
-	})
-}
-
 // RegisterReplica implements the protos.EnvelopeHandler interface.
 func (b *babysitter) RegisterReplica(replica *protos.ReplicaToRegister) error {
 	b.logger.Info("Replica (re)started with new address",

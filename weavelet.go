@@ -669,10 +669,6 @@ func (d *weavelet) repeatedly(errMsg string, f func() error) error {
 // getStub returns a component's componentStub, initializing it if necessary.
 func (d *weavelet) getStub(c *component) (*componentStub, error) {
 	init := func(c *component) error {
-		targetGroup := &protos.ColocationGroup{
-			Name: c.groupName,
-		}
-
 		// Register the component's name to start. The remote watcher will notice
 		// the name and launch the component.
 		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
@@ -680,15 +676,6 @@ func (d *weavelet) getStub(c *component) (*componentStub, error) {
 			return d.env.RegisterComponentToStart(d.ctx, c.groupName, c.info.Name, c.info.Routed)
 		}); err != nil {
 			return err
-		}
-
-		if !d.inLocalGroup(c) {
-			errMsg = fmt.Sprintf("cannot start colocation group %q", targetGroup.Name)
-			if err := d.repeatedly(errMsg, func() error {
-				return d.env.StartColocationGroup(d.ctx, targetGroup)
-			}); err != nil {
-				return err
-			}
 		}
 
 		client, err := d.getTCPClient(c)

@@ -145,12 +145,11 @@ type handlerForTest struct{}
 
 var _ conn.EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error          { return nil }
-func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                      {}
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error      { return nil }
-func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error    { return nil }
-func (h *handlerForTest) StartColocationGroup(*protos.ColocationGroup) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error        { return nil }
+func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error       { return nil }
+func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                   {}
+func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
+func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
+func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error     { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }

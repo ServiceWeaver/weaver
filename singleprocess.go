@@ -142,11 +142,6 @@ func (e *singleprocessEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 	return e.weavelet
 }
 
-func (e *singleprocessEnv) StartColocationGroup(context.Context, *protos.ColocationGroup) error {
-	// All processes are hosted in this colocation group, so we do not support starting colocation groups.
-	return fmt.Errorf("cannot start other colocation groups for a singleprocess execution")
-}
-
 func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, name string, _ bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

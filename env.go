@@ -30,11 +30,6 @@ type env interface {
 	// GetWeaveletInfo returns the weavelet information from the environment.
 	GetWeaveletInfo() *protos.WeaveletInfo
 
-	// StartColocationGroup starts running the specified colocation group,
-	// if it's not already started.
-	// Succeeds without an error if it has already been started.
-	StartColocationGroup(context.Context, *protos.ColocationGroup) error
-
 	// RegisterComponentToStart registers a component to start in a given
 	// target colocation group.
 	//

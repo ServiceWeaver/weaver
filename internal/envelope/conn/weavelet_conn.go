@@ -130,13 +130,6 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 	}
 }
 
-// StartColocationGroupRPC requests the envelope to start the given
-// colocation group.
-func (d *WeaveletConn) StartColocationGroupRPC(group *protos.ColocationGroup) error {
-	_, err := d.rpc(&protos.WeaveletMsg{ColocationGroupToStart: group})
-	return err
-}
-
 // StartComponentRPC requests the envelope to start the given component.
 func (d *WeaveletConn) StartComponentRPC(componentToStart *protos.ComponentToStart) error {
 	_, err := d.rpc(&protos.WeaveletMsg{ComponentToStart: componentToStart})

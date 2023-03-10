@@ -58,7 +58,6 @@ const (
 	exportListenerURL       = "/manager/export_listener"
 	startComponentURL       = "/manager/start_component"
 	getRoutingInfoURL       = "/manager/get_routing_info"
-	startColocationGroupURL = "/manager/start_colocation_group"
 	recvLogEntryURL         = "/manager/recv_log_entry"
 	recvTraceSpansURL       = "/manager/recv_trace_spans"
 	recvMetricsURL          = "/manager/recv_metrics"
@@ -219,8 +218,6 @@ func (m *manager) run() error {
 	// Start the main process.
 	group := &protos.ColocationGroup{Name: "main"}
 	if err := m.startComponent(m.ctx, &protos.ComponentToStart{
-		App:             m.dep.App.Name,
-		DeploymentId:    m.dep.Id,
 		ColocationGroup: group.Name,
 		Component:       "main",
 	}); err != nil {
@@ -262,7 +259,6 @@ func (m *manager) addHTTPHandlers(mux *http.ServeMux) {
 	mux.HandleFunc(exportListenerURL, protomsg.HandlerFunc(m.logger, m.exportListener))
 	mux.HandleFunc(startComponentURL, protomsg.HandlerDo(m.logger, m.startComponent))
 	mux.HandleFunc(getRoutingInfoURL, protomsg.HandlerFunc(m.logger, m.getRoutingInfo))
-	mux.HandleFunc(startColocationGroupURL, protomsg.HandlerDo(m.logger, m.startColocationGroup))
 	mux.HandleFunc(recvLogEntryURL, protomsg.HandlerDo(m.logger, m.handleLogEntry))
 	mux.HandleFunc(recvTraceSpansURL, protomsg.HandlerDo(m.logger, m.handleTraceSpans))
 	mux.HandleFunc(recvMetricsURL, protomsg.HandlerDo(m.logger, m.handleRecvMetrics))
@@ -451,7 +447,7 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
 }
 
-func (m *manager) startComponent(_ context.Context, req *protos.ComponentToStart) error {
+func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToStart) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -468,8 +464,8 @@ func (m *manager) startComponent(_ context.Context, req *protos.ComponentToStart
 		if _, ok := g.Assignments[req.Component]; !ok {
 			// Create an initial assignment for the component.
 			g.Assignments[req.Component] = &protos.Assignment{
-				App:          req.App,
-				DeploymentId: req.DeploymentId,
+				App:          m.dep.App.Name,
+				DeploymentId: m.dep.Id,
 				Component:    req.Component,
 			}
 		}
@@ -480,13 +476,12 @@ func (m *manager) startComponent(_ context.Context, req *protos.ComponentToStart
 
 	// Store app state
 	m.appState.Update(appVersionStateKey, state)
-	return nil
+
+	// Start the colocation group, if it hasn't started already.
+	return m.startColocationGroup(ctx, &protos.ColocationGroup{Name: req.ColocationGroup})
 }
 
 func (m *manager) startColocationGroup(_ context.Context, group *protos.ColocationGroup) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	// If the group is already started, ignore.
 	if _, found := m.started[group.Name]; found {
 		return nil
