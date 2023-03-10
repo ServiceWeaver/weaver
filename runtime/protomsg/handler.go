@@ -181,23 +181,22 @@ func metricHandler(handler http.HandlerFunc) http.HandlerFunc {
 }
 
 // toHTTP writes msgs into a given response.  On error, it writes the
-// error into the response instead. Returns the status of the write.
-func toHTTP(w http.ResponseWriter, r *http.Request, msgs ...proto.Message) error {
+// error into the response instead.
+func toHTTP(w http.ResponseWriter, r *http.Request, msgs ...proto.Message) {
 	out, err := toWire(msgs...)
 	if err != nil {
 		httpRequestErrorCounts.Get(errorLabels{r.URL.Path, "marshal response"}).Add(1.0)
 		msg := fmt.Sprintf("cannot marshal response protos: %v", err)
 		http.Error(w, msg, http.StatusBadRequest)
-		return errors.New(msg)
+		return
 	}
 	httpRequestBytesReturned.Get(handlerLabels{r.URL.Path}).Put(float64(len(out)))
 	if _, err = w.Write(out); err != nil {
 		httpRequestErrorCounts.Get(errorLabels{r.URL.Path, "write response"}).Add(1.0)
 		msg := fmt.Sprintf("cannot write responses: %v", err)
 		http.Error(w, msg, http.StatusBadRequest)
-		return errors.New(msg)
+		return
 	}
-	return nil
 }
 
 // fromHTTP fills msgs from a given request body.

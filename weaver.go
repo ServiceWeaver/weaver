@@ -80,7 +80,7 @@ func init() {
 
 	// Add a trivial /healthz handler to the default mux.
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("ok"))
+		w.Write([]byte("ok")) //nolint:errcheck // response write error
 	})
 }
 

@@ -280,7 +280,9 @@ func Connect(ctx context.Context, resolver Resolver, opts ClientOptions) (Connec
 	if !resolver.IsConstant() && version == nil {
 		return nil, errors.New("non-constant resolver returned a nil version")
 	}
-	conn.updateEndpoints(endpoints)
+	if err := conn.updateEndpoints(endpoints); err != nil {
+		return nil, err
+	}
 
 	// If the resolver is non-constant, then we start a goroutine to watch for
 	// updates to the set of endpoints. If the resolver is constant, then we
@@ -417,7 +419,8 @@ func (rc *reconnectingConnection) watchResolver(ctx context.Context, version *Ve
 			// Resolver wishes to be called again after an appropriate delay.
 			continue
 		}
-		rc.updateEndpoints(endpoints)
+		err = rc.updateEndpoints(endpoints)
+		logError(rc.opts.Logger, "watchResolver", err)
 		version = newVersion
 		r.Reset()
 	}

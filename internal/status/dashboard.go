@@ -134,12 +134,12 @@ Flags:
 
 			traceDB, err := perfetto.Open(ctx)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "cannot open Perfetto database: %w", err)
+				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
 			}
 			go traceDB.Serve(ctx)
 
 			fmt.Fprintln(os.Stderr, "Dashboard available at:", url)
-			go browser.OpenURL(url)
+			go browser.OpenURL(url) //nolint:errcheck // browser open is optional
 			return http.Serve(lis, nil)
 		},
 	}
@@ -174,7 +174,9 @@ func (d *dashboard) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Tool:     d.spec.Tool,
 		Statuses: statuses,
 	}
-	indexTemplate.Execute(w, content)
+	if err := indexTemplate.Execute(w, content); err != nil {
+		panic(err)
+	}
 }
 
 // handleDeployment handles requests to /deployment?id=<deployment id>
@@ -305,5 +307,5 @@ func (d *dashboard) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 	var b bytes.Buffer
 	imetrics.TranslateMetricsToPrometheusTextFormat(&b, snapshots, reg.Addr, prometheusEndpoint)
-	w.Write(b.Bytes())
+	w.Write(b.Bytes()) //nolint:errcheck // response write error
 }

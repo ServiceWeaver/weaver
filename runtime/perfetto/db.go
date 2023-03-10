@@ -353,7 +353,7 @@ func (d *DB) getReplicaNumber(ctx context.Context, app, version, cgroup, replica
 	if err != nil {
 		return
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() //nolint:errcheck // rollback errors can be ignored
 
 	// See if the replica number is already associated.
 	const query = `
@@ -498,7 +498,7 @@ func (d *DB) execDB(ctx context.Context, query string, args ...any) (sql.Result,
 func (d *DB) Serve(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("OK"))
+		w.Write([]byte("OK")) //nolint:errcheck // response write error
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		app := r.URL.Query().Get("app")
@@ -517,7 +517,7 @@ func (d *DB) Serve(ctx context.Context) error {
 		traces[0] = '['
 		copy(traces[1:], data)
 		traces[len(data)+1] = ']'
-		w.Write(traces)
+		w.Write(traces) //nolint:errcheck // response write error
 	})
 	server := http.Server{Handler: mux}
 	ticker := time.NewTicker(time.Second)

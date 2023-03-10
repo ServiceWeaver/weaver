@@ -131,7 +131,20 @@ To make sure changes are well coordinated, we ask you to discuss any significant
 change prior to sending a pull request. To do so, either file a
 [new issue][new_issue] or claim an [existing one][issues].
 
+## What to contribute to?
+
+Here are the current areas where the community contributions would be most
+valuable:
+
+* Implement deployers for platforms other than local, SSH, and GKE.
+* Bug fixes for the existing libraries.
+* Non-Go language support. (Note: please reach out to us on our
+  [google_group][Google Group], to coordinate development. We will likely
+  require a fair bit of API and language-integration design discussion before
+  the implementation starts.)
+
 [cla]: https://cla.developers.google.com/about
 [github_help]: https://help.github.com/articles/about-pull-requests/
 [new_issue]: https://github.com/ServiceWeaver/weaver/issues/new
 [issues]: https://github.com/ServiceWeaver/weaver/issues
+[google_group]: https://groups.google.com/g/serviceweaver
