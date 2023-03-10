@@ -31,9 +31,6 @@ type EnvelopeHandler interface {
 	// StartComponent starts the given component.
 	StartComponent(entry *protos.ComponentToStart) error
 
-	// StartColocationGroup starts the given colocation group.
-	StartColocationGroup(entry *protos.ColocationGroup) error
-
 	// RegisterReplica registers the given weavelet replica.
 	RegisterReplica(entry *protos.ReplicaToRegister) error
 
@@ -117,8 +114,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 	switch {
 	case msg.ComponentToStart != nil:
 		return e.send(errReply(e.handler.StartComponent(msg.ComponentToStart)))
-	case msg.ColocationGroupToStart != nil:
-		return e.send(errReply(e.handler.StartColocationGroup(msg.ColocationGroupToStart)))
 	case msg.ReplicaToRegister != nil:
 		return e.send(errReply(e.handler.RegisterReplica(msg.ReplicaToRegister)))
 	case msg.LoadReport != nil:

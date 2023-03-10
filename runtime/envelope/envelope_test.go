@@ -188,11 +188,10 @@ func (h *handlerForTest) getTraceSpanNames() []string {
 	return h.traces
 }
 
-func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)                { h.logSaver(entry) }
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error      { return nil }
-func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error    { return nil }
-func (h *handlerForTest) StartColocationGroup(*protos.ColocationGroup) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error        { return nil }
+func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)             { h.logSaver(entry) }
+func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
+func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
+func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error     { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }

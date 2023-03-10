@@ -77,9 +77,6 @@ message WeaveletMsg {
   // Component to be started.
   ComponentToStart component_to_start = 5;
 
-  // Colocation group to be started.
-  ColocationGroup colocation_group_to_start = 6;
-
   // Replica to register.
   ReplicaToRegister replica_to_register = 7;
 
@@ -298,11 +295,9 @@ message ReplicaToRegister {
 // ComponentToStart is a request to the envelope to register a component that
 // should be started by the given colocation group.
 message ComponentToStart {
-  string app = 1;
-  string deployment_id = 2;
-  string colocation_group = 3;
-  string component = 4;
-  bool isRouted = 5;  // whether the component is routed
+  string colocation_group = 1;
+  string component = 2;
+  bool isRouted = 3;  // whether the component is routed
 }
 
 // GetComponentsToStart is a request to the envelope to retrieve the set of

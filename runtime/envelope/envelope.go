@@ -44,9 +44,6 @@ type EnvelopeHandler interface {
 	// StartComponent starts the given component.
 	StartComponent(entry *protos.ComponentToStart) error
 
-	// StartColocationGroup starts the given colocation group.
-	StartColocationGroup(entry *protos.ColocationGroup) error
-
 	// RegisterReplica registers the given weavelet replica.
 	RegisterReplica(entry *protos.ReplicaToRegister) error
 
