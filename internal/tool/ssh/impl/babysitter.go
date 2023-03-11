@@ -65,6 +65,7 @@ func RunBabysitter(ctx context.Context) error {
 	}
 	logSaver := fs.Add
 
+	id := uuid.New().String()
 	b := &babysitter{
 		ctx:       ctx,
 		dep:       info.Deployment,
@@ -77,7 +78,7 @@ func RunBabysitter(ctx context.Context) error {
 				Deployment: info.Deployment.Id,
 				Component:  "Babysitter",
 				Weavelet:   uuid.NewString(),
-				Attrs:      []string{"serviceweaver/system", ""},
+				Attrs:      []string{"serviceweaver/system", "", "weavelet", id},
 			},
 			Write: logSaver,
 		},
@@ -93,7 +94,6 @@ func RunBabysitter(ctx context.Context) error {
 	}
 
 	// Start the envelope.
-	id := uuid.New().String()
 	wlet := &protos.WeaveletInfo{
 		App:           b.dep.App.Name,
 		DeploymentId:  b.dep.Id,
@@ -121,7 +121,7 @@ func (b *babysitter) collectMetrics() {
 		case <-tickerCollectMetrics.C:
 			ms, err := b.envelope.ReadMetrics()
 			if err != nil {
-				b.logger.Error("Unable to collect metrics", err, "weavelet", b.envelope.Weavelet().Id)
+				b.logger.Error("Unable to collect metrics", err)
 				continue
 			}
 			ms = append(ms, metrics.Snapshot()...)
