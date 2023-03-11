@@ -388,10 +388,6 @@ func (e *Envelope) copyLines(component string, src io.Reader) error {
 	}
 }
 
-func (e *Envelope) Weavelet() *protos.WeaveletInfo {
-	return e.weavelet
-}
-
 func dropNewline(line []byte) []byte {
 	if len(line) > 0 && line[len(line)-1] == '\n' {
 		line = line[:len(line)-1]
