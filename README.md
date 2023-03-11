@@ -3,7 +3,7 @@
 # Service Weaver
 
 Service Weaver is a programming framework for writing, deploying, and managing
-distributed applications. You can run, test, and debug a Service Weaver
+distributed applications. You can run, test and debug a Service Weaver
 application locally on your machine, and then deploy it to the
 cloud with a single command.
 
