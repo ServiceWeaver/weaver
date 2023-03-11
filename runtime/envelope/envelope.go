@@ -374,7 +374,7 @@ func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("cannot read metrics: weavelet pipe is down")
 	}
-	return e.conn.GetMetricsRPC()
+	return conn.GetMetricsRPC()
 }
 
 func (e *Envelope) isStopped() bool {
