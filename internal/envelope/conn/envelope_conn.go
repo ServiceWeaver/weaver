@@ -147,10 +147,12 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 			info, err := e.handler.GetRoutingInfo(request)
 			if err != nil {
 				// Reply with error.
+				//nolint:errcheck // error will be returned on next send
 				e.send(&protos.EnvelopeMsg{Id: -id, Error: err.Error()})
 				return
 			}
 			// Reply with routing info.
+			//nolint:errcheck // error will be returned on next send
 			e.send(&protos.EnvelopeMsg{Id: -id, RoutingInfo: info})
 		}()
 		return nil
@@ -164,10 +166,12 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 			components, err := e.handler.GetComponentsToStart(request)
 			if err != nil {
 				// Reply with error.
+				//nolint:errcheck // error will be returned on next send
 				e.send(&protos.EnvelopeMsg{Id: -id, Error: err.Error()})
 				return
 			}
 			// Reply with components info.
+			//nolint:errcheck // error will be returned on next send
 			e.send(&protos.EnvelopeMsg{Id: -id, ComponentsToStart: components})
 		}()
 		return nil

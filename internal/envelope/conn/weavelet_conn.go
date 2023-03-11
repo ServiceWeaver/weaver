@@ -110,10 +110,12 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			data, err := Profile(req)
 			if err != nil {
 				// Reply with error.
+				//nolint:errcheck // error will be returned on next send
 				d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
 				return
 			}
 			// Reply with profile data.
+			//nolint:errcheck // error will be returned on next send
 			d.send(&protos.WeaveletMsg{Id: -id, Profile: &protos.Profile{
 				AppName:   req.AppName,
 				VersionId: req.VersionId,
@@ -226,8 +228,9 @@ func (d *WeaveletConn) send(msg *protos.WeaveletMsg) error {
 }
 
 // SendLogEntry sends a log entry to the envelope, without waiting for a reply.
-func (d *WeaveletConn) SendLogEntry(entry *protos.LogEntry) error {
-	return d.send(&protos.WeaveletMsg{LogEntry: entry})
+func (d *WeaveletConn) SendLogEntry(entry *protos.LogEntry) {
+	//nolint:errcheck // error will be returned on next send
+	d.send(&protos.WeaveletMsg{LogEntry: entry})
 }
 
 // SendTraceSpans sends a set of trace spans to the envelope, without waiting
