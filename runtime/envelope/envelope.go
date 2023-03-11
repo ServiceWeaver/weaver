@@ -112,20 +112,6 @@ type Options struct {
 	// Retry configures the exponential backoff performed when restarting the
 	// weavelet. Defaults to retry.DefaultOptions.
 	Retry retry.Options
-
-	// GetEnvelopeConn returns a connection between a pre-started weavelet and
-	// its Envelope.
-	//
-	// Note that setting this option implies that the weavelet has already been
-	// started, in which case the Envelope will not restart it (i.e., the
-	// Restart policy is assumed to be Never).
-	//
-	// TODO: conn.EnvelopeConn is internal. This is only used right now for
-	// weavertest. If we remove the weavertest use case, we can remove this
-	// option.
-	//
-	// TODO: Set this only in weavertest.
-	GetEnvelopeConn func() *conn.EnvelopeConn
 }
 
 // Envelope starts and manages a weavelet, i.e., an OS process running inside a
@@ -199,16 +185,9 @@ func (e *Envelope) toggleProfiling(expected bool) bool {
 	return true
 }
 
-// Run runs the application, restarting it when necessary.
+// Run runs the application, restarting it according to the policy specified by
+// opts.
 func (e *Envelope) Run(ctx context.Context) error {
-	if e.opts.GetEnvelopeConn != nil {
-		// The weavelet already started. Set the connection between the
-		// weavelet and the envelope.
-		conn := e.opts.GetEnvelopeConn()
-		e.setConn(conn)
-		return ctx.Err()
-	}
-
 	for r := retry.BeginWithOptions(e.opts.Retry); r.Continue(ctx); {
 		err := e.runWeavelet(ctx)
 		if e.isStopped() {
