@@ -38,8 +38,6 @@ import (
 // routelet maintains the latest routing information for a process by
 // communicating with the manager.
 type routelet struct {
-	env env
-
 	mu          sync.Mutex                  // guards the following fields
 	routingInfo *protos.RoutingInfo         // latest routing info from assigner
 	res         *routingResolver            // resolver, updated with routingInfo
@@ -51,7 +49,7 @@ type routelet struct {
 // lifetime of the routelet is bound to the provided context. When the context is
 // cancelled, the routelet stops tracking the latest routing information.
 func newRoutelet(ctx context.Context, env env, group string) *routelet {
-	r := &routelet{env: env, balancers: map[string]*routingBalancer{}}
+	r := &routelet{balancers: map[string]*routingBalancer{}}
 	go r.watchRoutingInfo(ctx, env, group)
 	return r
 }
@@ -114,13 +112,13 @@ func (r *routelet) watchRoutingInfo(ctx context.Context, env env, group string) 
 		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, group, version)
 		if err != nil {
 			// TODO(mwhittaker): Handle errors more gracefully.
-			r.env.SystemLogger().Error("cannot get routing info", err)
+			env.SystemLogger().Error("cannot get routing info", err)
 			continue
 		}
 		version = newVersion
 		if err := r.update(routingInfo, version); err != nil {
 			// TODO(mwhittaker): Handle errors more gracefully.
-			r.env.SystemLogger().Error("cannot update routing info", err)
+			env.SystemLogger().Error("cannot update routing info", err)
 			continue
 		}
 		re.Reset()
