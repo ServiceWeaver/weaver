@@ -49,7 +49,7 @@ type WeaveletHandler interface {
 // and its envelope. It communicates with the envelope over a pair of pipes.
 type WeaveletConn struct {
 	handler WeaveletHandler
-	conn    conn
+	conn    Conn
 	info    *protos.WeaveletSetupInfo
 	lis     net.Listener // internal network listener for the weavelet
 	metrics metrics.Exporter
@@ -64,30 +64,30 @@ type WeaveletConn struct {
 func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*WeaveletConn, error) {
 	d := &WeaveletConn{
 		handler: h,
-		conn:    conn{name: "weavelet", reader: r, writer: w},
+		conn:    Conn{name: "weavelet", reader: r, writer: w},
 	}
 
 	// Block until the weavelet information is received.
 	msg := &protos.EnvelopeMsg{}
-	if err := d.conn.recv(msg); err != nil {
-		d.conn.cleanup(err)
+	if err := d.conn.Recv(msg); err != nil {
+		d.conn.Cleanup(err)
 		return nil, err
 	}
 	d.info = msg.WeaveletSetupInfo
 	if d.info == nil {
 		err := fmt.Errorf("expected WeaveletSetupInfo, got %v", msg)
-		d.conn.cleanup(err)
+		d.conn.Cleanup(err)
 		return nil, err
 	}
 	if err := runtime.CheckWeaveletSetupInfo(d.info); err != nil {
-		d.conn.cleanup(err)
+		d.conn.Cleanup(err)
 		return nil, err
 	}
 
 	// Reply to the envelope with weavelet's runtime information.
 	lis, err := listen(d.info)
 	if err != nil {
-		d.conn.cleanup(err)
+		d.conn.Cleanup(err)
 		return nil, err
 	}
 	d.lis = lis
@@ -104,7 +104,7 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 func (d *WeaveletConn) Serve() error {
 	msg := &protos.EnvelopeMsg{}
 	for {
-		if err := d.conn.recv(msg); err != nil {
+		if err := d.conn.Recv(msg); err != nil {
 			return err
 		}
 		if err := d.handleMessage(msg); err != nil {
@@ -187,7 +187,7 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 		return d.send(&protos.WeaveletMsg{Id: -id})
 	default:
 		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
-		d.conn.cleanup(err)
+		d.conn.Cleanup(err)
 		return err
 	}
 }
@@ -221,10 +221,10 @@ func (d *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*pr
 }
 
 func (d *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, error) {
-	response, err := d.conn.rpc(request)
+	response, err := d.conn.RPC(request)
 	if err != nil {
 		err := fmt.Errorf("connection to envelope broken: %w", err)
-		d.conn.cleanup(err)
+		d.conn.Cleanup(err)
 		return nil, err
 	}
 	msg, ok := response.(*protos.EnvelopeMsg)
@@ -238,8 +238,8 @@ func (d *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, er
 }
 
 func (d *WeaveletConn) send(msg *protos.WeaveletMsg) error {
-	if err := d.conn.send(msg); err != nil {
-		d.conn.cleanup(err)
+	if err := d.conn.Send(msg); err != nil {
+		d.conn.Cleanup(err)
 		return err
 	}
 	return nil

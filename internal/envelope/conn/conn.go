@@ -26,9 +26,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// conn is a bi-directional communication channel that is used in the
+// Conn is a bi-directional communication channel that is used in the
 // implementation of EnvelopeConn and WeaveletConn.
-type conn struct {
+type Conn struct {
 	name   string
 	reader io.ReadCloser
 
@@ -37,6 +37,10 @@ type conn struct {
 	lastId  int64                   // Id used for last request/response pair
 	waiters map[int64]chan response // Response waiters
 	failure error                   // Non-nil when error has been encountered
+}
+
+func NewConn(name string, r io.ReadCloser, w io.WriteCloser) Conn {
+	return Conn{name: name, reader: r, writer: w}
 }
 
 type response struct {
@@ -64,13 +68,13 @@ func setId(msg proto.Message, id int64) {
 	}
 }
 
-// recv reads the next request from the pipe and writes it to msg. Note that
-// recv does NOT return RPC replies. These replies are returned directly the
+// Recv reads the next request from the pipe and writes it to msg. Note that
+// Recv does NOT return RPC replies. These replies are returned directly the
 // invoker of the RPC.
-func (c *conn) recv(msg proto.Message) error {
+func (c *Conn) Recv(msg proto.Message) error {
 	for {
 		if err := protomsg.Read(c.reader, msg); err != nil {
-			c.cleanup(err)
+			c.Cleanup(err)
 			return err
 		}
 
@@ -84,14 +88,14 @@ func (c *conn) recv(msg proto.Message) error {
 	}
 }
 
-func (c *conn) cleanup(err error) {
+func (c *Conn) Cleanup(err error) {
 	// Wakeup all waiters.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cleanupLocked(err)
 }
 
-func (c *conn) cleanupLocked(err error) {
+func (c *Conn) cleanupLocked(err error) {
 	if c.failure != nil {
 		return
 	}
@@ -104,7 +108,7 @@ func (c *conn) cleanupLocked(err error) {
 	c.writer.Close()
 }
 
-func (c *conn) handleResponse(id int64, result proto.Message) {
+func (c *Conn) handleResponse(id int64, result proto.Message) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	ch, ok := c.waiters[id]
@@ -115,7 +119,7 @@ func (c *conn) handleResponse(id int64, result proto.Message) {
 	ch <- response{result, nil}
 }
 
-func (c *conn) send(msg proto.Message) error {
+func (c *Conn) Send(msg proto.Message) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.failure != nil {
@@ -129,7 +133,7 @@ func (c *conn) send(msg proto.Message) error {
 	return err
 }
 
-func (c *conn) rpc(request proto.Message) (proto.Message, error) {
+func (c *Conn) RPC(request proto.Message) (proto.Message, error) {
 	ch := c.startRPC(request)
 	r, ok := <-ch
 	if !ok {
@@ -138,7 +142,7 @@ func (c *conn) rpc(request proto.Message) (proto.Message, error) {
 	return r.result, r.err
 }
 
-func (c *conn) startRPC(request proto.Message) chan response {
+func (c *Conn) startRPC(request proto.Message) chan response {
 	ch := make(chan response, 1)
 
 	// Assign request ID and register in set of waiters.

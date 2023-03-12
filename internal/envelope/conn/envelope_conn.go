@@ -48,7 +48,7 @@ type EnvelopeHandler interface {
 // and the envelope.
 type EnvelopeConn struct {
 	handler  EnvelopeHandler
-	conn     conn
+	conn     Conn
 	metrics  metrics.Importer
 	weavelet *protos.WeaveletInfo
 }
@@ -61,7 +61,7 @@ type EnvelopeConn struct {
 func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet *protos.WeaveletSetupInfo) (*EnvelopeConn, error) {
 	e := &EnvelopeConn{
 		handler: h,
-		conn:    conn{name: "envelope", reader: r, writer: w},
+		conn:    Conn{name: "envelope", reader: r, writer: w},
 	}
 	// Send the setup information to the weavelet, and receive the weavelet
 	// information in return.
@@ -69,14 +69,14 @@ func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet 
 		return nil, err
 	}
 	reply := &protos.WeaveletMsg{}
-	if err := e.conn.recv(reply); err != nil {
-		e.conn.cleanup(err)
+	if err := e.conn.Recv(reply); err != nil {
+		e.conn.Cleanup(err)
 		return nil, err
 	}
 	if reply.WeaveletInfo == nil {
 		err := fmt.Errorf(
 			"the first message from the weavelet must contain weavelet info")
-		e.conn.cleanup(err)
+		e.conn.Cleanup(err)
 		return nil, err
 	}
 	e.weavelet = reply.WeaveletInfo
@@ -119,7 +119,7 @@ func (e *EnvelopeConn) Serve() error {
 	group.Go(func() error {
 		for {
 			msg := &protos.WeaveletMsg{}
-			if err := e.conn.recv(msg); err != nil {
+			if err := e.conn.Recv(msg); err != nil {
 				close(msgs)
 				return err
 			}
@@ -138,7 +138,7 @@ func (e *EnvelopeConn) Serve() error {
 				return nil
 			}
 			if err := e.handleMessage(msg); err != nil {
-				e.conn.cleanup(err)
+				e.conn.Cleanup(err)
 				return err
 			}
 		}
@@ -190,15 +190,15 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		return e.handler.RecvTraceSpans(traces)
 	default:
 		err := fmt.Errorf("envelope_conn: unexpected message %+v", msg)
-		e.conn.cleanup(err)
+		e.conn.Cleanup(err)
 		return err
 	}
 }
 
 func (e *EnvelopeConn) send(msg *protos.EnvelopeMsg) error {
-	if err := e.conn.send(msg); err != nil {
+	if err := e.conn.Send(msg); err != nil {
 		// Connection is broken: tear it down.
-		e.conn.cleanup(err)
+		e.conn.Cleanup(err)
 		return err
 	}
 	return nil
@@ -256,10 +256,10 @@ func (e *EnvelopeConn) DoProfilingRPC(req *protos.RunProfiling) (*protos.Profile
 // UpdateComponentsRPC updates the weavelet with the latest set of components
 // it should be running.
 func (e *EnvelopeConn) UpdateComponentsRPC(req *protos.ComponentsToStart) error {
-	response, err := e.conn.rpc(&protos.EnvelopeMsg{ComponentsToStart: req})
+	response, err := e.conn.RPC(&protos.EnvelopeMsg{ComponentsToStart: req})
 	if err != nil {
 		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.cleanup(err)
+		e.conn.Cleanup(err)
 		return err
 	}
 	msg, ok := response.(*protos.WeaveletMsg)
@@ -275,10 +275,10 @@ func (e *EnvelopeConn) UpdateComponentsRPC(req *protos.ComponentsToStart) error 
 // UpdateRoutingInfoRPC updates the weavelet with a component's most recent
 // routing info.
 func (e *EnvelopeConn) UpdateRoutingInfoRPC(req *protos.RoutingInfo) error {
-	response, err := e.conn.rpc(&protos.EnvelopeMsg{RoutingInfo: req})
+	response, err := e.conn.RPC(&protos.EnvelopeMsg{RoutingInfo: req})
 	if err != nil {
 		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.cleanup(err)
+		e.conn.Cleanup(err)
 		return err
 	}
 	msg, ok := response.(*protos.WeaveletMsg)
@@ -292,10 +292,10 @@ func (e *EnvelopeConn) UpdateRoutingInfoRPC(req *protos.RoutingInfo) error {
 }
 
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
-	response, err := e.conn.rpc(request)
+	response, err := e.conn.RPC(request)
 	if err != nil {
 		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.cleanup(err)
+		e.conn.Cleanup(err)
 		return nil, err
 	}
 	msg, ok := response.(*protos.WeaveletMsg)
