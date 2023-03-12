@@ -57,7 +57,7 @@ Description:
   create ./weaver_gen.go and ./foo/weaver_gen.go.
 
   You specify packages for "weaver generate" in the same way you specify
-  packagesfor go build, go test, go vet, etc. See "go help packages" for more
+  packages for go build, go test, go vet, etc. See "go help packages" for more
   information.
 
   Rather than invoking "weaver generate" directly, you can place a line of the
@@ -126,7 +126,7 @@ func Generate(dir string, pkgs []string) error {
 	return nil
 }
 
-// parseNonWeaverGenFile parses a Go file, expcept for weaver_gen.go files whose
+// parseNonWeaverGenFile parses a Go file, except for weaver_gen.go files whose
 // contents are ignored since those contents may reference types that no longer
 // exist.
 func parseNonWeaverGenFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
@@ -212,12 +212,6 @@ func (g *generator) processPackage(pkg *packages.Package) {
 }
 
 func (g *generator) findComponents(f *ast.File) {
-	// Find declarations and their positions.
-	decls := map[token.Pos]ast.Decl{}
-	for _, d := range f.Decls {
-		decls[d.Pos()] = d
-	}
-
 	// Find types that implement components. E.g., something that looks like:
 	//	type something struct {
 	//		weaver.Implements[SomeComponentType]
@@ -273,7 +267,8 @@ func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
 				// not type Named. We ignore these.
 				continue
 			}
-			t, ok := g.typeof(typespec.Type).(*types.Struct)
+			// Check if the type of the expression is struct.
+			t, ok := g.pkg.TypesInfo.Types[typespec.Type].Type.(*types.Struct)
 			if !ok {
 				continue
 			}
@@ -314,11 +309,6 @@ func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
 		}
 	}
 	return automarshals
-}
-
-// typeof returns the type of the provided expression.
-func (g *generator) typeof(e ast.Expr) types.Type {
-	return g.pkg.TypesInfo.Types[e].Type
 }
 
 func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec) {
