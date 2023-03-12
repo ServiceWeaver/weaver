@@ -40,17 +40,15 @@ type babysitter struct {
 	ctx           context.Context
 	opts          envelope.Options
 	dep           *protos.Deployment
-	group         *protos.ColocationGroup
-	replicaId     int32
 	mgrAddr       string
 	logger        logtype.Logger
 	traceExporter *traceio.Writer // to export traces to the manager
-	envelope      *envelope.Envelope
 }
 
 var _ envelope.EnvelopeHandler = &babysitter{}
 
-// RunBabysitter creates and runs a babysitter that was deployed using SSH.
+// RunBabysitter creates and runs an envelope.Envelope and a metrics collector for a
+// weavelet deployed with SSH.
 func RunBabysitter(ctx context.Context) error {
 	// Retrieve the deployment information.
 	info := &BabysitterInfo{}
@@ -67,11 +65,9 @@ func RunBabysitter(ctx context.Context) error {
 
 	id := uuid.New().String()
 	b := &babysitter{
-		ctx:       ctx,
-		dep:       info.Deployment,
-		group:     info.Group,
-		replicaId: info.ReplicaId,
-		mgrAddr:   info.ManagerAddr,
+		ctx:     ctx,
+		dep:     info.Deployment,
+		mgrAddr: info.ManagerAddr,
 		logger: logging.FuncLogger{
 			Opts: logging.Options{
 				App:        info.Deployment.App.Name,
@@ -97,7 +93,7 @@ func RunBabysitter(ctx context.Context) error {
 	wlet := &protos.WeaveletInfo{
 		App:           b.dep.App.Name,
 		DeploymentId:  b.dep.Id,
-		Group:         b.group,
+		Group:         info.Group,
 		GroupId:       id,
 		Id:            id,
 		SameProcess:   b.dep.App.SameProcess,
@@ -108,12 +104,18 @@ func RunBabysitter(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	b.envelope = e
-	go b.collectMetrics()
-	return e.Run(b.ctx)
+	c := metricsCollector{logger: b.logger, envelope: e, info: info}
+	go c.run(ctx)
+	return e.Run(ctx)
 }
 
-func (b *babysitter) collectMetrics() {
+type metricsCollector struct {
+	logger   logtype.Logger
+	envelope *envelope.Envelope
+	info     *BabysitterInfo
+}
+
+func (b *metricsCollector) run(ctx context.Context) {
 	tickerCollectMetrics := time.NewTicker(time.Minute)
 	defer tickerCollectMetrics.Stop()
 	for {
@@ -131,15 +133,19 @@ func (b *babysitter) collectMetrics() {
 			for _, m := range ms {
 				metrics = append(metrics, m.ToProto())
 			}
-			if err := protomsg.Call(b.ctx, protomsg.CallArgs{
+			if err := protomsg.Call(ctx, protomsg.CallArgs{
 				Client:  http.DefaultClient,
-				Addr:    b.mgrAddr,
+				Addr:    b.info.ManagerAddr,
 				URLPath: recvMetricsURL,
-				Request: &BabysitterMetrics{GroupName: b.group.Name, ReplicaId: b.replicaId, Metrics: metrics},
+				Request: &BabysitterMetrics{
+					GroupName: b.info.Group.Name,
+					ReplicaId: b.info.ReplicaId,
+					Metrics:   metrics,
+				},
 			}); err != nil {
 				b.logger.Error("Error collecting metrics", err)
 			}
-		case <-b.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
