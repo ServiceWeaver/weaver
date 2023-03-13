@@ -44,5 +44,8 @@ func CheckWeaveletInfo(w *protos.WeaveletInfo) error {
 	if _, err := uuid.Parse(w.Id); err != nil {
 		return fmt.Errorf("WeaveletInfo: invalid weavelet id: %w", err)
 	}
+	if w.SingleProcess && !w.SingleMachine {
+		return fmt.Errorf("WeaveletInfo: single process but not single machine")
+	}
 	return nil
 }

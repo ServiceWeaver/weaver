@@ -99,11 +99,13 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 
 	// Construct the conns.
 	wlet := &protos.WeaveletInfo{
-		App:          "app",
-		DeploymentId: uuid.New().String(),
-		Group:        &protos.ColocationGroup{Name: "group"},
-		GroupId:      uuid.New().String(),
-		Id:           uuid.New().String(),
+		App:           "app",
+		DeploymentId:  uuid.New().String(),
+		Group:         &protos.ColocationGroup{Name: "group"},
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SingleProcess: true,
+		SingleMachine: true,
 	}
 	e, err := conn.NewEnvelopeConn(eReader, eWriter, handler, wlet)
 	if err != nil {

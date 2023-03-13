@@ -213,7 +213,7 @@ func (d *weavelet) start() (Instance, error) {
 		// TODO(mwhittaker): Right now, we resolve our hostname to get a
 		// dialable IP address. Double check that this always works.
 		host := "localhost"
-		if !d.info.UseLocalhost {
+		if !d.info.SingleMachine {
 			var err error
 			host, err = os.Hostname()
 			if err != nil {

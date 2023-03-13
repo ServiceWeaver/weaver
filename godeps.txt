@@ -320,7 +320,6 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     embed
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proxy
@@ -344,7 +343,6 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     math
     net
     net/http
-    os
     path
     reflect
     sort
@@ -739,8 +737,10 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     modernc.org/sqlite/lib
     net
     net/http
+    os
     path/filepath
     strconv
+    sync
     time
 github.com/ServiceWeaver/weaver/runtime/protomsg
     bytes
@@ -791,6 +791,7 @@ github.com/ServiceWeaver/weaver/weavertest
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/babysitter
+    github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors

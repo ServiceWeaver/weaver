@@ -98,16 +98,15 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	appConfig.Args = os.Args[1:]
 
 	wlet := &protos.WeaveletInfo{
-		App:                appConfig.Name,
-		DeploymentId:       uuid.New().String(),
-		Group:              &protos.ColocationGroup{Name: "main"},
-		GroupId:            uuid.New().String(),
-		Id:                 uuid.New().String(),
-		SameProcess:        appConfig.SameProcess,
-		Sections:           appConfig.Sections,
-		SingleProcess:      true,
-		UseLocalhost:       true,
-		WeaveletPicksPorts: true,
+		App:           appConfig.Name,
+		DeploymentId:  uuid.New().String(),
+		Group:         &protos.ColocationGroup{Name: "main"},
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SameProcess:   appConfig.SameProcess,
+		Sections:      appConfig.Sections,
+		SingleProcess: true,
+		SingleMachine: true,
 	}
 	if err := runtime.CheckWeaveletInfo(wlet); err != nil {
 		return nil, err

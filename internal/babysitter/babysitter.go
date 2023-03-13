@@ -164,6 +164,7 @@ func (b *Babysitter) startColocationGroup(group *protos.ColocationGroup) error {
 			SameProcess:   b.dep.App.SameProcess,
 			Sections:      b.dep.App.Sections,
 			SingleProcess: b.dep.SingleProcess,
+			SingleMachine: true,
 		}
 		e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
 		if err != nil {
