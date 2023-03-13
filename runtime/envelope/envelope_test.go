@@ -129,11 +129,13 @@ func checkFile() error {
 // wlet returns a WeaveletInfo and AppConfig for testing.
 func wlet(binary string, args ...string) (*protos.WeaveletInfo, *protos.AppConfig) {
 	weavelet := &protos.WeaveletInfo{
-		App:          "app",
-		DeploymentId: uuid.New().String(),
-		Group:        &protos.ColocationGroup{Name: "main"},
-		GroupId:      uuid.New().String(),
-		Id:           uuid.New().String(),
+		App:           "app",
+		DeploymentId:  uuid.New().String(),
+		Group:         &protos.ColocationGroup{Name: "main"},
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SingleProcess: true,
+		SingleMachine: true,
 	}
 	config := &protos.AppConfig{Binary: binary, Args: args}
 	return weavelet, config

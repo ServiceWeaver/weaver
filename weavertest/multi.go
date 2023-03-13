@@ -213,6 +213,7 @@ func createWeaveletForMain(dep *protos.Deployment) *protos.WeaveletInfo {
 		SameProcess:   dep.App.SameProcess,
 		Sections:      dep.App.Sections,
 		SingleProcess: dep.SingleProcess,
+		SingleMachine: true,
 	}
 	return wlet
 }

@@ -204,9 +204,7 @@ message WeaveletInfo {
   repeated ComponentGroup same_process = 6;  // See AppConfig.SameProcess.
   map<string, string> sections = 7;          // See AppConfig.Sections.
   bool single_process = 8;                   // a single-process deployment?
-  bool use_localhost = 9;                    // listeners listen on localhost?
-  bool weavelet_picks_ports = 10;            // a weavelet picks its own port?
-  string network_storage_dir = 11;           // colocation group storage dir
+  bool single_machine = 9;                   // a single-machine deployment?
 }
 
 // GetRoutingInfo is a request to retrieve routing information for a given
