@@ -235,11 +235,7 @@ func (d *weavelet) start() (Instance, error) {
 
 		// Monitor our routing assignment.
 		routelet := newRoutelet(d.ctx, d.env, d.info.Group.Name)
-		routelet.onChange(func(info *protos.RoutingInfo) {
-			if err := d.onNewRoutingInfo(info); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-			}
-		})
+		routelet.onChange(d.onNewRoutingInfo)
 
 		// Start reporting load signals periodically.
 		startWork(d.ctx, "report load", d.reportLoad)
@@ -553,7 +549,7 @@ func (d *weavelet) reportLoad() error {
 // onNewRoutingInfo is a callback that is invoked every time the routing info
 // for our process changes. onNewRoutingInfo updates the assignments and load
 // for our local components.
-func (d *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) error {
+func (d *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) {
 	for _, assignment := range info.Assignments {
 		collector, ok := d.loads[assignment.Component]
 		if !ok {
@@ -561,7 +557,6 @@ func (d *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) error {
 		}
 		collector.updateAssignment(assignment)
 	}
-	return nil
 }
 
 // getComponent returns the component with the given name.
