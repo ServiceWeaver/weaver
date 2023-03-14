@@ -17,9 +17,11 @@ package proxy
 import (
 	"errors"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"sync"
+	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 )
@@ -35,7 +37,27 @@ type Proxy struct {
 // NewProxy returns a new proxy.
 func NewProxy(logger logtype.Logger) *Proxy {
 	p := &Proxy{logger: logger}
-	p.reverse = httputil.ReverseProxy{Director: p.director}
+	p.reverse = httputil.ReverseProxy{
+		Director: p.director,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			// for non HTTP/2 cases, set a reasonable limit on the
+			// setup reasonable defaults so this proxy wound not run out
+			// of requesting adddress under high load pressure, e.g examples/hello
+			MaxConnsPerHost:     150,
+			MaxIdleConnsPerHost: 100,
+		},
+	}
+
 	return p
 }
 
