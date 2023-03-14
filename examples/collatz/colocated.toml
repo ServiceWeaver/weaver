@@ -5,8 +5,8 @@ rollout = "5m"
 colocate = [
   [
     "main",
-    "github.com/ServiceWeaver/weaver/examples/collatz/even/Even",
-    "github.com/ServiceWeaver/weaver/examples/collatz/odd/Odd"
+    "github.com/ServiceWeaver/weaver/examples/collatz/Even",
+    "github.com/ServiceWeaver/weaver/examples/collatz/Odd"
   ]
 ]
 
