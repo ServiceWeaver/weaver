@@ -115,15 +115,15 @@ type metricsCollector struct {
 	info     *BabysitterInfo
 }
 
-func (b *metricsCollector) run(ctx context.Context) {
+func (m *metricsCollector) run(ctx context.Context) {
 	tickerCollectMetrics := time.NewTicker(time.Minute)
 	defer tickerCollectMetrics.Stop()
 	for {
 		select {
 		case <-tickerCollectMetrics.C:
-			ms, err := b.envelope.ReadMetrics()
+			ms, err := m.envelope.ReadMetrics()
 			if err != nil {
-				b.logger.Error("Unable to collect metrics", err)
+				m.logger.Error("Unable to collect metrics", err)
 				continue
 			}
 			ms = append(ms, metrics.Snapshot()...)
@@ -135,15 +135,15 @@ func (b *metricsCollector) run(ctx context.Context) {
 			}
 			if err := protomsg.Call(ctx, protomsg.CallArgs{
 				Client:  http.DefaultClient,
-				Addr:    b.info.ManagerAddr,
+				Addr:    m.info.ManagerAddr,
 				URLPath: recvMetricsURL,
 				Request: &BabysitterMetrics{
-					GroupName: b.info.Group.Name,
-					ReplicaId: b.info.ReplicaId,
+					GroupName: m.info.Group.Name,
+					ReplicaId: m.info.ReplicaId,
 					Metrics:   metrics,
 				},
 			}); err != nil {
-				b.logger.Error("Error collecting metrics", err)
+				m.logger.Error("Error collecting metrics", err)
 			}
 		case <-ctx.Done():
 			return
