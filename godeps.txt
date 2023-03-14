@@ -856,3 +856,35 @@ github.com/ServiceWeaver/weaver/weavertest/internal/simple
     strings
     sync
     time
+github.com/ServiceWeaver/weaver/website/blog/deployers/multi
+    context
+    flag
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/envelope
+    github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/google/uuid
+    go.opentelemetry.io/otel/sdk/trace
+    sync
+github.com/ServiceWeaver/weaver/website/blog/deployers/pipes
+    context
+    flag
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/protomsg
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/google/uuid
+    google.golang.org/protobuf/encoding/prototext
+    os
+    os/exec
+github.com/ServiceWeaver/weaver/website/blog/deployers/single
+    context
+    flag
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/envelope
+    github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/google/uuid
+    go.opentelemetry.io/otel/sdk/trace
+    log
