@@ -62,6 +62,10 @@ var files = []file{
 	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog_entry.html", title: "A Quick Introduction to Service Weaver", license: true},
 	{dst: "news.html", markdown: "news.md", template: "news.html", license: true},
 
+	{dst: "blog/deployers.html", markdown: "blog/deployers.md", template: "blog_entry.html", title: "How to Implement a Service Weaver Deployer", license: true},
+	staticFile("blog/deployers/assets/overview.svg"),
+	staticFile("blog/deployers/assets/weavelets.svg"),
+
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),

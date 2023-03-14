@@ -49,3 +49,23 @@ blockquote {
     padding: 0.1em 10px;
     font-family:"Courier New";
 }
+
+/* Horizontally expand figures on small screens. */
+@media not (min-width: 800px) {
+  figure {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+figcaption {
+  text-align: center;
+  font-weight: bold;
+}
+
+.note {
+  padding: 1rem;
+  background-color: #ffeaa799;
+  border-left: 6pt solid #fdcb6e;
+  border-radius: 4pt;
+}

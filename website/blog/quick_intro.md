@@ -1,9 +1,13 @@
 # A Quick Introduction to Service Weaver
 
+<div class="blog-author">Robert Grandl</div>
+<div class="blog-date">March 1, 2023</div>
+
 <div style='
     background-color: #FFF6CF;
     border-radius: 16px;
     padding:0.7em;
+    margin-top: 1rem;
     border-width: 1px;
     border-style: none;'
 >
@@ -56,7 +60,7 @@ distracted from our initial focus: application business logic.
 
 >With Service Weaver, your focus is mostly on the application business logic.
 >Service Weaver takes care of cloud configuration and integration with the cloud
->provider. 
+>provider.
 
 
 <h3 class="emphasize-title">Huh, what are microservices and do we really need them?</h3>
@@ -252,7 +256,7 @@ new versions of your application safely and with less headache.
 
 When you make changes to your application, simply rebuild and rerun it. Service
 Weaver will take care of gradually shifting traffic from the old version to the
-new version. 
+new version.
 
 <h3 class="emphasize-title">Instrumenting</h3>
 
@@ -324,7 +328,7 @@ co-locate two components that communicate often with each other in the same
 process or machine. Conversely, we can place components with the same resource
 bottleneck on different machines to improve resource utilization or to improve
 fault-isolation. Service Weaver enables us to do all this with a single-line
-config change. 
+config change.
 
 <h3 class="emphasize-title">Sharding</h3>
 
