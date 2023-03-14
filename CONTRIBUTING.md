@@ -24,33 +24,43 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Contribution process
 
+We follow the [fork and branch workflow][workflow].
+
+There will be three Git repositories involved:
+
+1.  *upstream* - the ServiceWeaver repository on GitHub.
+2.  *origin* - your GitHub fork of `upstream`. This repository
+    will typically be at a URL that looks like `github.com/_your_user_name_/weaver`
+3.  *local* - your local clone of `origin`
+
 Here is a detailed outline of the steps needed to make changes to Service
-Weaver.
+Weaver. Steps 1-3 will only be needed the first time you are making changes to
+ServiceWeaver.
 
-1. Clone the repository.
+1.  Fork the `ServiceWeaver` repository on GitHub to create `origin`.
+    Visit [ServiceWeaver][github_weaver] GitHub repository and click the `Fork` button.
 
-   ```shell
-   git clone git@github.com:ServiceWeaver/weaver.git
-   cd weaver
-   ```
+2.  Make a `local` clone of your fork.
 
-   If you have already cloned the repository for previous changes,
-   you can reuse it, but make sure to first pull any recent changes
-   to Service Weaver:
+    ```shell
+    git clone git@github.com:_your_user_name_/weaver.git
+    ```
 
-   ```shell
-   cd weaver
-   git switch main
-   git pull origin main
-   ```
+3.  Add a remote pointing from `local` to `upstream`.
 
-2. Make a local branch in your clone.
+    ```shell
+    cd weaver
+    git remote add upstream git@github.com:ServiceWeaver/weaver.git
+    ```
+
+4. Make a local branch in your clone and pull any recent changes into it.
 
    ```shell
    git switch -c my_branch  # Pick a name appropriate to your work
+   git pull upstream main
    ```
 
-3. Make changes and commit to local branch.
+5. Make changes and commit to local branch.
 
    ```shell
    # ... editing, testing, ... 
@@ -63,29 +73,29 @@ Weaver.
     
    TODO: should we avoid discouraging multi-commit PRs?
 
-4. Pull any changes that may have been made in the shared repository
+6. Pull any changes that may have been made in the upstream repository
    main branch.
 
    ```shell
    git switch my_branch
-   git pull --rebase origin main
+   git pull --rebase upstream main
    ```
 
    Note that this command may result in merge conflicts. Fix those if
    needed.
 
-5. Push your branch to the corresponding branch in the shared repository.
+7. Push your branch to the corresponding branch in your fork (the `origin` repository).
 
    ```shell
    git switch my_branch
-   git push -u origin my_branch
+   git push origin my_branch
    ```
 
-6. Select the branch you are working on in the drop-down menu of branches on
-   https://github.com/ServiceWeaver/weaver . Then hit the `Compare and pull
+8. Select the branch you are working on in the drop-down menu of branches on
+   https://github.com/_your_user_name_/weaver . Then hit the `Compare and pull
    request` button.
 
-7. Respond to feedback, which may involve making new commits or
+9. Respond to feedback, which may involve making new commits or
    updating your prior commits. If you made any changes, push them
    to github again. If you amended a commit, you will have to force
    the push.
@@ -95,29 +105,31 @@ Weaver.
    git push --force origin my_branch
    ```
 
-8. Once reviewers are happy, pull any main branch changes that may
-   have happened since step 4.
+10. Once reviewers are happy, pull any main branch changes that may
+    have happened since step 6.
    
-   ```shell
-   git switch my_branch
-   git pull --rebase origin main
-   ```
+    ```shell
+    git switch my_branch
+    git pull --rebase upstream main
+    ```
 
-   If you made multiple commits, squash them together if you wish
-   (typically using an interactive rebase).
+    If you made multiple commits, squash them together if you wish
+    (typically using an interactive rebase).
 
-   If you picked up new changes or made any changes, push your branch
-   again to github, as described in step 7.
+    If you picked up new changes or made any changes, push your branch
+    again to github, as described in step 9.
 
-9. Ask somebody who has permissions (or do it yourself if you
-   have permissions) to merge your branch into the main branch
-   of the shared repository. The reviewer may do this without
-   being asked.
+11. Ask somebody who has permissions (or do it yourself if you
+    have permissions) to merge your branch into the main branch
+    of the `upstream` repository. The reviewer may do this without
+    being asked.
 
-   Select the `Rebase and merge` option on https://github.com/ServiceWeaver/weaver
-   or use the command line instructions found on that page.
+    Select the `Rebase and merge` option on https://github.com/ServiceWeaver/weaver
+    or use the command line instructions found on that page.
 
-10. Delete the branch: Visit https://github.com/ServiceWeaver/weaver/branches
+12. Delete the branch from `local`
+
+13. Delete the branch from `origin`: Visit https://github.com/_your_user_name/weaver/branches
     and check that `my_branch` is not marked as Open. If so, hit the delete
     button (looks like a trash icon) next to `my_branch`.
 
@@ -145,6 +157,8 @@ valuable:
 
 [cla]: https://cla.developers.google.com/about
 [github_help]: https://help.github.com/articles/about-pull-requests/
-[new_issue]: https://github.com/ServiceWeaver/weaver/issues/new
-[issues]: https://github.com/ServiceWeaver/weaver/issues
+[github_weaver]: https://github.com/ServiceWeaver/weaver
 [google_group]: https://groups.google.com/g/serviceweaver
+[issues]: https://github.com/ServiceWeaver/weaver/issues
+[new_issue]: https://github.com/ServiceWeaver/weaver/issues/new
+[workflow]: https://www.google.com/search?q=github+fork+and+branch+workflow
