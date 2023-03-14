@@ -30,10 +30,8 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
-	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 )
 
@@ -115,24 +113,8 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 		t.Fatal(fmt.Errorf("cannot create envelope conn: %v", err))
 	}
 
-	// Create and run an envelope for the main process.
-	options := envelope.Options{
-		Restart:         envelope.Never,
-		Retry:           retry.DefaultOptions,
-		GetEnvelopeConn: func() *conn.EnvelopeConn { return econn },
-	}
-	e, err := envelope.NewEnvelope(weaveletInfo, dep.App, b, options)
-	if err != nil {
-		t.Fatal(fmt.Errorf("cannot create envelope: %v", err))
-	}
-
 	go func() {
 		if err := econn.Run(); err != nil {
-			t.Error(err)
-		}
-	}()
-	go func() {
-		if err := e.Run(ctx); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -231,6 +213,7 @@ func createWeaveletForMain(dep *protos.Deployment) *protos.WeaveletInfo {
 		SameProcess:   dep.App.SameProcess,
 		Sections:      dep.App.Sections,
 		SingleProcess: dep.SingleProcess,
+		SingleMachine: true,
 	}
 	return wlet
 }

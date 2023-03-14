@@ -141,11 +141,7 @@ func (b *Babysitter) RegisterStatusPages(mux *http.ServeMux) {
 	status.RegisterServer(mux, b, b.logger)
 }
 
-// StartColocationGroup implements the protos.EnvelopeHandler interface.
-func (b *Babysitter) StartColocationGroup(group *protos.ColocationGroup) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
+func (b *Babysitter) startColocationGroup(group *protos.ColocationGroup) error {
 	envelopes, ok := b.managed[group.Name]
 	if ok && len(envelopes) == DefaultReplication {
 		// Already started.
@@ -168,6 +164,7 @@ func (b *Babysitter) StartColocationGroup(group *protos.ColocationGroup) error {
 			SameProcess:   b.dep.App.SameProcess,
 			Sections:      b.dep.App.Sections,
 			SingleProcess: b.dep.SingleProcess,
+			SingleMachine: true,
 		}
 		e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
 		if err != nil {
@@ -202,8 +199,8 @@ func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
 		if _, ok := g.Assignments[req.Component]; !ok {
 			// Create an initial assignment for the component.
 			g.Assignments[req.Component] = &protos.Assignment{
-				App:          req.App,
-				DeploymentId: req.DeploymentId,
+				App:          b.dep.App.Name,
+				DeploymentId: b.dep.Id,
 				Component:    req.Component,
 			}
 		}
@@ -214,7 +211,9 @@ func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
 
 	// Store app state
 	b.appState.Update(appVersionStateKey, state)
-	return nil
+
+	// Start the colocation group, if it hasn't already started.
+	return b.startColocationGroup(&protos.ColocationGroup{Name: req.ColocationGroup})
 }
 
 // RegisterReplica implements the protos.EnvelopeHandler interface.

@@ -27,8 +27,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
@@ -487,7 +489,7 @@ func (d *DB) execDB(ctx context.Context, query string, args ...any) (sql.Result,
 //
 // Perfetto UI requires that the server runs on the local port 9001. For that
 // reason, this method will block until port 9001 becomes available.
-func (d *DB) Serve(ctx context.Context) error {
+func (d *DB) Serve(ctx context.Context) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("OK")) //nolint:errcheck // response write error
@@ -513,16 +515,28 @@ func (d *DB) Serve(ctx context.Context) error {
 	})
 	server := http.Server{Handler: mux}
 	ticker := time.NewTicker(time.Second)
+	var warnOnce sync.Once
 	for {
 		select {
 		case <-ticker.C:
 			lis, err := net.Listen("tcp", "localhost:9001")
-			if err == nil {
-				ticker.Stop()
-				return server.Serve(lis)
+			if err != nil {
+				warnOnce.Do(func() {
+					fmt.Fprintf(os.Stderr, "Perfetto server failed to listen on port 9001: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Perfetto server will retry until port 9001 is available\n")
+				})
+				continue
 			}
+
+			ticker.Stop()
+			err = server.Serve(lis)
+			if !errors.Is(err, http.ErrServerClosed) {
+				fmt.Fprintf(os.Stderr, "Failed to serve perfetto backend: %v\n", err)
+			}
+			return
+
 		case <-ctx.Done():
-			return ctx.Err()
+			return
 		}
 	}
 }

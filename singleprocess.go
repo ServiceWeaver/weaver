@@ -98,16 +98,15 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	appConfig.Args = os.Args[1:]
 
 	wlet := &protos.WeaveletInfo{
-		App:                appConfig.Name,
-		DeploymentId:       uuid.New().String(),
-		Group:              &protos.ColocationGroup{Name: "main"},
-		GroupId:            uuid.New().String(),
-		Id:                 uuid.New().String(),
-		SameProcess:        appConfig.SameProcess,
-		Sections:           appConfig.Sections,
-		SingleProcess:      true,
-		UseLocalhost:       true,
-		WeaveletPicksPorts: true,
+		App:           appConfig.Name,
+		DeploymentId:  uuid.New().String(),
+		Group:         &protos.ColocationGroup{Name: "main"},
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SameProcess:   appConfig.SameProcess,
+		Sections:      appConfig.Sections,
+		SingleProcess: true,
+		SingleMachine: true,
 	}
 	if err := runtime.CheckWeaveletInfo(wlet); err != nil {
 		return nil, err
@@ -140,11 +139,6 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 
 func (e *singleprocessEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 	return e.weavelet
-}
-
-func (e *singleprocessEnv) StartColocationGroup(context.Context, *protos.ColocationGroup) error {
-	// All processes are hosted in this colocation group, so we do not support starting colocation groups.
-	return fmt.Errorf("cannot start other colocation groups for a singleprocess execution")
 }
 
 func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, name string, _ bool) error {

@@ -99,11 +99,13 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 
 	// Construct the conns.
 	wlet := &protos.WeaveletInfo{
-		App:          "app",
-		DeploymentId: uuid.New().String(),
-		Group:        &protos.ColocationGroup{Name: "group"},
-		GroupId:      uuid.New().String(),
-		Id:           uuid.New().String(),
+		App:           "app",
+		DeploymentId:  uuid.New().String(),
+		Group:         &protos.ColocationGroup{Name: "group"},
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SingleProcess: true,
+		SingleMachine: true,
 	}
 	e, err := conn.NewEnvelopeConn(eReader, eWriter, handler, wlet)
 	if err != nil {
@@ -145,12 +147,11 @@ type handlerForTest struct{}
 
 var _ conn.EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error          { return nil }
-func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                      {}
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error      { return nil }
-func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error    { return nil }
-func (h *handlerForTest) StartColocationGroup(*protos.ColocationGroup) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error        { return nil }
+func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error       { return nil }
+func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                   {}
+func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
+func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
+func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error     { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }

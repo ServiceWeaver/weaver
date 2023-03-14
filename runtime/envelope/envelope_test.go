@@ -129,11 +129,13 @@ func checkFile() error {
 // wlet returns a WeaveletInfo and AppConfig for testing.
 func wlet(binary string, args ...string) (*protos.WeaveletInfo, *protos.AppConfig) {
 	weavelet := &protos.WeaveletInfo{
-		App:          "app",
-		DeploymentId: uuid.New().String(),
-		Group:        &protos.ColocationGroup{Name: "main"},
-		GroupId:      uuid.New().String(),
-		Id:           uuid.New().String(),
+		App:           "app",
+		DeploymentId:  uuid.New().String(),
+		Group:         &protos.ColocationGroup{Name: "main"},
+		GroupId:       uuid.New().String(),
+		Id:            uuid.New().String(),
+		SingleProcess: true,
+		SingleMachine: true,
 	}
 	config := &protos.AppConfig{Binary: binary, Args: args}
 	return weavelet, config
@@ -188,11 +190,10 @@ func (h *handlerForTest) getTraceSpanNames() []string {
 	return h.traces
 }
 
-func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)                { h.logSaver(entry) }
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error      { return nil }
-func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error    { return nil }
-func (h *handlerForTest) StartColocationGroup(*protos.ColocationGroup) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error        { return nil }
+func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)             { h.logSaver(entry) }
+func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
+func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
+func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error     { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }
@@ -273,7 +274,6 @@ func TestBigPrints(t *testing.T) {
 	ctx := context.Background()
 	var entries []*protos.LogEntry
 	var m sync.Mutex
-	opts := Options{Restart: Never}
 	h := &handlerForTest{logSaver: func(entry *protos.LogEntry) {
 		m.Lock()
 		defer m.Unlock()
@@ -282,7 +282,7 @@ func TestBigPrints(t *testing.T) {
 
 	n := 10000
 	wlet, config := wlet(executable, "bigprint", strconv.Itoa(n))
-	e, err := NewEnvelope(wlet, config, h, opts)
+	e, err := NewEnvelope(wlet, config, h, Options{Restart: Never})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,10 +310,9 @@ func TestCancel(t *testing.T) {
 		name := fmt.Sprintf("%v", restart)
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
-			opts := Options{}
 			wlet, config := wlet(executable, "loop")
 			e, err := NewEnvelope(wlet, config,
-				&handlerForTest{logSaver: testSaver(t)}, opts)
+				&handlerForTest{logSaver: testSaver(t)}, Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
