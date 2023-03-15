@@ -30,18 +30,39 @@ function addCopyButtonsToPres() {
     button.innerText = '📋';
     button.classList.add('pre-copy-button');
     button.addEventListener('click', function() {
-      if (navigator.clipboard) {
-        // Due to how the markdown renderer converts markdown to HTML, every
-        // newline in innerText is duplicated. The replaceAll removes the
-        // redundant newlines.
-        navigator.clipboard.writeText(code.innerText.replaceAll('\n\n', '\n'));
-      }
+        if (navigator.clipboard) {
+            // Due to how the markdown renderer converts markdown to HTML, every
+            // newline in innerText is duplicated. The replaceAll removes the
+            // redundant newlines.
+            let text = code.innerText.replaceAll('\n\n', '\n');
+
+            // If the text contains commands, only copy the commands. Otherwise,
+            // copy the entire text.
+            let commands = getCommands(text);
+            if (commands.length > 0) {
+                text = commands;
+            }
+            navigator.clipboard.writeText(text);
+        }
     });
 
     // Update the parent pre.
     pre.classList.add('pre-copy-button-parent');
     pre.appendChild(button);
   }
+}
+
+// getCommands splits the provided text into lines and returns the subset
+// of lines that represent commands, i.e., the lines that start with "$ ".
+function getCommands(text) {
+    let lines = text.split("\n");
+    let commands = [];
+    for (let line of lines) {
+        if (line.startsWith("$ ")) {
+            commands.push(line.substring(2));
+        }
+    }
+    return commands.join("\n");
 }
 
 window.addEventListener('load', addCopyButtonsToPres);
