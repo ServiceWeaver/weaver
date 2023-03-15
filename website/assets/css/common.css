@@ -106,3 +106,8 @@ header li {
   font-weight: bold;
   color: red;
 }
+
+footer {
+  height: 3.5rem;
+  margin: 2rem 0;
+}
