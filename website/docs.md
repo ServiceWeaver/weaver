@@ -1711,8 +1711,13 @@ prompts:
 $ curl https://sdk.cloud.google.com | bash
 ```
 
-After installing `gcloud`, run the following command to initialize your local
-environment:
+After installing `gcloud`, install the required GKE authentication plugin:
+
+```console
+$ gcloud components install gke-gcloud-auth-plugin
+```
+
+, and then run the following command to initialize your local environment:
 
 ```console
 $ gcloud init
@@ -1769,6 +1774,7 @@ is public.
 Deploy the application using `weaver gke deploy`:
 
 ```console
+$ GOOS=linux GOARCH=amd64 go build
 $ weaver gke deploy weaver.toml
 ...
 Deploying the application... Done
