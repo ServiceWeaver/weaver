@@ -57,7 +57,8 @@ message EnvelopeMsg {
   string error = 10;
 }
 
-// WeaveletMsg holds a message sent by a weavelet to the envelope that manages it.
+// WeaveletMsg holds a message sent by a weavelet to the envelope that manages
+// it.
 message WeaveletMsg {
   // Unique id identifies the request for which this message is a reply.
   int64 id = 1;
@@ -187,19 +188,19 @@ message AppConfig {
 
 // A colocation group defines a set of components that are colocated together
 // on the same machine or a VM. A colocation group may be replicated, in which
-// case the communication between components in the same colocation group replica
-// remains local to that replica.
+// case the communication between components in the same colocation group
+// replica remains local to that replica.
 message ColocationGroup {
   string name = 1;
 }
 
 // WeaveletInfo contains information provided to a weavelet from its deployer.
 message WeaveletInfo {
-  string app = 1;                            // app name
-  string deployment_id = 2;                  // deployment id, in UUID format
-  ColocationGroup group = 3;                 // colocation group
-  string group_id = 4;                       // colocation group replica id
-  string id = 5;                             // weavelet id, in UUID format
+  string app = 1;             // app name
+  string deployment_id = 2;   // deployment id, in UUID format
+  ColocationGroup group = 3;  // colocation group
+  string group_id = 4;        // colocation group replica id
+  string id = 5;              // weavelet id, in UUID format
   // TODO(spetrovic): Rename to same_group.
   repeated ComponentGroup same_process = 6;  // See AppConfig.SameProcess.
   map<string, string> sections = 7;          // See AppConfig.Sections.
@@ -244,7 +245,7 @@ enum ProfileType {
 message RunProfiling {
   string app_name = 1;
   string version_id = 2;
-  string group = 3; // If non-empty, only profile the given colocation group.
+  string group = 3;  // If non-empty, only profile the given colocation group.
 
   // Type of the profile we want to collect (e.g., heap, cpu).
   ProfileType profile_type = 4;
@@ -258,7 +259,7 @@ message Profile {
   string app_name = 1;
   string version_id = 2;
 
-  bytes data = 3;       // Encoded profile data.
+  bytes data = 3;  // Encoded profile data.
 
   // Errors encountered collecting the profile data.
   // Note that the profile data may be partially populated even if there are
@@ -307,10 +308,12 @@ message GetComponentsToStart {
   string version = 4;
 }
 
-// ComponentsToStart is a result of the GetComponentsToStart sent to the manager.
+// ComponentsToStart is a result of the GetComponentsToStart sent to the
+// manager.
 message ComponentsToStart {
   // unchanged is set to true if the request was ended prematurely without
-  // detecting a change. In this case, version and components to start are empty.
+  // detecting a change. In this case, version and components to start are
+  // empty.
   bool unchanged = 1;
   string version = 2;
   repeated string components = 3;
@@ -392,12 +395,12 @@ message Assignment {
 
   repeated Slice slices = 1;
 
-  // An assignment is scoped to a particular component in a particular deployment.
-  // For example, different components in the same deployment or the same component in
-  // different deployments get their own assignments. The assignment for a
-  // component can change over time. Every one of these assignments is given a
-  // monotonically increasing version. Versions are unique for a given component,
-  // but not unique across components.
+  // An assignment is scoped to a particular component in a particular
+  // deployment. For example, different components in the same deployment or the
+  // same component in different deployments get their own assignments. The
+  // assignment for a component can change over time. Every one of these
+  // assignments is given a monotonically increasing version. Versions are
+  // unique for a given component, but not unique across components.
   string app = 2;
   string deployment_id = 3;
   string component = 4;
@@ -472,11 +475,11 @@ message WeaveletLoadReport {
     uint64 version = 3;
   }
 
-  string app = 1;            // Application name
-  string deployment_id = 2;  // Deployment id.
-  string group = 3;          // Colocation group.
-  string replica = 4;        // e.g., tcp://124.123.123.412:1291
-  map<string, ComponentLoad> loads = 5;  // load for every component on the weavelet
+  string app = 1;                        // Application name
+  string deployment_id = 2;              // Deployment id.
+  string group = 3;                      // Colocation group.
+  string replica = 4;                    // e.g., tcp://124.123.123.412:1291
+  map<string, ComponentLoad> loads = 5;  // load for weavelet's components
 }
 
 // MetricType specifies a particular kind of metric.
@@ -550,11 +553,11 @@ message LogEntry {
 
 // Span is a proto-based representation of an open-telemetry Span.
 message Span {
-  string name = 1;           // Span name
-  bytes trace_id = 2;        // Span trace id
-  bytes span_id = 3;         // Unique span id
-  bytes parent_span_id = 4;  // If non-empty, the span's parent id
-  SpanKind kind = 5;         // Span's role in the trace.
+  string name = 1;            // Span name
+  bytes trace_id = 2;         // Span trace id
+  bytes span_id = 3;          // Unique span id
+  bytes parent_span_id = 4;   // If non-empty, the span's parent id
+  SpanKind kind = 5;          // Span's role in the trace.
   sfixed64 start_micros = 6;  // Span start time (microseconds since epoch)
   sfixed64 end_micros = 7;    // Span end time (microseconds since epoch)
   repeated Attribute attributes = 8;  // Span attributes
@@ -572,9 +575,9 @@ message Span {
 
   // Event represent an event that occurred in the span's lifetime.
   message Event {
-    string name = 1;                     // Even name
-    sfixed64 time_micros = 2;            // Time the event was recorded (microseconds since epoch)
-    repeated Attribute attributes = 3;   // Event attributes
+    string name = 1;           // Even name
+    sfixed64 time_micros = 2;  // Time event was recorded (micros since epoch)
+    repeated Attribute attributes = 3;  // Event attributes
 
     // Number of attributes dropped due to limits being reached.
     int64 dropped_attribute_count = 4;
@@ -604,8 +607,8 @@ message Span {
   }
   Library library = 12;  // Instrumentation library that created the span
 
-  // Resource describes an entity (e.g., a Service Weaver component) this span belongs
-  // to.
+  // Resource describes an entity (e.g., a Service Weaver component) this span
+  // belongs to.
   message Resource {
     // URL that describes the shape and a composition of data for this span.
     string schema_url = 1;

@@ -500,7 +500,8 @@ func (x *EnvelopeMsg) GetError() string {
 	return ""
 }
 
-// WeaveletMsg holds a message sent by a weavelet to the envelope that manages it.
+// WeaveletMsg holds a message sent by a weavelet to the envelope that manages
+// it.
 type WeaveletMsg struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -926,8 +927,8 @@ func (x *AppConfig) GetSections() map[string]string {
 
 // A colocation group defines a set of components that are colocated together
 // on the same machine or a VM. A colocation group may be replicated, in which
-// case the communication between components in the same colocation group replica
-// remains local to that replica.
+// case the communication between components in the same colocation group
+// replica remains local to that replica.
 type ColocationGroup struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1673,14 +1674,16 @@ func (x *GetComponentsToStart) GetVersion() string {
 	return ""
 }
 
-// ComponentsToStart is a result of the GetComponentsToStart sent to the manager.
+// ComponentsToStart is a result of the GetComponentsToStart sent to the
+// manager.
 type ComponentsToStart struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	// unchanged is set to true if the request was ended prematurely without
-	// detecting a change. In this case, version and components to start are empty.
+	// detecting a change. In this case, version and components to start are
+	// empty.
 	Unchanged  bool     `protobuf:"varint,1,opt,name=unchanged,proto3" json:"unchanged,omitempty"`
 	Version    string   `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	Components []string `protobuf:"bytes,3,rep,name=components,proto3" json:"components,omitempty"`
@@ -2088,12 +2091,12 @@ type Assignment struct {
 	unknownFields protoimpl.UnknownFields
 
 	Slices []*Assignment_Slice `protobuf:"bytes,1,rep,name=slices,proto3" json:"slices,omitempty"`
-	// An assignment is scoped to a particular component in a particular deployment.
-	// For example, different components in the same deployment or the same component in
-	// different deployments get their own assignments. The assignment for a
-	// component can change over time. Every one of these assignments is given a
-	// monotonically increasing version. Versions are unique for a given component,
-	// but not unique across components.
+	// An assignment is scoped to a particular component in a particular
+	// deployment. For example, different components in the same deployment or the
+	// same component in different deployments get their own assignments. The
+	// assignment for a component can change over time. Every one of these
+	// assignments is given a monotonically increasing version. Versions are
+	// unique for a given component, but not unique across components.
 	App          string `protobuf:"bytes,2,opt,name=app,proto3" json:"app,omitempty"`
 	DeploymentId string `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	Component    string `protobuf:"bytes,4,opt,name=component,proto3" json:"component,omitempty"`
@@ -2178,7 +2181,7 @@ type WeaveletLoadReport struct {
 	DeploymentId string                                       `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`                                                       // Deployment id.
 	Group        string                                       `protobuf:"bytes,3,opt,name=group,proto3" json:"group,omitempty"`                                                                                         // Colocation group.
 	Replica      string                                       `protobuf:"bytes,4,opt,name=replica,proto3" json:"replica,omitempty"`                                                                                     // e.g., tcp://124.123.123.412:1291
-	Loads        map[string]*WeaveletLoadReport_ComponentLoad `protobuf:"bytes,5,rep,name=loads,proto3" json:"loads,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` // load for every component on the weavelet
+	Loads        map[string]*WeaveletLoadReport_ComponentLoad `protobuf:"bytes,5,rep,name=loads,proto3" json:"loads,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` // load for weavelet's components
 }
 
 func (x *WeaveletLoadReport) Reset() {
@@ -3357,7 +3360,7 @@ type Span_Event struct {
 	unknownFields protoimpl.UnknownFields
 
 	Name       string       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                 // Even name
-	TimeMicros int64        `protobuf:"fixed64,2,opt,name=time_micros,json=timeMicros,proto3" json:"time_micros,omitempty"` // Time the event was recorded (microseconds since epoch)
+	TimeMicros int64        `protobuf:"fixed64,2,opt,name=time_micros,json=timeMicros,proto3" json:"time_micros,omitempty"` // Time event was recorded (micros since epoch)
 	Attributes []*Attribute `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty"`                     // Event attributes
 	// Number of attributes dropped due to limits being reached.
 	DroppedAttributeCount int64 `protobuf:"varint,4,opt,name=dropped_attribute_count,json=droppedAttributeCount,proto3" json:"dropped_attribute_count,omitempty"`
@@ -3546,8 +3549,8 @@ func (x *Span_Library) GetSchemaUrl() string {
 	return ""
 }
 
-// Resource describes an entity (e.g., a Service Weaver component) this span belongs
-// to.
+// Resource describes an entity (e.g., a Service Weaver component) this span
+// belongs to.
 type Span_Resource struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
