@@ -77,6 +77,14 @@ For example:
 $ export CGO_ENABLED=1; export CC=gcc; go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
 ```
 
+## Install via Homebrew
+
+If you are using [homebrew](https://brew.sh/), you can install as:
+
+```sh
+$ brew install service-weaver
+```
+
 # Step by Step Tutorial
 
 In this section, we show you how to write Service Weaver applications. To follow
