@@ -36,7 +36,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-//go:generate ./dev/protoc.sh internal/babysitter/babysitter.proto
 //go:generate ./dev/protoc.sh internal/status/status.proto
 //go:generate ./dev/protoc.sh runtime/protos/runtime.proto
 //go:generate ./dev/writedeps.sh

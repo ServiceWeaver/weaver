@@ -316,8 +316,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
     github.com/ServiceWeaver/weaver/runtime/codegen
 github.com/ServiceWeaver/weaver/internal/babysitter
     context
-    crypto/sha256
-    embed
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/logtype
@@ -336,18 +334,15 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
-    google.golang.org/protobuf/proto
-    google.golang.org/protobuf/reflect/protoreflect
-    google.golang.org/protobuf/runtime/protoimpl
+    golang.org/x/exp/slices
     google.golang.org/protobuf/types/known/timestamppb
     math
     net
     net/http
-    path
-    reflect
     sort
     sync
     syscall
+    time
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
     fmt
@@ -610,6 +605,7 @@ github.com/ServiceWeaver/weaver/internal/versioned
     context
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/runtime/protomsg
+    github.com/google/uuid
     google.golang.org/protobuf/proto
     strconv
     sync
