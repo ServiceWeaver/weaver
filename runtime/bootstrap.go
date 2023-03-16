@@ -38,9 +38,9 @@ const (
 
 // Bootstrap holds configuration information used to start a process execution.
 type Bootstrap struct {
-	ToWeaveletFd int    // File descriptor on which to send to weavelet (0 if unset)
-	ToEnvelopeFd int    // File descriptor from which to send to envelope (0 if unset)
-	TestConfig   string // Configuration passed by user test code to weavertest
+	ToWeaveletFd uintptr // File descriptor on which to send to weavelet (0 if unset)
+	ToEnvelopeFd uintptr // File descriptor from which to send to envelope (0 if unset)
+	TestConfig   string  // Configuration passed by user test code to weavertest
 }
 
 // BootstrapKey is the Context key used by weavertest to pass Bootstrap to [weaver.Init].
@@ -66,17 +66,17 @@ func GetBootstrap(ctx context.Context) (Bootstrap, error) {
 	if str1 == "" || str2 == "" {
 		return Bootstrap{}, fmt.Errorf("envelope/weavelet pipe should have 2 file descriptors, got (%s, %s)", str1, str2)
 	}
-	toWeaveletFd, err := strconv.Atoi(str1)
+	toWeaveletFd, err := strconv.ParseUint(str1, 10, 64)
 	if err != nil {
 		return Bootstrap{}, fmt.Errorf("unable to parse envelope to weavelet fd: %w", err)
 	}
-	toEnvelopeFd, err := strconv.Atoi(str2)
+	toEnvelopeFd, err := strconv.ParseUint(str2, 10, 64)
 	if err != nil {
 		return Bootstrap{}, fmt.Errorf("unable to parse weavelet to envelope fd: %w", err)
 	}
 	return Bootstrap{
-		ToWeaveletFd: toWeaveletFd,
-		ToEnvelopeFd: toEnvelopeFd,
+		ToWeaveletFd: uintptr(toWeaveletFd),
+		ToEnvelopeFd: uintptr(toEnvelopeFd),
 	}, nil
 }
 
@@ -99,11 +99,11 @@ func (b Bootstrap) MakePipes() (io.ReadCloser, io.WriteCloser, error) {
 	return toWeavelet, toEnvelope, nil
 }
 
-func openFileDescriptor(fd int) (*os.File, error) {
+func openFileDescriptor(fd uintptr) (*os.File, error) {
 	if fd == 0 {
 		return nil, fmt.Errorf("bad file descriptor %d", fd)
 	}
-	f := os.NewFile(uintptr(fd), fmt.Sprint("/proc/self/fd/", fd))
+	f := os.NewFile(fd, fmt.Sprint("/proc/self/fd/", fd))
 	if f == nil {
 		return nil, fmt.Errorf("open file descriptor %d: failed", fd)
 	}
