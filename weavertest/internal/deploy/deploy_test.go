@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/ServiceWeaver/weaver"
-	"github.com/ServiceWeaver/weaver/internal/babysitter"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/deploy"
 )
@@ -41,7 +40,7 @@ func TestReplicated(t *testing.T) {
 	}
 	w.Use(ctx, dir)
 	// Verify that deployed processes started.
-	want := babysitter.DefaultReplication
+	want := weavertest.DefaultReplication
 	if got := numDeployed(t, dir); got != want {
 		t.Fatalf("wrong number of deployed processes: want %d, got %d", want, got)
 	}

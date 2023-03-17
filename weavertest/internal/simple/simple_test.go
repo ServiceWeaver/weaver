@@ -134,9 +134,6 @@ func TestListener(t *testing.T) {
 			if single && proxy != "" {
 				t.Fatalf("Bad Listener.ProxyAddr() %q", proxy)
 			}
-			if !single && !strings.Contains(proxy, ":") {
-				t.Fatalf("Bad Listener.ProxyAddr() %q", proxy)
-			}
 
 			// Run server on listener.
 			const response = "hello world"
@@ -148,7 +145,7 @@ func TestListener(t *testing.T) {
 			go srv.Serve(lis)
 			defer srv.Shutdown(ctx)
 
-			url := fmt.Sprintf("http://%s/test", lis.Addr().String())
+			url := fmt.Sprintf("http://%s/test", lis.String())
 			t.Logf("Calling %s", url)
 			resp, err := http.Get(url)
 			if err != nil {

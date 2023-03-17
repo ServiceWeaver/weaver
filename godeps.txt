@@ -786,14 +786,20 @@ github.com/ServiceWeaver/weaver/weavertest
     context
     fmt
     github.com/ServiceWeaver/weaver
-    github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/envelope/conn
+    github.com/ServiceWeaver/weaver/internal/logtype
+    github.com/ServiceWeaver/weaver/internal/versioned
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/ServiceWeaver/weaver/runtime/retry
     github.com/google/uuid
+    go.opentelemetry.io/otel/sdk/trace
+    golang.org/x/exp/maps
     os
     regexp
     runtime
