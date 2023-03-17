@@ -57,9 +57,10 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap) (*remoteEnv,
 	}
 
 	go func() {
-		if err := env.conn.Run(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
+		// TODO(mwhittaker): Fix linter and only print if the error is non-nil.
+		// Right now, the linter is complaining that the returned error is
+		// always non-nil.
+		fmt.Fprintln(os.Stderr, env.conn.Run())
 	}()
 	logSaver := env.CreateLogSaver(ctx, "serviceweaver")
 	env.sysLogger = newAttrLogger(wlet.App, wlet.DeploymentId, "weavelet", wlet.Id, logSaver)

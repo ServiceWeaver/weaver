@@ -47,7 +47,7 @@ import (
 )
 
 // The default number of times a component is replicated.
-const DefaultReplication = 2
+const defaultReplication = 2
 
 // A Babysitter manages an application deployment.
 type Babysitter struct {
@@ -180,12 +180,12 @@ func (b *Babysitter) allProxies() []*proxyInfo {
 func (b *Babysitter) startColocationGroup(g *group) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if len(g.envelopes) == DefaultReplication {
+	if len(g.envelopes) == defaultReplication {
 		// Already started.
 		return nil
 	}
 
-	for r := 0; r < DefaultReplication; r++ {
+	for r := 0; r < defaultReplication; r++ {
 		// Start the weavelet and capture its logs, traces, and metrics.
 		wlet := &protos.WeaveletInfo{
 			App:           b.dep.App.Name,

@@ -38,9 +38,11 @@ const (
 
 // Bootstrap holds configuration information used to start a process execution.
 type Bootstrap struct {
-	ToWeaveletFd uintptr // File descriptor on which to send to weavelet (0 if unset)
-	ToEnvelopeFd uintptr // File descriptor from which to send to envelope (0 if unset)
-	TestConfig   string  // Configuration passed by user test code to weavertest
+	ToWeaveletFd   uintptr  // File descriptor on which to send to weavelet (0 if unset)
+	ToEnvelopeFd   uintptr  // File descriptor from which to send to envelope (0 if unset)
+	ToWeaveletFile *os.File // Pipe to send to weavelet (weavertest only).
+	ToEnvelopeFile *os.File // Pipe to send to envelope (weavertest only).
+	TestConfig     string   // Config file contents (weavertest only).
 }
 
 // BootstrapKey is the Context key used by weavertest to pass Bootstrap to [weaver.Init].
@@ -83,11 +85,16 @@ func GetBootstrap(ctx context.Context) (Bootstrap, error) {
 // HasPipes returns true if pipe information has been supplied. This
 // is true except in the case of singleprocess.
 func (b Bootstrap) HasPipes() bool {
-	return b.ToWeaveletFd != 0 && b.ToEnvelopeFd != 0
+	return (b.ToWeaveletFd != 0 && b.ToEnvelopeFd != 0) ||
+		(b.ToWeaveletFile != nil && b.ToEnvelopeFile != nil)
 }
 
 // MakePipes creates pipe reader and writer. It returns an error if pipes are not configured.
 func (b Bootstrap) MakePipes() (io.ReadCloser, io.WriteCloser, error) {
+	if b.ToWeaveletFile != nil && b.ToEnvelopeFile != nil {
+		return b.ToWeaveletFile, b.ToEnvelopeFile, nil
+	}
+
 	toWeavelet, err := openFileDescriptor(b.ToWeaveletFd)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open pipe to weavelet: %w", err)
