@@ -54,7 +54,7 @@ function cmd_vet() {
 
 function cmd_lint() {
   if ! exists golangci-lint; then
-    printf "golangci-lint not found; install via\ngo install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0\n" >&2
+    printf "golangci-lint not found; install via\ngo install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2\n" >&2
     exit 1
   fi
 

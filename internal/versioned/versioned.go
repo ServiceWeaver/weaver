@@ -20,47 +20,60 @@ import (
 	"github.com/google/uuid"
 )
 
-// Versioned[T] is a linearizable register storing an element of type T. Every
-// time the value changes, it is assigned a unique (but not necessarily
-// ordered) version.
+// Versioned[T] is a linearizable register storing a value of type T.
+// Each update to the value changes its unique (but not necessarily ordered)
+// version. Spurious version changes are possible, i.e., the version may change
+// even if the value hasn't.
 //
-// A Versioned[T] is thread-safe. Like a sync.Mutex, it should not be copied.
+// Like a sync.Mutex, Versioned should not be copied.
 type Versioned[T any] struct {
-	mu      sync.Mutex
-	updated sync.Cond
-	val     T
+	mu      sync.RWMutex
+	changed sync.Cond
+	Val     T
 	version string
 }
 
-// Version returns a new Versioned with the provided value.
 func Version[T any](val T) *Versioned[T] {
-	v := &Versioned[T]{
-		val:     val,
-		version: uuid.New().String(),
-	}
-	v.updated.L = &v.mu
+	v := &Versioned[T]{Val: val, version: uuid.New().String()}
+	v.changed.L = &v.mu
 	return v
 }
 
-// Get returns the value stored in the register, along with its version. If the
-// provided version is empty, the latest value is returned. If the provided
-// version is not empty, then Get blocks until a version newer than the one
-// provided is present and then returns it.
-func (v *Versioned[T]) Get(version string) (T, string) {
+// Lock acquires the write lock.
+func (v *Versioned[T]) Lock() {
 	v.mu.Lock()
-	defer v.mu.Unlock()
-	for v.version == version {
-		v.updated.Wait()
-	}
-	return v.val, v.version
 }
 
-// Set sets the value of the register and returns the new value's version.
-func (v *Versioned[T]) Set(val T) string {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.val = val
+// Unlock releases the write lock.
+func (v *Versioned[T]) Unlock() {
 	v.version = uuid.New().String()
-	v.updated.Broadcast()
+	v.changed.Broadcast()
+	v.mu.Unlock()
+}
+
+// RLock waits until the current version is different than the passed-in
+// version, and then acquires the read lock and returns the new
+// version.
+func (v *Versioned[T]) RLock(version string) string {
+	v.mu.RLock()
+	if v.version != version {
+		return v.version
+	}
+
+	// Upgrade the lock since we may wait on v.changed.
+	v.mu.RUnlock()
+	v.mu.Lock()
+	for v.version == version {
+		v.changed.Wait()
+	}
+
+	// Downgrade the lock.
+	v.mu.Unlock()
+	v.mu.RLock()
 	return v.version
+}
+
+// RUnlock releases the read lock.
+func (v *Versioned[T]) RUnlock() {
+	v.mu.RUnlock()
 }
