@@ -75,7 +75,9 @@ type Babysitter struct {
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
-	mu      sync.Mutex            // guards the following fields
+	// guards access to the following maps, but not the contents inside
+	// the maps.
+	mu      sync.Mutex
 	groups  map[string]*group     // groups, by group name
 	proxies map[string]*proxyInfo // proxies, by listener name
 }
@@ -83,16 +85,22 @@ type Babysitter struct {
 // A group contains information about a co-location group.
 type group struct {
 	name       string                                    // group name
-	envelopes  []*envelope.Envelope                      // envelopes, one per weavelet
-	pids       []int64                                   // weavelet pids
 	components *versioned.Versioned[map[string]bool]     // started components
 	routing    *versioned.Versioned[*protos.RoutingInfo] // routing info
+
+	// guards access to the following slices, but not the contents inside
+	// the slices.
+	mu        sync.Mutex
+	envelopes []*envelope.Envelope // envelopes, one per weavelet
+	pids      []int64              // weavelet pids
+
 }
 
 // A proxyInfo contains information about a proxy.
 type proxyInfo struct {
-	proxy *proxy.Proxy // the proxy
-	addr  string       // dialable address of the proxy
+	listener string       // listener associated with the proxy
+	proxy    *proxy.Proxy // the proxy
+	addr     string       // dialable address of the proxy
 }
 
 var _ envelope.EnvelopeHandler = &Babysitter{}
@@ -140,9 +148,9 @@ func (b *Babysitter) RegisterStatusPages(mux *http.ServeMux) {
 }
 
 // group returns the named co-location group.
-//
-// REQUIRES: b.mu is held.
 func (b *Babysitter) group(name string) *group {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	g, ok := b.groups[name]
 	if !ok {
 		g = &group{
@@ -155,9 +163,23 @@ func (b *Babysitter) group(name string) *group {
 	return g
 }
 
-// REQUIRES: b.mu is held.
-func (b *Babysitter) startColocationGroup(group string) error {
-	g := b.group(group)
+// allGroups returns all of the managed colocation groups.
+func (b *Babysitter) allGroups() []*group {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return maps.Values(b.groups) // creates a new slice
+}
+
+// allProxies returns all of the managed proxies.
+func (b *Babysitter) allProxies() []*proxyInfo {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return maps.Values(b.proxies)
+}
+
+func (b *Babysitter) startColocationGroup(g *group) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	if len(g.envelopes) == DefaultReplication {
 		// Already started.
 		return nil
@@ -168,7 +190,7 @@ func (b *Babysitter) startColocationGroup(group string) error {
 		wlet := &protos.WeaveletInfo{
 			App:           b.dep.App.Name,
 			DeploymentId:  b.dep.Id,
-			Group:         &protos.ColocationGroup{Name: group},
+			Group:         &protos.ColocationGroup{Name: g.name},
 			GroupId:       uuid.New().String(),
 			Id:            uuid.New().String(),
 			SameProcess:   b.dep.App.SameProcess,
@@ -193,88 +215,75 @@ func (b *Babysitter) startColocationGroup(group string) error {
 
 // StartComponent implements the protos.EnvelopeHandler interface.
 func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	// Record the component.
 	g := b.group(req.ColocationGroup)
-	components, _ := g.components.Get("")
-	if components[req.Component] {
-		// Component already started.
+	record := func() bool {
+		g.components.Lock()
+		defer g.components.Unlock()
+		if g.components.Val[req.Component] {
+			// Component already started, or is in the process of being started.
+			return true
+		}
+		g.components.Val[req.Component] = true
+		return false
+	}
+	if record() { // already started
 		return nil
 	}
-	components[req.Component] = true
-	g.components.Set(components)
 
 	// Update the routing info.
 	if req.IsRouted {
-		routing, _ := g.routing.Get("")
-		assignment := &protos.Assignment{
-			App:          b.dep.App.Name,
-			DeploymentId: b.dep.Id,
-			Component:    req.Component,
+		update := func() {
+			g.routing.Lock()
+			defer g.routing.Unlock()
+			assignment := &protos.Assignment{
+				App:          b.dep.App.Name,
+				DeploymentId: b.dep.Id,
+				Component:    req.Component,
+			}
+			assignment = routingAlgo(assignment, g.routing.Val.Replicas)
+			g.routing.Val.Assignments = append(g.routing.Val.Assignments, assignment)
 		}
-		// TODO(rgrandl): Ensure newAssignment != nil if err == nil?
-		newAssignment, err := routingAlgo(assignment, routing.Replicas)
-		if err == nil && newAssignment != nil {
-			assignment = newAssignment
-		}
-		routing.Assignments = append(routing.Assignments, assignment)
-		g.routing.Set(routing)
+		update()
 	}
 
 	// Start the colocation group, if it hasn't already started.
-	return b.startColocationGroup(req.ColocationGroup)
+	return b.startColocationGroup(g)
 }
 
 // RegisterReplica implements the protos.EnvelopeHandler interface.
 func (b *Babysitter) RegisterReplica(req *protos.ReplicaToRegister) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Add the replica.
 	g := b.group(req.Group)
-	routing, _ := g.routing.Get("")
-	var found bool
-	for _, replica := range routing.Replicas {
-		if req.Address == replica {
-			found = true
-			break
+
+	// Update routing.
+	g.routing.Lock()
+	defer g.routing.Unlock()
+	for _, replica := range g.routing.Val.Replicas {
+		if req.Address == replica { // already registered
+			return nil
 		}
 	}
-	if found {
-		// Replica already registered.
-		return nil
+	g.routing.Val.Replicas = append(g.routing.Val.Replicas, req.Address)
+	for i, assignment := range g.routing.Val.Assignments {
+		g.routing.Val.Assignments[i] = routingAlgo(assignment, g.routing.Val.Replicas)
 	}
-	routing.Replicas = append(routing.Replicas, req.Address)
+
+	// Add pid.
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	g.pids = append(g.pids, req.Pid)
 
-	// Update assignments.
-	for i, assignment := range routing.Assignments {
-		newAssignment, err := routingAlgo(assignment, routing.Replicas)
-		if err == nil || newAssignment != nil {
-			routing.Assignments[i] = newAssignment
-		}
-	}
-
-	g.routing.Set(routing)
 	return nil
 }
 
 // GetComponentsToStart implements the protos.EnvelopeHandler interface.
 func (b *Babysitter) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	b.mu.Lock()
 	g := b.group(req.Group)
-	b.mu.Unlock()
-
-	// Get blocks, so we can't hold the lock.
-	components, version := g.components.Get(req.Version)
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	version := g.components.RLock(req.Version)
+	defer g.components.RUnlock()
 	return &protos.ComponentsToStart{
 		Version:    version,
-		Components: maps.Keys(components),
+		Components: maps.Keys(g.components.Val),
 	}, nil
 }
 
@@ -324,7 +333,11 @@ func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 	b.logger.Info("Proxy listening", "address", addr)
 	proxy := proxy.NewProxy(b.logger)
 	proxy.AddBackend(req.Listener.Addr)
-	b.proxies[req.Listener.Name] = &proxyInfo{proxy: proxy, addr: addr}
+	b.proxies[req.Listener.Name] = &proxyInfo{
+		listener: req.Listener.Name,
+		proxy:    proxy,
+		addr:     addr,
+	}
 	go func() {
 		if err := serveHTTP(b.ctx, lis, proxy); err != nil {
 			b.logger.Error("proxy", err)
@@ -335,25 +348,19 @@ func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 
 // GetRoutingInfo implements the protos.EnvelopeHandler interface.
 func (b *Babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	b.mu.Lock()
 	g := b.group(req.Group)
-	b.mu.Unlock()
-
-	// Get blocks, so we can't hold the lock.
-	routing, version := g.routing.Get(req.Version)
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	routing = protomsg.Clone(routing)
+	version := g.routing.RLock(req.Version)
+	defer g.routing.RUnlock()
+	routing := protomsg.Clone(g.routing.Val)
 	routing.Version = version
 	return routing, nil
 }
 
 func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	var ms []*metrics.MetricSnapshot
-	for _, g := range b.groups {
+	read := func(g *group) {
+		g.mu.Lock()
+		defer g.mu.Unlock()
 		for _, e := range g.envelopes {
 			m, err := e.ReadMetrics()
 			if err != nil {
@@ -362,19 +369,22 @@ func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {
 			ms = append(ms, m...)
 		}
 	}
+	for _, g := range b.allGroups() {
+		read(g)
+	}
 	return append(ms, metrics.Snapshot()...)
 }
 
 // Profile implements the status.Server interface.
 func (b *Babysitter) Profile(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
-	// Make a copy of envelopes so we can operate on it without holding the
+	// Make a copy of the envelopes so we can operate on it without holding the
 	// lock. A profile can last a long time.
-	b.mu.Lock()
 	envelopes := map[string][]*envelope.Envelope{}
-	for _, g := range b.groups {
+	for _, g := range b.allGroups() {
+		g.mu.Lock()
 		envelopes[g.name] = slices.Clone(g.envelopes)
+		g.mu.Unlock()
 	}
-	b.mu.Unlock()
 
 	profile, err := runProfiling(b.ctx, req, envelopes)
 	if err != nil {
@@ -387,18 +397,20 @@ func (b *Babysitter) Profile(_ context.Context, req *protos.RunProfiling) (*prot
 
 // Status implements the status.Server interface.
 func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	stats := b.statsProcessor.GetStatsStatusz()
 	var components []*status.Component
-	for _, g := range b.groups {
-		cs, _ := g.components.Get("")
-		for component := range cs {
+	for _, g := range b.allGroups() {
+		g.components.Lock()
+		cs := maps.Keys(g.components.Val)
+		g.components.Unlock()
+		g.mu.Lock()
+		pids := slices.Clone(g.pids)
+		g.mu.Unlock()
+		for _, component := range cs {
 			c := &status.Component{
 				Name:  component,
 				Group: g.name,
-				Pids:  g.pids,
+				Pids:  pids,
 			}
 			components = append(components, c)
 
@@ -434,9 +446,9 @@ func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
 	}
 
 	var listeners []*status.Listener
-	for name, proxy := range b.proxies {
+	for _, proxy := range b.allProxies() {
 		listeners = append(listeners, &status.Listener{
-			Name: name,
+			Name: proxy.listener,
 			Addr: proxy.addr,
 		})
 	}
@@ -464,11 +476,10 @@ func (b *Babysitter) Metrics(ctx context.Context) (*status.Metrics, error) {
 // entire key space approximately equally across all healthy resources.
 //
 // The algorithm is as follows:
-// - split the entire key space in a number of slices that is more likely to
-// spread uniformly the key space among all healthy resources
-//
-// - distribute the slices round robin across all healthy resources
-func routingAlgo(currAssignment *protos.Assignment, candidates []string) (*protos.Assignment, error) {
+//   - split the entire key space in a number of slices that is more likely to
+//     spread the key space uniformly among all healthy resources.
+//   - distribute the slices round robin across all healthy resources
+func routingAlgo(currAssignment *protos.Assignment, candidates []string) *protos.Assignment {
 	newAssignment := protomsg.Clone(currAssignment)
 	newAssignment.Version++
 
@@ -480,7 +491,7 @@ func routingAlgo(currAssignment *protos.Assignment, candidates []string) (*proto
 
 	if len(candidates) == 0 {
 		newAssignment.Slices = nil
-		return newAssignment, nil
+		return newAssignment
 	}
 
 	const minSliceKey = 0
@@ -491,7 +502,7 @@ func routingAlgo(currAssignment *protos.Assignment, candidates []string) (*proto
 		newAssignment.Slices = []*protos.Assignment_Slice{
 			{Start: minSliceKey, Replicas: candidates},
 		}
-		return newAssignment, nil
+		return newAssignment
 	}
 
 	// Compute the total number of slices in the assignment.
@@ -526,7 +537,7 @@ func routingAlgo(currAssignment *protos.Assignment, candidates []string) (*proto
 		rId = (rId + 1) % len(candidates)
 	}
 	newAssignment.Slices = slices
-	return newAssignment, nil
+	return newAssignment
 }
 
 // serveHTTP serves HTTP traffic on the provided listener using the provided
@@ -553,8 +564,7 @@ func nextPowerOfTwo(x int) int {
 }
 
 // runProfiling runs a profiling request on a set of processes.
-func runProfiling(ctx context.Context, req *protos.RunProfiling,
-	processes map[string][]*envelope.Envelope) (*protos.Profile, error) {
+func runProfiling(ctx context.Context, req *protos.RunProfiling, processes map[string][]*envelope.Envelope) (*protos.Profile, error) {
 	// Collect together the groups we want to profile.
 	groups := make([][]func() (*protos.Profile, error), 0, len(processes))
 	for _, envelopes := range processes {
