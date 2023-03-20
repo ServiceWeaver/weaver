@@ -158,8 +158,8 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 	})
 
 	initCtx := context.WithValue(ctx, runtime.BootstrapKey{}, runtime.Bootstrap{
-		ToWeaveletFd: int(toWeaveletReader.Fd()),
-		ToEnvelopeFd: int(fromWeaveletWriter.Fd()),
+		ToWeaveletFd: toWeaveletReader.Fd(),
+		ToEnvelopeFd: fromWeaveletWriter.Fd(),
 		TestConfig:   config,
 	})
 	return weaver.Init(initCtx)

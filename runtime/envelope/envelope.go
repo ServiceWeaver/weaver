@@ -271,8 +271,8 @@ func (e *Envelope) runWeavelet(ctx context.Context) error {
 	}
 
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.Itoa(toWeaveletFd)))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.Itoa(toEnvelopeFd)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.FormatUint(uint64(toWeaveletFd), 10)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.FormatUint(uint64(toEnvelopeFd), 10)))
 	cmd.Env = append(cmd.Env, e.config.Env...)
 
 	// Different sources are read from by different go-routines.

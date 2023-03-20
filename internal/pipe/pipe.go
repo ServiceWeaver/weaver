@@ -48,7 +48,7 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 // idiomatic usage.
 //
 // [1]: https://pkg.go.dev/os/exec#example-Cmd.StdoutPipe
-func (c *Cmd) RPipe() (int, io.ReadCloser, error) {
+func (c *Cmd) RPipe() (uintptr, io.ReadCloser, error) {
 	if c.Process != nil {
 		return 0, nil, fmt.Errorf("capture: RPipe after process started")
 	}
@@ -57,7 +57,7 @@ func (c *Cmd) RPipe() (int, io.ReadCloser, error) {
 		return 0, nil, err
 	}
 	fd := c.registerPipe(r, w)
-	return int(fd), r, nil
+	return fd, r, nil
 }
 
 // WPipe returns the writer side of a pipe that will be connected to the
@@ -70,7 +70,7 @@ func (c *Cmd) RPipe() (int, io.ReadCloser, error) {
 // caller need only call Close to force the pipe to close sooner. For example,
 // if the command being run will not exit until standard input is closed, the
 // caller must close the pipe.
-func (c *Cmd) WPipe() (int, io.WriteCloser, error) {
+func (c *Cmd) WPipe() (uintptr, io.WriteCloser, error) {
 	if c.Process != nil {
 		return 0, nil, fmt.Errorf("capture: WPipe after process started")
 	}
@@ -86,14 +86,10 @@ func (c *Cmd) WPipe() (int, io.WriteCloser, error) {
 	return fd, w, nil
 }
 
-func (c *Cmd) registerPipe(local, remote *os.File) int {
-	// From https://pkg.go.dev/os/exec#Cmd.ExtraFiles: "entry i becomes file
-	// descriptor 3+i".
-	fd := 3 + len(c.Cmd.ExtraFiles)
-	c.Cmd.ExtraFiles = append(c.Cmd.ExtraFiles, remote)
+func (c *Cmd) registerPipe(local, remote *os.File) uintptr {
 	c.closeAfterStart = append(c.closeAfterStart, remote)
 	c.closeAfterWait = append(c.closeAfterWait, local)
-	return fd
+	return addInheritedFile(c.Cmd, remote)
 }
 
 // Start is identical to exec.Command.Start.

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func TestMain(m *testing.M) {
 	// provided, the test echos to file descriptor 3 and exits.
 	flag.Parse()
 	if flag.Arg(0) == "echo" {
-		if err := echo(); err != nil {
+		if err := echo(flag.Args()...); err != nil {
 			panic(err)
 		}
 		return
@@ -48,21 +49,19 @@ func TestRWPipe(t *testing.T) {
 	cmd.Stderr = os.Stderr
 	var w io.WriteCloser
 	{
-		var fd int
+		var fd uintptr
 		if fd, w, err = cmd.WPipe(); err != nil {
 			t.Fatal(err)
-		} else if fd != 3 {
-			t.Fatalf("bad fd: got %d, want 3", fd)
 		}
+		cmd.Cmd.Args = append(cmd.Args, strconv.FormatUint(uint64(fd), 10))
 	}
 	var r io.ReadCloser
 	{
-		var fd int
+		var fd uintptr
 		if fd, r, err = cmd.RPipe(); err != nil {
 			t.Fatal(err)
-		} else if fd != 4 {
-			t.Fatalf("bad fd: got %d, want 4", fd)
 		}
+		cmd.Cmd.Args = append(cmd.Args, strconv.FormatUint(uint64(fd), 10))
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -92,14 +91,22 @@ func TestRWPipe(t *testing.T) {
 }
 
 // echo reads a msg from file descriptor 3 and writes it to file descriptor 4.
-func echo() error {
-	r := os.NewFile(3, "/proc/self/fd/3")
-	if r == nil {
-		return fmt.Errorf("unable to open fd 3")
+func echo(args ...string) error {
+	rHandle, err := strconv.ParseUint(args[1], 10, 64)
+	if err != nil {
+		return fmt.Errorf("unable to parse fd: %w", err)
 	}
-	w := os.NewFile(4, "/proc/self/fd/4")
+	wHandle, err := strconv.ParseUint(args[2], 10, 64)
+	if err != nil {
+		return fmt.Errorf("unable to parse fd: %w", err)
+	}
+	r := os.NewFile(uintptr(rHandle), "rfd")
 	if r == nil {
-		return fmt.Errorf("unable to open fd 4")
+		return fmt.Errorf("unable to open fd %d", rHandle)
+	}
+	w := os.NewFile(uintptr(wHandle), "wfd")
+	if r == nil {
+		return fmt.Errorf("unable to open fd %d", wHandle)
 	}
 	msg, err := io.ReadAll(r)
 	if err != nil {
