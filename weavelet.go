@@ -172,11 +172,11 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 // If Start fails, it returns a non-nil error.
 // Otherwise, if this process hosts "main", start returns the main component.
 // Otherwise, Start never returns.
-func (d *weavelet) start() (Instance, error) {
+func (w *weavelet) start() (Instance, error) {
 	// Launch status server for single process deployments.
-	if single, ok := d.env.(*singleprocessEnv); ok {
+	if single, ok := w.env.(*singleprocessEnv); ok {
 		go func() {
-			if err := single.serveStatus(d.ctx); err != nil {
+			if err := single.serveStatus(w.ctx); err != nil {
 				single.SystemLogger().Error("status server", err)
 			}
 		}()
@@ -187,9 +187,9 @@ func (d *weavelet) start() (Instance, error) {
 	// their handlers because we want to avoid concurrency issues with on-demand
 	// handler additions.
 	handlers := &call.HandlerMap{}
-	for _, c := range d.componentsByName {
-		if d.inLocalGroup(c) {
-			d.addHandlers(handlers, c)
+	for _, c := range w.componentsByName {
+		if w.inLocalGroup(c) {
+			w.addHandlers(handlers, c)
 		}
 	}
 	// Add a dummy "ready" handler. Clients will repeatedly call this RPC until
@@ -198,47 +198,47 @@ func (d *weavelet) start() (Instance, error) {
 		return nil, nil
 	})
 
-	isMain := d.info.Group.Name == "main"
+	isMain := w.info.Group.Name == "main"
 	if isMain {
 		// Set appropriate logger and tracer for main.
-		logSaver := d.env.CreateLogSaver(d.ctx, "main")
-		d.root.logger = newAttrLogger(
-			d.root.info.Name, d.info.DeploymentId, d.root.info.Name, d.info.Id, logSaver)
+		logSaver := w.env.CreateLogSaver(w.ctx, "main")
+		w.root.logger = newAttrLogger(
+			w.root.info.Name, w.info.DeploymentId, w.root.info.Name, w.info.Id, logSaver)
 	}
 
 	// For a singleprocess deployment, no server is launched because all
 	// method invocations are process-local and executed as regular go function
 	// calls.
-	if !d.info.SingleProcess {
+	if !w.info.SingleProcess {
 		// TODO(mwhittaker): Right now, we resolve our hostname to get a
 		// dialable IP address. Double check that this always works.
 		host := "localhost"
-		if !d.info.SingleMachine {
+		if !w.info.SingleMachine {
 			var err error
 			host, err = os.Hostname()
 			if err != nil {
 				return nil, fmt.Errorf("error getting local hostname: %w", err)
 			}
 		}
-		lis, dialAddr, err := d.listen("tcp", fmt.Sprintf("%s:0", host))
+		lis, dialAddr, err := w.listen("tcp", fmt.Sprintf("%s:0", host))
 		if err != nil {
 			return nil, fmt.Errorf("error creating internal listener: %w", err)
 		}
-		d.dialAddr = dialAddr
+		w.dialAddr = dialAddr
 
-		for _, c := range d.componentsByName {
-			if d.inLocalGroup(c) && c.info.Routed {
+		for _, c := range w.componentsByName {
+			if w.inLocalGroup(c) && c.info.Routed {
 				// TODO(rgrandl): In the future, we may want to collect load for all components.
-				d.loads[c.info.Name] = newLoadCollector(c.info.Name, dialAddr)
+				w.loads[c.info.Name] = newLoadCollector(c.info.Name, dialAddr)
 			}
 		}
 
 		// Monitor our routing assignment.
-		routelet := newRoutelet(d.ctx, d.env, d.info.Group.Name)
-		routelet.onChange(d.onNewRoutingInfo)
+		routelet := newRoutelet(w.ctx, w.env, w.info.Group.Name)
+		routelet.onChange(w.onNewRoutingInfo)
 
 		// Start reporting load signals periodically.
-		startWork(d.ctx, "report load", d.reportLoad)
+		startWork(w.ctx, "report load", w.reportLoad)
 
 		// Register our external address. This will allow weavelets in other
 		// colocation groups to detect this weavelet and load-balance traffic
@@ -251,8 +251,8 @@ func (d *weavelet) start() (Instance, error) {
 		// challenging. We may have to have TTLs in the store, or maybe have a
 		// nanny monitor for failures.
 		const errMsg = "cannot register weavelet replica"
-		if err := d.repeatedly(errMsg, func() error {
-			return d.env.RegisterReplica(d.ctx, dialAddr)
+		if err := w.repeatedly(errMsg, func() error {
+			return w.env.RegisterReplica(w.ctx, dialAddr)
 		}); err != nil {
 			return nil, err
 		}
@@ -264,7 +264,7 @@ func (d *weavelet) start() (Instance, error) {
 
 			// Arrange to close the listener when we are canceled.
 			go func() {
-				<-d.ctx.Done()
+				<-w.ctx.Done()
 				lis.Close()
 			}()
 
@@ -274,14 +274,14 @@ func (d *weavelet) start() (Instance, error) {
 			//     which can cause unnecessary serving delays for this process, and
 			//  2. Get() may assign a random unused port to the component, which may
 			//     conflict with the port used by the transport.
-			startWork(d.ctx, "handle calls", func() error {
-				return call.Serve(d.ctx, lis, handlers, transport.serverOpts)
+			startWork(w.ctx, "handle calls", func() error {
+				return call.Serve(w.ctx, lis, handlers, transport.serverOpts)
 			})
 		}
-		serve(lis, d.transport)
+		serve(lis, w.transport)
 	}
 
-	d.logRolodexCard()
+	w.logRolodexCard()
 
 	// Every Service Weaver process launches a watchComponentsToStart goroutine that
 	// periodically starts components, as needed. Every Service Weaver process can host one or
@@ -302,12 +302,12 @@ func (d *weavelet) start() (Instance, error) {
 	// component's name is also registered with the protos.
 	if isMain {
 		// Watch for components in a goroutine since this goroutine will return to user main.
-		startWork(d.ctx, "watch for components to start", d.watchComponentsToStart)
-		return d.root.impl, nil
+		startWork(w.ctx, "watch for components to start", w.watchComponentsToStart)
+		return w.root.impl, nil
 	}
 
 	// Not the main-process. Run forever, or until there is an error.
-	return nil, d.watchComponentsToStart()
+	return nil, w.watchComponentsToStart()
 }
 
 // logRolodexCard pretty prints a card that includes basic information about
@@ -322,10 +322,10 @@ func (d *weavelet) start() (Instance, error) {
 //	│   address:   : tcp://127.0.0.1:43937                  │
 //	│   pid        : 836347                                 │
 //	└───────────────────────────────────────────────────────┘
-func (d *weavelet) logRolodexCard() {
+func (w *weavelet) logRolodexCard() {
 	var localComponents []string
-	for name, c := range d.componentsByName {
-		if d.inLocalGroup(c) {
+	for name, c := range w.componentsByName {
+		if w.inLocalGroup(c) {
 			localComponents = append(localComponents, logging.ShortenComponent(name))
 		}
 	}
@@ -334,14 +334,14 @@ func (d *weavelet) logRolodexCard() {
 		hostname = "UNKNOWN"
 	}
 
-	header := fmt.Sprintf(" weavelet %s started ", d.info.Id)
+	header := fmt.Sprintf(" weavelet %s started ", w.info.Id)
 	lines := []string{
 		fmt.Sprintf("   hostname   : %s ", hostname),
-		fmt.Sprintf("   deployment : %s ", d.info.DeploymentId),
-		fmt.Sprintf("   group      : %s ", logging.ShortenComponent(d.info.Group.Name)),
-		fmt.Sprintf("   group id   : %s ", d.info.GroupId),
+		fmt.Sprintf("   deployment : %s ", w.info.DeploymentId),
+		fmt.Sprintf("   group      : %s ", logging.ShortenComponent(w.info.Group.Name)),
+		fmt.Sprintf("   group id   : %s ", w.info.GroupId),
 		fmt.Sprintf("   components : %v ", localComponents),
-		fmt.Sprintf("   address    : %s", string(d.dialAddr)),
+		fmt.Sprintf("   address    : %s", string(w.dialAddr)),
 		fmt.Sprintf("   pid        : %v ", os.Getpid()),
 	}
 
@@ -358,13 +358,13 @@ func (d *weavelet) logRolodexCard() {
 		fmt.Fprintf(&b, "│%*s│\n", -width, line)
 	}
 	fmt.Fprintf(&b, "└%s┘", strings.Repeat("─", width))
-	d.env.SystemLogger().Debug(b.String())
+	w.env.SystemLogger().Debug(b.String())
 }
 
 // getInstance returns an instance of the provided component. If the component
 // is local, the returned instance is local. Otherwise, it's a network client.
 // requester is the name of the requesting component.
-func (d *weavelet) getInstance(c *component, requester string) (interface{}, error) {
+func (w *weavelet) getInstance(c *component, requester string) (interface{}, error) {
 	// Consider the scenario where component A invokes a method on component B.
 	// If we're running as a single process, all communication is local.
 	// Otherwise, here's a table showing which type of communication we use.
@@ -380,23 +380,23 @@ func (d *weavelet) getInstance(c *component, requester string) (interface{}, err
 	// get routed to an instance of B in a different colocation group.
 	var local bool // should we perform local, in-process communication?
 	switch {
-	case d.info.SingleProcess:
+	case w.info.SingleProcess:
 		local = true
 	case c.info.Routed:
 		local = false
 	default:
-		local = d.inLocalGroup(c)
+		local = w.inLocalGroup(c)
 	}
 
 	if local {
-		impl, err := d.getImpl(c)
+		impl, err := w.getImpl(c)
 		if err != nil {
 			return nil, err
 		}
 		return c.info.LocalStubFn(impl.impl, impl.component.tracer), nil
 	}
 
-	stub, err := d.getStub(c)
+	stub, err := w.getStub(c)
 	if err != nil {
 		return nil, err
 	}
@@ -404,13 +404,13 @@ func (d *weavelet) getInstance(c *component, requester string) (interface{}, err
 }
 
 // getListener returns a network listener with the given name.
-func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, error) {
+func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, error) {
 	if name == "" {
 		return nil, fmt.Errorf("getListener(%q): empty listener name", name)
 	}
 
 	// Get the address to listen on.
-	addr, err := d.env.GetAddress(d.ctx, name, opts)
+	addr, err := w.env.GetAddress(w.ctx, name, opts)
 	if err != nil {
 		return nil, fmt.Errorf("getListener(%q): %w", name, err)
 	}
@@ -425,9 +425,9 @@ func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	lis := &protos.Listener{Name: name, Addr: l.Addr().String()}
 	errMsg := fmt.Sprintf("getListener(%q): error exporting listener %v", name, lis.Addr)
 	var reply *protos.ExportListenerReply
-	if err := d.repeatedly(errMsg, func() error {
+	if err := w.repeatedly(errMsg, func() error {
 		var err error
-		reply, err = d.env.ExportListener(d.ctx, lis, opts)
+		reply, err = w.env.ExportListener(w.ctx, lis, opts)
 		return err
 	}); err != nil {
 		return nil, err
@@ -440,15 +440,15 @@ func (d *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 
 // inLocalGroup returns true iff the component is hosted in the same colocation
 // group as us.
-func (d *weavelet) inLocalGroup(c *component) bool {
-	return c.groupName == d.info.Group.Name
+func (w *weavelet) inLocalGroup(c *component) bool {
+	return c.groupName == w.info.Group.Name
 }
 
 // addHandlers registers a component's methods as handlers in stub.HandlerMap.
 // Specifically, for every method m in the component, we register a function f
 // that (1) creates the local component if it hasn't been created yet and (2)
 // calls m.
-func (d *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
+func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 	for i, n := 0, c.info.Iface.NumMethod(); i < n; i++ {
 		mname := c.info.Iface.Method(i).Name
 		handler := func(ctx context.Context, args []byte) (res []byte, err error) {
@@ -458,7 +458,7 @@ func (d *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 			// yet taken effect). d.getImpl(c) will start the component if it
 			// hasn't already been started, or it will be a noop if the component
 			// has already been started.
-			impl, err := d.getImpl(c)
+			impl, err := w.getImpl(c)
 			if err != nil {
 				return nil, err
 			}
@@ -471,13 +471,13 @@ func (d *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 
 // watchComponentsToStart is a long running goroutine that is responsible for
 // starting components.
-func (d *weavelet) watchComponentsToStart() error {
+func (w *weavelet) watchComponentsToStart() error {
 	var version *call.Version
 
-	for r := retry.Begin(); r.Continue(d.ctx); {
-		componentsToStart, newVersion, err := d.env.GetComponentsToStart(d.ctx, version)
+	for r := retry.Begin(); r.Continue(w.ctx); {
+		componentsToStart, newVersion, err := w.env.GetComponentsToStart(w.ctx, version)
 		if err != nil {
-			d.env.SystemLogger().Error("cannot get components to start; will retry", err)
+			w.env.SystemLogger().Error("cannot get components to start; will retry", err)
 			continue
 		}
 		version = newVersion
@@ -485,20 +485,20 @@ func (d *weavelet) watchComponentsToStart() error {
 			// TODO(mwhittaker): Start a component on a separate goroutine?
 			// Right now, if one component hangs forever in its constructor, no
 			// other components can start. main actually does this intentionally.
-			c, err := d.getComponent(start)
+			c, err := w.getComponent(start)
 			if err != nil {
 				return err
 			}
-			if _, err = d.getImpl(c); err != nil {
+			if _, err = w.getImpl(c); err != nil {
 				return err
 			}
 		}
 		r.Reset()
 	}
-	return d.ctx.Err()
+	return w.ctx.Err()
 }
 
-func (d *weavelet) reportLoad() error {
+func (w *weavelet) reportLoad() error {
 	// pick samples a time uniformly from [0.95i, 1.05i] where i is
 	// LoadReportInterval. We introduce jitter to avoid processes that start
 	// around the same time from storming to update their load.
@@ -518,14 +518,14 @@ func (d *weavelet) reportLoad() error {
 		case <-ticker.C:
 			ticker.Reset(pick())
 			report := &protos.WeaveletLoadReport{
-				App:          d.info.App,
-				DeploymentId: d.info.DeploymentId,
-				Group:        d.info.Group.Name,
-				Replica:      string(d.dialAddr),
+				App:          w.info.App,
+				DeploymentId: w.info.DeploymentId,
+				Group:        w.info.Group.Name,
+				Replica:      string(w.dialAddr),
 				Loads:        map[string]*protos.WeaveletLoadReport_ComponentLoad{},
 			}
 
-			for c, collector := range d.loads {
+			for c, collector := range w.loads {
 				if x := collector.report(); x != nil {
 					report.Loads[c] = x
 				}
@@ -536,12 +536,12 @@ func (d *weavelet) reportLoad() error {
 
 			// TODO(rgrandl): we may want to retry to send a report signal if it
 			// returns any specific errors.
-			if err := d.env.ReportLoad(d.ctx, report); err != nil {
-				d.env.SystemLogger().Error("report load", err)
+			if err := w.env.ReportLoad(w.ctx, report); err != nil {
+				w.env.SystemLogger().Error("report load", err)
 				continue
 			}
-		case <-d.ctx.Done():
-			return d.ctx.Err()
+		case <-w.ctx.Done():
+			return w.ctx.Err()
 		}
 	}
 }
@@ -549,9 +549,9 @@ func (d *weavelet) reportLoad() error {
 // onNewRoutingInfo is a callback that is invoked every time the routing info
 // for our process changes. onNewRoutingInfo updates the assignments and load
 // for our local components.
-func (d *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) {
+func (w *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) {
 	for _, assignment := range info.Assignments {
-		collector, ok := d.loads[assignment.Component]
+		collector, ok := w.loads[assignment.Component]
 		if !ok {
 			continue
 		}
@@ -560,10 +560,10 @@ func (d *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) {
 }
 
 // getComponent returns the component with the given name.
-func (d *weavelet) getComponent(name string) (*component, error) {
+func (w *weavelet) getComponent(name string) (*component, error) {
 	// Note that we don't need to lock d.components because, while the components
 	// within d.components are modified, d.components itself is read-only.
-	c, ok := d.componentsByName[name]
+	c, ok := w.componentsByName[name]
 	if !ok {
 		return nil, fmt.Errorf("component %q was not registered; maybe you forgot to run weaver generate", name)
 	}
@@ -571,10 +571,10 @@ func (d *weavelet) getComponent(name string) (*component, error) {
 }
 
 // getComponentByType returns the component with the given type.
-func (d *weavelet) getComponentByType(t reflect.Type) (*component, error) {
+func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
 	// Note that we don't need to lock d.byType because, while the components
 	// referenced by d.byType are modified, d.byType itself is read-only.
-	c, ok := d.componentsByType[t]
+	c, ok := w.componentsByType[t]
 	if !ok {
 		return nil, fmt.Errorf("component of type %v was not registered; maybe you forgot to run weaver generate", t)
 	}
@@ -582,13 +582,13 @@ func (d *weavelet) getComponentByType(t reflect.Type) (*component, error) {
 }
 
 // getImpl returns a component's componentImpl, initializing it if necessary.
-func (d *weavelet) getImpl(c *component) (*componentImpl, error) {
-	if !d.inLocalGroup(c) {
+func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
+	if !w.inLocalGroup(c) {
 		return nil, fmt.Errorf("component %q is not local", c.info.Name)
 	}
 
 	init := func(c *component) error {
-		if err := d.env.RegisterComponentToStart(d.ctx, d.info.Group.Name, c.info.Name, c.info.Routed); err != nil {
+		if err := w.env.RegisterComponentToStart(w.ctx, w.info.Group.Name, c.info.Name, c.info.Routed); err != nil {
 			return fmt.Errorf("component %q registration failed: %w", c.info.Name, err)
 		}
 
@@ -599,19 +599,19 @@ func (d *weavelet) getImpl(c *component) (*componentImpl, error) {
 		// component is still being constructed is easy to get wrong. Figure out a
 		// way to make this less error-prone.
 		c.impl = &componentImpl{component: c}
-		logSaver := d.env.CreateLogSaver(d.ctx, c.info.Name)
-		logger := newAttrLogger(d.info.App, d.info.DeploymentId, c.info.Name, d.info.Id, logSaver)
+		logSaver := w.env.CreateLogSaver(w.ctx, c.info.Name)
+		logger := newAttrLogger(w.info.App, w.info.DeploymentId, c.info.Name, w.info.Id, logSaver)
 		c.logger = logger
-		c.tracer = d.tracer
+		c.tracer = w.tracer
 
-		d.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
-		if err := createComponent(d.ctx, c); err != nil {
+		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
+		if err := createComponent(w.ctx, c); err != nil {
 			return err
 		}
 
 		c.impl.serverStub = c.info.ServerStubFn(c.impl.impl, func(key uint64, v float64) {
 			if c.info.Routed {
-				if err := d.loads[c.info.Name].add(key, v); err != nil {
+				if err := w.loads[c.info.Name].add(key, v); err != nil {
 					logger.Error("add load", err, "component", c.info.Name, "key", key)
 				}
 			}
@@ -650,30 +650,30 @@ func createComponent(ctx context.Context, c *component) error {
 	return nil
 }
 
-func (d *weavelet) repeatedly(errMsg string, f func() error) error {
-	for r := retry.Begin(); r.Continue(d.ctx); {
+func (w *weavelet) repeatedly(errMsg string, f func() error) error {
+	for r := retry.Begin(); r.Continue(w.ctx); {
 		if err := f(); err != nil {
-			d.env.SystemLogger().Error(errMsg+"; will retry", err)
+			w.env.SystemLogger().Error(errMsg+"; will retry", err)
 			continue
 		}
 		return nil
 	}
-	return fmt.Errorf("%s: %w", errMsg, d.ctx.Err())
+	return fmt.Errorf("%s: %w", errMsg, w.ctx.Err())
 }
 
 // getStub returns a component's componentStub, initializing it if necessary.
-func (d *weavelet) getStub(c *component) (*componentStub, error) {
+func (w *weavelet) getStub(c *component) (*componentStub, error) {
 	init := func(c *component) error {
 		// Register the component's name to start. The remote watcher will notice
 		// the name and launch the component.
 		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
-		if err := d.repeatedly(errMsg, func() error {
-			return d.env.RegisterComponentToStart(d.ctx, c.groupName, c.info.Name, c.info.Routed)
+		if err := w.repeatedly(errMsg, func() error {
+			return w.env.RegisterComponentToStart(w.ctx, c.groupName, c.info.Name, c.info.Routed)
 		}); err != nil {
 			return err
 		}
 
-		client, err := d.getTCPClient(c)
+		client, err := w.getTCPClient(c)
 		if err != nil {
 			return err
 		}
@@ -695,7 +695,7 @@ func (d *weavelet) getStub(c *component) (*componentStub, error) {
 				client:   client.client,
 				methods:  methods,
 				balancer: balancer,
-				tracer:   d.tracer,
+				tracer:   w.tracer,
 			},
 		}
 		return nil
@@ -714,25 +714,25 @@ func waitUntilReady(ctx context.Context, client call.Connection) error {
 	return ctx.Err()
 }
 
-func (d *weavelet) getTCPClient(component *component) (*client, error) {
+func (w *weavelet) getTCPClient(component *component) (*client, error) {
 	// Create entry in client map.
-	d.clientsLock.Lock()
-	c, ok := d.tcpClients[component.groupName]
+	w.clientsLock.Lock()
+	c, ok := w.tcpClients[component.groupName]
 	if !ok {
 		c = &client{}
-		d.tcpClients[component.groupName] = c
+		w.tcpClients[component.groupName] = c
 	}
-	d.clientsLock.Unlock()
+	w.clientsLock.Unlock()
 
 	// Initialize (or wait for initialization to complete.)
 	c.init.Do(func() {
-		routelet := newRoutelet(d.ctx, d.env, component.groupName)
+		routelet := newRoutelet(w.ctx, w.env, component.groupName)
 		c.routelet = routelet
-		c.client, c.err = call.Connect(d.ctx, routelet.resolver(), d.transport.clientOpts)
+		c.client, c.err = call.Connect(w.ctx, routelet.resolver(), w.transport.clientOpts)
 		if c.err != nil {
 			return
 		}
-		c.err = waitUntilReady(d.ctx, c.client)
+		c.err = waitUntilReady(w.ctx, c.client)
 		if c.err != nil {
 			c.client = nil
 			return
@@ -791,7 +791,7 @@ func place(registry map[string]*component, w *protos.WeaveletInfo) error {
 // listen returns a network listener for the given listening address and
 // network, along with a dialable address that can be used to reach
 // the listener.
-func (d *weavelet) listen(network, address string) (net.Listener, call.NetworkAddress, error) {
+func (w *weavelet) listen(network, address string) (net.Listener, call.NetworkAddress, error) {
 	var lis net.Listener
 	var err error
 	switch network {
@@ -802,7 +802,7 @@ func (d *weavelet) listen(network, address string) (net.Listener, call.NetworkAd
 			return nil, "", fmt.Errorf("maximum length for unix-sockets is 108 chars, got %d: %q", len(address), address)
 		}
 		lconfig := &net.ListenConfig{}
-		lis, err = lconfig.Listen(d.ctx, network, address)
+		lis, err = lconfig.Listen(w.ctx, network, address)
 	default:
 		return nil, "", fmt.Errorf("unsupported network protocol %q", network)
 	}
