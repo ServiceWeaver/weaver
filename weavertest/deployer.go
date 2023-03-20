@@ -32,7 +32,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
@@ -297,8 +296,7 @@ func (d *deployer) startGroup(group *group) error {
 			SingleProcess: d.wlet.SingleProcess,
 			SingleMachine: d.wlet.SingleMachine,
 		}
-		opts := envelope.Options{Restart: envelope.Never, Retry: retry.DefaultOptions}
-		e, err := envelope.NewEnvelope(wlet, d.config, d, opts)
+		e, err := envelope.NewEnvelope(wlet, d.config, d)
 		if err != nil {
 			return err
 		}

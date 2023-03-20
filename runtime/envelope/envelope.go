@@ -34,7 +34,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -104,16 +103,6 @@ func (r RestartPolicy) String() string {
 	}
 }
 
-// Options to configure the weavelet managed by the Envelope.
-type Options struct {
-	// Restart dictates when a weavelet is restarted. Defaults to Never.
-	Restart RestartPolicy
-
-	// Retry configures the exponential backoff performed when restarting the
-	// weavelet. Defaults to retry.DefaultOptions.
-	Retry retry.Options
-}
-
 // Envelope starts and manages a weavelet, i.e., an OS process running inside a
 // colocation group replica, hosting Service Weaver components. It also captures the
 // weavelet's tracing, logging, and metrics information.
@@ -122,7 +111,6 @@ type Envelope struct {
 	weavelet *protos.WeaveletInfo
 	config   *protos.AppConfig
 	handler  EnvelopeHandler
-	opts     Options
 	logger   logtype.Logger
 
 	mu        sync.Mutex         // guards the following fields
@@ -132,7 +120,7 @@ type Envelope struct {
 	profiling bool               // are we currently collecting a profile?
 }
 
-func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h EnvelopeHandler, opts Options) (*Envelope, error) {
+func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h EnvelopeHandler) (*Envelope, error) {
 	if h == nil {
 		return nil, fmt.Errorf(
 			"unable to create envelope for group %s due to nil handler",
@@ -152,7 +140,6 @@ func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h Envelope
 		weavelet: wlet,
 		config:   config,
 		handler:  h,
-		opts:     opts,
 		logger:   logger,
 	}, nil
 }
@@ -188,19 +175,14 @@ func (e *Envelope) toggleProfiling(expected bool) bool {
 // Run runs the application, restarting it according to the policy specified by
 // opts.
 func (e *Envelope) Run(ctx context.Context) error {
-	for r := retry.BeginWithOptions(e.opts.Retry); r.Continue(ctx); {
-		err := e.runWeavelet(ctx)
-		if e.isStopped() {
-			// When an envelope is stopped, it kills its subprocesses. These
-			// subprocesses will report errors, expectedly, since they're
-			// killed. We expect these errors, so we swallow them.
-			return nil
-		}
-		if e.opts.Restart == Never || (e.opts.Restart == OnFailure && err == nil) {
-			return err
-		}
+	err := e.runWeavelet(ctx)
+	if e.isStopped() {
+		// When an envelope is stopped, it kills its subprocesses. These
+		// subprocesses will report errors, expectedly, since they're
+		// killed. We expect these errors, so we swallow them.
+		return nil
 	}
-	return ctx.Err()
+	return err
 }
 
 // HealthStatus returns the health status of the weavelet.
