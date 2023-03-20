@@ -18,36 +18,6 @@ option go_package = "github.com/ServiceWeaver/weaver/internal/tool/ssh/impl";
 
 package impl;
 import "runtime/protos/runtime.proto";
-import "google/protobuf/timestamp.proto";
-
-// AppVersionState contains state managed for an application version by the
-// babysitter.
-message AppVersionState {
-  string app = 1;
-  string deployment_id = 2;
-  google.protobuf.Timestamp submission_time = 3;
-  map<string, ColocationGroupState> groups = 4; // per group information
-  repeated runtime.Listener listeners = 5;      // per listener information
-}
-
-message ColocationGroupState {
-  string name = 1;  // Name of the colocation group.
-
-  // The set of components that a colocation group in a given deployment
-  // should be running, along with their routing status (whether a component is
-  // routed).
-  map<string, bool> components = 2;
-
-  // The list of replica addresses for the colocation group.
-  repeated string replicas = 3;
-
-  // It contains the list of replica pids for the colocation group.
-  repeated int64 replica_pids = 4;
-
-  // It contains the list of assignments for the routed components that are
-  // running in a colocation group.
-  map<string, runtime.Assignment> assignments = 5;
-}
 
 // BabysitterInfo contains app deployment information that is needed by a
 // babysitter started using SSH to manage a colocation group.

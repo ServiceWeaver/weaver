@@ -572,7 +572,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
-    google.golang.org/protobuf/proto
+    golang.org/x/exp/slices
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
@@ -581,7 +581,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     net/http
     os
     os/exec
-    path
     path/filepath
     reflect
     sort
@@ -602,12 +601,7 @@ github.com/ServiceWeaver/weaver/internal/traceio
     sync
     time
 github.com/ServiceWeaver/weaver/internal/versioned
-    context
-    github.com/ServiceWeaver/weaver/internal/cond
-    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/google/uuid
-    google.golang.org/protobuf/proto
-    strconv
     sync
 github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/metrics
