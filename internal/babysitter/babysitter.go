@@ -54,6 +54,7 @@ type Babysitter struct {
 	ctx     context.Context
 	opts    envelope.Options
 	dep     *protos.Deployment
+	done    chan error
 	started time.Time
 	logger  logtype.Logger
 
@@ -132,6 +133,7 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		logSaver:       logSaver,
 		traceSaver:     traceSaver,
 		statsProcessor: imetrics.NewStatsProcessor(),
+		done:           make(chan error, 1),
 		opts:           envelope.Options{Restart: envelope.Never, Retry: retry.DefaultOptions},
 		dep:            dep,
 		started:        time.Now(),
@@ -141,6 +143,8 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 	go b.statsProcessor.CollectMetrics(b.ctx, b.readMetrics)
 	return b, nil
 }
+
+func (b *Babysitter) Done() chan error { return b.done }
 
 // RegisterStatusPages registers the status pages with the provided mux.
 func (b *Babysitter) RegisterStatusPages(mux *http.ServeMux) {
@@ -203,9 +207,8 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 			return err
 		}
 		go func() {
-			// TODO(mwhittaker): Propagate errors.
 			if err := e.Run(b.ctx); err != nil {
-				b.logger.Error("e.Run", err)
+				b.done <- err
 			}
 		}()
 		g.envelopes = append(g.envelopes, e)
