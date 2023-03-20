@@ -139,12 +139,16 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("register deployment: %w", err)
 	}
 
-	// Wait for the user to kill the app.
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+	userDone := make(chan os.Signal, 1)
+	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		<-done // Will block here until user hits ctrl+c
-		fmt.Fprintf(os.Stderr, "Application %s terminated\n", app.Name)
+		// Wait for the user to kill the app or the app to return an error.
+		select {
+		case <-userDone:
+			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", app.Name)
+		case err := <-b.Done():
+			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", app.Name, err)
+		}
 		if err := registry.Unregister(ctx, dep.Id); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
 		}
