@@ -76,7 +76,7 @@ type env interface {
 }
 
 // getEnv returns the env to use for this weavelet.
-func getEnv(ctx context.Context) (env, error) {
+func getEnv(ctx context.Context, handler WeaveletHandler) (env, error) {
 	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
 		return nil, err
@@ -84,5 +84,5 @@ func getEnv(ctx context.Context) (env, error) {
 	if !bootstrap.HasPipes() {
 		return newSingleprocessEnv(bootstrap)
 	}
-	return newRemoteEnv(ctx, bootstrap)
+	return newRemoteEnv(ctx, bootstrap, handler)
 }

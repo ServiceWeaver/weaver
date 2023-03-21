@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"reflect"
@@ -26,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -43,6 +43,13 @@ import (
 
 // readyMethodKey holds the key for a method used to check if a backend is ready.
 var readyMethodKey = call.MakeMethodKey("", "ready")
+
+// WeaveletHandler implements the weavelet side processing of messages exchanged
+// with the corresponding envelope.
+type WeaveletHandler interface {
+	// CollectLoad returns the latest load information at the weavelet.
+	CollectLoad() (*protos.WeaveletLoadReport, error)
+}
 
 // A weavelet is responsible for running and managing Service Weaver components. As the
 // name suggests, a weavelet is analogous to a kubelet or borglet. Every
@@ -78,37 +85,44 @@ type client struct {
 	err      error
 }
 
+// Ensure that WeaveletHandler remains in-sync with conn.WeaveletHandler.
+var (
+	_ WeaveletHandler      = conn.WeaveletHandler(nil)
+	_ conn.WeaveletHandler = WeaveletHandler(nil)
+	_ WeaveletHandler      = &weavelet{}
+)
+
 // newWeavelet returns a new weavelet.
 func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*weavelet, error) {
-	env, err := getEnv(ctx)
+	byName := make(map[string]*component, len(componentInfos))
+	byType := make(map[reflect.Type]*component, len(componentInfos))
+	w := &weavelet{
+		ctx:              ctx,
+		componentsByName: byName,
+		componentsByType: byType,
+		tcpClients:       map[string]*client{},
+		loads:            map[string]*loadCollector{},
+	}
+	env, err := getEnv(ctx, w)
 	if err != nil {
 		return nil, err
 	}
+	w.env = env
 
 	wletInfo := env.GetWeaveletInfo()
 	if wletInfo == nil {
 		return nil, fmt.Errorf("unable to get weavelet information")
 	}
+	w.info = wletInfo
 
 	exporter, err := env.CreateTraceExporter()
 	if err != nil {
 		return nil, fmt.Errorf("internal error: cannot create trace exporter: %w", err)
 	}
 
-	byName := make(map[string]*component, len(componentInfos))
-	byType := make(map[reflect.Type]*component, len(componentInfos))
-	d := &weavelet{
-		ctx:              ctx,
-		env:              env,
-		info:             wletInfo,
-		componentsByName: byName,
-		componentsByType: byType,
-		tcpClients:       map[string]*client{},
-		loads:            map[string]*loadCollector{},
-	}
 	for _, info := range componentInfos {
 		c := &component{
-			wlet: d,
+			wlet: w,
 			info: info,
 			// may be remote, so start with no-op logger. May set real logger later.
 			logger: discardingLogger{},
@@ -149,7 +163,7 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	otel.SetTracerProvider(tracerProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 
-	d.transport = &transport{
+	w.transport = &transport{
 		clientOpts: call.ClientOptions{
 			Logger:            env.SystemLogger(),
 			WriteFlattenLimit: 4 << 10,
@@ -161,11 +175,11 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 			WriteFlattenLimit:     4 << 10,
 		},
 	}
-	d.tracer = tracer
+	w.tracer = tracer
 	main.tracer = tracer
-	d.root = main
+	w.root = main
 
-	return d, nil
+	return w, nil
 }
 
 // start starts a weavelet, executing the logic to start and manage components.
@@ -236,9 +250,6 @@ func (w *weavelet) start() (Instance, error) {
 		// Monitor our routing assignment.
 		routelet := newRoutelet(w.ctx, w.env, w.info.Group.Name)
 		routelet.onChange(w.onNewRoutingInfo)
-
-		// Start reporting load signals periodically.
-		startWork(w.ctx, "report load", w.reportLoad)
 
 		// Register our external address. This will allow weavelets in other
 		// colocation groups to detect this weavelet and load-balance traffic
@@ -498,52 +509,25 @@ func (w *weavelet) watchComponentsToStart() error {
 	return w.ctx.Err()
 }
 
-func (w *weavelet) reportLoad() error {
-	// pick samples a time uniformly from [0.95i, 1.05i] where i is
-	// LoadReportInterval. We introduce jitter to avoid processes that start
-	// around the same time from storming to update their load.
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	pick := func() time.Duration {
-		const i = float64(runtime.LoadReportInterval)
-		const low = int64(i * 0.95)
-		const high = int64(i * 1.05)
-		return time.Duration(r.Int63n(high-low+1) + low)
+// CollectLoad implements the WeaveletHandler interface.
+func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
+	report := &protos.WeaveletLoadReport{
+		App:          w.info.App,
+		DeploymentId: w.info.DeploymentId,
+		Group:        w.info.Group.Name,
+		Replica:      string(w.dialAddr),
+		Loads:        map[string]*protos.WeaveletLoadReport_ComponentLoad{},
 	}
 
-	ticker := time.NewTicker(pick())
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			ticker.Reset(pick())
-			report := &protos.WeaveletLoadReport{
-				App:          w.info.App,
-				DeploymentId: w.info.DeploymentId,
-				Group:        w.info.Group.Name,
-				Replica:      string(w.dialAddr),
-				Loads:        map[string]*protos.WeaveletLoadReport_ComponentLoad{},
-			}
-
-			for c, collector := range w.loads {
-				if x := collector.report(); x != nil {
-					report.Loads[c] = x
-				}
-				// TODO(mwhittaker): If ReportLoad down below fails, we
-				// likely don't want to reset our load.
-				collector.reset()
-			}
-
-			// TODO(rgrandl): we may want to retry to send a report signal if it
-			// returns any specific errors.
-			if err := w.env.ReportLoad(w.ctx, report); err != nil {
-				w.env.SystemLogger().Error("report load", err)
-				continue
-			}
-		case <-w.ctx.Done():
-			return w.ctx.Err()
+	for c, collector := range w.loads {
+		if x := collector.report(); x != nil {
+			report.Loads[c] = x
 		}
+		// TODO(mwhittaker): If ReportLoad down below fails, we
+		// likely don't want to reset our load.
+		collector.reset()
 	}
+	return report, nil
 }
 
 // onNewRoutingInfo is a callback that is invoked every time the routing info

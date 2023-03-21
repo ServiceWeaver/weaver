@@ -34,9 +34,6 @@ type EnvelopeHandler interface {
 	// RegisterReplica registers the given weavelet replica.
 	RegisterReplica(entry *protos.ReplicaToRegister) error
 
-	// ReportLoad reports the given weavelet load information.
-	ReportLoad(entry *protos.WeaveletLoadReport) error
-
 	// GetAddress gets the address a weavelet should listen on for a listener.
 	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
 
@@ -116,8 +113,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		return e.send(errReply(e.handler.StartComponent(msg.ComponentToStart)))
 	case msg.ReplicaToRegister != nil:
 		return e.send(errReply(e.handler.RegisterReplica(msg.ReplicaToRegister)))
-	case msg.LoadReport != nil:
-		return e.send(errReply(e.handler.ReportLoad(msg.LoadReport)))
 	case msg.GetAddressRequest != nil:
 		reply, err := e.handler.GetAddress(msg.GetAddressRequest)
 		if err != nil {
@@ -217,6 +212,18 @@ func (e *EnvelopeConn) HealthStatusRPC() (protos.HealthStatus, error) {
 		return protos.HealthStatus_UNHEALTHY, fmt.Errorf("nil health status reply received from weavelet")
 	}
 	return reply.HealthReport.Status, nil
+}
+
+// GetLoadInfoRPC requests the weavelet to return the latest load information.
+func (e *EnvelopeConn) GetLoadInfoRPC() (*protos.WeaveletLoadReport, error) {
+	reply, err := e.rpc(&protos.EnvelopeMsg{SendLoadInfo: true})
+	if err != nil {
+		return nil, err
+	}
+	if reply.LoadReport == nil {
+		return nil, fmt.Errorf("nil load info reply received from weavelet")
+	}
+	return reply.LoadReport, nil
 }
 
 // DoProfilingRPC requests the weavelet to profile itself and return its
