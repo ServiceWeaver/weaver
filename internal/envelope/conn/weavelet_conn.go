@@ -27,9 +27,17 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
+// WeaveletHandler implements the weavelet side processing of messages exchanged
+// with the corresponding envelope.
+type WeaveletHandler interface {
+	// CollectLoad returns the latest load information at the weavelet.
+	CollectLoad() (*protos.WeaveletLoadReport, error)
+}
+
 // WeaveletConn is the weavelet side of the connection between a weavelet
 // and its envelope. It communicates with the envelope over a pair of pipes.
 type WeaveletConn struct {
+	handler WeaveletHandler
 	conn    conn
 	wlet    *protos.WeaveletInfo
 	metrics metrics.Exporter
@@ -41,8 +49,11 @@ type WeaveletConn struct {
 //
 // NewWeaveletConn blocks until it receives a protos.Weavelet from the
 // envelope.
-func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
-	d := &WeaveletConn{conn: conn{name: "weavelet", reader: r, writer: w}}
+func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*WeaveletConn, error) {
+	d := &WeaveletConn{
+		handler: h,
+		conn:    conn{name: "weavelet", reader: r, writer: w},
+	}
 
 	// Block until a weavelet is received.
 	msg := &protos.EnvelopeMsg{}
@@ -100,6 +111,13 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 		return d.send(&protos.WeaveletMsg{Id: -msg.Id, Metrics: update})
 	case msg.SendHealthStatus:
 		return d.send(&protos.WeaveletMsg{Id: -msg.Id, HealthReport: &protos.HealthReport{Status: protos.HealthStatus_HEALTHY}})
+	case msg.SendLoadInfo:
+		id := msg.Id
+		load, err := d.handler.CollectLoad()
+		if err != nil {
+			return d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+		}
+		return d.send(&protos.WeaveletMsg{Id: -id, LoadReport: load})
 	case msg.RunProfiling != nil:
 		// This is a blocking call, and therefore we process it in a separate
 		// goroutine. Note that this will cause profiling requests to be

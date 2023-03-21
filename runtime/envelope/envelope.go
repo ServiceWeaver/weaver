@@ -46,9 +46,6 @@ type EnvelopeHandler interface {
 	// RegisterReplica registers the given weavelet replica.
 	RegisterReplica(entry *protos.ReplicaToRegister) error
 
-	// ReportLoad reports the given weavelet load information.
-	ReportLoad(entry *protos.WeaveletLoadReport) error
-
 	// GetAddress gets the address a weavelet should listen on for a listener.
 	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
 
@@ -336,6 +333,15 @@ func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
 		return nil, fmt.Errorf("cannot read metrics: weavelet pipe is down")
 	}
 	return conn.GetMetricsRPC()
+}
+
+// GetLoadInfo returns the latest load information at the weavelet.
+func (e *Envelope) GetLoadInfo() (*protos.WeaveletLoadReport, error) {
+	conn := e.getConn()
+	if conn == nil {
+		return nil, fmt.Errorf("cannot read load: weavelet pipe is down")
+	}
+	return conn.GetLoadInfoRPC()
 }
 
 func (e *Envelope) isStopped() bool {

@@ -83,7 +83,7 @@ func TestMetricPropagation(t *testing.T) {
 func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.EnvelopeConn, *conn.WeaveletConn) {
 	t.Helper()
 
-	// Create the pipes. Note that We use os.Pipe instead of io.Pipe. The pipes
+	// Create the pipes. Note that we use os.Pipe instead of io.Pipe. The pipes
 	// returned by io.Pipe are synchronous, meaning that a write blocks until a
 	// corresponding read (or set of reads) reads the written bytes. This
 	// behavior is unlike the normal pipe behavior and complicates things, so
@@ -111,7 +111,7 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	if err != nil {
 		t.Fatal(err)
 	}
-	w, err := conn.NewWeaveletConn(wReader, wWriter)
+	w, err := conn.NewWeaveletConn(wReader, wWriter, nil /*handler*/)
 	if err != nil {
 		t.Fatal(err)
 	}

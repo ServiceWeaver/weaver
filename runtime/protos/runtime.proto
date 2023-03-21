@@ -33,6 +33,9 @@ message EnvelopeMsg {
   // A request to the weavelet to send its health status.
   bool send_health_status = 3;
 
+  // A request to the weavelet to send the latest load information.
+  bool send_load_info = 11;
+
   // A request to the weavelet to profile itself and send back the profile
   // data.
   RunProfiling run_profiling = 4;

@@ -162,7 +162,6 @@ func (h *handlerForTest) getTraceSpanNames() []string {
 func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)             { h.logSaver(entry) }
 func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
 func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error     { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }
@@ -310,7 +309,7 @@ func createWeaveletConn() (*conn.WeaveletConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable make weavelet<->envelope pipes: %w", err)
 	}
-	return conn.NewWeaveletConn(toWeavelet, toEnvelope)
+	return conn.NewWeaveletConn(toWeavelet, toEnvelope, nil /*handler*/)
 }
 
 func writeTraces(conn *conn.WeaveletConn) error {

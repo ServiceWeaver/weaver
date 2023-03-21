@@ -39,13 +39,13 @@ type remoteEnv struct {
 
 var _ env = &remoteEnv{}
 
-func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap) (*remoteEnv, error) {
+func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler WeaveletHandler) (*remoteEnv, error) {
 	// Create pipe to communicate with the envelope.
 	toWeavelet, toEnvelope, err := bootstrap.MakePipes()
 	if err != nil {
 		return nil, err
 	}
-	conn, err := conn.NewWeaveletConn(toWeavelet, toEnvelope)
+	conn, err := conn.NewWeaveletConn(toWeavelet, toEnvelope, handler)
 	if err != nil {
 		return nil, fmt.Errorf("new weavelet conn: %w", err)
 	}
