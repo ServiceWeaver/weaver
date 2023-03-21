@@ -18,13 +18,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -34,7 +34,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -69,7 +68,6 @@ func TestMain(m *testing.M) {
 			},
 			"succeed": func() error { return nil },
 			"fail":    func() error { os.Exit(1); return nil },
-			"flip":    failOften,
 			"file":    checkFile,
 			"bigprint": func() error {
 				n, err := strconv.Atoi(flag.Arg(1))
@@ -105,25 +103,13 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// failOften fails with high probability.
-func failOften() error {
-	rand.Seed(time.Now().UnixNano())
-	if rand.Intn(10) != 0 {
+// checkFile succeeds iff the given file exists.
+func checkFile() error {
+	_, err := os.Stat(flag.Arg(1))
+	if err != nil {
 		os.Exit(1)
 	}
-	return nil
-}
-
-// checkFile succeeds if the given file exists, or makes the file and fails.
-func checkFile() error {
-	if _, err := os.Stat(flag.Arg(1)); err == nil {
-		return nil
-	}
-	if _, err := os.Create(flag.Arg(1)); err != nil {
-		return err
-	}
-	os.Exit(1)
-	return nil
+	return err
 }
 
 // wlet returns a WeaveletInfo and AppConfig for testing.
@@ -139,23 +125,6 @@ func wlet(binary string, args ...string) (*protos.WeaveletInfo, *protos.AppConfi
 	}
 	config := &protos.AppConfig{Binary: binary, Args: args}
 	return weavelet, config
-}
-
-// pidSaver is a log saver that parses and stores pids from the log entries'
-// messages.
-type pidSaver struct {
-	mu   sync.Mutex
-	pids map[int]bool
-}
-
-func (p *pidSaver) save(entry *protos.LogEntry) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	pid, err := strconv.Atoi(entry.Msg)
-	if err != nil {
-		panic(err)
-	}
-	p.pids[pid] = true
 }
 
 // testSaver returns a log saver that pretty prints logs using t.Log.
@@ -208,39 +177,34 @@ func (h *handlerForTest) ExportListener(*protos.ExportListenerRequest) (*protos.
 }
 
 func TestRun(t *testing.T) {
+	filename := filepath.Join(t.TempDir(), "file.txt")
+	if _, err := os.Create(filename); err != nil {
+		t.Fatal(err)
+	}
+
 	for _, test := range []struct {
 		subcommand string
 		args       []string
-		restart    RestartPolicy
 		succeed    bool
-		minPids    int
-		maxPids    int
 	}{
-		{"succeed", []string{}, Never, true, 1, 1},
-		{"succeed", []string{}, OnFailure, true, 1, 1},
-		{"fail", []string{}, Never, false, 1, 1},
-		{"flip", []string{}, OnFailure, true, 1, -1},
-		{"file", []string{filepath.Join(t.TempDir(), "file.txt")}, OnFailure, true, 2, 2},
+		{"succeed", []string{}, true},
+		{"fail", []string{}, false},
+		{"file", []string{filename}, true},
 	} {
-		name := fmt.Sprintf("%v/%v", test.subcommand, test.restart)
+		name := test.subcommand
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
-			pids := pidSaver{pids: map[int]bool{}}
-			opts := Options{
-				Restart: test.restart,
-				// Avoid long backoffs.
-				Retry: retry.Options{
-					BackoffMultiplier:  1,
-					BackoffMinDuration: time.Millisecond,
-				},
-			}
+			var started atomic.Bool
 			args := append([]string{test.subcommand}, test.args...)
 			wlet, config := wlet(executable, args...)
-			e, err := NewEnvelope(wlet, config, &handlerForTest{logSaver: pids.save}, opts)
+			e, err := NewEnvelope(wlet, config, &handlerForTest{
+				logSaver: func(*protos.LogEntry) {
+					started.Store(true)
+				},
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
-
 			err = e.Run(ctx)
 			if err != nil && test.succeed {
 				t.Fatalf("m.Run(): %v", err)
@@ -248,13 +212,8 @@ func TestRun(t *testing.T) {
 			if err == nil && !test.succeed {
 				t.Fatal("m.Run(): unexpected success")
 			}
-
-			n := len(pids.pids)
-			if n < test.minPids {
-				t.Fatalf("got %d pids, want at least %d", n, test.minPids)
-			}
-			if test.maxPids != -1 && n > test.maxPids {
-				t.Fatalf("got %d pids, want at most %d", n, test.maxPids)
+			if !started.Load() {
+				t.Fatalf("expected weavelet to start; it didn't")
 			}
 		})
 	}
@@ -282,7 +241,7 @@ func TestBigPrints(t *testing.T) {
 
 	n := 10000
 	wlet, config := wlet(executable, "bigprint", strconv.Itoa(n))
-	e, err := NewEnvelope(wlet, config, h, Options{Restart: Never})
+	e, err := NewEnvelope(wlet, config, h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,8 +270,7 @@ func TestCancel(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			wlet, config := wlet(executable, "loop")
-			e, err := NewEnvelope(wlet, config,
-				&handlerForTest{logSaver: testSaver(t)}, Options{})
+			e, err := NewEnvelope(wlet, config, &handlerForTest{logSaver: testSaver(t)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -387,7 +345,7 @@ func TestTraces(t *testing.T) {
 	h := &handlerForTest{logSaver: testSaver(t)}
 	ctx := context.Background()
 	wlet, config := wlet(executable, "writetraces")
-	e, err := NewEnvelope(wlet, config, h, Options{})
+	e, err := NewEnvelope(wlet, config, h)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,7 +362,7 @@ func TestTraces(t *testing.T) {
 func startEnvelopeWithServing(ctx context.Context, t *testing.T) *Envelope {
 	h := &handlerForTest{logSaver: testSaver(t)}
 	wlet, config := wlet(executable, "serve_conn")
-	e, err := NewEnvelope(wlet, config, h, Options{})
+	e, err := NewEnvelope(wlet, config, h)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -329,7 +329,6 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
@@ -654,7 +653,6 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/ServiceWeaver/weaver/runtime/retry
     go.opentelemetry.io/otel/sdk/trace
     io
     os
@@ -790,7 +788,6 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/ServiceWeaver/weaver/runtime/retry
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps

@@ -37,7 +37,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -52,7 +51,6 @@ const defaultReplication = 2
 // A Babysitter manages an application deployment.
 type Babysitter struct {
 	ctx     context.Context
-	opts    envelope.Options
 	dep     *protos.Deployment
 	done    chan error
 	started time.Time
@@ -134,7 +132,6 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		traceSaver:     traceSaver,
 		statsProcessor: imetrics.NewStatsProcessor(),
 		done:           make(chan error, 1),
-		opts:           envelope.Options{Restart: envelope.Never, Retry: retry.DefaultOptions},
 		dep:            dep,
 		started:        time.Now(),
 		groups:         map[string]*group{},
@@ -202,7 +199,7 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 			SingleProcess: b.dep.SingleProcess,
 			SingleMachine: true,
 		}
-		e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
+		e, err := envelope.NewEnvelope(wlet, b.dep.App, b)
 		if err != nil {
 			return err
 		}

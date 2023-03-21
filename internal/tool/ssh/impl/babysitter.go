@@ -29,7 +29,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
@@ -38,7 +37,6 @@ import (
 // group for a single application version, on the local machine.
 type babysitter struct {
 	ctx           context.Context
-	opts          envelope.Options
 	dep           *protos.Deployment
 	mgrAddr       string
 	logger        logtype.Logger
@@ -86,7 +84,6 @@ func RunBabysitter(ctx context.Context) error {
 				Request: spans,
 			})
 		}),
-		opts: envelope.Options{Restart: envelope.OnFailure, Retry: retry.DefaultOptions},
 	}
 
 	// Start the envelope.
@@ -100,7 +97,7 @@ func RunBabysitter(ctx context.Context) error {
 		Sections:      b.dep.App.Sections,
 		SingleProcess: b.dep.SingleProcess,
 	}
-	e, err := envelope.NewEnvelope(wlet, b.dep.App, b, b.opts)
+	e, err := envelope.NewEnvelope(wlet, b.dep.App, b)
 	if err != nil {
 		return err
 	}
