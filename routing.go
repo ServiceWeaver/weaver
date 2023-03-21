@@ -28,34 +28,33 @@ import (
 // routelet Implementation Details
 //
 // When a routelet is created, it spawns a goroutine that repeatedly issues
-// RouteInfoRequests to the manager for a given process. These are blocking
+// RouteInfoRequests to the manager for a given component. These are blocking
 // calls that return whenever the routing information has changed.
 //
 // You can use a routelet's Resolver and Balancer methods to get a
 // call.Resolver and call.Balancer, respectively. Both the resolver and
 // balancer are automatically updated whenever the routing information changes.
 
-// routelet maintains the latest routing information for a process by
-// communicating with the manager.
+// routelet maintains the latest routing information for a component.
 type routelet struct {
 	mu          sync.Mutex                  // guards the following fields
-	routingInfo *protos.RoutingInfo         // latest routing info from assigner
+	routingInfo *protos.RoutingInfo         // latest routing info
 	res         *routingResolver            // resolver, updated with routingInfo
-	balancers   map[string]*routingBalancer // balancers, keyed by component name
+	bal         *routingBalancer            // balancer, or nil if component isn't routed
 	callbacks   []func(*protos.RoutingInfo) // invoked when routing info changes
 }
 
-// newRoutelet returns a new routelet for the provided colocation group. The
+// newRoutelet returns a new routelet for the provided component. The
 // lifetime of the routelet is bound to the provided context. When the context is
 // cancelled, the routelet stops tracking the latest routing information.
-func newRoutelet(ctx context.Context, env env, group string) *routelet {
-	r := &routelet{balancers: map[string]*routingBalancer{}}
-	go r.watchRoutingInfo(ctx, env, group)
+func newRoutelet(ctx context.Context, env env, component string) *routelet {
+	r := &routelet{}
+	go r.watchRoutingInfo(ctx, env, component)
 	return r
 }
 
 // resolver returns a new call.Resolver that returns the weavelet addresses
-// that implement the process for which this routelet was created.
+// that implement the component for which this routelet was created.
 func (r *routelet) resolver() call.Resolver {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -65,33 +64,20 @@ func (r *routelet) resolver() call.Resolver {
 	return r.res
 }
 
-// balancer returns a new call.Balancer for the provided component that uses the
-// latest routing assignment to route requests. The provided component must be a
-// component in the process used to create this routelet.
-func (r *routelet) balancer(component string) call.Balancer {
+// balancer returns a new call.Balancer that uses the latest routing assignment
+// to route requests.
+func (r *routelet) balancer() call.Balancer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	balancer, ok := r.balancers[component]
-	if ok {
-		return balancer
+	if r.bal != nil {
+		return r.bal
 	}
 
-	// Register the balancer.
-	balancer = &routingBalancer{balancer: call.RoundRobin()}
-	r.balancers[component] = balancer
-
-	// Update the balancer with its initial assignment, if any.
-	if r.routingInfo == nil {
-		return balancer
+	r.bal = &routingBalancer{balancer: call.RoundRobin()}
+	if r.routingInfo != nil && r.routingInfo.Assignment != nil {
+		r.bal.updateAssignment(r.routingInfo.Assignment)
 	}
-	for _, assignment := range r.routingInfo.Assignments {
-		if assignment.Component != component {
-			continue
-		}
-		balancer.updateAssignment(assignment)
-	}
-	return balancer
+	return r.bal
 }
 
 // onChange registers a callback that is invoked every time the routing info
@@ -102,14 +88,14 @@ func (r *routelet) onChange(callback func(*protos.RoutingInfo)) {
 	r.callbacks = append(r.callbacks, callback)
 }
 
-// watchRoutingInfo repeatedly issues blocking RoutingInfoRequests to the
-// manager to track the latest routing info. Whenever the routing info changes,
+// watchRoutingInfo repeatedly issues blocking GetRoutingInfo requests via the
+// envelope to track the latest routing info. Whenever the routing info changes,
 // any resolvers and balancers returned by the Resolver() and Balancer()
 // methods are updated.
-func (r *routelet) watchRoutingInfo(ctx context.Context, env env, group string) {
+func (r *routelet) watchRoutingInfo(ctx context.Context, env env, component string) {
 	var version *call.Version
 	for re := retry.Begin(); re.Continue(ctx); {
-		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, group, version)
+		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, component, version)
 		if err != nil {
 			// TODO(mwhittaker): Handle errors more gracefully.
 			env.SystemLogger().Error("cannot get routing info", err)
@@ -142,13 +128,9 @@ func (r *routelet) update(routingInfo *protos.RoutingInfo, version *call.Version
 		r.res.update(endpoints, version)
 	}
 
-	// Update balancers.
-	for _, assignment := range routingInfo.Assignments {
-		balancer, ok := r.balancers[assignment.Component]
-		if !ok {
-			continue
-		}
-		balancer.updateAssignment(assignment)
+	// Update balancer.
+	if r.bal != nil && routingInfo.Assignment != nil {
+		r.bal.updateAssignment(routingInfo.Assignment)
 	}
 
 	// Invoke callbacks.

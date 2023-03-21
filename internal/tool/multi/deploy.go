@@ -106,10 +106,8 @@ func deploy(ctx context.Context, args []string) error {
 	}()
 
 	// Deploy main.
-	group := &protos.ColocationGroup{Name: "main"}
 	if err := b.StartComponent(&protos.ComponentToStart{
-		ColocationGroup: group.Name,
-		Component:       "main",
+		Component: "main",
 	}); err != nil {
 		return fmt.Errorf("start main process: %w", err)
 	}

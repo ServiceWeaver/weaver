@@ -67,8 +67,15 @@ type weavelet struct {
 	componentsByName map[string]*component       // component name -> component
 	componentsByType map[reflect.Type]*component // component type -> component
 
+	// TODO(mwhittaker): We have one client for every component. Every client
+	// independently maintains network connections to every weavelet hosting
+	// the component. Thus, there may be many redundant network connections to
+	// the same weavelet. Given n weavelets hosting m components, there's at
+	// worst n^2m connections rather than a more optimal n^2 (a single
+	// connection between every pair of weavelets). We should rewrite things to
+	// avoid the redundancy.
 	clientsLock sync.Mutex
-	tcpClients  map[string]*client // indexed by group name
+	tcpClients  map[string]*client // indexed by component
 
 	loads map[string]*loadCollector // load for every local routed component
 }
@@ -81,7 +88,7 @@ type transport struct {
 type client struct {
 	init     sync.Once
 	client   call.Connection
-	routelet *routelet // non-nil only for tcp clients
+	routelet *routelet
 	err      error
 }
 
@@ -534,13 +541,14 @@ func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
 // for our process changes. onNewRoutingInfo updates the assignments and load
 // for our local components.
 func (w *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) {
-	for _, assignment := range info.Assignments {
-		collector, ok := w.loads[assignment.Component]
-		if !ok {
-			continue
-		}
-		collector.updateAssignment(assignment)
+	if info.Assignment == nil {
+		return
 	}
+	collector, ok := w.loads[info.Assignment.Component]
+	if !ok {
+		return
+	}
+	collector.updateAssignment(info.Assignment)
 }
 
 // getComponent returns the component with the given name.
@@ -672,7 +680,7 @@ func (w *weavelet) getStub(c *component) (*componentStub, error) {
 
 		var balancer call.Balancer
 		if c.info.Routed {
-			balancer = client.routelet.balancer(c.info.Name)
+			balancer = client.routelet.balancer()
 		}
 		c.stub = &componentStub{
 			stub: &stub{
@@ -701,7 +709,7 @@ func waitUntilReady(ctx context.Context, client call.Connection) error {
 func (w *weavelet) getTCPClient(component *component) (*client, error) {
 	// Create entry in client map.
 	w.clientsLock.Lock()
-	c, ok := w.tcpClients[component.groupName]
+	c, ok := w.tcpClients[component.info.Name]
 	if !ok {
 		c = &client{}
 		w.tcpClients[component.groupName] = c
@@ -710,7 +718,7 @@ func (w *weavelet) getTCPClient(component *component) (*client, error) {
 
 	// Initialize (or wait for initialization to complete.)
 	c.init.Do(func() {
-		routelet := newRoutelet(w.ctx, w.env, component.groupName)
+		routelet := newRoutelet(w.ctx, w.env, component.info.Name)
 		c.routelet = routelet
 		c.client, c.err = call.Connect(w.ctx, routelet.resolver(), w.transport.clientOpts)
 		if c.err != nil {

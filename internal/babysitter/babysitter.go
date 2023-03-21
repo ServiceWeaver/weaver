@@ -74,6 +74,23 @@ type Babysitter struct {
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
+	// The babysitter places components into co-location groups based on the
+	// colocate stanza in a config. For example, consider the following config.
+	//
+	//     colocate = [
+	//         ["A", "B", "C"],
+	//         ["D", "E"],
+	//     ]
+	//
+	// The babysitter creates a co-location group with components "A", "B", and
+	// "C" and a co-location group with components "D" and "E". All other
+	// components are placed in their own co-location group. We use the first
+	// listed component as the co-location group name.
+	//
+	// colocation maps components listed in the colocate stanza to the name of
+	// their group.
+	colocation map[string]string
+
 	// guards access to the following maps, but not the contents inside
 	// the maps.
 	mu      sync.Mutex
@@ -83,16 +100,15 @@ type Babysitter struct {
 
 // A group contains information about a co-location group.
 type group struct {
-	name       string                                    // group name
-	components *versioned.Versioned[map[string]bool]     // started components
-	routing    *versioned.Versioned[*protos.RoutingInfo] // routing info
+	name       string                                // group name
+	components *versioned.Versioned[map[string]bool] // started components
 
-	// guards access to the following slices, but not the contents inside
-	// the slices.
+	// guards the following data structures, but not their contents.
 	mu        sync.Mutex
-	envelopes []*envelope.Envelope // envelopes, one per weavelet
-	pids      []int64              // weavelet pids
-
+	addresses map[string]bool                                      // weavelet addresses
+	envelopes []*envelope.Envelope                                 // envelopes, one per weavelet
+	pids      []int64                                              // weavelet pids
+	routings  map[string]*versioned.Versioned[*protos.RoutingInfo] // routing info, by component
 }
 
 // A proxyInfo contains information about a proxy.
@@ -102,7 +118,13 @@ type proxyInfo struct {
 	addr     string       // dialable address of the proxy
 }
 
-var _ envelope.EnvelopeHandler = &Babysitter{}
+// handler handles a connection to a weavelet.
+type handler struct {
+	*Babysitter
+	g *group
+}
+
+var _ envelope.EnvelopeHandler = &handler{}
 
 // NewBabysitter creates a new babysitter.
 func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*protos.LogEntry)) (*Babysitter, error) {
@@ -125,6 +147,14 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		return traceDB.Store(ctx, dep.App.Name, dep.Id, spans)
 	}
 
+	// Form co-location.
+	colocation := map[string]string{}
+	for _, group := range dep.App.SameProcess {
+		for _, c := range group.Components {
+			colocation[c] = group.Components[0]
+		}
+	}
+
 	b := &Babysitter{
 		ctx:            ctx,
 		logger:         logger,
@@ -134,6 +164,7 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 		done:           make(chan error, 1),
 		dep:            dep,
 		started:        time.Now(),
+		colocation:     colocation,
 		groups:         map[string]*group{},
 		proxies:        map[string]*proxyInfo{},
 	}
@@ -148,20 +179,39 @@ func (b *Babysitter) RegisterStatusPages(mux *http.ServeMux) {
 	status.RegisterServer(mux, b, b.logger)
 }
 
-// group returns the named co-location group.
-func (b *Babysitter) group(name string) *group {
+// group returns the co-location group containing the provided component.
+func (b *Babysitter) group(component string) *group {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	name, ok := b.colocation[component]
+	if !ok {
+		name = component
+	}
+
 	g, ok := b.groups[name]
 	if !ok {
 		g = &group{
 			name:       name,
+			addresses:  map[string]bool{},
 			components: versioned.Version(map[string]bool{}),
-			routing:    versioned.Version(&protos.RoutingInfo{}),
+			routings:   map[string]*versioned.Versioned[*protos.RoutingInfo]{},
 		}
 		b.groups[name] = g
 	}
 	return g
+}
+
+// routing returns the RoutingInfo for the provided component.
+//
+// REQUIRES: g.mu is held.
+func (g *group) routing(component string) *versioned.Versioned[*protos.RoutingInfo] {
+	routing, ok := g.routings[component]
+	if !ok {
+		routing = versioned.Version(&protos.RoutingInfo{})
+		g.routings[component] = routing
+	}
+	return routing
 }
 
 // allGroups returns all of the managed colocation groups.
@@ -178,9 +228,11 @@ func (b *Babysitter) allProxies() []*proxyInfo {
 	return maps.Values(b.proxies)
 }
 
+// startColocationGroup starts the colocation group hosting the provided
+// component, if it hasn't been started already.
+//
+// REQUIRES: g.mu is held.
 func (b *Babysitter) startColocationGroup(g *group) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
 	if len(g.envelopes) == defaultReplication {
 		// Already started.
 		return nil
@@ -199,7 +251,8 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 			SingleProcess: b.dep.SingleProcess,
 			SingleMachine: true,
 		}
-		e, err := envelope.NewEnvelope(wlet, b.dep.App, b)
+		h := &handler{b, g}
+		e, err := envelope.NewEnvelope(wlet, b.dep.App, h)
 		if err != nil {
 			return err
 		}
@@ -213,10 +266,17 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 	return nil
 }
 
-// StartComponent implements the protos.EnvelopeHandler interface.
+// StartComponent implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
+	g := b.group(req.Component)
+
+	// Hold the lock to avoid concurrent updates to g.addresses.
+	//
+	// TODO(mwhittaker): Reduce lock scope.
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	// Record the component.
-	g := b.group(req.ColocationGroup)
 	record := func() bool {
 		g.components.Lock()
 		defer g.components.Unlock()
@@ -232,67 +292,69 @@ func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
 	}
 
 	// Update the routing info.
-	if req.IsRouted {
-		update := func() {
-			g.routing.Lock()
-			defer g.routing.Unlock()
+	routing := g.routing(req.Component)
+	update := func() {
+		routing.Lock()
+		defer routing.Unlock()
+
+		routing.Val.Replicas = maps.Keys(g.addresses)
+		if req.Routed {
 			assignment := &protos.Assignment{
 				App:          b.dep.App.Name,
 				DeploymentId: b.dep.Id,
 				Component:    req.Component,
 			}
-			assignment = routingAlgo(assignment, g.routing.Val.Replicas)
-			g.routing.Val.Assignments = append(g.routing.Val.Assignments, assignment)
+			routing.Val.Assignment = routingAlgo(assignment, routing.Val.Replicas)
 		}
-		update()
 	}
+	update()
 
-	// Start the colocation group, if it hasn't already started.
 	return b.startColocationGroup(g)
 }
 
-// RegisterReplica implements the protos.EnvelopeHandler interface.
+// RegisterReplica implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) RegisterReplica(req *protos.ReplicaToRegister) error {
 	g := b.group(req.Group)
-
-	// Update routing.
-	g.routing.Lock()
-	defer g.routing.Unlock()
-	for _, replica := range g.routing.Val.Replicas {
-		if req.Address == replica { // already registered
-			return nil
-		}
-	}
-	g.routing.Val.Replicas = append(g.routing.Val.Replicas, req.Address)
-	for i, assignment := range g.routing.Val.Assignments {
-		g.routing.Val.Assignments[i] = routingAlgo(assignment, g.routing.Val.Replicas)
-	}
-
-	// Add pid.
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	// Update addresses and pids.
+	if g.addresses[req.Address] {
+		// Replica already registered.
+		return nil
+	}
+	g.addresses[req.Address] = true
 	g.pids = append(g.pids, req.Pid)
 
+	// Update routing.
+	replicas := maps.Keys(g.addresses)
+	for _, routing := range g.routings {
+		routing.Lock()
+		routing.Val.Replicas = replicas
+		if routing.Val.Assignment != nil {
+			routing.Val.Assignment = routingAlgo(routing.Val.Assignment, replicas)
+		}
+		routing.Unlock()
+	}
 	return nil
 }
 
-// GetComponentsToStart implements the protos.EnvelopeHandler interface.
-func (b *Babysitter) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	g := b.group(req.Group)
-	version := g.components.RLock(req.Version)
-	defer g.components.RUnlock()
+// GetComponentsToStart implements the envelope.EnvelopeHandler interface.
+func (h *handler) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
+	version := h.g.components.RLock(req.Version)
+	defer h.g.components.RUnlock()
 	return &protos.ComponentsToStart{
 		Version:    version,
-		Components: maps.Keys(g.components.Val),
+		Components: maps.Keys(h.g.components.Val),
 	}, nil
 }
 
-// RecvLogEntry implements the protos.EnvelopeHandler interface.
+// RecvLogEntry implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) RecvLogEntry(entry *protos.LogEntry) {
 	b.logSaver(entry)
 }
 
-// RecvTraceSpans implements the protos.EnvelopeHandler interface.
+// RecvTraceSpans implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) RecvTraceSpans(spans []trace.ReadOnlySpan) error {
 	if b.traceSaver == nil {
 		return nil
@@ -300,17 +362,17 @@ func (b *Babysitter) RecvTraceSpans(spans []trace.ReadOnlySpan) error {
 	return b.traceSaver(spans)
 }
 
-// ReportLoad implements the protos.EnvelopeHandler interface.
+// ReportLoad implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) ReportLoad(*protos.WeaveletLoadReport) error {
 	return nil
 }
 
-// GetAddress implements the protos.EnvelopeHandler interface.
+// GetAddress implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
 	return &protos.GetAddressReply{Address: "localhost:0"}, nil
 }
 
-// ExportListener implements the protos.EnvelopeHandler interface.
+// ExportListener implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -346,14 +408,18 @@ func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
 }
 
-// GetRoutingInfo implements the protos.EnvelopeHandler interface.
+// GetRoutingInfo implements the envelope.EnvelopeHandler interface.
 func (b *Babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	g := b.group(req.Group)
-	version := g.routing.RLock(req.Version)
-	defer g.routing.RUnlock()
-	routing := protomsg.Clone(g.routing.Val)
-	routing.Version = version
-	return routing, nil
+	g := b.group(req.Component)
+	g.mu.Lock()
+	routing := g.routing(req.Component)
+	g.mu.Unlock()
+
+	version := routing.RLock(req.Version)
+	defer routing.RUnlock()
+	r := protomsg.Clone(routing.Val)
+	r.Version = version
+	return r, nil
 }
 
 func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {

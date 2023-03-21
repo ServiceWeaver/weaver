@@ -50,10 +50,10 @@ type env interface {
 	// ReportLoad reports load information for a weavelet.
 	ReportLoad(ctx context.Context, load *protos.WeaveletLoadReport) error
 
-	// GetRoutingInfo returns the routing info for the provided colocation
-	// group, including the set of replicas and the current routing assignments
+	// GetRoutingInfo returns the routing info for the provided component,
+	// including the set of replicas and the current routing assignments
 	// (if any).
-	GetRoutingInfo(ctx context.Context, group string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
+	GetRoutingInfo(ctx context.Context, component string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
 
 	// GetAddress returns the address a weavelet should listen on for a
 	// listener.

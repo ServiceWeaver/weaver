@@ -69,11 +69,12 @@ func (e errlist) Error() string {
 //     same process as the deployer. This is special to weavertests and
 //     requires special care. See Init for more details.
 type deployer struct {
-	ctx    context.Context      // cancels all running envelopes
-	t      testing.TB           // the unit test
-	wlet   *protos.WeaveletInfo // info for subprocesses
-	config *protos.AppConfig    // application config
-	logger logtype.Logger       // logger
+	ctx        context.Context      // cancels all running envelopes
+	t          testing.TB           // the unit test
+	wlet       *protos.WeaveletInfo // info for subprocesses
+	config     *protos.AppConfig    // application config
+	logger     logtype.Logger       // logger
+	colocation map[string]string    // maps component to group
 
 	mu      sync.Mutex        // guards groups
 	groups  map[string]*group // groups, by group name
@@ -83,8 +84,6 @@ type deployer struct {
 	log   bool       // logging enabled?
 }
 
-var _ envelope.EnvelopeHandler = &deployer{}
-
 // A group contains information about a co-location group.
 type group struct {
 	name       string                                    // group name
@@ -93,16 +92,32 @@ type group struct {
 	routing    *versioned.Versioned[*protos.RoutingInfo] // routing info
 }
 
+// handler handles a connection to a weavelet.
+type handler struct {
+	*deployer
+	group *group
+}
+
+var _ envelope.EnvelopeHandler = &handler{}
+
 // newDeployer returns a new weavertest multiprocess deployer.
 func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletInfo, config *protos.AppConfig) *deployer {
+	colocation := map[string]string{}
+	for _, group := range config.SameProcess {
+		for _, c := range group.Components {
+			colocation[c] = group.Components[0]
+		}
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
-		ctx:    ctx,
-		t:      t,
-		wlet:   wlet,
-		config: config,
-		groups: map[string]*group{},
-		log:    true,
+		ctx:        ctx,
+		t:          t,
+		wlet:       wlet,
+		config:     config,
+		colocation: colocation,
+		groups:     map[string]*group{},
+		log:        true,
 	}
 	d.logger = logging.FuncLogger{
 		Opts: logging.Options{
@@ -162,7 +177,8 @@ func (d *deployer) Init(config string) weaver.Instance {
 		SingleProcess: d.wlet.SingleProcess,
 		SingleMachine: d.wlet.SingleMachine,
 	}
-	conn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, d, wlet)
+	handler := &handler{d, d.group("main")}
+	conn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, handler, wlet)
 	if err != nil {
 		d.t.Fatalf("cannot create envelope conn: %v", err)
 	}
@@ -267,7 +283,7 @@ func (d *deployer) StartComponent(req *protos.ComponentToStart) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	group := d.group(req.ColocationGroup)
+	group := d.group(req.Component)
 	group.components.Lock()
 	defer group.components.Unlock()
 	if group.components.Val[req.Component] {
@@ -296,7 +312,8 @@ func (d *deployer) startGroup(group *group) error {
 			SingleProcess: d.wlet.SingleProcess,
 			SingleMachine: d.wlet.SingleMachine,
 		}
-		e, err := envelope.NewEnvelope(wlet, d.config, d)
+		handler := &handler{d, group}
+		e, err := envelope.NewEnvelope(wlet, d.config, handler)
 		if err != nil {
 			return err
 		}
@@ -320,24 +337,19 @@ func (d *deployer) startGroup(group *group) error {
 }
 
 // GetComponentsToStart implements the envelope.EnvelopeHandler interface.
-func (d *deployer) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	d.mu.Lock()
-	group := d.group(req.Group)
-	d.mu.Unlock()
-
-	// RLock blocks, so we can't hold the lock.
-	version := group.components.RLock(req.Version)
-	defer group.components.RUnlock()
+func (h *handler) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
+	version := h.group.components.RLock(req.Version)
+	defer h.group.components.RUnlock()
 	return &protos.ComponentsToStart{
 		Version:    version,
-		Components: maps.Keys(group.components.Val),
+		Components: maps.Keys(h.group.components.Val),
 	}, nil
 }
 
 // GetRoutingInfo implements the envelope.EnvelopeHandler interface.
 func (d *deployer) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	d.mu.Lock()
-	group := d.group(req.Group)
+	group := d.group(req.Component)
 	d.mu.Unlock()
 
 	// RLock blocks, so we can't hold the lock.
@@ -351,7 +363,12 @@ func (d *deployer) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingIn
 // group returns the named co-location group.
 //
 // REQUIRES: d.mu is held.
-func (d *deployer) group(name string) *group {
+func (d *deployer) group(component string) *group {
+	name, ok := d.colocation[component]
+	if !ok {
+		name = component
+	}
+
 	g, ok := d.groups[name]
 	if !ok {
 		g = &group{

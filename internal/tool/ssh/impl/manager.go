@@ -102,6 +102,11 @@ type manager struct {
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
+	// colocation maps a component to the name of its colocation group. If a
+	// component is missing in the map, then it is in a colocation group by
+	// itself.
+	colocation map[string]string
+
 	mu        sync.Mutex                                    // guards following structures, but not contents
 	listeners map[string]*protos.Listener                   // listeners, by name
 	groups    map[string]*group                             // groups, by group name
@@ -110,13 +115,14 @@ type manager struct {
 }
 
 type group struct {
-	name string
+	name       string
+	components *versioned.Versioned[map[string]bool] // started components
 
-	mu         sync.Mutex                                // guards the following
-	started    bool                                      // has this group been started?
-	components *versioned.Versioned[map[string]bool]     // started components
-	routing    *versioned.Versioned[*protos.RoutingInfo] // routing info
-	pids       []int64                                   // weavelet pids
+	mu        sync.Mutex                                           // guards the following
+	started   bool                                                 // has this group been started?
+	addresses map[string]bool                                      // weavelet addresses
+	routings  map[string]*versioned.Versioned[*protos.RoutingInfo] // routing info, by component
+	pids      []int64                                              // weavelet pids
 }
 
 type proxyInfo struct {
@@ -164,6 +170,14 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 		return traceDB.Store(ctx, dep.App.Name, dep.Id, traces)
 	}
 
+	// Form co-location.
+	colocation := map[string]string{}
+	for _, group := range dep.App.SameProcess {
+		for _, c := range group.Components {
+			colocation[c] = group.Components[0]
+		}
+	}
+
 	// Create the manager.
 	m := &manager{
 		ctx:            ctx,
@@ -175,6 +189,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 		traceSaver:     traceSaver,
 		statsProcessor: imetrics.NewStatsProcessor(),
 		started:        time.Now(),
+		colocation:     colocation,
 		listeners:      map[string]*protos.Listener{},
 		groups:         map[string]*group{},
 		proxies:        map[string]*proxyInfo{},
@@ -230,10 +245,8 @@ func (m *manager) run() error {
 	}()
 
 	// Start the main process.
-	group := &protos.ColocationGroup{Name: "main"}
 	if err := m.startComponent(m.ctx, &protos.ComponentToStart{
-		ColocationGroup: group.Name,
-		Component:       "main",
+		Component: "main",
 	}); err != nil {
 		return err
 	}
@@ -371,19 +384,38 @@ func (m *manager) Profile(context.Context, *protos.RunProfiling) (*protos.Profil
 // group returns the named co-location group.
 //
 // REQUIRES: m.mu is not held.
-func (m *manager) group(name string) *group {
+func (m *manager) group(component string) *group {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	name, ok := m.colocation[component]
+	if !ok {
+		name = component
+	}
+
 	g, ok := m.groups[name]
 	if !ok {
 		g = &group{
 			name:       name,
+			addresses:  map[string]bool{},
 			components: versioned.Version(map[string]bool{}),
-			routing:    versioned.Version(&protos.RoutingInfo{}),
+			routings:   map[string]*versioned.Versioned[*protos.RoutingInfo]{},
 		}
 		m.groups[name] = g
 	}
 	return g
+}
+
+// routing returns the RoutingInfo for the provided component.
+//
+// REQUIRES: g.mu is held.
+func (g *group) routing(component string) *versioned.Versioned[*protos.RoutingInfo] {
+	routing, ok := g.routings[component]
+	if !ok {
+		routing = versioned.Version(&protos.RoutingInfo{})
+		g.routings[component] = routing
+	}
+	return routing
 }
 
 // allGroups returns all of the managed colocation groups.
@@ -393,9 +425,11 @@ func (m *manager) allGroups() []*group {
 	return maps.Values(m.groups) // creates a new slice
 }
 
-func (m *manager) getComponentsToStart(_ context.Context, req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
+func (m *manager) getComponentsToStart(_ context.Context, req *GetComponents) (*protos.ComponentsToStart, error) {
+	// TODO(mwhittaker): Right now, this code assumes a group is named after
+	// its first component. Update the code to not depend on that assumption.
 	g := m.group(req.Group)
-	version := g.components.RLock(req.Version)
+	version := g.components.RLock(req.GetComponents.Version)
 	defer g.components.RUnlock()
 	return &protos.ComponentsToStart{
 		Version:    version,
@@ -405,25 +439,27 @@ func (m *manager) getComponentsToStart(_ context.Context, req *protos.GetCompone
 
 func (m *manager) registerReplica(_ context.Context, req *protos.ReplicaToRegister) error {
 	g := m.group(req.Group)
-
-	// Update routing.
-	g.routing.Lock()
-	defer g.routing.Unlock()
-	for _, replica := range g.routing.Val.Replicas {
-		if req.Address == replica { // already registered
-			return nil
-		}
-	}
-	g.routing.Val.Replicas = append(g.routing.Val.Replicas, req.Address)
-	for i, assignment := range g.routing.Val.Assignments {
-		g.routing.Val.Assignments[i] = routingAlgo(assignment, g.routing.Val.Replicas)
-	}
-
-	// Add pid.
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	// Update addresses and pids.
+	if g.addresses[req.Address] {
+		// Replica already registered.
+		return nil
+	}
+	g.addresses[req.Address] = true
 	g.pids = append(g.pids, req.Pid)
 
+	// Update routing.
+	replicas := maps.Keys(g.addresses)
+	for _, routing := range g.routings {
+		routing.Lock()
+		routing.Val.Replicas = replicas
+		if routing.Val.Assignment != nil {
+			routing.Val.Assignment = routingAlgo(routing.Val.Assignment, replicas)
+		}
+		routing.Unlock()
+	}
 	return nil
 }
 
@@ -468,8 +504,15 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 }
 
 func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToStart) error {
+	g := m.group(req.Component)
+
+	// Hold the lock to avoid concurrent updates to g.addresses.
+	//
+	// TODO(mwhittaker): Reduce lock scope.
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	// Record the component.
-	g := m.group(req.ColocationGroup)
 	record := func() bool {
 		g.components.Lock()
 		defer g.components.Unlock()
@@ -485,39 +528,34 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToSta
 	}
 
 	// Update the routing info.
-	if req.IsRouted {
-		update := func() {
-			g.routing.Lock()
-			defer g.routing.Unlock()
+	routing := g.routing(req.Component)
+	update := func() {
+		routing.Lock()
+		defer routing.Unlock()
+
+		routing.Val.Replicas = maps.Keys(g.addresses)
+		if req.Routed {
 			assignment := &protos.Assignment{
 				App:          m.dep.App.Name,
 				DeploymentId: m.dep.Id,
 				Component:    req.Component,
 			}
-			assignment = routingAlgo(assignment, g.routing.Val.Replicas)
-			g.routing.Val.Assignments = append(g.routing.Val.Assignments, assignment)
+			routing.Val.Assignment = routingAlgo(assignment, routing.Val.Replicas)
 		}
-		update()
 	}
+	update()
 
 	// Start the colocation group, if it hasn't already started.
 	return m.startColocationGroup(g)
 }
 
+// REQUIRES: m.mu is not held.
 func (m *manager) startColocationGroup(g *group) error {
-	shouldStart := func() bool {
-		g.mu.Lock()
-		defer g.mu.Unlock()
-		if g.started {
-			// This group has already been started.
-			return false
-		}
-		g.started = true
-		return true
-	}
-	if !shouldStart() {
+	if g.started {
+		// This group has already been started.
 		return nil
 	}
+	g.started = true
 
 	// Start the colocation group. Right now, the number of replicas for each
 	// colocation group is equal to the number of locations.
@@ -573,12 +611,16 @@ func (m *manager) startBabysitter(loc string, info *BabysitterInfo) error {
 }
 
 func (m *manager) getRoutingInfo(_ context.Context, req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	g := m.group(req.Group)
-	version := g.routing.RLock(req.Version)
-	defer g.routing.RUnlock()
-	routing := protomsg.Clone(g.routing.Val)
-	routing.Version = version
-	return routing, nil
+	g := m.group(req.Component)
+	g.mu.Lock()
+	routing := g.routing(req.Component)
+	g.mu.Unlock()
+
+	version := routing.RLock(req.Version)
+	defer routing.RUnlock()
+	r := protomsg.Clone(routing.Val)
+	r.Version = version
+	return r, nil
 }
 
 // routingAlgo is an implementation of a routing algorithm that distributes the

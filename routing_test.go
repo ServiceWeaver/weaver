@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/go-cmp/cmp"
 )
 
 // nilEndpoint is a call.Endpoint that returns nil network connections.
@@ -43,35 +43,23 @@ func (ne nilEndpoint) Address() string {
 // and balancers whenever its routing information is updated.
 func TestRoutelet(t *testing.T) {
 	// Don't call newRoutelet; we don't want to spawn the watching goroutine.
-	r := routelet{balancers: map[string]*routingBalancer{}}
+	r := routelet{}
 	rr := r.resolver()
-	rbFoo := r.balancer("Foo")
+	rb := r.balancer()
 
 	info := &protos.RoutingInfo{
 		Unchanged: false,
 		Version:   "1",
 		Replicas:  []string{"tcp://a", "tcp://b"},
-		Assignments: []*protos.Assignment{
-			{
-				Slices: []*protos.Assignment_Slice{
-					{Start: 0, Replicas: []string{"tcp://a"}},
-					{Start: 100, Replicas: []string{"tcp://b"}},
-				},
-				App:          "app",
-				DeploymentId: "id",
-				Component:    "Foo",
-				Version:      1,
+		Assignment: &protos.Assignment{
+			Slices: []*protos.Assignment_Slice{
+				{Start: 0, Replicas: []string{"tcp://a"}},
+				{Start: 100, Replicas: []string{"tcp://b"}},
 			},
-			{
-				Slices: []*protos.Assignment_Slice{
-					{Start: 0, Replicas: []string{"tcp://a"}},
-					{Start: 100, Replicas: []string{"tcp://b"}},
-				},
-				App:          "app",
-				DeploymentId: "id",
-				Component:    "Bar",
-				Version:      1,
-			},
+			App:          "app",
+			DeploymentId: "id",
+			Component:    "Foo",
+			Version:      1,
 		},
 	}
 	v1 := &call.Version{Opaque: "1"}
@@ -93,23 +81,12 @@ func TestRoutelet(t *testing.T) {
 	}
 
 	// Check rbFoo.
-	endpoint, err := rbFoo.Pick(call.CallOptions{ShardKey: 120})
+	endpoint, err := rb.Pick(call.CallOptions{ShardKey: 120})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if endpoint != call.TCP("b") {
 		t.Fatalf("rbFoo.Pick: got %v, want %v", endpoint, call.TCP("b"))
-	}
-
-	// Check rbBar. Note that we create rbBar after r.update is called to test
-	// that the returned balancer is instantiated with an initial assignment.
-	rbBar := r.balancer("Bar")
-	endpoint, err = rbBar.Pick(call.CallOptions{ShardKey: 20})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if endpoint != call.TCP("a") {
-		t.Fatalf("rbBar.Pick: got %v, want %v", endpoint, call.TCP("a"))
 	}
 }
 
