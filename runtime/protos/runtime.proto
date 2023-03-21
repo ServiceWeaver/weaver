@@ -211,16 +211,13 @@ message WeaveletInfo {
   bool single_machine = 9;                   // a single-machine deployment?
 }
 
-// GetRoutingInfo is a request to retrieve routing information for a given
-// colocation group.
+// GetRoutingInfo is a request for the routing information a component.
 message GetRoutingInfo {
-  string app = 1;
-  string deployment_id = 2;
-  string group = 3;
-  string version = 4;
+  string component = 1;
+  string version = 2;
 }
 
-// RoutingInfo contains routing information for a colocation group.
+// RoutingInfo contains routing information for a component.
 message RoutingInfo {
   // unchanged is set to true if the request was ended prematurely without
   // detecting a change. In this case, version and replicas are empty.
@@ -232,9 +229,8 @@ message RoutingInfo {
   //    unix:///tmp/unix.sock
   repeated string replicas = 3;
 
-  // Assignments for all the routed components that are hosted by the
-  // colocation group.
-  repeated Assignment assignments = 4;
+  // Routing assignment, if the component is routed.
+  Assignment assignment = 4;
 }
 
 // ProfileType specifies a type of profile to collect.
@@ -297,18 +293,14 @@ message ReplicaToRegister {
 // ComponentToStart is a request to the envelope to register a component that
 // should be started by the given colocation group.
 message ComponentToStart {
-  string colocation_group = 1;
-  string component = 2;
-  bool isRouted = 3;  // whether the component is routed
+  string component = 1;
+  bool routed = 2;  // whether the component is routed
 }
 
 // GetComponentsToStart is a request to the envelope to retrieve the set of
 // components that should be started by a given colocation group.
 message GetComponentsToStart {
-  string app = 1;
-  string deployment_id = 2;
-  string group = 3;
-  string version = 4;
+  string version = 1;
 }
 
 // ComponentsToStart is a result of the GetComponentsToStart sent to the

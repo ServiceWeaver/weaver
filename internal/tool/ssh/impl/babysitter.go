@@ -38,6 +38,7 @@ import (
 type babysitter struct {
 	ctx           context.Context
 	dep           *protos.Deployment
+	info          *BabysitterInfo
 	mgrAddr       string
 	logger        logtype.Logger
 	traceExporter *traceio.Writer // to export traces to the manager
@@ -65,6 +66,7 @@ func RunBabysitter(ctx context.Context) error {
 	b := &babysitter{
 		ctx:     ctx,
 		dep:     info.Deployment,
+		info:    info,
 		mgrAddr: info.ManagerAddr,
 		logger: logging.FuncLogger{
 			Opts: logging.Options{
@@ -215,7 +217,8 @@ func (b *babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.Routing
 }
 
 // GetComponentsToStart implements the protos.EnvelopeHandler interface.
-func (b *babysitter) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
+func (b *babysitter) GetComponentsToStart(get *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
+	req := &GetComponents{Group: b.info.Group.Name, GetComponents: get}
 	reply := &protos.ComponentsToStart{}
 	err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,

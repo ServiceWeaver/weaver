@@ -76,9 +76,8 @@ func (e *remoteEnv) GetWeaveletInfo() *protos.WeaveletInfo {
 // RegisterComponentToStart implements the Env interface.
 func (e *remoteEnv) RegisterComponentToStart(_ context.Context, targetGroup string, component string, isRouted bool) error {
 	request := &protos.ComponentToStart{
-		ColocationGroup: targetGroup,
-		Component:       component,
-		IsRouted:        isRouted,
+		Component: component,
+		Routed:    isRouted,
 	}
 	return e.conn.StartComponentRPC(request)
 }
@@ -91,12 +90,7 @@ func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Versio
 		v = version.Opaque
 	}
 
-	request := &protos.GetComponentsToStart{
-		App:          e.weavelet.App,
-		DeploymentId: e.weavelet.DeploymentId,
-		Group:        e.weavelet.Group.Name,
-		Version:      v,
-	}
+	request := &protos.GetComponentsToStart{Version: v}
 	reply, err := e.conn.GetComponentsToStartRPC(request)
 	if err != nil {
 		return nil, nil, err
@@ -127,7 +121,7 @@ func (e *remoteEnv) ReportLoad(_ context.Context, request *protos.WeaveletLoadRe
 }
 
 // GetRoutingInfo implements the Env interface.
-func (e *remoteEnv) GetRoutingInfo(_ context.Context, group string,
+func (e *remoteEnv) GetRoutingInfo(_ context.Context, component string,
 	version *call.Version) (*protos.RoutingInfo, *call.Version, error) {
 	var v string
 	if version != nil {
@@ -135,10 +129,8 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, group string,
 	}
 
 	request := &protos.GetRoutingInfo{
-		App:          e.weavelet.App,
-		DeploymentId: e.weavelet.DeploymentId,
-		Group:        group,
-		Version:      v,
+		Component: component,
+		Version:   v,
 	}
 	reply, err := e.conn.GetRoutingInfoRPC(request)
 	if err != nil {
@@ -147,7 +139,7 @@ func (e *remoteEnv) GetRoutingInfo(_ context.Context, group string,
 
 	if reply.Unchanged {
 		// TODO(sanjay): Is there a store.Unchanged variant we want to return here?
-		return nil, nil, fmt.Errorf("no new routing info for group %q", group)
+		return nil, nil, fmt.Errorf("no new routing info for component %q", component)
 	}
 	return reply, &call.Version{Opaque: reply.Version}, nil
 }
