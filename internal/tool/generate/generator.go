@@ -112,10 +112,10 @@ func Generate(dir string, pkgs []string) error {
 	var errs []error
 	for _, p := range pkgList {
 		g := &generator{
-			pkg:     p,
-			tset:    newTypeSet(p, &automarshals, &typeutil.Map{}),
-			fileset: fset,
-			errors:  nil,
+			pkg:            p,
+			tset:           newTypeSet(p, &automarshals, &typeutil.Map{}),
+			fileset:        fset,
+			componentImpls: map[string]token.Pos{},
 		}
 		g.processPackage(p)
 		errs = append(errs, g.errors...)
@@ -142,6 +142,7 @@ type generator struct {
 	fileset        *token.FileSet
 	errors         []error
 	components     []*component
+	componentImpls map[string]token.Pos
 	types          []types.Type // all types that need to be serialized
 	sizeFuncNeeded typeutil.Map // types that need a serviceweaver_size_* function
 	generated      typeutil.Map // memo cache for generateEncDecMethodsFor
@@ -387,6 +388,13 @@ func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec
 		return
 	}
 
+	fullName := filepath.Join(componentType.Obj().Pkg().Path(), componentType.Obj().Name())
+	if pos, exists := g.componentImpls[fullName]; exists {
+		g.errorf(spec.Pos(), "Duplicate implementation for component %v, other declaration: %v", fullName, g.fileset.Position(pos))
+		return
+	}
+	g.componentImpls[fullName] = spec.Pos()
+
 	if ts.TypeParams != nil && ts.TypeParams.NumFields() != 0 {
 		g.errorf(spec.Pos(), "component implementation cannot be generic")
 		return
@@ -395,7 +403,7 @@ func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec
 	comp := &component{
 		name:      componentType.Obj().Name(),
 		pos:       spec.Pos(),
-		fullName:  filepath.Join(componentType.Obj().Pkg().Path(), componentType.Obj().Name()),
+		fullName:  fullName,
 		implName:  implName,
 		intf:      componentType.Underlying().(*types.Interface),
 		file:      file,
