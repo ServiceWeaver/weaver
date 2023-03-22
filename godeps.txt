@@ -369,6 +369,7 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     go.opentelemetry.io/otel/sdk/trace
+    golang.org/x/sync/errgroup
     google.golang.org/protobuf/proto
     io
     net
