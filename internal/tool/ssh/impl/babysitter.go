@@ -37,9 +37,7 @@ import (
 // group for a single application version, on the local machine.
 type babysitter struct {
 	ctx           context.Context
-	dep           *protos.Deployment
 	info          *BabysitterInfo
-	mgrAddr       string
 	logger        logtype.Logger
 	traceExporter *traceio.Writer // to export traces to the manager
 }
@@ -64,10 +62,8 @@ func RunBabysitter(ctx context.Context) error {
 
 	id := uuid.New().String()
 	b := &babysitter{
-		ctx:     ctx,
-		dep:     info.Deployment,
-		info:    info,
-		mgrAddr: info.ManagerAddr,
+		ctx:  ctx,
+		info: info,
 		logger: logging.FuncLogger{
 			Opts: logging.Options{
 				App:        info.Deployment.App.Name,
@@ -89,23 +85,26 @@ func RunBabysitter(ctx context.Context) error {
 	}
 
 	// Start the envelope.
-	wlet := &protos.WeaveletInfo{
-		App:           b.dep.App.Name,
-		DeploymentId:  b.dep.Id,
+	wlet := &protos.WeaveletSetupInfo{
+		App:           info.Deployment.App.Name,
+		DeploymentId:  info.Deployment.Id,
 		Group:         info.Group,
 		GroupId:       id,
 		Id:            id,
-		SameProcess:   b.dep.App.SameProcess,
-		Sections:      b.dep.App.Sections,
-		SingleProcess: b.dep.SingleProcess,
+		SameProcess:   info.Deployment.App.SameProcess,
+		Sections:      info.Deployment.App.Sections,
+		SingleProcess: info.Deployment.SingleProcess,
 	}
-	e, err := envelope.NewEnvelope(wlet, b.dep.App, b)
+	e, err := envelope.NewEnvelope(ctx, wlet, info.Deployment.App, b)
 	if err != nil {
+		return err
+	}
+	if err := b.registerReplica(e.WeaveletInfo()); err != nil {
 		return err
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
 	go c.run(ctx)
-	return e.Run(ctx)
+	return e.Serve(ctx)
 }
 
 type metricsCollector struct {
@@ -154,22 +153,24 @@ func (m *metricsCollector) run(ctx context.Context) {
 func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
 	return protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
+		Addr:    b.info.ManagerAddr,
 		URLPath: startComponentURL,
 		Request: req,
 	})
 }
 
-// RegisterReplica implements the protos.EnvelopeHandler interface.
-func (b *babysitter) RegisterReplica(replica *protos.ReplicaToRegister) error {
-	b.logger.Info("Replica (re)started with new address",
-		"group", logging.ShortenComponent(replica.Group),
-		"address", replica.Address)
+// registerReplica registers the information about a colocation group replica
+// (i.e., a weavelet).
+func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
 	return protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
+		Addr:    b.info.ManagerAddr,
 		URLPath: registerReplicaURL,
-		Request: replica,
+		Request: &ReplicaToRegister{
+			Group:   b.info.Group.Name,
+			Address: info.DialAddr,
+			Pid:     info.Pid,
+		},
 	})
 }
 
@@ -191,7 +192,7 @@ func (b *babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 	reply := &protos.ExportListenerReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
+		Addr:    b.info.ManagerAddr,
 		URLPath: exportListenerURL,
 		Request: req,
 		Reply:   reply,
@@ -206,7 +207,7 @@ func (b *babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.Routing
 	reply := &protos.RoutingInfo{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
+		Addr:    b.info.ManagerAddr,
 		URLPath: getRoutingInfoURL,
 		Request: req,
 		Reply:   reply,
@@ -222,7 +223,7 @@ func (b *babysitter) GetComponentsToStart(get *protos.GetComponentsToStart) (*pr
 	reply := &protos.ComponentsToStart{}
 	err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
+		Addr:    b.info.ManagerAddr,
 		URLPath: getComponentsToStartURL,
 		Request: req,
 		Reply:   reply,
@@ -234,12 +235,12 @@ func (b *babysitter) GetComponentsToStart(get *protos.GetComponentsToStart) (*pr
 func (b *babysitter) RecvLogEntry(req *protos.LogEntry) {
 	err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
-		Addr:    b.mgrAddr,
+		Addr:    b.info.ManagerAddr,
 		URLPath: recvLogEntryURL,
 		Request: req,
 	})
 	if err != nil {
-		b.logger.Error("Error receiving logs", err, "fromAddr", b.mgrAddr)
+		b.logger.Error("Error receiving logs", err, "fromAddr", b.info.ManagerAddr)
 	}
 }
 

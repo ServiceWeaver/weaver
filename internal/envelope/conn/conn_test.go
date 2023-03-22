@@ -98,7 +98,7 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	}
 
 	// Construct the conns.
-	wlet := &protos.WeaveletInfo{
+	wlet := &protos.WeaveletSetupInfo{
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
 		Group:         &protos.ColocationGroup{Name: "group"},
@@ -107,37 +107,46 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		SingleProcess: true,
 		SingleMachine: true,
 	}
-	e, err := conn.NewEnvelopeConn(eReader, eWriter, handler, wlet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w, err := conn.NewWeaveletConn(wReader, wWriter, nil /*handler*/)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Start Run goroutines for both conns.
-	wait := &sync.WaitGroup{}
-	wait.Add(2)
+	started := &sync.WaitGroup{}
+	started.Add(2)
+	done := &sync.WaitGroup{}
+	done.Add(2)
+	var e *conn.EnvelopeConn
 	go func() {
-		defer wait.Done()
-		if err := e.Run(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+		defer done.Done()
+		var err error
+		if e, err = conn.NewEnvelopeConn(eReader, eWriter, handler, wlet); err != nil {
+			panic(err)
+		}
+		started.Done()
+		if err := e.Serve(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
 			t.Errorf("envelope failed: %#v", err)
 		}
 	}()
+	var w *conn.WeaveletConn
 	go func() {
-		defer wait.Done()
-		if err := w.Run(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+		defer done.Done()
+		var err error
+		if w, err = conn.NewWeaveletConn(wReader, wWriter, nil /*handler*/); err != nil {
+			panic(err)
+		}
+		started.Done()
+		if err := w.Serve(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
 			t.Errorf("weavelet failed: %#v", err)
 		}
 	}()
+
+	// Wait for both conns to start.
+	started.Wait()
 
 	// Stop goroutines when test has finished.
 	t.Cleanup(func() {
 		wReader.Close()
 		eReader.Close()
 		// NOTE(mwhittaker): wWriter and eWriter are closed by the conns.
-		wait.Wait()
+		done.Wait()
 	})
 
 	return e, w
@@ -147,11 +156,10 @@ type handlerForTest struct{}
 
 var _ conn.EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error       { return nil }
-func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                   {}
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
-func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error     { return nil }
+func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error     { return nil }
+func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                 {}
+func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error { return nil }
+func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error   { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }

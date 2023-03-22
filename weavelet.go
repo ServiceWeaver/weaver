@@ -57,11 +57,11 @@ type WeaveletHandler interface {
 // implemented by multiple weavelets.
 type weavelet struct {
 	ctx       context.Context
-	env       env                  // Manages interactions with execution environment
-	info      *protos.WeaveletInfo // Information about this weavelet
-	transport *transport           // Transport for cross-group communication
-	dialAddr  call.NetworkAddress  // Address this weavelet is reachable at
-	tracer    trace.Tracer         // Tracer for this weavelet
+	env       env                       // Manages interactions with execution environment
+	info      *protos.WeaveletSetupInfo // Setup info sent by the deployer.
+	transport *transport                // Transport for cross-group communication
+	dialAddr  call.NetworkAddress       // Address this weavelet is reachable at
+	tracer    trace.Tracer              // Tracer for this weavelet
 
 	root             *component                  // The automatically created "root" component
 	componentsByName map[string]*component       // component name -> component
@@ -116,7 +116,7 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	}
 	w.env = env
 
-	wletInfo := env.GetWeaveletInfo()
+	wletInfo := env.WeaveletSetupInfo()
 	if wletInfo == nil {
 		return nil, fmt.Errorf("unable to get weavelet information")
 	}
@@ -231,26 +231,12 @@ func (w *weavelet) start() (Instance, error) {
 	// method invocations are process-local and executed as regular go function
 	// calls.
 	if !w.info.SingleProcess {
-		// TODO(mwhittaker): Right now, we resolve our hostname to get a
-		// dialable IP address. Double check that this always works.
-		host := "localhost"
-		if !w.info.SingleMachine {
-			var err error
-			host, err = os.Hostname()
-			if err != nil {
-				return nil, fmt.Errorf("error getting local hostname: %w", err)
-			}
-		}
-		lis, dialAddr, err := w.listen("tcp", fmt.Sprintf("%s:0", host))
-		if err != nil {
-			return nil, fmt.Errorf("error creating internal listener: %w", err)
-		}
-		w.dialAddr = dialAddr
-
+		lis := w.env.WeaveletListener()
+		addr := call.NetworkAddress(fmt.Sprintf("tcp://%s", lis.Addr().String()))
 		for _, c := range w.componentsByName {
 			if w.inLocalGroup(c) && c.info.Routed {
 				// TODO(rgrandl): In the future, we may want to collect load for all components.
-				w.loads[c.info.Name] = newLoadCollector(c.info.Name, dialAddr)
+				w.loads[c.info.Name] = newLoadCollector(c.info.Name, addr)
 			}
 		}
 
@@ -258,25 +244,10 @@ func (w *weavelet) start() (Instance, error) {
 		routelet := newRoutelet(w.ctx, w.env, w.info.Group.Name)
 		routelet.onChange(w.onNewRoutingInfo)
 
-		// Register our external address. This will allow weavelets in other
-		// colocation groups to detect this weavelet and load-balance traffic
-		// to it. The internal address needs not be registered since it is
-		// not replicated and the caller is able to infer it.
-		//
-		// TODO(mwhittaker): Remove our address from the store if we crash. If
-		// we exit gracefully, we can do this easily. If the machine on which
-		// this weavelet is running straight up crashes, then that's a bit more
-		// challenging. We may have to have TTLs in the store, or maybe have a
-		// nanny monitor for failures.
-		const errMsg = "cannot register weavelet replica"
-		if err := w.repeatedly(errMsg, func() error {
-			return w.env.RegisterReplica(w.ctx, dialAddr)
-		}); err != nil {
-			return nil, err
-		}
-
+		// Start serving the transport.
 		serve := func(lis net.Listener, transport *transport) {
 			if lis == nil || transport == nil {
+				// TODO(spetrovic): Can this ever happen?
 				return
 			}
 
@@ -286,12 +257,6 @@ func (w *weavelet) start() (Instance, error) {
 				lis.Close()
 			}()
 
-			// Start serving the transport. This should be done prior to calling
-			// Get() below, since:
-			//  1. Get() may block waiting for the remote process to begin serving,
-			//     which can cause unnecessary serving delays for this process, and
-			//  2. Get() may assign a random unused port to the component, which may
-			//     conflict with the port used by the transport.
 			startWork(w.ctx, "handle calls", func() error {
 				return call.Serve(w.ctx, lis, handlers, transport.serverOpts)
 			})
@@ -742,7 +707,7 @@ func (w *weavelet) getTCPClient(component *component) (*client, error) {
 //   - Every other component is placed in a colocation group of its own.
 //
 // TODO(spetrovic): Consult envelope for placement.
-func place(registry map[string]*component, w *protos.WeaveletInfo) error {
+func place(registry map[string]*component, w *protos.WeaveletSetupInfo) error {
 	if w.SingleProcess {
 		// If we are running a singleprocess deployment, all the components are
 		// assigned to the same colocation group.
@@ -778,31 +743,6 @@ func place(registry map[string]*component, w *protos.WeaveletInfo) error {
 	}
 
 	return nil
-}
-
-// listen returns a network listener for the given listening address and
-// network, along with a dialable address that can be used to reach
-// the listener.
-func (w *weavelet) listen(network, address string) (net.Listener, call.NetworkAddress, error) {
-	var lis net.Listener
-	var err error
-	switch network {
-	case "unix", "tcp":
-		if network == "unix" && len(address) > 108 {
-			// For unix sockets, the maximum length is 108 chars.
-			// http://shortn/_eRBZrR3ICt
-			return nil, "", fmt.Errorf("maximum length for unix-sockets is 108 chars, got %d: %q", len(address), address)
-		}
-		lconfig := &net.ListenConfig{}
-		lis, err = lconfig.Listen(w.ctx, network, address)
-	default:
-		return nil, "", fmt.Errorf("unsupported network protocol %q", network)
-	}
-	if err != nil {
-		return nil, "", err
-	}
-	dialAddr := call.NetworkAddress(fmt.Sprintf("%s://%s", lis.Addr().Network(), lis.Addr().String()))
-	return lis, dialAddr, nil
 }
 
 // startWork runs fn() in the background.

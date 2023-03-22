@@ -44,3 +44,11 @@ message BabysitterMetrics {
   int32 replica_id = 2;
   repeated runtime.MetricSnapshot metrics = 3;
 }
+
+// ReplicaToRegister is a request to the manager to register a replica of
+// a given colocation group (i.e., a weavelet).
+message ReplicaToRegister {
+  string group = 1;
+  string address = 2;  // Replica internal address.
+  int64 pid = 3;       // Replica pid.
+}

@@ -21,31 +21,32 @@ import (
 	"github.com/google/uuid"
 )
 
-// CheckWeaveletInfo checks that weavelet information is well-formed.
-func CheckWeaveletInfo(w *protos.WeaveletInfo) error {
+// CheckWeaveletSetupInfo checks that weavelet setup information is
+// well-formed.
+func CheckWeaveletSetupInfo(w *protos.WeaveletSetupInfo) error {
 	if w == nil {
-		return fmt.Errorf("WeaveletInfo: nil")
+		return fmt.Errorf("WeaveletSetupInfo: nil")
 	}
 	if w.App == "" {
-		return fmt.Errorf("WeaveletInfo: missing app name")
+		return fmt.Errorf("WeaveletSetupInfo: missing app name")
 	}
 	if _, err := uuid.Parse(w.DeploymentId); err != nil {
-		return fmt.Errorf("WeaveletInfo: invalid deployment id: %w", err)
+		return fmt.Errorf("WeaveletSetupInfo: invalid deployment id: %w", err)
 	}
 	if w.Group == nil {
-		return fmt.Errorf("WeaveletInfo: nil colocation group")
+		return fmt.Errorf("WeaveletSetupInfo: nil colocation group")
 	}
 	if w.Group.Name == "" {
-		return fmt.Errorf("WeaveletInfo: missing colocation group name")
+		return fmt.Errorf("WeaveletSetupInfo: missing colocation group name")
 	}
 	if w.GroupId == "" {
-		return fmt.Errorf("WeaveletInfo: missing colocation group replica id")
+		return fmt.Errorf("WeaveletSetupInfo: missing colocation group replica id")
 	}
 	if _, err := uuid.Parse(w.Id); err != nil {
-		return fmt.Errorf("WeaveletInfo: invalid weavelet id: %w", err)
+		return fmt.Errorf("WeaveletSetupInfo: invalid weavelet id: %w", err)
 	}
 	if w.SingleProcess && !w.SingleMachine {
-		return fmt.Errorf("WeaveletInfo: single process but not single machine")
+		return fmt.Errorf("WeaveletSetupInfo: single process but not single machine")
 	}
 	return nil
 }

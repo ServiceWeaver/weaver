@@ -43,9 +43,6 @@ type EnvelopeHandler interface {
 	// StartComponent starts the given component.
 	StartComponent(entry *protos.ComponentToStart) error
 
-	// RegisterReplica registers the given weavelet replica.
-	RegisterReplica(entry *protos.ReplicaToRegister) error
-
 	// GetAddress gets the address a weavelet should listen on for a listener.
 	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
 
@@ -78,46 +75,25 @@ var (
 	_ conn.EnvelopeHandler = EnvelopeHandler(nil)
 )
 
-// RestartPolicy governs when a weavelet is restarted.
-type RestartPolicy int
-
-const (
-	Never     RestartPolicy = iota // Never restart
-	Always                         // Always restart
-	OnFailure                      // Restart iff weavelet exits with non-zero exit code
-)
-
-func (r RestartPolicy) String() string {
-	switch r {
-	case Never:
-		return "Never"
-	case Always:
-		return "Always"
-	case OnFailure:
-		return "OnFailure"
-	default:
-		panic(fmt.Errorf("invalid restart policy %d", r))
-	}
-}
-
 // Envelope starts and manages a weavelet, i.e., an OS process running inside a
 // colocation group replica, hosting Service Weaver components. It also captures the
 // weavelet's tracing, logging, and metrics information.
 type Envelope struct {
 	// Fields below are constant after construction.
-	weavelet *protos.WeaveletInfo
+	conn     *conn.EnvelopeConn // conn to weavelet
+	cmd      *pipe.Cmd          // command that started the weavelet
+	weavelet *protos.WeaveletSetupInfo
 	config   *protos.AppConfig
 	handler  EnvelopeHandler
 	logger   logtype.Logger
 
-	mu        sync.Mutex         // guards the following fields
-	process   *os.Process        // the currently running subprocess, or nil
-	conn      *conn.EnvelopeConn // conn to weavelet
-	stopped   bool               // has Stop() been called?
-	profiling bool               // are we currently collecting a profile?
+	mu        sync.Mutex // guards the following fields
+	stopped   bool       // has Stop() been called?
+	profiling bool       // are we currently collecting a profile?
 }
 
-func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h EnvelopeHandler) (*Envelope, error) {
+// NewEnvelope creates a new envelope.
+func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *protos.AppConfig, h EnvelopeHandler) (*Envelope, error) {
 	if h == nil {
 		return nil, fmt.Errorf(
 			"unable to create envelope for group %s due to nil handler",
@@ -133,93 +109,21 @@ func NewEnvelope(wlet *protos.WeaveletInfo, config *protos.AppConfig, h Envelope
 		},
 		Write: h.RecvLogEntry,
 	}
-	return &Envelope{
+	e := &Envelope{
 		weavelet: wlet,
 		config:   config,
 		handler:  h,
 		logger:   logger,
-	}, nil
-}
-
-// getConn returns the current connection to the weavelet.
-func (e *Envelope) getConn() *conn.EnvelopeConn {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.conn
-}
-
-// setConn sets the current connection to the weavelet.
-func (e *Envelope) setConn(conn *conn.EnvelopeConn) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.conn = conn
-}
-
-// toggleProfiling compares the value of e.profiling to the given expected
-// value, and if they are the same, toggles the value of e.profiling and
-// returns true; otherwise, it leaves the value of e.profiling unchanged
-// and returns false.
-func (e *Envelope) toggleProfiling(expected bool) bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.profiling != expected {
-		return false
 	}
-	e.profiling = !e.profiling
-	return true
-}
-
-// Run runs the application, restarting it according to the policy specified by
-// opts.
-func (e *Envelope) Run(ctx context.Context) error {
-	err := e.runWeavelet(ctx)
-	if e.isStopped() {
-		// When an envelope is stopped, it kills its subprocesses. These
-		// subprocesses will report errors, expectedly, since they're
-		// killed. We expect these errors, so we swallow them.
-		return nil
-	}
-	return err
-}
-
-// HealthStatus returns the health status of the weavelet.
-func (e *Envelope) HealthStatus() protos.HealthStatus {
-	conn := e.getConn()
-	if conn == nil {
-		return protos.HealthStatus_UNHEALTHY
-	}
-	healthStatus, err := conn.HealthStatusRPC()
-	if err != nil {
-		return protos.HealthStatus_UNHEALTHY
-	}
-	return healthStatus
-}
-
-// RunProfiling returns weavelet profiling information.
-func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
-	conn := e.getConn()
-	if conn == nil {
-		return nil, fmt.Errorf("weavelet pipe is down")
-	}
-	if ok := e.toggleProfiling(false); !ok {
-		return nil, fmt.Errorf("profiling already in progress")
-	}
-	defer e.toggleProfiling(true)
-	prof, err := conn.DoProfilingRPC(req)
-	if err != nil {
+	if err := e.init(ctx); err != nil {
 		return nil, err
 	}
-	if len(prof.Data) == 0 && len(prof.Errors) > 0 {
-		return nil, fmt.Errorf("profiled with errors: %v", prof.Errors)
-	}
-	return prof, nil
+	return e, nil
 }
 
-// runWeavelet with the provided environment and wait for it to terminate.
-func (e *Envelope) runWeavelet(ctx context.Context) error {
+func (e *Envelope) init(ctx context.Context) error {
 	// Form the command.
 	cmd := pipe.CommandContext(ctx, e.config.Binary, e.config.Args...)
-	defer cmd.Cleanup()
 
 	// Create the pipes first, so we can fill env and detect any errors early.
 	// Pipe for messages to weavelet.
@@ -231,12 +135,6 @@ func (e *Envelope) runWeavelet(ctx context.Context) error {
 	toEnvelopeFd, toEnvelope, err := cmd.RPipe()
 	if err != nil {
 		return fmt.Errorf("cannot create weavelet response pipe: %w", err)
-	}
-
-	conn, err := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
-		return err
 	}
 
 	// Create pipes that capture child outputs.
@@ -254,54 +152,92 @@ func (e *Envelope) runWeavelet(ctx context.Context) error {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.FormatUint(uint64(toEnvelopeFd), 10)))
 	cmd.Env = append(cmd.Env, e.config.Env...)
 
-	// Different sources are read from by different go-routines.
-	var stdoutErr, stderrErr, weaveletConnErr error
-	var wait sync.WaitGroup
-	wait.Add(2) // 2 for stdout and stderr
-	go func() {
-		defer wait.Done()
-		stdoutErr = e.copyLines("stdout", outpipe)
-	}()
-	go func() {
-		defer wait.Done()
-		stderrErr = e.copyLines("stderr", errpipe)
-	}()
-	wait.Add(1)
-	go func() {
-		defer wait.Done()
-		weaveletConnErr = conn.Run()
-	}()
-
 	// Start the command.
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+
+	// Capture stdout and stderr from the weavelet.
+	// TODO(spetrovic): These need to be terminated and their errors taken into
+	// account. Fix along with fixing the Stop() behavior.
+	go func() {
+		if err := e.copyLines("stdout", outpipe); err != nil {
+			fmt.Fprintf(os.Stderr, "Error copying stdout: %v\n", err)
+		}
+	}()
+	go func() {
+		if err := e.copyLines("stderr", errpipe); err != nil {
+			fmt.Fprintf(os.Stderr, "Error copying stdout: %v\n", err)
+		}
+	}()
+
+	// Create the connection, now that the weavelet has (hopefully) started.
+	conn, err := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
+		return err
+	}
+
+	e.cmd = cmd
+	e.conn = conn
+	return nil
+}
+
+// toggleProfiling compares the value of e.profiling to the given expected
+// value, and if they are the same, toggles the value of e.profiling and
+// returns true; otherwise, it leaves the value of e.profiling unchanged
+// and returns false.
+func (e *Envelope) toggleProfiling(expected bool) bool {
 	e.mu.Lock()
-	e.process = cmd.Process
-	e.mu.Unlock()
+	defer e.mu.Unlock()
+	if e.profiling != expected {
+		return false
+	}
+	e.profiling = !e.profiling
+	return true
+}
 
-	// Set the connection only after the weavelet information was sent to the
-	// subprocess. Otherwise, it is possible to send over the pipe information
-	// (e.g., health checks) before the weavelet information was sent.
-	e.setConn(conn)
-
-	// Wait for the command to terminate.
-	//
-	// NOTE(mwhittaker): Stop also calls Wait. If Stop is called, then the
-	// redundant wait leads to a "waitid: no child processes" error which we
-	// ignore.
-	wait.Wait()
-	runErr := cmd.Wait()
-	for _, err := range []error{runErr, stdoutErr, stderrErr, weaveletConnErr} {
+// Serve blocks accepting incoming messages from the weavelet.
+func (e *Envelope) Serve(ctx context.Context) error {
+	defer e.cmd.Cleanup()
+	connErr := e.conn.Serve() // blocks
+	cmdErr := e.cmd.Wait()    // blocks
+	for _, err := range []error{connErr, cmdErr} {
 		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, os.ErrClosed) && !errors.Is(err, syscall.ECHILD) {
 			return err
 		}
 	}
-	e.mu.Lock()
-	e.process = nil
-	e.conn = nil
-	e.mu.Unlock()
 	return nil
+}
+
+// WeaveletInfo returns information about the started weavelet.
+func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
+	return e.conn.WeaveletInfo()
+}
+
+// HealthStatus returns the health status of the weavelet.
+func (e *Envelope) HealthStatus() protos.HealthStatus {
+	healthStatus, err := e.conn.HealthStatusRPC()
+	if err != nil {
+		return protos.HealthStatus_UNHEALTHY
+	}
+	return healthStatus
+}
+
+// RunProfiling returns weavelet profiling information.
+func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
+	if ok := e.toggleProfiling(false); !ok {
+		return nil, fmt.Errorf("profiling already in progress")
+	}
+	defer e.toggleProfiling(true)
+	prof, err := e.conn.DoProfilingRPC(req)
+	if err != nil {
+		return nil, err
+	}
+	if len(prof.Data) == 0 && len(prof.Errors) > 0 {
+		return nil, fmt.Errorf("profiled with errors: %v", prof.Errors)
+	}
+	return prof, nil
 }
 
 // Stop permanently terminates the weavelet process managed by the envelope.
@@ -309,45 +245,28 @@ func (e *Envelope) Stop() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.stopped = true
-	if e.process == nil {
-		return nil
-	}
-	if err := e.process.Kill(); err != nil {
-		e.logger.Error("Failed to kill process", err, "pid", e.process.Pid)
+	if err := e.cmd.Process.Kill(); err != nil {
+		e.logger.Error("Failed to kill process", err, "pid", e.cmd.Process.Pid)
 		return err
 	}
-	// NOTE(mwhittaker): runWeavelet also calls Wait. The redundant wait leads
+	// NOTE(mwhittaker): Serve also calls Wait. The redundant wait leads
 	// to a "waitid: no child processes" error which we ignore.
-	if _, err := e.process.Wait(); err != nil && !errors.Is(err, syscall.ECHILD) {
-		e.logger.Error("Failed to kill process", err, "pid", e.process.Pid)
+	if _, err := e.cmd.Process.Wait(); err != nil && !errors.Is(err, syscall.ECHILD) {
+		e.logger.Error("Failed to kill process", err, "pid", e.cmd.Process.Pid)
 		return err
 	}
-	e.logger.Debug("Killed process", "pid", e.process.Pid)
+	e.logger.Debug("Killed process", "pid", e.cmd.Process.Pid)
 	return nil
 }
 
 // ReadMetrics returns the set of all captured metrics.
 func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
-	conn := e.getConn()
-	if conn == nil {
-		return nil, fmt.Errorf("cannot read metrics: weavelet pipe is down")
-	}
-	return conn.GetMetricsRPC()
+	return e.conn.GetMetricsRPC()
 }
 
 // GetLoadInfo returns the latest load information at the weavelet.
 func (e *Envelope) GetLoadInfo() (*protos.WeaveletLoadReport, error) {
-	conn := e.getConn()
-	if conn == nil {
-		return nil, fmt.Errorf("cannot read load: weavelet pipe is down")
-	}
-	return conn.GetLoadInfoRPC()
-}
-
-func (e *Envelope) isStopped() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.stopped
+	return e.conn.GetLoadInfoRPC()
 }
 
 func (e *Envelope) copyLines(component string, src io.Reader) error {

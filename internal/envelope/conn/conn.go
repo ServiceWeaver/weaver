@@ -21,9 +21,9 @@ import (
 	"io"
 	sync "sync"
 
-	"google.golang.org/protobuf/proto"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"google.golang.org/protobuf/proto"
 )
 
 // conn is a bi-directional communication channel that is used in the

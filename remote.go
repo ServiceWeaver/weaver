@@ -17,6 +17,7 @@ package weaver
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"sync"
 
@@ -31,7 +32,7 @@ import (
 
 // remoteEnv implements the env used for non-single-process Service Weaver applications.
 type remoteEnv struct {
-	weavelet  *protos.WeaveletInfo
+	info      *protos.WeaveletSetupInfo
 	sysLogger Logger
 	conn      *conn.WeaveletConn
 	logmu     sync.Mutex
@@ -49,28 +50,33 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler Weav
 	if err != nil {
 		return nil, fmt.Errorf("new weavelet conn: %w", err)
 	}
-	wlet := conn.Weavelet()
+	info := conn.WeaveletSetupInfo()
 
 	env := &remoteEnv{
-		weavelet: wlet,
-		conn:     conn,
+		info: info,
+		conn: conn,
 	}
 
 	go func() {
 		// TODO(mwhittaker): Fix linter and only print if the error is non-nil.
 		// Right now, the linter is complaining that the returned error is
 		// always non-nil.
-		fmt.Fprintln(os.Stderr, env.conn.Run())
+		fmt.Fprintln(os.Stderr, env.conn.Serve())
 	}()
 	logSaver := env.CreateLogSaver(ctx, "serviceweaver")
-	env.sysLogger = newAttrLogger(wlet.App, wlet.DeploymentId, "weavelet", wlet.Id, logSaver)
+	env.sysLogger = newAttrLogger(info.App, info.DeploymentId, "weavelet", info.Id, logSaver)
 	env.sysLogger = env.sysLogger.With("serviceweaver/system", "")
 	return env, nil
 }
 
-// GetWeaveletInfo implements the Env interface.
-func (e *remoteEnv) GetWeaveletInfo() *protos.WeaveletInfo {
-	return e.weavelet
+// WeaveletSetupInfo implements the Env interface.
+func (e *remoteEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
+	return e.info
+}
+
+// WeaveletListener implements the Env interface.
+func (e *remoteEnv) WeaveletListener() net.Listener {
+	return e.conn.Listener()
 }
 
 // RegisterComponentToStart implements the Env interface.
@@ -97,27 +103,10 @@ func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Versio
 	}
 
 	if reply.Unchanged {
-		// TODO(sanjay): Is there a store.Unchanged variant we want to return here?
-		return nil, nil, fmt.Errorf("no new components to start for group %q", e.weavelet.Group)
+		// TODO(sanjay): Is there a reply.Unchanged variant we want to return here?
+		return nil, nil, fmt.Errorf("no new components to start for group %q", e.info.Group)
 	}
 	return reply.Components, &call.Version{Opaque: reply.Version}, nil
-}
-
-// RegisterReplica implements the Env interface.
-func (e *remoteEnv) RegisterReplica(_ context.Context, myAddress call.NetworkAddress) error {
-	request := &protos.ReplicaToRegister{
-		App:          e.weavelet.App,
-		DeploymentId: e.weavelet.DeploymentId,
-		Group:        e.weavelet.Group.Name,
-		Address:      string(myAddress),
-		Pid:          int64(os.Getpid()),
-	}
-	return e.conn.RegisterReplicaRPC(request)
-}
-
-// ReportLoad implements the Env interface.
-func (e *remoteEnv) ReportLoad(_ context.Context, request *protos.WeaveletLoadReport) error {
-	return e.conn.ReportLoadRPC(request)
 }
 
 // GetRoutingInfo implements the Env interface.
