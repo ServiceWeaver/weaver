@@ -406,10 +406,21 @@ func (m *manager) group(component string) *group {
 	return g
 }
 
+// allAddresses returns a copy of all current addresses in the group.
+//
+// REQUIRES: g.mu is NOT held.
+func (g *group) allAddresses() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return maps.Keys(g.addresses) // creates a new slice.
+}
+
 // routing returns the RoutingInfo for the provided component.
 //
-// REQUIRES: g.mu is held.
+// REQUIRES: g.mu is NOT held.
 func (g *group) routing(component string) *versioned.Versioned[*protos.RoutingInfo] {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	routing, ok := g.routings[component]
 	if !ok {
 		routing = versioned.Version(&protos.RoutingInfo{})
@@ -439,19 +450,25 @@ func (m *manager) getComponentsToStart(_ context.Context, req *GetComponents) (*
 
 func (m *manager) registerReplica(_ context.Context, req *protos.ReplicaToRegister) error {
 	g := m.group(req.Group)
-	g.mu.Lock()
-	defer g.mu.Unlock()
 
 	// Update addresses and pids.
-	if g.addresses[req.Address] {
-		// Replica already registered.
+	record := func() bool {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		if g.addresses[req.Address] {
+			// Replica already registered.
+			return true
+		}
+		g.addresses[req.Address] = true
+		g.pids = append(g.pids, req.Pid)
+		return false
+	}
+	if record() {
 		return nil
 	}
-	g.addresses[req.Address] = true
-	g.pids = append(g.pids, req.Pid)
 
 	// Update routing.
-	replicas := maps.Keys(g.addresses)
+	replicas := g.allAddresses()
 	for _, routing := range g.routings {
 		routing.Lock()
 		routing.Val.Replicas = replicas
@@ -506,12 +523,6 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToStart) error {
 	g := m.group(req.Component)
 
-	// Hold the lock to avoid concurrent updates to g.addresses.
-	//
-	// TODO(mwhittaker): Reduce lock scope.
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
 	// Record the component.
 	record := func() bool {
 		g.components.Lock()
@@ -529,11 +540,12 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToSta
 
 	// Update the routing info.
 	routing := g.routing(req.Component)
+	addresses := g.allAddresses()
 	update := func() {
 		routing.Lock()
 		defer routing.Unlock()
 
-		routing.Val.Replicas = maps.Keys(g.addresses)
+		routing.Val.Replicas = addresses
 		if req.Routed {
 			assignment := &protos.Assignment{
 				App:          m.dep.App.Name,
@@ -549,8 +561,10 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToSta
 	return m.startColocationGroup(g)
 }
 
-// REQUIRES: m.mu is not held.
+// REQUIRES: g.mu is NOT held.
 func (m *manager) startColocationGroup(g *group) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	if g.started {
 		// This group has already been started.
 		return nil
@@ -612,9 +626,7 @@ func (m *manager) startBabysitter(loc string, info *BabysitterInfo) error {
 
 func (m *manager) getRoutingInfo(_ context.Context, req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	g := m.group(req.Component)
-	g.mu.Lock()
 	routing := g.routing(req.Component)
-	g.mu.Unlock()
 
 	version := routing.RLock(req.Version)
 	defer routing.RUnlock()
