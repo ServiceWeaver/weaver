@@ -24,6 +24,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.13.0
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/image v0.5.0
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/tools v0.2.0
 	google.golang.org/genproto v0.0.0-20221109142239-94d6d90a7d66

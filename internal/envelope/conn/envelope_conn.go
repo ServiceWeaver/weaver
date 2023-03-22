@@ -23,6 +23,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/sync/errgroup"
 )
 
 // EnvelopeHandler implements the envelope side processing of messages
@@ -99,15 +100,65 @@ func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet 
 // Serve accepts incoming messages from the weavelet. Messages that are received
 // are handled as an ordered sequence.
 func (e *EnvelopeConn) Serve() error {
-	msg := &protos.WeaveletMsg{}
-	for {
-		if err := e.conn.recv(msg); err != nil {
-			return err
+	var group errgroup.Group
+	msgs := make(chan *protos.WeaveletMsg, 100)
+
+	// Spawn a goroutine that repeatedly reads messages from the pipe. A
+	// received message is either an RPC response or an RPC request. conn.recv
+	// handles RPC responses internally but returns all RPC requests. The
+	// reading goroutine forwards those requests to the goroutine spawned below
+	// for execution.
+	//
+	// We have to split receiving requests and processing requests across two
+	// different goroutines to avoid deadlocking. Assume for contradiction that
+	// we called conn.recv and handleMessage in the same goroutine:
+	//
+	//     for {
+	//         msg := &protos.WeaveletMsg{}
+	//         e.conn.recv(msg)
+	//         e.handleMessage(msg)
+	//     }
+	//
+	// If an EnvelopeHandler, invoked by handleMessage, calls an RPC on the
+	// weavelet (e.g., GetHealth), then it will block forever, as the RPC
+	// response will never be read by conn.recv.
+	//
+	// TODO(mwhittaker): I think we may be able to clean up this code if we use
+	// four pipes instead of two. The four pipes will be divided into two
+	// pairs. One pair will be used for RPCs from the envelope to the weavelet
+	// (e.g., GetHealth, GetMetrics, GetLoad, UpdateComponents,
+	// UpdateRoutingInfo). The other pair will be used for RPCs from the
+	// weavelet to the envelope (e.g., StartComponent, RegisterReplica,
+	// RecvLogEntry).
+	group.Go(func() error {
+		for {
+			msg := &protos.WeaveletMsg{}
+			if err := e.conn.recv(msg); err != nil {
+				close(msgs)
+				return err
+			}
+			msgs <- msg
 		}
-		if err := e.handleMessage(msg); err != nil {
-			return err
+	})
+
+	// Spawn a goroutine to handle RPC requests. Note that we don't spawn one
+	// goroutine for every request because we must guarantee that requests are
+	// processed in order. Logs, for example, need to be received and processed
+	// in order.
+	group.Go(func() error {
+		for {
+			msg, ok := <-msgs
+			if !ok {
+				return nil
+			}
+			if err := e.handleMessage(msg); err != nil {
+				e.conn.cleanup(err)
+				return err
+			}
 		}
-	}
+	})
+
+	return group.Wait()
 }
 
 // WeaveletInfo returns the information about the weavelet.
