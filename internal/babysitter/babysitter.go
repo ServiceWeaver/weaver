@@ -105,6 +105,7 @@ type group struct {
 
 	// guards the following data structures, but not their contents.
 	mu        sync.Mutex
+	started   bool                                                 // Has the group been started?
 	addresses map[string]bool                                      // weavelet addresses
 	envelopes []*envelope.Envelope                                 // envelopes, one per weavelet
 	pids      []int64                                              // weavelet pids
@@ -244,10 +245,16 @@ func (b *Babysitter) allProxies() []*proxyInfo {
 //
 // REQUIRES: g.mu is NOT held.
 func (b *Babysitter) startColocationGroup(g *group) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if len(g.envelopes) == defaultReplication {
-		// Already started.
+	shouldStart := func() bool {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		if g.started {
+			return false
+		}
+		g.started = true
+		return true
+	}
+	if !shouldStart() {
 		return nil
 	}
 
@@ -325,15 +332,22 @@ func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-// REQUIRES: g.mu is held.
 func (b *Babysitter) registerReplica(g *group, info *protos.WeaveletInfo) error {
-	// Update addresses and pids.
-	if g.addresses[info.DialAddr] {
-		// Replica already registered.
+	register := func() bool {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		if g.addresses[info.DialAddr] {
+			// Replica already registered.
+			return false
+		}
+		g.addresses[info.DialAddr] = true
+		g.pids = append(g.pids, info.Pid)
+		return true
+	}
+
+	if !register() { // already registered
 		return nil
 	}
-	g.addresses[info.DialAddr] = true
-	g.pids = append(g.pids, info.Pid)
 
 	// Update routing.
 	replicas := g.allAddresses()
