@@ -16,6 +16,7 @@ package weaver
 
 import (
 	"context"
+	"net"
 
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
@@ -27,8 +28,13 @@ import (
 // env provides the API by which a Service Weaver application process communicates with
 // its execution environment, e.g., to do thing like starting processes etc.
 type env interface {
-	// GetWeaveletInfo returns the weavelet information from the environment.
-	GetWeaveletInfo() *protos.WeaveletInfo
+	// WeaveletSetupInfo returns the weavelet's setup information sent by
+	// the deployer.
+	WeaveletSetupInfo() *protos.WeaveletSetupInfo
+
+	// WeaveletListener returns the internal listener the weavelet should
+	// listen on to receive messages from other weavelets.
+	WeaveletListener() net.Listener
 
 	// RegisterComponentToStart registers a component to start in a given
 	// target colocation group.
@@ -43,15 +49,8 @@ type env interface {
 	// to the set of components returned.
 	GetComponentsToStart(ctx context.Context, version *call.Version) ([]string, *call.Version, error)
 
-	// RegisterReplica registers this process's address. This allows other processes
-	// in the application to make calls to components in this process.
-	RegisterReplica(ctx context.Context, myAddress call.NetworkAddress) error
-
-	// ReportLoad reports load information for a weavelet.
-	ReportLoad(ctx context.Context, load *protos.WeaveletLoadReport) error
-
-	// GetRoutingInfo returns the routing info for the provided component,
-	// including the set of replicas and the current routing assignments
+	// GetRoutingInfo returns the routing info for the provided colocation
+	// group, including the set of replicas and the current routing assignments
 	// (if any).
 	GetRoutingInfo(ctx context.Context, component string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
 

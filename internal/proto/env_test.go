@@ -24,13 +24,11 @@ import (
 )
 
 var (
-	msg_1 = &protos.ReplicaToRegister{
-		App:            "foo",
-		GroupReplicaId: "1234",
-		DeploymentId:   "5678",
-		Group:          "bar",
-		Address:        "qux",
-		Pid:            42,
+	msg_1 = &protos.WeaveletSetupInfo{
+		App:          "foo",
+		DeploymentId: "5678",
+		Group:        &protos.ColocationGroup{Name: "bar"},
+		Id:           "id",
 	}
 	msg_2 = &protos.MetricUpdate{
 		Defs: []*protos.MetricDef{

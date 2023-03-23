@@ -40,9 +40,10 @@ message EnvelopeMsg {
   // data.
   RunProfiling run_profiling = 4;
 
-  // A request to the weavelet to receive its weavelet information and respond
-  // with acknowledgment.
-  WeaveletInfo weavelet_info = 5;
+  // Setup information sent to the weavelet. This is the first message sent to
+  // the weavelet on the connection. Upon receiving the message, the weavelet
+  // immediately replies with WeaveletInfo. 
+  WeaveletSetupInfo weavelet_setup_info = 5;
 
   // A reply to the weavelet with the latest routing info.
   RoutingInfo routing_info = 6;
@@ -81,9 +82,6 @@ message WeaveletMsg {
   // Component to be started.
   ComponentToStart component_to_start = 5;
 
-  // Replica to register.
-  ReplicaToRegister replica_to_register = 7;
-
   // Weavelet load to be reported.
   WeaveletLoadReport load_report = 8;
 
@@ -92,6 +90,9 @@ message WeaveletMsg {
 
   // Weavelet profile.
   Profile profile = 10;
+
+  // Information sent back by the weavelet upon startup.
+  WeaveletInfo weavelet_info = 16;
 
   // A reply to the envelope with an error status.
   string error = 11;
@@ -197,8 +198,9 @@ message ColocationGroup {
   string name = 1;
 }
 
-// WeaveletInfo contains information provided to a weavelet from its deployer.
-message WeaveletInfo {
+// WeaveletSetupInfo contains the setup information provided to a weavelet
+// from its deployer.
+message WeaveletSetupInfo {
   string app = 1;             // app name
   string deployment_id = 2;   // deployment id, in UUID format
   ColocationGroup group = 3;  // colocation group
@@ -211,7 +213,18 @@ message WeaveletInfo {
   bool single_machine = 9;                   // a single-machine deployment?
 }
 
-// GetRoutingInfo is a request for the routing information a component.
+// WeaveletInfo contains information provided to the deployer by a running
+// weavelet.
+message WeaveletInfo {
+  // Internal TCP address of the weavelet. This address will be passed to other
+  // weavelets as part of their RoutingInfo.
+  string dial_addr = 1;
+
+  // Pid for the weavelet OS process.
+  int64 pid = 2;
+}
+
+// // GetRoutingInfo is a request for the routing information of a component.
 message GetRoutingInfo {
   string component = 1;
   string version = 2;
@@ -277,17 +290,6 @@ enum HealthStatus {
 // HealthReport contains the health report for a given replica.
 message HealthReport {
   HealthStatus status = 1;
-}
-
-// ReplicaToRegister is a request to the envelope to register a replica of
-// a given colocation group.
-message ReplicaToRegister {
-  string app = 1;
-  string group_replica_id = 2;
-  string deployment_id = 3;
-  string group = 4;
-  string address = 5;  // Service Weaver RPC address for the replica.
-  int64 pid = 6;       // Service Weaver RPC address for the replica.
 }
 
 // ComponentToStart is a request to the envelope to register a component that

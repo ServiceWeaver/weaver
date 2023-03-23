@@ -448,7 +448,7 @@ func (m *manager) getComponentsToStart(_ context.Context, req *GetComponents) (*
 	}, nil
 }
 
-func (m *manager) registerReplica(_ context.Context, req *protos.ReplicaToRegister) error {
+func (m *manager) registerReplica(_ context.Context, req *ReplicaToRegister) error {
 	g := m.group(req.Group)
 
 	// Update addresses and pids.

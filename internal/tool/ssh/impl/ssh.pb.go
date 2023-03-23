@@ -239,6 +239,71 @@ func (x *BabysitterMetrics) GetMetrics() []*protos.MetricSnapshot {
 	return nil
 }
 
+// ReplicaToRegister is a request to the manager to register a replica of
+// a given colocation group (i.e., a weavelet).
+type ReplicaToRegister struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Group   string `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	Address string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"` // Replica internal address.
+	Pid     int64  `protobuf:"varint,3,opt,name=pid,proto3" json:"pid,omitempty"`        // Replica pid.
+}
+
+func (x *ReplicaToRegister) Reset() {
+	*x = ReplicaToRegister{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_internal_tool_ssh_impl_ssh_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReplicaToRegister) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicaToRegister) ProtoMessage() {}
+
+func (x *ReplicaToRegister) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_tool_ssh_impl_ssh_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicaToRegister.ProtoReflect.Descriptor instead.
+func (*ReplicaToRegister) Descriptor() ([]byte, []int) {
+	return file_internal_tool_ssh_impl_ssh_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ReplicaToRegister) GetGroup() string {
+	if x != nil {
+		return x.Group
+	}
+	return ""
+}
+
+func (x *ReplicaToRegister) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *ReplicaToRegister) GetPid() int64 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
 var File_internal_tool_ssh_impl_ssh_proto protoreflect.FileDescriptor
 
 var file_internal_tool_ssh_impl_ssh_proto_rawDesc = []byte{
@@ -274,11 +339,17 @@ var file_internal_tool_ssh_impl_ssh_proto_rawDesc = []byte{
 	0x72, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x49, 0x64, 0x12, 0x31, 0x0a, 0x07, 0x6d, 0x65, 0x74,
 	0x72, 0x69, 0x63, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x72, 0x75, 0x6e,
 	0x74, 0x69, 0x6d, 0x65, 0x2e, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x53, 0x6e, 0x61, 0x70, 0x73,
-	0x68, 0x6f, 0x74, 0x52, 0x07, 0x6d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x42, 0x38, 0x5a, 0x36,
-	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x53, 0x65, 0x72, 0x76, 0x69,
-	0x63, 0x65, 0x57, 0x65, 0x61, 0x76, 0x65, 0x72, 0x2f, 0x77, 0x65, 0x61, 0x76, 0x65, 0x72, 0x2f,
-	0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x2f, 0x74, 0x6f, 0x6f, 0x6c, 0x2f, 0x73, 0x73,
-	0x68, 0x2f, 0x69, 0x6d, 0x70, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x68, 0x6f, 0x74, 0x52, 0x07, 0x6d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x22, 0x55, 0x0a, 0x11,
+	0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x54, 0x6f, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65,
+	0x72, 0x12, 0x14, 0x0a, 0x05, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x05, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x64, 0x64, 0x72, 0x65,
+	0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73,
+	0x73, 0x12, 0x10, 0x0a, 0x03, 0x70, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x03,
+	0x70, 0x69, 0x64, 0x42, 0x38, 0x5a, 0x36, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
+	0x6d, 0x2f, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x57, 0x65, 0x61, 0x76, 0x65, 0x72, 0x2f,
+	0x77, 0x65, 0x61, 0x76, 0x65, 0x72, 0x2f, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x2f,
+	0x74, 0x6f, 0x6f, 0x6c, 0x2f, 0x73, 0x73, 0x68, 0x2f, 0x69, 0x6d, 0x70, 0x6c, 0x62, 0x06, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -293,21 +364,22 @@ func file_internal_tool_ssh_impl_ssh_proto_rawDescGZIP() []byte {
 	return file_internal_tool_ssh_impl_ssh_proto_rawDescData
 }
 
-var file_internal_tool_ssh_impl_ssh_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_internal_tool_ssh_impl_ssh_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_internal_tool_ssh_impl_ssh_proto_goTypes = []interface{}{
 	(*BabysitterInfo)(nil),              // 0: impl.BabysitterInfo
 	(*GetComponents)(nil),               // 1: impl.GetComponents
 	(*BabysitterMetrics)(nil),           // 2: impl.BabysitterMetrics
-	(*protos.Deployment)(nil),           // 3: runtime.Deployment
-	(*protos.ColocationGroup)(nil),      // 4: runtime.ColocationGroup
-	(*protos.GetComponentsToStart)(nil), // 5: runtime.GetComponentsToStart
-	(*protos.MetricSnapshot)(nil),       // 6: runtime.MetricSnapshot
+	(*ReplicaToRegister)(nil),           // 3: impl.ReplicaToRegister
+	(*protos.Deployment)(nil),           // 4: runtime.Deployment
+	(*protos.ColocationGroup)(nil),      // 5: runtime.ColocationGroup
+	(*protos.GetComponentsToStart)(nil), // 6: runtime.GetComponentsToStart
+	(*protos.MetricSnapshot)(nil),       // 7: runtime.MetricSnapshot
 }
 var file_internal_tool_ssh_impl_ssh_proto_depIdxs = []int32{
-	3, // 0: impl.BabysitterInfo.deployment:type_name -> runtime.Deployment
-	4, // 1: impl.BabysitterInfo.group:type_name -> runtime.ColocationGroup
-	5, // 2: impl.GetComponents.get_components:type_name -> runtime.GetComponentsToStart
-	6, // 3: impl.BabysitterMetrics.metrics:type_name -> runtime.MetricSnapshot
+	4, // 0: impl.BabysitterInfo.deployment:type_name -> runtime.Deployment
+	5, // 1: impl.BabysitterInfo.group:type_name -> runtime.ColocationGroup
+	6, // 2: impl.GetComponents.get_components:type_name -> runtime.GetComponentsToStart
+	7, // 3: impl.BabysitterMetrics.metrics:type_name -> runtime.MetricSnapshot
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -357,6 +429,18 @@ func file_internal_tool_ssh_impl_ssh_proto_init() {
 				return nil
 			}
 		}
+		file_internal_tool_ssh_impl_ssh_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReplicaToRegister); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -364,7 +448,7 @@ func file_internal_tool_ssh_impl_ssh_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_internal_tool_ssh_impl_ssh_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

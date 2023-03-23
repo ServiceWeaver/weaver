@@ -253,7 +253,7 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 
 	for r := 0; r < defaultReplication; r++ {
 		// Start the weavelet and capture its logs, traces, and metrics.
-		wlet := &protos.WeaveletInfo{
+		wlet := &protos.WeaveletSetupInfo{
 			App:           b.dep.App.Name,
 			DeploymentId:  b.dep.Id,
 			Group:         &protos.ColocationGroup{Name: g.name},
@@ -265,12 +265,15 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 			SingleMachine: true,
 		}
 		h := &handler{b, g}
-		e, err := envelope.NewEnvelope(wlet, b.dep.App, h)
+		e, err := envelope.NewEnvelope(b.ctx, wlet, b.dep.App, h)
 		if err != nil {
 			return err
 		}
+		if err := b.registerReplica(g, e.WeaveletInfo()); err != nil {
+			return err
+		}
 		go func() {
-			if err := e.Run(b.ctx); err != nil {
+			if err := e.Serve(b.ctx); err != nil {
 				b.done <- err
 			}
 		}()
@@ -320,25 +323,17 @@ func (b *Babysitter) StartComponent(req *protos.ComponentToStart) error {
 	return b.startColocationGroup(g)
 }
 
-// RegisterReplica implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) RegisterReplica(req *protos.ReplicaToRegister) error {
-	g := b.group(req.Group)
-
+// registerReplica registers the information about a colocation group replica
+// (i.e., a weavelet).
+// REQUIRES: g.mu is held.
+func (b *Babysitter) registerReplica(g *group, info *protos.WeaveletInfo) error {
 	// Update addresses and pids.
-	record := func() bool {
-		g.mu.Lock()
-		defer g.mu.Unlock()
-		if g.addresses[req.Address] {
-			// Replica already registered.
-			return true
-		}
-		g.addresses[req.Address] = true
-		g.pids = append(g.pids, req.Pid)
-		return false
-	}
-	if record() {
+	if g.addresses[info.DialAddr] {
+		// Replica already registered.
 		return nil
 	}
+	g.addresses[info.DialAddr] = true
+	g.pids = append(g.pids, info.Pid)
 
 	// Update routing.
 	replicas := g.allAddresses()
@@ -350,6 +345,7 @@ func (b *Babysitter) RegisterReplica(req *protos.ReplicaToRegister) error {
 		}
 		routing.Unlock()
 	}
+
 	return nil
 }
 

@@ -59,7 +59,6 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "unable to create weavelet conn for subprocess: %v\n", err)
 			os.Exit(1)
 		}
-
 		cmds := map[string]func() error{
 			"loop": func() error {
 				for {
@@ -78,7 +77,7 @@ func TestMain(m *testing.M) {
 				return bigprint(n - 1)
 			},
 			"writetraces": func() error { return writeTraces(conn) },
-			"serve_conn":  func() error { return conn.Run() },
+			"serve_conn":  func() error { return conn.Serve() },
 		}
 		fn, ok := cmds[cmd]
 		if !ok {
@@ -112,9 +111,9 @@ func checkFile() error {
 	return err
 }
 
-// wlet returns a WeaveletInfo and AppConfig for testing.
-func wlet(binary string, args ...string) (*protos.WeaveletInfo, *protos.AppConfig) {
-	weavelet := &protos.WeaveletInfo{
+// wlet returns a WeaveletSetupInfo and AppConfig for testing.
+func wlet(binary string, args ...string) (*protos.WeaveletSetupInfo, *protos.AppConfig) {
+	weavelet := &protos.WeaveletSetupInfo{
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
 		Group:         &protos.ColocationGroup{Name: "main"},
@@ -159,9 +158,8 @@ func (h *handlerForTest) getTraceSpanNames() []string {
 	return h.traces
 }
 
-func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)             { h.logSaver(entry) }
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error   { return nil }
-func (h *handlerForTest) RegisterReplica(*protos.ReplicaToRegister) error { return nil }
+func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)           { h.logSaver(entry) }
+func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error { return nil }
 func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
 	return nil, nil
 }
@@ -196,7 +194,7 @@ func TestRun(t *testing.T) {
 			var started atomic.Bool
 			args := append([]string{test.subcommand}, test.args...)
 			wlet, config := wlet(executable, args...)
-			e, err := NewEnvelope(wlet, config, &handlerForTest{
+			e, err := NewEnvelope(ctx, wlet, config, &handlerForTest{
 				logSaver: func(*protos.LogEntry) {
 					started.Store(true)
 				},
@@ -204,7 +202,7 @@ func TestRun(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = e.Run(ctx)
+			err = e.Serve(ctx)
 			if err != nil && test.succeed {
 				t.Fatalf("m.Run(): %v", err)
 			}
@@ -240,11 +238,11 @@ func TestBigPrints(t *testing.T) {
 
 	n := 10000
 	wlet, config := wlet(executable, "bigprint", strconv.Itoa(n))
-	e, err := NewEnvelope(wlet, config, h)
+	e, err := NewEnvelope(ctx, wlet, config, h)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = e.Run(ctx); err == nil {
+	if err = e.Serve(ctx); err == nil {
 		t.Fatalf("dm.Run(): unexpected success")
 	}
 
@@ -260,43 +258,34 @@ func TestBigPrints(t *testing.T) {
 // TestCancel test that a envelope run() loop is canceled when the passed-in
 // context is canceled.
 func TestCancel(t *testing.T) {
-	for _, restart := range []RestartPolicy{
-		Never,
-		Always,
-		OnFailure,
-	} {
-		name := fmt.Sprintf("%v", restart)
-		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			wlet, config := wlet(executable, "loop")
-			e, err := NewEnvelope(wlet, config, &handlerForTest{logSaver: testSaver(t)})
-			if err != nil {
-				t.Fatal(err)
-			}
+	ctx, cancel := context.WithCancel(context.Background())
+	wlet, config := wlet(executable, "loop")
+	e, err := NewEnvelope(ctx, wlet, config, &handlerForTest{logSaver: testSaver(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-			// End the capture after a delay.
-			go func() {
-				time.Sleep(100 * time.Millisecond)
-				cancel()
-			}()
+	// End the capture after a delay.
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
 
-			// Start the subprocess. It should be ended after a delay.
-			if err := e.Run(ctx); err == nil {
-				t.Fatal("m.Run(): unexpected success")
-			}
+	// Start the subprocess. It should be ended after a delay.
+	if err := e.Serve(ctx); err == nil {
+		t.Fatal("m.Run(): unexpected success")
+	}
 
-			// Double check that the subprocess was killed.
-			ps := exec.Command("pgrep", "-f", "capture.test loop")
-			output, err := ps.Output()
-			// NOTE: If nothing matches, pgrep returns an "exit status 1" error
-			// with an empty output.
-			if err != nil && err.Error() != "exit status 1" {
-				t.Fatalf("cannot pgrep: %v", err)
-			}
-			if len(output) > 0 {
-				t.Fatalf("capture.test subprocess still running")
-			}
-		})
+	// Double check that the subprocess was killed.
+	ps := exec.Command("pgrep", "-f", "capture.test loop")
+	output, err := ps.Output()
+	// NOTE: If nothing matches, pgrep returns an "exit status 1" error
+	// with an empty output.
+	if err != nil && err.Error() != "exit status 1" {
+		t.Fatalf("cannot pgrep: %v", err)
+	}
+	if len(output) > 0 {
+		t.Fatalf("capture.test subprocess still running")
 	}
 }
 
@@ -344,11 +333,11 @@ func TestTraces(t *testing.T) {
 	h := &handlerForTest{logSaver: testSaver(t)}
 	ctx := context.Background()
 	wlet, config := wlet(executable, "writetraces")
-	e, err := NewEnvelope(wlet, config, h)
+	e, err := NewEnvelope(ctx, wlet, config, h)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Run(ctx); err != nil {
+	if err := e.Serve(ctx); err != nil {
 		t.Fatalf("unexpected error from child: %v", err)
 	}
 	expect := []string{"span1", "span2", "span3", "span4"}
@@ -361,22 +350,15 @@ func TestTraces(t *testing.T) {
 func startEnvelopeWithServing(ctx context.Context, t *testing.T) *Envelope {
 	h := &handlerForTest{logSaver: testSaver(t)}
 	wlet, config := wlet(executable, "serve_conn")
-	e, err := NewEnvelope(wlet, config, h)
+	e, err := NewEnvelope(ctx, wlet, config, h)
 	if err != nil {
 		t.Fatal(err)
 	}
 	go func() {
-		if err := e.Run(ctx); err != nil {
+		if err := e.Serve(ctx); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}()
-
-	// Wait until the envelope and the weavelet are available.
-	for {
-		if e.getConn() != nil {
-			break
-		}
-	}
 	return e
 }
 

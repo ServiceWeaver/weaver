@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
+	"os"
 	"runtime/pprof"
 	"time"
 
@@ -39,7 +41,8 @@ type WeaveletHandler interface {
 type WeaveletConn struct {
 	handler WeaveletHandler
 	conn    conn
-	wlet    *protos.WeaveletInfo
+	info    *protos.WeaveletSetupInfo
+	lis     net.Listener // internal network listener for the weavelet
 	metrics metrics.Exporter
 }
 
@@ -55,28 +58,41 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 		conn:    conn{name: "weavelet", reader: r, writer: w},
 	}
 
-	// Block until a weavelet is received.
+	// Block until the weavelet information is received.
 	msg := &protos.EnvelopeMsg{}
 	if err := d.conn.recv(msg); err != nil {
 		d.conn.cleanup(err)
 		return nil, err
 	}
-	d.wlet = msg.WeaveletInfo
-	if d.wlet == nil {
-		err := fmt.Errorf("expected WeaveletInfo, got %v", msg)
+	d.info = msg.WeaveletSetupInfo
+	if d.info == nil {
+		err := fmt.Errorf("expected WeaveletSetupInfo, got %v", msg)
 		d.conn.cleanup(err)
 		return nil, err
 	}
-	if err := runtime.CheckWeaveletInfo(d.wlet); err != nil {
+	if err := runtime.CheckWeaveletSetupInfo(d.info); err != nil {
 		d.conn.cleanup(err)
+		return nil, err
+	}
+
+	// Reply to the envelope with weavelet's runtime information.
+	lis, err := listen(d.info)
+	if err != nil {
+		d.conn.cleanup(err)
+		return nil, err
+	}
+	d.lis = lis
+	dialAddr := fmt.Sprintf("tcp://%s", lis.Addr().String())
+	info := &protos.WeaveletInfo{DialAddr: dialAddr}
+	if err := d.send(&protos.WeaveletMsg{WeaveletInfo: info}); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
-// Run interacts with the peer. Messages that are received are
-// handled as an ordered sequence.
-func (d *WeaveletConn) Run() error {
+// Serve accepts incoming messages from the envelope. Messages that are received
+// are handled as an ordered sequence.
+func (d *WeaveletConn) Serve() error {
 	msg := &protos.EnvelopeMsg{}
 	for {
 		if err := d.conn.recv(msg); err != nil {
@@ -88,9 +104,14 @@ func (d *WeaveletConn) Run() error {
 	}
 }
 
-// Weavelet returns the protos.Weavelet for this weavelet.
-func (d *WeaveletConn) Weavelet() *protos.WeaveletInfo {
-	return d.wlet
+// Bootstrap returns the setup information for the weavelet.
+func (d *WeaveletConn) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
+	return d.info
+}
+
+// Listener returns the internal network listener for the weavelet.
+func (d *WeaveletConn) Listener() net.Listener {
+	return d.lis
 }
 
 // handleMessage handles all messages initiated by the envelope. Note that
@@ -104,9 +125,9 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			if def.Labels == nil {
 				def.Labels = map[string]string{}
 			}
-			def.Labels["serviceweaver_app"] = d.wlet.App
-			def.Labels["serviceweaver_version"] = d.wlet.DeploymentId
-			def.Labels["serviceweaver_node"] = d.wlet.Id
+			def.Labels["serviceweaver_app"] = d.info.App
+			def.Labels["serviceweaver_version"] = d.info.DeploymentId
+			def.Labels["serviceweaver_node"] = d.info.Id
 		}
 		return d.send(&protos.WeaveletMsg{Id: -msg.Id, Metrics: update})
 	case msg.SendHealthStatus:
@@ -151,12 +172,6 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 // StartComponentRPC requests the envelope to start the given component.
 func (d *WeaveletConn) StartComponentRPC(componentToStart *protos.ComponentToStart) error {
 	_, err := d.rpc(&protos.WeaveletMsg{ComponentToStart: componentToStart})
-	return err
-}
-
-// RegisterReplicaRPC requests the envelope to register the given replica.
-func (d *WeaveletConn) RegisterReplicaRPC(replica *protos.ReplicaToRegister) error {
-	_, err := d.rpc(&protos.WeaveletMsg{ReplicaToRegister: replica})
 	return err
 }
 
@@ -272,4 +287,21 @@ func Profile(req *protos.RunProfiling) ([]byte, error) {
 		return nil, fmt.Errorf("unspecified profile collection type")
 	}
 	return buf.Bytes(), nil
+}
+
+func listen(info *protos.WeaveletSetupInfo) (net.Listener, error) {
+	// Pick a hostname to listen on.
+	host := "localhost"
+	if !info.SingleMachine {
+		// TODO(mwhittaker): Right now, we resolve our hostname to get a
+		// dialable IP address. Double check that this always works.
+		var err error
+		host, err = os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("error getting local hostname: %w", err)
+		}
+	}
+
+	// Create the listener
+	return net.Listen("tcp", fmt.Sprintf("%s:0", host))
 }

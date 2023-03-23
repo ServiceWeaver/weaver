@@ -50,9 +50,9 @@ import (
 
 // singleprocessEnv implements the env used for singleprocess Service Weaver applications.
 type singleprocessEnv struct {
-	ctx      context.Context
-	weavelet *protos.WeaveletInfo
-	config   *protos.AppConfig
+	ctx    context.Context
+	info   *protos.WeaveletSetupInfo
+	config *protos.AppConfig
 
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
@@ -97,7 +97,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	appConfig.Binary = os.Args[0]
 	appConfig.Args = os.Args[1:]
 
-	wlet := &protos.WeaveletInfo{
+	wlet := &protos.WeaveletSetupInfo{
 		App:           appConfig.Name,
 		DeploymentId:  uuid.New().String(),
 		Group:         &protos.ColocationGroup{Name: "main"},
@@ -108,7 +108,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		SingleProcess: true,
 		SingleMachine: true,
 	}
-	if err := runtime.CheckWeaveletInfo(wlet); err != nil {
+	if err := runtime.CheckWeaveletSetupInfo(wlet); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +126,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 
 	env := &singleprocessEnv{
 		ctx:            ctx,
-		weavelet:       wlet,
+		info:           wlet,
 		config:         appConfig,
 		submissionTime: time.Now(),
 		listeners:      map[string][]string{},
@@ -137,8 +137,13 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	return env, nil
 }
 
-func (e *singleprocessEnv) GetWeaveletInfo() *protos.WeaveletInfo {
-	return e.weavelet
+func (e *singleprocessEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
+	return e.info
+}
+
+func (e *singleprocessEnv) WeaveletListener() net.Listener {
+	// Should never be called.
+	panic("singleprocess.WeaveletListener unimplemented")
 }
 
 func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, name string, _ bool) error {
@@ -152,14 +157,6 @@ func (e *singleprocessEnv) GetComponentsToStart(ctx context.Context, _ *call.Ver
 	// Block forever since there's not going to be anything to start.
 	<-ctx.Done()
 	return []string{}, nil, nil
-}
-
-func (e *singleprocessEnv) RegisterReplica(context.Context, call.NetworkAddress) error {
-	return nil
-}
-
-func (e *singleprocessEnv) ReportLoad(context.Context, *protos.WeaveletLoadReport) error {
-	return nil
 }
 
 func (e *singleprocessEnv) GetRoutingInfo(context.Context, string, *call.Version) (*protos.RoutingInfo, *call.Version, error) {
@@ -212,8 +209,8 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 		return nil
 	}
 	reg := status.Registration{
-		DeploymentId: e.weavelet.DeploymentId,
-		App:          e.weavelet.App,
+		DeploymentId: e.info.DeploymentId,
+		App:          e.info.App,
 		Addr:         lis.Addr().String(),
 	}
 	fmt.Fprint(os.Stderr, reg.Rolodex())
@@ -293,8 +290,8 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 	}
 
 	return &status.Status{
-		App:            e.weavelet.App,
-		DeploymentId:   e.weavelet.DeploymentId,
+		App:            e.info.App,
+		DeploymentId:   e.info.DeploymentId,
 		SubmissionTime: timestamppb.New(e.submissionTime),
 		Components:     components,
 		Listeners:      listeners,
@@ -310,9 +307,9 @@ func (e *singleprocessEnv) Metrics(context.Context) (*status.Metrics, error) {
 		if proto.Labels == nil {
 			proto.Labels = map[string]string{}
 		}
-		proto.Labels["serviceweaver_app"] = e.weavelet.App
-		proto.Labels["serviceweaver_version"] = e.weavelet.DeploymentId
-		proto.Labels["serviceweaver_node"] = e.weavelet.Id
+		proto.Labels["serviceweaver_app"] = e.info.App
+		proto.Labels["serviceweaver_version"] = e.info.DeploymentId
+		proto.Labels["serviceweaver_node"] = e.info.Id
 		m.Metrics = append(m.Metrics, proto)
 	}
 	return m, nil
@@ -322,8 +319,8 @@ func (e *singleprocessEnv) Metrics(context.Context) (*status.Metrics, error) {
 func (e *singleprocessEnv) Profile(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
 	data, err := conn.Profile(req)
 	profile := &protos.Profile{
-		AppName:   e.weavelet.App,
-		VersionId: e.weavelet.DeploymentId,
+		AppName:   e.info.App,
+		VersionId: e.info.DeploymentId,
 		Data:      data,
 	}
 	if err != nil {

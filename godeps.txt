@@ -371,6 +371,8 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     go.opentelemetry.io/otel/sdk/trace
     google.golang.org/protobuf/proto
     io
+    net
+    os
     runtime/pprof
     sync
     time

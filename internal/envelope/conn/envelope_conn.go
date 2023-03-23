@@ -31,9 +31,6 @@ type EnvelopeHandler interface {
 	// StartComponent starts the given component.
 	StartComponent(entry *protos.ComponentToStart) error
 
-	// RegisterReplica registers the given weavelet replica.
-	RegisterReplica(entry *protos.ReplicaToRegister) error
-
 	// GetAddress gets the address a weavelet should listen on for a listener.
 	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
 
@@ -63,9 +60,10 @@ type EnvelopeHandler interface {
 // EnvelopeConn is the envelope side of the connection between a weavelet
 // and the envelope.
 type EnvelopeConn struct {
-	handler EnvelopeHandler
-	conn    conn
-	metrics metrics.Importer
+	handler  EnvelopeHandler
+	conn     conn
+	metrics  metrics.Importer
+	weavelet *protos.WeaveletInfo
 }
 
 // NewEnvelopeConn creates the envelope side of the connection between a
@@ -73,20 +71,34 @@ type EnvelopeConn struct {
 // Synthesized high-level events are passed to h.
 //
 // NewEnvelopeConn sends the provided protos.Weavelet to the weavelet.
-func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, weavelet *protos.WeaveletInfo) (*EnvelopeConn, error) {
+func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet *protos.WeaveletSetupInfo) (*EnvelopeConn, error) {
 	e := &EnvelopeConn{
 		handler: h,
 		conn:    conn{name: "envelope", reader: r, writer: w},
 	}
-
-	req := &protos.EnvelopeMsg{WeaveletInfo: weavelet}
-	err := e.send(req)
-	return e, err
+	// Send the setup information to the weavelet, and receive the weavelet
+	// information in return.
+	if err := e.send(&protos.EnvelopeMsg{WeaveletSetupInfo: wlet}); err != nil {
+		return nil, err
+	}
+	reply := &protos.WeaveletMsg{}
+	if err := e.conn.recv(reply); err != nil {
+		e.conn.cleanup(err)
+		return nil, err
+	}
+	if reply.WeaveletInfo == nil {
+		err := fmt.Errorf(
+			"the first message from the weavelet must contain weavelet info")
+		e.conn.cleanup(err)
+		return nil, err
+	}
+	e.weavelet = reply.WeaveletInfo
+	return e, nil
 }
 
-// Run interacts with the peer. Messages that are received are
-// handled as an ordered sequence.
-func (e *EnvelopeConn) Run() error {
+// Serve accepts incoming messages from the weavelet. Messages that are received
+// are handled as an ordered sequence.
+func (e *EnvelopeConn) Serve() error {
 	msg := &protos.WeaveletMsg{}
 	for {
 		if err := e.conn.recv(msg); err != nil {
@@ -96,6 +108,11 @@ func (e *EnvelopeConn) Run() error {
 			return err
 		}
 	}
+}
+
+// WeaveletInfo returns the information about the weavelet.
+func (e *EnvelopeConn) WeaveletInfo() *protos.WeaveletInfo {
+	return e.weavelet
 }
 
 // handleMessage handles all messages initiated by the weavelet. Note that
@@ -111,8 +128,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 	switch {
 	case msg.ComponentToStart != nil:
 		return e.send(errReply(e.handler.StartComponent(msg.ComponentToStart)))
-	case msg.ReplicaToRegister != nil:
-		return e.send(errReply(e.handler.RegisterReplica(msg.ReplicaToRegister)))
 	case msg.GetAddressRequest != nil:
 		reply, err := e.handler.GetAddress(msg.GetAddressRequest)
 		if err != nil {
