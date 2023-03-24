@@ -20,7 +20,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
@@ -37,19 +36,6 @@ type EnvelopeHandler interface {
 
 	// ExportListener exports the given listener.
 	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
-
-	// GetRoutingInfo returns the latest routing information for the weavelet.
-	//
-	// This is a blocking method that can be processed out-of-order w.r.t.
-	// the other methods.
-	GetRoutingInfo(request *protos.GetRoutingInfo) (*protos.RoutingInfo, error)
-
-	// GetComponentsToStart is a blocking call that returns the latest set of
-	// components that should be started by the weavelet.
-	//
-	// This is a blocking method that can be processed out-of-order w.r.t.
-	// the other methods.
-	GetComponentsToStart(request *protos.GetComponentsToStart) (*protos.ComponentsToStart, error)
 
 	// RecvLogEntry enables the envelope to receive a log entry.
 	RecvLogEntry(entry *protos.LogEntry)
@@ -193,44 +179,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		}
 		// Reply with listener info.
 		return e.send(&protos.EnvelopeMsg{Id: -msg.Id, ExportListenerReply: reply})
-	case msg.GetRoutingInfo != nil:
-		// This is a blocking call and therefore we cannot process it inline:
-		// process it in a separate goroutine. Note that this will cause routing
-		// info requests to be processed out-of-order w.r.t. other messages.
-		id := msg.Id
-		request := protomsg.Clone(msg.GetRoutingInfo)
-		go func() {
-			info, err := e.handler.GetRoutingInfo(request)
-			if err != nil {
-				// Reply with error.
-				//nolint:errcheck // error will be returned on next send
-				e.send(&protos.EnvelopeMsg{Id: -id, Error: err.Error()})
-				return
-			}
-			// Reply with routing info.
-			//nolint:errcheck // error will be returned on next send
-			e.send(&protos.EnvelopeMsg{Id: -id, RoutingInfo: info})
-		}()
-		return nil
-	case msg.GetComponentsToStart != nil:
-		// This is a blocking call and therefore we cannot process it inline:
-		// process it in a separate goroutine. Note that this will cause routing
-		// info requests to be processed out-of-order w.r.t. other messages.
-		id := msg.Id
-		request := protomsg.Clone(msg.GetComponentsToStart)
-		go func() {
-			components, err := e.handler.GetComponentsToStart(request)
-			if err != nil {
-				// Reply with error.
-				//nolint:errcheck // error will be returned on next send
-				e.send(&protos.EnvelopeMsg{Id: -id, Error: err.Error()})
-				return
-			}
-			// Reply with components info.
-			//nolint:errcheck // error will be returned on next send
-			e.send(&protos.EnvelopeMsg{Id: -id, ComponentsToStart: components})
-		}()
-		return nil
 	case msg.LogEntry != nil:
 		e.handler.RecvLogEntry(msg.LogEntry)
 		return nil
@@ -241,7 +189,7 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		}
 		return e.handler.RecvTraceSpans(traces)
 	default:
-		err := fmt.Errorf("unexpected message %v", msg)
+		err := fmt.Errorf("envelope_conn: unexpected message %+v", msg)
 		e.conn.cleanup(err)
 		return err
 	}
@@ -303,6 +251,44 @@ func (e *EnvelopeConn) DoProfilingRPC(req *protos.RunProfiling) (*protos.Profile
 		return nil, fmt.Errorf("nil profile reply received from weavelet")
 	}
 	return reply.Profile, nil
+}
+
+// UpdateComponentsRPC updates the weavelet with the latest set of components
+// it should be running.
+func (e *EnvelopeConn) UpdateComponentsRPC(req *protos.ComponentsToStart) error {
+	response, err := e.conn.rpc(&protos.EnvelopeMsg{ComponentsToStart: req})
+	if err != nil {
+		err := fmt.Errorf("connection to weavelet broken: %w", err)
+		e.conn.cleanup(err)
+		return err
+	}
+	msg, ok := response.(*protos.WeaveletMsg)
+	if !ok {
+		return fmt.Errorf("response has wrong type %T", response)
+	}
+	if msg.Error != "" {
+		return fmt.Errorf(msg.Error)
+	}
+	return nil
+}
+
+// UpdateRoutingInfoRPC updates the weavelet with a component's most recent
+// routing info.
+func (e *EnvelopeConn) UpdateRoutingInfoRPC(req *protos.RoutingInfo) error {
+	response, err := e.conn.rpc(&protos.EnvelopeMsg{RoutingInfo: req})
+	if err != nil {
+		err := fmt.Errorf("connection to weavelet broken: %w", err)
+		e.conn.cleanup(err)
+		return err
+	}
+	msg, ok := response.(*protos.WeaveletMsg)
+	if !ok {
+		return fmt.Errorf("response has wrong type %T", response)
+	}
+	if msg.Error != "" {
+		return fmt.Errorf(msg.Error)
+	}
+	return nil
 }
 
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {

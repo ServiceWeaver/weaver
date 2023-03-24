@@ -31,9 +31,18 @@ import (
 
 // WeaveletHandler implements the weavelet side processing of messages exchanged
 // with the corresponding envelope.
+//
+// The handlers should not block and should not communicate over the pipe.
 type WeaveletHandler interface {
 	// CollectLoad returns the latest load information at the weavelet.
 	CollectLoad() (*protos.WeaveletLoadReport, error)
+
+	// UpdateComponents is called with the latest set of components to run.
+	UpdateComponents(*protos.ComponentsToStart) error
+
+	// UpdateRoutingInfo is called with the latest routing info for a
+	// component.
+	UpdateRoutingInfo(*protos.RoutingInfo) error
 }
 
 // WeaveletConn is the weavelet side of the connection between a weavelet
@@ -83,7 +92,7 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 	}
 	d.lis = lis
 	dialAddr := fmt.Sprintf("tcp://%s", lis.Addr().String())
-	info := &protos.WeaveletInfo{DialAddr: dialAddr}
+	info := &protos.WeaveletInfo{DialAddr: dialAddr, Pid: int64(os.Getpid())}
 	if err := d.send(&protos.WeaveletMsg{WeaveletInfo: info}); err != nil {
 		return nil, err
 	}
@@ -162,8 +171,22 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			}})
 		}()
 		return nil
+	case msg.ComponentsToStart != nil:
+		id := msg.Id
+		err := d.handler.UpdateComponents(msg.ComponentsToStart)
+		if err != nil {
+			return d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+		}
+		return d.send(&protos.WeaveletMsg{Id: -id})
+	case msg.RoutingInfo != nil:
+		id := msg.Id
+		err := d.handler.UpdateRoutingInfo(msg.RoutingInfo)
+		if err != nil {
+			return d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+		}
+		return d.send(&protos.WeaveletMsg{Id: -id})
 	default:
-		err := fmt.Errorf("unexpected message %v", msg)
+		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
 		d.conn.cleanup(err)
 		return err
 	}
@@ -173,37 +196,6 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 func (d *WeaveletConn) StartComponentRPC(componentToStart *protos.ComponentToStart) error {
 	_, err := d.rpc(&protos.WeaveletMsg{ComponentToStart: componentToStart})
 	return err
-}
-
-// ReportLoadRPC reports the given load to the envelope.
-func (d *WeaveletConn) ReportLoadRPC(load *protos.WeaveletLoadReport) error {
-	_, err := d.rpc(&protos.WeaveletMsg{LoadReport: load})
-	return err
-}
-
-// GetRoutingInfoRPC requests the envelope to send us the latest routing info.
-func (d *WeaveletConn) GetRoutingInfoRPC(info *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	reply, err := d.rpc(&protos.WeaveletMsg{GetRoutingInfo: info})
-	if err != nil {
-		return nil, err
-	}
-	if reply.RoutingInfo == nil {
-		return nil, fmt.Errorf("nil routing info received from envelope")
-	}
-	return reply.RoutingInfo, nil
-}
-
-// GetComponentsToStartRPC is a blocking call to the envelope to send us a list
-// of components to start.
-func (d *WeaveletConn) GetComponentsToStartRPC(info *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	reply, err := d.rpc(&protos.WeaveletMsg{GetComponentsToStart: info})
-	if err != nil {
-		return nil, err
-	}
-	if reply.ComponentsToStart == nil {
-		return nil, fmt.Errorf("nil components to start reply received from envelope")
-	}
-	return reply.ComponentsToStart, nil
 }
 
 func (d *WeaveletConn) GetAddressRPC(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {

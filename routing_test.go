@@ -39,57 +39,6 @@ func (ne nilEndpoint) Address() string {
 	return ne.Addr
 }
 
-// TestRoutelet tests that a routelet correctly updates its returned resolvers
-// and balancers whenever its routing information is updated.
-func TestRoutelet(t *testing.T) {
-	// Don't call newRoutelet; we don't want to spawn the watching goroutine.
-	r := routelet{}
-	rr := r.resolver()
-	rb := r.balancer()
-
-	info := &protos.RoutingInfo{
-		Unchanged: false,
-		Version:   "1",
-		Replicas:  []string{"tcp://a", "tcp://b"},
-		Assignment: &protos.Assignment{
-			Slices: []*protos.Assignment_Slice{
-				{Start: 0, Replicas: []string{"tcp://a"}},
-				{Start: 100, Replicas: []string{"tcp://b"}},
-			},
-			App:          "app",
-			DeploymentId: "id",
-			Component:    "Foo",
-			Version:      1,
-		},
-	}
-	v1 := &call.Version{Opaque: "1"}
-	if err := r.update(info, v1); err != nil {
-		t.Fatal(err)
-	}
-
-	// Check rr.
-	ctx := context.Background()
-	endpoints, version, err := rr.Resolve(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := cmp.Diff(endpoints, []call.Endpoint{call.TCP("a"), call.TCP("b")}); diff != "" {
-		t.Fatalf("rr.Resolve (-want +got):\n%s", diff)
-	}
-	if version == nil || *version != *v1 {
-		t.Fatalf("rr.Resolve: got %v, want %v", version, v1)
-	}
-
-	// Check rbFoo.
-	endpoint, err := rb.Pick(call.CallOptions{ShardKey: 120})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if endpoint != call.TCP("b") {
-		t.Fatalf("rbFoo.Pick: got %v, want %v", endpoint, call.TCP("b"))
-	}
-}
-
 // TestRoutingBalancerNoAssignment tests that a routingBalancer with no
 // assignment will use its default balancer instead.
 func TestRoutingBalancerNoAssignment(t *testing.T) {
@@ -133,7 +82,7 @@ func TestRoutingBalancer(t *testing.T) {
 			},
 		},
 	}
-	rb.updateAssignment(assignment)
+	rb.update(assignment)
 
 	for _, test := range []struct {
 		shardKey uint64
@@ -177,13 +126,11 @@ func TestRoutingResolverInitialResolve(t *testing.T) {
 func TestRoutingResolverUpdate(t *testing.T) {
 	ab := []call.Endpoint{nilEndpoint{"a"}, nilEndpoint{"b"}}
 	cd := []call.Endpoint{nilEndpoint{"c"}, nilEndpoint{"d"}}
-	v0 := call.Version{Opaque: "0"}
-	v1 := call.Version{Opaque: "1"}
 
 	// Update synchronously.
 	ctx := context.Background()
 	r := newRoutingResolver()
-	r.update(ab, &v0)
+	r.update(ab)
 	endpoints, version, err := r.Resolve(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -191,23 +138,17 @@ func TestRoutingResolverUpdate(t *testing.T) {
 	if diff := cmp.Diff(endpoints, ab); diff != "" {
 		t.Fatalf("endpoints (-want +got):\n%s", diff)
 	}
-	if version == nil && *version != v0 {
-		t.Fatalf("version: got %v, want %v", version, &v0)
-	}
 
 	// Update asynchronously.
 	go func() {
 		time.Sleep(25 * time.Millisecond)
-		r.update(cd, &v1)
+		r.update(cd)
 	}()
-	endpoints, version, err = r.Resolve(ctx, version)
+	endpoints, _, err = r.Resolve(ctx, version)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(endpoints, cd); diff != "" {
 		t.Fatalf("endpoints (-want +got):\n%s", diff)
-	}
-	if version == nil || *version != v1 {
-		t.Fatalf("version: got %v, want %v", version, &v1)
 	}
 }

@@ -32,7 +32,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -146,21 +145,11 @@ func (e *singleprocessEnv) WeaveletListener() net.Listener {
 	panic("singleprocess.WeaveletListener unimplemented")
 }
 
-func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, _ string, name string, _ bool) error {
+func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, component string, _ bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.components = append(e.components, name)
+	e.components = append(e.components, component)
 	return nil
-}
-
-func (e *singleprocessEnv) GetComponentsToStart(ctx context.Context, _ *call.Version) ([]string, *call.Version, error) {
-	// Block forever since there's not going to be anything to start.
-	<-ctx.Done()
-	return []string{}, nil, nil
-}
-
-func (e *singleprocessEnv) GetRoutingInfo(context.Context, string, *call.Version) (*protos.RoutingInfo, *call.Version, error) {
-	return nil, nil, fmt.Errorf("routing info not useful for singleprocess execution")
 }
 
 func (e *singleprocessEnv) GetAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error) {

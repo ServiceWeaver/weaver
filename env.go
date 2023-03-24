@@ -18,8 +18,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -41,18 +41,7 @@ type env interface {
 	//
 	// The target colocation group periodically watches the set of registered
 	// components and starts the components that haven't already been started.
-	RegisterComponentToStart(ctx context.Context, targetGroup string,
-		component string, isRouted bool) error
-
-	// GetComponentsToStart returns the set of components that should be
-	// started, given a version. It also returns the version that corresponds
-	// to the set of components returned.
-	GetComponentsToStart(ctx context.Context, version *call.Version) ([]string, *call.Version, error)
-
-	// GetRoutingInfo returns the routing info for the provided colocation
-	// group, including the set of replicas and the current routing assignments
-	// (if any).
-	GetRoutingInfo(ctx context.Context, component string, version *call.Version) (*protos.RoutingInfo, *call.Version, error)
+	RegisterComponentToStart(ctx context.Context, component string, routed bool) error
 
 	// GetAddress returns the address a weavelet should listen on for a
 	// listener.
@@ -75,7 +64,7 @@ type env interface {
 }
 
 // getEnv returns the env to use for this weavelet.
-func getEnv(ctx context.Context, handler WeaveletHandler) (env, error) {
+func getEnv(ctx context.Context, handler conn.WeaveletHandler) (env, error) {
 	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
 		return nil, err

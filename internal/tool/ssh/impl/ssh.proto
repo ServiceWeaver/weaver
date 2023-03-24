@@ -29,12 +29,28 @@ message BabysitterInfo {
   string logDir = 5;
 }
 
-// When a babysitter receives a GetComponentsToStart request from a weavelet, it
-// forwards the request to the manager. But first, it wraps the request in a
-// GetComponents message to include its group name.
-message GetComponents {
+// A request from the babysitter to the manager to get the latest set of
+// components to run.
+message GetComponentsRequest {
   string group = 1;
-  runtime.GetComponentsToStart get_components = 2;
+  string version = 2;
+}
+
+message GetComponentsReply {
+  repeated string components = 1;
+  string version = 2;
+}
+
+// A request from the babysitter to the manager to get the latest routing info
+// for a component.
+message GetRoutingInfoRequest {
+  string component = 1;
+  string version = 2;
+}
+
+message GetRoutingInfoReply {
+  runtime.RoutingInfo routing_info = 1;
+  string version = 2;
 }
 
 // BabysitterMetrics is a snapshot of a deployment's metrics as collected by a

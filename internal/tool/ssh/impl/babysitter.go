@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/logtype"
@@ -29,6 +30,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 )
@@ -40,6 +42,10 @@ type babysitter struct {
 	info          *BabysitterInfo
 	logger        logtype.Logger
 	traceExporter *traceio.Writer // to export traces to the manager
+	envelope      *envelope.Envelope
+
+	mu                  sync.Mutex
+	watchingRoutingInfo map[string]bool
 }
 
 var _ envelope.EnvelopeHandler = &babysitter{}
@@ -82,6 +88,7 @@ func RunBabysitter(ctx context.Context) error {
 				Request: spans,
 			})
 		}),
+		watchingRoutingInfo: map[string]bool{},
 	}
 
 	// Start the envelope.
@@ -99,6 +106,7 @@ func RunBabysitter(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	b.envelope = e
 	if err := b.registerReplica(e.WeaveletInfo()); err != nil {
 		return err
 	}
@@ -151,18 +159,28 @@ func (m *metricsCollector) run(ctx context.Context) {
 
 // StartComponent implements the protos.EnvelopeHandler interface.
 func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
-	return protomsg.Call(b.ctx, protomsg.CallArgs{
+	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
 		URLPath: startComponentURL,
 		Request: req,
-	})
+	}); err != nil {
+		return err
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.watchingRoutingInfo[req.Component] {
+		b.watchingRoutingInfo[req.Component] = true
+		go b.watchRoutingInfo(req.Component)
+	}
+	return nil
 }
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
 func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
-	return protomsg.Call(b.ctx, protomsg.CallArgs{
+	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
 		URLPath: registerReplicaURL,
@@ -171,7 +189,12 @@ func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
 			Address: info.DialAddr,
 			Pid:     info.Pid,
 		},
-	})
+	}); err != nil {
+		return err
+	}
+
+	go b.watchComponents()
+	return nil
 }
 
 // ReportLoad implements the protos.EnvelopeHandler interface.
@@ -202,9 +225,9 @@ func (b *babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 	return reply, nil
 }
 
-// GetRoutingInfo implements the protos.EnvelopeHandler interface.
-func (b *babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	reply := &protos.RoutingInfo{}
+func (b *babysitter) getRoutingInfo(component, version string) (*protos.RoutingInfo, string, error) {
+	req := &GetRoutingInfoRequest{Component: component, Version: version}
+	reply := &GetRoutingInfoReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
@@ -212,23 +235,58 @@ func (b *babysitter) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.Routing
 		Request: req,
 		Reply:   reply,
 	}); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return reply, nil
+	return reply.RoutingInfo, reply.Version, nil
 }
 
-// GetComponentsToStart implements the protos.EnvelopeHandler interface.
-func (b *babysitter) GetComponentsToStart(get *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	req := &GetComponents{Group: b.info.Group.Name, GetComponents: get}
-	reply := &protos.ComponentsToStart{}
-	err := protomsg.Call(b.ctx, protomsg.CallArgs{
+func (b *babysitter) watchRoutingInfo(component string) {
+	version := ""
+	for r := retry.Begin(); r.Continue(b.ctx); {
+		routing, newVersion, err := b.getRoutingInfo(component, version)
+		if err != nil {
+			b.logger.Error("cannot get routing info; will retry", err, "component", component)
+			continue
+		}
+		version = newVersion
+		if err := b.envelope.UpdateRoutingInfo(routing); err != nil {
+			b.logger.Error("cannot update routing info; will retry", err, "component", component)
+			continue
+		}
+		r.Reset()
+	}
+}
+
+func (b *babysitter) getComponentsToStart(version string) ([]string, string, error) {
+	req := &GetComponentsRequest{Group: b.info.Group.Name, Version: version}
+	reply := &GetComponentsReply{}
+	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
 		URLPath: getComponentsToStartURL,
 		Request: req,
 		Reply:   reply,
-	})
-	return reply, err
+	}); err != nil {
+		return nil, "", err
+	}
+	return reply.Components, reply.Version, nil
+}
+
+func (b *babysitter) watchComponents() {
+	version := ""
+	for r := retry.Begin(); r.Continue(b.ctx); {
+		components, newVersion, err := b.getComponentsToStart(version)
+		if err != nil {
+			b.logger.Error("cannot get components to start; will retry", err)
+			continue
+		}
+		version = newVersion
+		if err := b.envelope.UpdateComponents(components); err != nil {
+			b.logger.Error("cannot update components to start; will retry", err)
+			continue
+		}
+		r.Reset()
+	}
 }
 
 // RecvLogEntry implements the protos.EnvelopeHandler interface.

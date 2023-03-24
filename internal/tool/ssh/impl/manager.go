@@ -423,7 +423,7 @@ func (g *group) routing(component string) *versioned.Versioned[*protos.RoutingIn
 	defer g.mu.Unlock()
 	routing, ok := g.routings[component]
 	if !ok {
-		routing = versioned.Version(&protos.RoutingInfo{})
+		routing = versioned.Version(&protos.RoutingInfo{Component: component})
 		g.routings[component] = routing
 	}
 	return routing
@@ -436,15 +436,15 @@ func (m *manager) allGroups() []*group {
 	return maps.Values(m.groups) // creates a new slice
 }
 
-func (m *manager) getComponentsToStart(_ context.Context, req *GetComponents) (*protos.ComponentsToStart, error) {
+func (m *manager) getComponentsToStart(_ context.Context, req *GetComponentsRequest) (*GetComponentsReply, error) {
 	// TODO(mwhittaker): Right now, this code assumes a group is named after
 	// its first component. Update the code to not depend on that assumption.
 	g := m.group(req.Group)
-	version := g.components.RLock(req.GetComponents.Version)
+	version := g.components.RLock(req.Version)
 	defer g.components.RUnlock()
-	return &protos.ComponentsToStart{
-		Version:    version,
+	return &GetComponentsReply{
 		Components: maps.Keys(g.components.Val),
+		Version:    version,
 	}, nil
 }
 
@@ -624,15 +624,16 @@ func (m *manager) startBabysitter(loc string, info *BabysitterInfo) error {
 	return cmd.Start()
 }
 
-func (m *manager) getRoutingInfo(_ context.Context, req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
+func (m *manager) getRoutingInfo(_ context.Context, req *GetRoutingInfoRequest) (*GetRoutingInfoReply, error) {
 	g := m.group(req.Component)
 	routing := g.routing(req.Component)
 
 	version := routing.RLock(req.Version)
 	defer routing.RUnlock()
-	r := protomsg.Clone(routing.Val)
-	r.Version = version
-	return r, nil
+	return &GetRoutingInfoReply{
+		RoutingInfo: protomsg.Clone(routing.Val),
+		Version:     version,
+	}, nil
 }
 
 // routingAlgo is an implementation of a routing algorithm that distributes the

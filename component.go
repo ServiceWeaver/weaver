@@ -87,6 +87,9 @@ type component struct {
 	info      *codegen.Registration // read-only, once initialized
 	groupName string                // read-only, once initialized
 
+	registerInit sync.Once // used to register the component
+	registerErr  error     // non-nil if registration fails
+
 	implInit sync.Once      // used to initialize impl, logger
 	implErr  error          // non-nil if impl creation fails
 	impl     *componentImpl // only ever non-nil if this component is local

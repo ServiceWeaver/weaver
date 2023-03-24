@@ -22,128 +22,10 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/cond"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/google/uuid"
 )
 
-// routelet Implementation Details
-//
-// When a routelet is created, it spawns a goroutine that repeatedly issues
-// RouteInfoRequests to the manager for a given component. These are blocking
-// calls that return whenever the routing information has changed.
-//
-// You can use a routelet's Resolver and Balancer methods to get a
-// call.Resolver and call.Balancer, respectively. Both the resolver and
-// balancer are automatically updated whenever the routing information changes.
-
-// routelet maintains the latest routing information for a component.
-type routelet struct {
-	mu          sync.Mutex                  // guards the following fields
-	routingInfo *protos.RoutingInfo         // latest routing info
-	res         *routingResolver            // resolver, updated with routingInfo
-	bal         *routingBalancer            // balancer, or nil if component isn't routed
-	callbacks   []func(*protos.RoutingInfo) // invoked when routing info changes
-}
-
-// newRoutelet returns a new routelet for the provided component. The
-// lifetime of the routelet is bound to the provided context. When the context is
-// cancelled, the routelet stops tracking the latest routing information.
-func newRoutelet(ctx context.Context, env env, component string) *routelet {
-	r := &routelet{}
-	go r.watchRoutingInfo(ctx, env, component)
-	return r
-}
-
-// resolver returns a new call.Resolver that returns the weavelet addresses
-// that implement the component for which this routelet was created.
-func (r *routelet) resolver() call.Resolver {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.res == nil {
-		r.res = newRoutingResolver()
-	}
-	return r.res
-}
-
-// balancer returns a new call.Balancer that uses the latest routing assignment
-// to route requests.
-func (r *routelet) balancer() call.Balancer {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.bal != nil {
-		return r.bal
-	}
-
-	r.bal = &routingBalancer{balancer: call.RoundRobin()}
-	if r.routingInfo != nil && r.routingInfo.Assignment != nil {
-		r.bal.updateAssignment(r.routingInfo.Assignment)
-	}
-	return r.bal
-}
-
-// onChange registers a callback that is invoked every time the routing info
-// changes.
-func (r *routelet) onChange(callback func(*protos.RoutingInfo)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.callbacks = append(r.callbacks, callback)
-}
-
-// watchRoutingInfo repeatedly issues blocking GetRoutingInfo requests via the
-// envelope to track the latest routing info. Whenever the routing info changes,
-// any resolvers and balancers returned by the Resolver() and Balancer()
-// methods are updated.
-func (r *routelet) watchRoutingInfo(ctx context.Context, env env, component string) {
-	var version *call.Version
-	for re := retry.Begin(); re.Continue(ctx); {
-		routingInfo, newVersion, err := env.GetRoutingInfo(ctx, component, version)
-		if err != nil {
-			// TODO(mwhittaker): Handle errors more gracefully.
-			env.SystemLogger().Error("cannot get routing info", err)
-			continue
-		}
-		version = newVersion
-		if err := r.update(routingInfo, version); err != nil {
-			// TODO(mwhittaker): Handle errors more gracefully.
-			env.SystemLogger().Error("cannot update routing info", err)
-			continue
-		}
-		re.Reset()
-	}
-}
-
-// update updates the state of a routelet with the latest routing info.
-func (r *routelet) update(routingInfo *protos.RoutingInfo, version *call.Version) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Update routing info.
-	r.routingInfo = routingInfo
-
-	// Update resolver.
-	if r.res != nil {
-		endpoints, err := parseEndpoints(routingInfo.Replicas)
-		if err != nil {
-			return err
-		}
-		r.res.update(endpoints, version)
-	}
-
-	// Update balancer.
-	if r.bal != nil && routingInfo.Assignment != nil {
-		r.bal.updateAssignment(routingInfo.Assignment)
-	}
-
-	// Invoke callbacks.
-	for _, callback := range r.callbacks {
-		callback(routingInfo)
-	}
-
-	return nil
-}
-
-// routingBalancer is a load balancer that uses a routing assignment to route
-// requests. While routingBalancer is a standalone entity, you should likely
-// not interact with routingBalancer directly and instead use a routelet.
+// routingBalancer balances requests according to a routing assignment.
 type routingBalancer struct {
 	balancer call.Balancer // default balancer
 
@@ -152,13 +34,22 @@ type routingBalancer struct {
 	index      index
 }
 
+// newRoutingBalancer returns a new routingBalancer.
+func newRoutingBalancer() *routingBalancer {
+	return &routingBalancer{balancer: call.RoundRobin()}
+}
+
 // Update implements the call.Balancer interface.
 func (rb *routingBalancer) Update(endpoints []call.Endpoint) {
 	rb.balancer.Update(endpoints)
 }
 
-// updateAssignment updates the balancer with the provided assignment.
-func (rb *routingBalancer) updateAssignment(assignment *protos.Assignment) {
+// update updates the balancer with the provided assignment
+func (rb *routingBalancer) update(assignment *protos.Assignment) {
+	if assignment == nil {
+		return
+	}
+
 	index := newIndex(assignment)
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
@@ -209,9 +100,7 @@ func (rb *routingBalancer) Pick(opts call.CallOptions) (call.Endpoint, error) {
 }
 
 // routingResolver is a dummy resolver that returns whatever endpoints are
-// passed to the Update method. While routingResolver is a standalone entity,
-// you should likely not interact with routingResolver directly and instead use
-// a routelet.
+// passed to the update method.
 type routingResolver struct {
 	m         sync.Mutex      // guards all of the following fields
 	changed   cond.Cond       // fires when endpoints changes
@@ -219,6 +108,7 @@ type routingResolver struct {
 	endpoints []call.Endpoint // the endpoints returned by Resolve
 }
 
+// newRoutingResolver returns a new routingResolver.
 func newRoutingResolver() *routingResolver {
 	r := &routingResolver{
 		version: &call.Version{Opaque: call.Missing.Opaque},
@@ -230,12 +120,11 @@ func newRoutingResolver() *routingResolver {
 // IsConstant implements the call.Resolver interface.
 func (rr *routingResolver) IsConstant() bool { return false }
 
-// update updates the set of endpoints that the resolver returns. The provided
-// version must be newer than any previously provided version.
-func (rr *routingResolver) update(endpoints []call.Endpoint, version *call.Version) {
+// update updates the resolver with the provided endpoints.
+func (rr *routingResolver) update(endpoints []call.Endpoint) {
 	rr.m.Lock()
 	defer rr.m.Unlock()
-	rr.version = version
+	rr.version = &call.Version{Opaque: uuid.New().String()}
 	rr.endpoints = endpoints
 	rr.changed.Broadcast()
 }
