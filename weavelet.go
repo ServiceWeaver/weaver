@@ -39,22 +39,14 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/exp/slices"
 )
 
 // readyMethodKey holds the key for a method used to check if a backend is ready.
 var readyMethodKey = call.MakeMethodKey("", "ready")
 
-// WeaveletHandler implements the weavelet side processing of messages exchanged
-// with the corresponding envelope.
-type WeaveletHandler interface {
-	// CollectLoad returns the latest load information at the weavelet.
-	CollectLoad() (*protos.WeaveletLoadReport, error)
-}
-
-// A weavelet is responsible for running and managing Service Weaver components. As the
-// name suggests, a weavelet is analogous to a kubelet or borglet. Every
-// weavelet executes components for a single Service Weaver process, but a process may be
-// implemented by multiple weavelets.
+// A weavelet runs and manages components. As the name suggests, a weavelet is
+// analogous to a kubelet.
 type weavelet struct {
 	ctx       context.Context
 	env       env                       // Manages interactions with execution environment
@@ -86,18 +78,13 @@ type transport struct {
 }
 
 type client struct {
-	init     sync.Once
 	client   call.Connection
-	routelet *routelet
-	err      error
+	resolver *routingResolver
+	balancer *routingBalancer
 }
 
 // Ensure that WeaveletHandler remains in-sync with conn.WeaveletHandler.
-var (
-	_ WeaveletHandler      = conn.WeaveletHandler(nil)
-	_ conn.WeaveletHandler = WeaveletHandler(nil)
-	_ WeaveletHandler      = &weavelet{}
-)
+var _ conn.WeaveletHandler = &weavelet{}
 
 // newWeavelet returns a new weavelet.
 func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*weavelet, error) {
@@ -110,6 +97,9 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		tcpClients:       map[string]*client{},
 		loads:            map[string]*loadCollector{},
 	}
+
+	// TODO(mwhittaker): getEnv starts the WeaveletConn handler which calls
+	// methods of w, but w hasn't yet been fully constructed. This is a race.
 	env, err := getEnv(ctx, w)
 	if err != nil {
 		return nil, err
@@ -233,16 +223,13 @@ func (w *weavelet) start() (Instance, error) {
 	if !w.info.SingleProcess {
 		lis := w.env.WeaveletListener()
 		addr := call.NetworkAddress(fmt.Sprintf("tcp://%s", lis.Addr().String()))
+		w.dialAddr = addr
 		for _, c := range w.componentsByName {
 			if w.inLocalGroup(c) && c.info.Routed {
 				// TODO(rgrandl): In the future, we may want to collect load for all components.
 				w.loads[c.info.Name] = newLoadCollector(c.info.Name, addr)
 			}
 		}
-
-		// Monitor our routing assignment.
-		routelet := newRoutelet(w.ctx, w.env, w.info.Group.Name)
-		routelet.onChange(w.onNewRoutingInfo)
 
 		// Start serving the transport.
 		serve := func(lis net.Listener, transport *transport) {
@@ -284,13 +271,12 @@ func (w *weavelet) start() (Instance, error) {
 	// calls Get("B") for a component B assigned to the same process), then the
 	// component's name is also registered with the protos.
 	if isMain {
-		// Watch for components in a goroutine since this goroutine will return to user main.
-		startWork(w.ctx, "watch for components to start", w.watchComponentsToStart)
 		return w.root.impl, nil
 	}
 
-	// Not the main-process. Run forever, or until there is an error.
-	return nil, w.watchComponentsToStart()
+	// Not the main-process. Run forever.
+	// TODO(mwhittaker): Catch and return errors.
+	select {}
 }
 
 // logRolodexCard pretty prints a card that includes basic information about
@@ -369,6 +355,23 @@ func (w *weavelet) getInstance(c *component, requester string) (interface{}, err
 		local = false
 	default:
 		local = w.inLocalGroup(c)
+	}
+
+	// Register the component.
+	c.registerInit.Do(func() {
+		w.env.SystemLogger().Debug("Registering component...", "component", c.info.Name)
+		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
+		c.registerErr = w.repeatedly(errMsg, func() error {
+			return w.env.RegisterComponentToStart(w.ctx, c.info.Name, c.info.Routed)
+		})
+		if c.registerErr != nil {
+			w.env.SystemLogger().Error("Registering component failed", c.registerErr, "component", c.info.Name)
+		} else {
+			w.env.SystemLogger().Debug("Registering component succeeded", "component", c.info.Name)
+		}
+	})
+	if c.registerErr != nil {
+		return nil, c.registerErr
 	}
 
 	if local {
@@ -452,35 +455,6 @@ func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 	}
 }
 
-// watchComponentsToStart is a long running goroutine that is responsible for
-// starting components.
-func (w *weavelet) watchComponentsToStart() error {
-	var version *call.Version
-
-	for r := retry.Begin(); r.Continue(w.ctx); {
-		componentsToStart, newVersion, err := w.env.GetComponentsToStart(w.ctx, version)
-		if err != nil {
-			w.env.SystemLogger().Error("cannot get components to start; will retry", err)
-			continue
-		}
-		version = newVersion
-		for _, start := range componentsToStart {
-			// TODO(mwhittaker): Start a component on a separate goroutine?
-			// Right now, if one component hangs forever in its constructor, no
-			// other components can start. main actually does this intentionally.
-			c, err := w.getComponent(start)
-			if err != nil {
-				return err
-			}
-			if _, err = w.getImpl(c); err != nil {
-				return err
-			}
-		}
-		r.Reset()
-	}
-	return w.ctx.Err()
-}
-
 // CollectLoad implements the WeaveletHandler interface.
 func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
 	report := &protos.WeaveletLoadReport{
@@ -502,18 +476,58 @@ func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
 	return report, nil
 }
 
-// onNewRoutingInfo is a callback that is invoked every time the routing info
-// for our process changes. onNewRoutingInfo updates the assignments and load
-// for our local components.
-func (w *weavelet) onNewRoutingInfo(info *protos.RoutingInfo) {
-	if info.Assignment == nil {
-		return
+// UpdateComponents implements the conn.WeaverHandler interface.
+func (w *weavelet) UpdateComponents(req *protos.ComponentsToStart) error {
+	// Create components in a separate goroutine. A component's Init function
+	// may be slow or block. It may also call weaver.Get which will trigger
+	// pipe communication. We want to avoid blocking and pipe communication in
+	// this handler as it could cause deadlocks in a deployer.
+	//
+	// TODO(mwhittaker): Start every component in its own goroutine? This way,
+	// constructors that block don't prevent other components from starting.
+	//
+	// TODO(mwhittaker): Document that handlers shouldn't retain access to the
+	// arguments passed to them.
+	components := slices.Clone(req.Components)
+	w.env.SystemLogger().Debug("UpdateComponents", "components", components)
+	go func() {
+		for _, component := range components {
+			c, err := w.getComponent(component)
+			if err != nil {
+				// TODO(mwhittaker): Propagate errors.
+				w.env.SystemLogger().Error("getComponent", err, "component", component)
+				return
+			}
+			if _, err = w.getImpl(c); err != nil {
+				// TODO(mwhittaker): Propagate errors.
+				w.env.SystemLogger().Error("getImpl", err, "component", component)
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+// UpdateRoutingInfo implements the conn.WeaverHandler interface.
+func (w *weavelet) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
+	w.env.SystemLogger().Debug("Updating routing info...", "component", routing.Component, "replicas", routing.Replicas)
+
+	// Update load collector.
+	if collector, ok := w.loads[routing.Component]; ok && routing.Assignment != nil {
+		collector.updateAssignment(routing.Assignment)
 	}
-	collector, ok := w.loads[info.Assignment.Component]
-	if !ok {
-		return
+
+	// Update resolver and balancer.
+	client := w.getTCPClient(routing.Component)
+	endpoints, err := parseEndpoints(routing.Replicas)
+	if err != nil {
+		w.env.SystemLogger().Error("Updating routing info failed", err, "component", routing.Component, "replicas", routing.Replicas)
+		return err
 	}
-	collector.updateAssignment(info.Assignment)
+	client.resolver.update(endpoints)
+	client.balancer.update(routing.Assignment)
+	w.env.SystemLogger().Debug("Updating routing info succeeded", "component", routing.Component, "replicas", routing.Replicas)
+	return nil
 }
 
 // getComponent returns the component with the given name.
@@ -545,10 +559,6 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 	}
 
 	init := func(c *component) error {
-		if err := w.env.RegisterComponentToStart(w.ctx, w.info.Group.Name, c.info.Name, c.info.Routed); err != nil {
-			return fmt.Errorf("component %q registration failed: %w", c.info.Name, err)
-		}
-
 		// We have to initialize these fields before passing to c.info.fn
 		// because the user's constructor may use them.
 		//
@@ -563,8 +573,10 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 
 		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
 		if err := createComponent(w.ctx, c); err != nil {
+			w.env.SystemLogger().Error("Constructing component failed", err, "component", c.info.Name)
 			return err
 		}
+		w.env.SystemLogger().Debug("Constructing component succeeded", "component", c.info.Name)
 
 		c.impl.serverStub = c.info.ServerStubFn(c.impl.impl, func(key uint64, v float64) {
 			if c.info.Routed {
@@ -621,19 +633,14 @@ func (w *weavelet) repeatedly(errMsg string, f func() error) error {
 // getStub returns a component's componentStub, initializing it if necessary.
 func (w *weavelet) getStub(c *component) (*componentStub, error) {
 	init := func(c *component) error {
-		// Register the component's name to start. The remote watcher will notice
-		// the name and launch the component.
-		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
-		if err := w.repeatedly(errMsg, func() error {
-			return w.env.RegisterComponentToStart(w.ctx, c.groupName, c.info.Name, c.info.Routed)
-		}); err != nil {
+		// Initialize the client.
+		w.env.SystemLogger().Debug("Getting TCP client to component...", "component", c.info.Name)
+		client := w.getTCPClient(c.info.Name)
+		if err := client.init(w.ctx, w.transport.clientOpts); err != nil {
+			w.env.SystemLogger().Error("Getting TCP client to component failed", err, "component", c.info.Name)
 			return err
 		}
-
-		client, err := w.getTCPClient(c)
-		if err != nil {
-			return err
-		}
+		w.env.SystemLogger().Debug("Getting TCP client to component succeeded", "component", c.info.Name)
 
 		// Construct the keys for the methods.
 		n := c.info.Iface.NumMethod()
@@ -645,7 +652,7 @@ func (w *weavelet) getStub(c *component) (*componentStub, error) {
 
 		var balancer call.Balancer
 		if c.info.Routed {
-			balancer = client.routelet.balancer()
+			balancer = client.balancer
 		}
 		c.stub = &componentStub{
 			stub: &stub{
@@ -671,31 +678,30 @@ func waitUntilReady(ctx context.Context, client call.Connection) error {
 	return ctx.Err()
 }
 
-func (w *weavelet) getTCPClient(component *component) (*client, error) {
+// getTCPClient returns the TCP client for the provided component.
+func (w *weavelet) getTCPClient(component string) *client {
 	// Create entry in client map.
 	w.clientsLock.Lock()
-	c, ok := w.tcpClients[component.info.Name]
+	defer w.clientsLock.Unlock()
+	c, ok := w.tcpClients[component]
 	if !ok {
-		c = &client{}
-		w.tcpClients[component.groupName] = c
+		c = &client{
+			resolver: newRoutingResolver(),
+			balancer: newRoutingBalancer(),
+		}
+		w.tcpClients[component] = c
 	}
-	w.clientsLock.Unlock()
+	return c
+}
 
-	// Initialize (or wait for initialization to complete.)
-	c.init.Do(func() {
-		routelet := newRoutelet(w.ctx, w.env, component.info.Name)
-		c.routelet = routelet
-		c.client, c.err = call.Connect(w.ctx, routelet.resolver(), w.transport.clientOpts)
-		if c.err != nil {
-			return
-		}
-		c.err = waitUntilReady(w.ctx, c.client)
-		if c.err != nil {
-			c.client = nil
-			return
-		}
-	})
-	return c, c.err
+// init initializes a client. It should only be called once.
+func (c *client) init(ctx context.Context, opts call.ClientOptions) error {
+	var err error
+	c.client, err = call.Connect(ctx, c.resolver, opts)
+	if err != nil {
+		return err
+	}
+	return waitUntilReady(ctx, c.client)
 }
 
 // place places registered components into colocation groups.

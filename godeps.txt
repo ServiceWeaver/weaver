@@ -30,6 +30,7 @@ github.com/ServiceWeaver/weaver
     go.opentelemetry.io/otel/sdk/trace
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
+    golang.org/x/exp/slices
     google.golang.org/protobuf/types/known/timestamppb
     math
     math/rand
@@ -322,7 +323,6 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/status
-    github.com/ServiceWeaver/weaver/internal/versioned
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
@@ -783,13 +783,11 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/logtype
-    github.com/ServiceWeaver/weaver/internal/versioned
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace

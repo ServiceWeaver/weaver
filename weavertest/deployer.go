@@ -25,12 +25,10 @@ import (
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
-	"github.com/ServiceWeaver/weaver/internal/versioned"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
-	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -75,10 +73,10 @@ type deployer struct {
 	config     *protos.AppConfig         // application config
 	logger     logtype.Logger            // logger
 	colocation map[string]string         // maps component to group
+	stopped    sync.WaitGroup            // waits for envelopes to stop
 
-	mu      sync.Mutex        // guards groups
-	groups  map[string]*group // groups, by group name
-	stopped sync.WaitGroup    // waits for envelopes to stop
+	mu     sync.Mutex        // guards groups
+	groups map[string]*group // groups, by group name
 
 	logMu sync.Mutex // guards log
 	log   bool       // logging enabled?
@@ -86,20 +84,36 @@ type deployer struct {
 
 // A group contains information about a co-location group.
 type group struct {
-	name       string                                    // group name
-	components *versioned.Versioned[map[string]bool]     // started components
-	routing    *versioned.Versioned[*protos.RoutingInfo] // routing info
-
-	mu        sync.Mutex           // guards fields below
-	started   bool                 // has the group been started?
-	envelopes []*envelope.Envelope // envelopes, one per weavelet
-
+	name        string                  // group name
+	envelopes   []*envelope.Envelope    // envelopes, one per weavelet
+	components  map[string]bool         // started components
+	addresses   map[string]bool         // weavelet addresses
+	subscribers map[string][]connection // routing info subscribers, by component
 }
 
 // handler handles a connection to a weavelet.
 type handler struct {
 	*deployer
-	group *group
+	group      *group
+	conn       connection
+	subscribed map[string]bool // routing info subscriptions, by component
+}
+
+// A connection is either an Envelope or an EnvelopeConn.
+//
+// The weavertest deployer has to deal with the annoying fact that the main
+// weavelet runs in the same process as the deployer. Thus, the connection to
+// the main weavelet is an EnvelopeConn. On the other hand, the connection to
+// all other weavelets is an Envelope. A connection encapsulates the common
+// logic between the two.
+//
+// TODO(mwhittaker): Can we revise the Envelope API to avoid having to do stuff
+// like this? Having a weavelet run in the same process is rare though, so it
+// might not be worth it.
+type connection struct {
+	// One of the following fields will be nil.
+	envelope *envelope.Envelope // envelope to non-main weavelet
+	conn     *conn.EnvelopeConn // conn to main weavelet
 }
 
 var _ envelope.EnvelopeHandler = &handler{}
@@ -151,8 +165,6 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupIn
 
 // Init acts like weaver.Init when called from the main component.
 func (d *deployer) Init(config string) weaver.Instance {
-	g := d.group("main")
-
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -182,17 +194,26 @@ func (d *deployer) Init(config string) weaver.Instance {
 		SingleProcess: d.wlet.SingleProcess,
 		SingleMachine: d.wlet.SingleMachine,
 	}
+	// TODO(mwhittaker): Issue an UpdateComponents call to the main group.
+	// Right now, the main co-location group knows to start main, but in the
+	// future, it won't.
 	go func() {
 		// NOTE: We must create the envelope conn in a separate gorotuine
 		// because it initiates a blocking handshake with the weavelet
 		// (initialized below via weaver.Init).
-		handler := &handler{d, g}
+		g := d.group("main")
+		handler := &handler{
+			deployer:   d,
+			group:      g,
+			subscribed: map[string]bool{},
+		}
 		conn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, handler, wlet)
 		if err != nil {
-			panic(fmt.Sprintf("cannot create envelope conn: %v", err))
+			panic(fmt.Errorf("cannot create envelope conn: %w", err))
 		}
+		handler.conn = connection{conn: conn}
 		if err := d.registerReplica(g, conn.WeaveletInfo()); err != nil {
-			panic("cannot register the replica for \"main\"")
+			panic(fmt.Errorf(`cannot register the replica for "main"`))
 		}
 
 		// TODO(mwhittaker): Close this conn when the unit test ends. Right
@@ -275,48 +296,76 @@ func (d *deployer) ExportListener(req *protos.ExportListenerRequest) (*protos.Ex
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
 func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
-	g.routing.Lock()
-	defer g.routing.Unlock()
-	for _, replica := range g.routing.Val.Replicas {
-		if info.DialAddr == replica {
-			// Replica already registered.
-			return nil
+	// Update addresses.
+	if g.addresses[info.DialAddr] {
+		// Replica already registered.
+		return nil
+	}
+	g.addresses[info.DialAddr] = true
+
+	// Notify subscribers.
+	for component := range g.components {
+		routing := g.routing(component)
+		for _, sub := range g.subscribers[component] {
+			if err := sub.UpdateRoutingInfo(routing); err != nil {
+				return err
+			}
 		}
 	}
-	g.routing.Val.Replicas = append(g.routing.Val.Replicas, info.DialAddr)
 	return nil
 }
 
 // StartComponent implements the envelope.EnvelopeHandler interface.
-func (d *deployer) StartComponent(req *protos.ComponentToStart) error {
-	group := d.group(req.Component)
-	group.components.Lock()
-	defer group.components.Unlock()
-	if group.components.Val[req.Component] {
-		// Component already started.
-		return nil
+func (h *handler) StartComponent(req *protos.ComponentToStart) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Update the set of components in the target co-location group.
+	target := h.deployer.group(req.Component)
+	if !target.components[req.Component] {
+		target.components[req.Component] = true
+
+		// Notify the weavelets.
+		components := maps.Keys(target.components)
+		for _, envelope := range target.envelopes {
+			if err := envelope.UpdateComponents(components); err != nil {
+				return err
+			}
+		}
+
+		// Notify the subscribers.
+		routing := target.routing(req.Component)
+		for _, sub := range target.subscribers[req.Component] {
+			if err := sub.UpdateRoutingInfo(routing); err != nil {
+				return err
+			}
+		}
 	}
-	group.components.Val[req.Component] = true
-	return d.startGroup(group)
+
+	// Subscribe to the component's routing info.
+	if !h.subscribed[req.Component] {
+		h.subscribed[req.Component] = true
+		target.subscribers[req.Component] = append(target.subscribers[req.Component], h.conn)
+		if err := h.conn.UpdateRoutingInfo(target.routing(req.Component)); err != nil {
+			return err
+		}
+	}
+
+	// Start the co-location group
+	return h.deployer.startGroup(target)
 }
 
 // startGroup starts the provided co-location group in a subprocess, if it
 // hasn't already been started.
+//
+// REQUIRES: d.mu is held.
 func (d *deployer) startGroup(g *group) error {
-	shouldStart := func() bool {
-		g.mu.Lock()
-		defer g.mu.Unlock()
-		if g.started {
-			return false
-		}
-		g.started = true
-		return true
-	}
-
-	if !shouldStart() {
+	if len(g.envelopes) > 0 {
+		// Envelopes already started
 		return nil
 	}
 
+	components := maps.Keys(g.components)
 	for r := 0; r < DefaultReplication; r++ {
 		// Start the weavelet.
 		wlet := &protos.WeaveletSetupInfo{
@@ -330,17 +379,16 @@ func (d *deployer) startGroup(g *group) error {
 			SingleProcess: d.wlet.SingleProcess,
 			SingleMachine: d.wlet.SingleMachine,
 		}
-		handler := &handler{d, g}
+		handler := &handler{
+			deployer:   d,
+			group:      g,
+			subscribed: map[string]bool{},
+		}
 		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config, handler)
 		if err != nil {
 			return err
 		}
-		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
-			return err
-		}
-		g.mu.Lock()
-		g.envelopes = append(g.envelopes, e)
-		g.mu.Unlock()
+		handler.conn = connection{envelope: e}
 
 		// Run the envelope.
 		//
@@ -355,37 +403,21 @@ func (d *deployer) startGroup(g *group) error {
 				d.logger.Error("e.Run", err)
 			}
 		}()
+		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
+			return err
+		}
+		if err := e.UpdateComponents(components); err != nil {
+			return err
+		}
+		g.envelopes = append(g.envelopes, e)
 	}
 	return nil
 }
 
-// GetComponentsToStart implements the envelope.EnvelopeHandler interface.
-func (h *handler) GetComponentsToStart(req *protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	version := h.group.components.RLock(req.Version)
-	defer h.group.components.RUnlock()
-	return &protos.ComponentsToStart{
-		Version:    version,
-		Components: maps.Keys(h.group.components.Val),
-	}, nil
-}
-
-// GetRoutingInfo implements the envelope.EnvelopeHandler interface.
-func (d *deployer) GetRoutingInfo(req *protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	g := d.group(req.Component)
-
-	// RLock blocks, so we can't hold the lock.
-	version := g.routing.RLock(req.Version)
-	defer g.routing.RUnlock()
-	routing := protomsg.Clone(g.routing.Val)
-	routing.Version = version
-	return routing, nil
-}
-
 // group returns the group that corresponds to the given component.
+//
+// REQUIRES: d.mu is held.
 func (d *deployer) group(component string) *group {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	name, ok := d.colocation[component]
 	if !ok {
 		name = component
@@ -394,11 +426,45 @@ func (d *deployer) group(component string) *group {
 	g, ok := d.groups[name]
 	if !ok {
 		g = &group{
-			name:       name,
-			components: versioned.Version(map[string]bool{}),
-			routing:    versioned.Version(&protos.RoutingInfo{}),
+			name:        name,
+			components:  map[string]bool{},
+			addresses:   map[string]bool{},
+			subscribers: map[string][]connection{},
 		}
 		d.groups[name] = g
 	}
 	return g
+}
+
+// routing returns the RoutingInfo for the provided component.
+//
+// REQUIRES: d.mu is held.
+func (g *group) routing(component string) *protos.RoutingInfo {
+	return &protos.RoutingInfo{
+		Component: component,
+		Replicas:  maps.Keys(g.addresses),
+	}
+}
+
+// UpdateRoutingInfo is equivalent to Envelope.UpdateRoutingInfo.
+func (c connection) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
+	if c.envelope != nil {
+		return c.envelope.UpdateRoutingInfo(routing)
+	}
+	if c.conn != nil {
+		return c.conn.UpdateRoutingInfoRPC(routing)
+	}
+	panic(fmt.Errorf("nil connection"))
+}
+
+// UpdateComponents is equivalent to Envelope.UpdateComponents.
+func (c connection) UpdateComponents(components []string) error {
+	if c.envelope != nil {
+		return c.envelope.UpdateComponents(components)
+	}
+	if c.conn != nil {
+		msg := &protos.ComponentsToStart{Components: components}
+		return c.conn.UpdateComponentsRPC(msg)
+	}
+	panic(fmt.Errorf("nil connection"))
 }

@@ -49,19 +49,6 @@ type EnvelopeHandler interface {
 	// ExportListener exports the given listener.
 	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
-	// GetRoutingInfo returns the latest routing information for the weavelet.
-	//
-	// This is a blocking method that can be processed out-of-order w.r.t.
-	// the other methods.
-	GetRoutingInfo(request *protos.GetRoutingInfo) (*protos.RoutingInfo, error)
-
-	// GetComponentsToStart is a blocking call that returns the latest set of
-	// components that should be started by the weavelet.
-	//
-	// This is a blocking method that can be processed out-of-order w.r.t.
-	// the other methods.
-	GetComponentsToStart(request *protos.GetComponentsToStart) (*protos.ComponentsToStart, error)
-
 	// RecvLogEntry enables the envelope to receive a log entry.
 	RecvLogEntry(entry *protos.LogEntry)
 
@@ -267,6 +254,18 @@ func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
 // GetLoadInfo returns the latest load information at the weavelet.
 func (e *Envelope) GetLoadInfo() (*protos.WeaveletLoadReport, error) {
 	return e.conn.GetLoadInfoRPC()
+}
+
+// UpdateComponents updates the weavelet with the latest set of components it
+// should be running.
+func (e *Envelope) UpdateComponents(components []string) error {
+	return e.conn.UpdateComponentsRPC(&protos.ComponentsToStart{Components: components})
+}
+
+// UpdateRoutingInfo updates the weavelet with a component's most recent
+// routing info.
+func (e *Envelope) UpdateRoutingInfo(info *protos.RoutingInfo) error {
+	return e.conn.UpdateRoutingInfoRPC(info)
 }
 
 func (e *Envelope) copyLines(component string, src io.Reader) error {

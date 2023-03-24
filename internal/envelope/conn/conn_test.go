@@ -159,13 +159,6 @@ var _ conn.EnvelopeHandler = &handlerForTest{}
 func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error     { return nil }
 func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                 {}
 func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error { return nil }
-func (h *handlerForTest) ReportLoad(*protos.WeaveletLoadReport) error   { return nil }
-func (h *handlerForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	return nil, nil
-}
-func (h *handlerForTest) GetComponentsToStart(*protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	return nil, nil
-}
 func (h *handlerForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
 	return nil, nil
 }

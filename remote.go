@@ -40,7 +40,7 @@ type remoteEnv struct {
 
 var _ env = &remoteEnv{}
 
-func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler WeaveletHandler) (*remoteEnv, error) {
+func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn.WeaveletHandler) (*remoteEnv, error) {
 	// Create pipe to communicate with the envelope.
 	toWeavelet, toEnvelope, err := bootstrap.MakePipes()
 	if err != nil {
@@ -80,57 +80,12 @@ func (e *remoteEnv) WeaveletListener() net.Listener {
 }
 
 // RegisterComponentToStart implements the Env interface.
-func (e *remoteEnv) RegisterComponentToStart(_ context.Context, targetGroup string, component string, isRouted bool) error {
+func (e *remoteEnv) RegisterComponentToStart(_ context.Context, component string, routed bool) error {
 	request := &protos.ComponentToStart{
 		Component: component,
-		Routed:    isRouted,
+		Routed:    routed,
 	}
 	return e.conn.StartComponentRPC(request)
-}
-
-// GetComponentsToStart implements the Env interface.
-func (e *remoteEnv) GetComponentsToStart(_ context.Context, version *call.Version) (
-	[]string, *call.Version, error) {
-	var v string
-	if version != nil {
-		v = version.Opaque
-	}
-
-	request := &protos.GetComponentsToStart{Version: v}
-	reply, err := e.conn.GetComponentsToStartRPC(request)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if reply.Unchanged {
-		// TODO(sanjay): Is there a reply.Unchanged variant we want to return here?
-		return nil, nil, fmt.Errorf("no new components to start for group %q", e.info.Group)
-	}
-	return reply.Components, &call.Version{Opaque: reply.Version}, nil
-}
-
-// GetRoutingInfo implements the Env interface.
-func (e *remoteEnv) GetRoutingInfo(_ context.Context, component string,
-	version *call.Version) (*protos.RoutingInfo, *call.Version, error) {
-	var v string
-	if version != nil {
-		v = version.Opaque
-	}
-
-	request := &protos.GetRoutingInfo{
-		Component: component,
-		Version:   v,
-	}
-	reply, err := e.conn.GetRoutingInfoRPC(request)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if reply.Unchanged {
-		// TODO(sanjay): Is there a store.Unchanged variant we want to return here?
-		return nil, nil, fmt.Errorf("no new routing info for component %q", component)
-	}
-	return reply, &call.Version{Opaque: reply.Version}, nil
 }
 
 // GetAddress implements the Env interface.

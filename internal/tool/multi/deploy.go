@@ -106,9 +106,7 @@ func deploy(ctx context.Context, args []string) error {
 	}()
 
 	// Deploy main.
-	if err := b.StartComponent(&protos.ComponentToStart{
-		Component: "main",
-	}); err != nil {
+	if err := b.StartMain(); err != nil {
 		return fmt.Errorf("start main process: %w", err)
 	}
 

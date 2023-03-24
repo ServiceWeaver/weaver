@@ -42,7 +42,7 @@ message EnvelopeMsg {
 
   // Setup information sent to the weavelet. This is the first message sent to
   // the weavelet on the connection. Upon receiving the message, the weavelet
-  // immediately replies with WeaveletInfo. 
+  // immediately replies with WeaveletInfo.
   WeaveletSetupInfo weavelet_setup_info = 5;
 
   // A reply to the weavelet with the latest routing info.
@@ -96,12 +96,6 @@ message WeaveletMsg {
 
   // A reply to the envelope with an error status.
   string error = 11;
-
-  // Request to get the routing info.
-  GetRoutingInfo get_routing_info = 12;
-
-  // Request to get the list of components to be started.
-  GetComponentsToStart get_components_to_start = 13;
 
   // Request to get the address for a listener.
   GetAddressRequest get_address_request = 14;
@@ -224,26 +218,17 @@ message WeaveletInfo {
   int64 pid = 2;
 }
 
-// // GetRoutingInfo is a request for the routing information of a component.
-message GetRoutingInfo {
-  string component = 1;
-  string version = 2;
-}
-
 // RoutingInfo contains routing information for a component.
 message RoutingInfo {
-  // unchanged is set to true if the request was ended prematurely without
-  // detecting a change. In this case, version and replicas are empty.
-  bool unchanged = 1;
-  string version = 2;
+  string component = 1;
 
   // Each replica is a string of the form "<net>://<addr>". E.g.,
   //    tcp://host:1234
   //    unix:///tmp/unix.sock
-  repeated string replicas = 3;
+  repeated string replicas = 2;
 
   // Routing assignment, if the component is routed.
-  Assignment assignment = 4;
+  Assignment assignment = 3;
 }
 
 // ProfileType specifies a type of profile to collect.
@@ -299,21 +284,10 @@ message ComponentToStart {
   bool routed = 2;  // whether the component is routed
 }
 
-// GetComponentsToStart is a request to the envelope to retrieve the set of
-// components that should be started by a given colocation group.
-message GetComponentsToStart {
-  string version = 1;
-}
-
-// ComponentsToStart is a result of the GetComponentsToStart sent to the
-// manager.
+// ComponentsToStart includes the latest set of components a weavelet should be
+// running. Currently, the set of components must only grow over time.
 message ComponentsToStart {
-  // unchanged is set to true if the request was ended prematurely without
-  // detecting a change. In this case, version and components to start are
-  // empty.
-  bool unchanged = 1;
-  string version = 2;
-  repeated string components = 3;
+  repeated string components = 1;
 }
 
 // GetAddressRequest is a request for the address a weavelet should listen on

@@ -49,13 +49,6 @@ func (p *pipeForTest) RecvTraceSpans(spans []sdk.ReadOnlySpan) error {
 
 func (p *pipeForTest) RecvLogEntry(*protos.LogEntry)                 {}
 func (p *pipeForTest) StartComponent(*protos.ComponentToStart) error { return nil }
-func (p *pipeForTest) ReportLoad(*protos.WeaveletLoadReport) error   { return nil }
-func (p *pipeForTest) GetRoutingInfo(*protos.GetRoutingInfo) (*protos.RoutingInfo, error) {
-	return nil, nil
-}
-func (p *pipeForTest) GetComponentsToStart(*protos.GetComponentsToStart) (*protos.ComponentsToStart, error) {
-	return nil, nil
-}
 func (p *pipeForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
 	return nil, nil
 }
