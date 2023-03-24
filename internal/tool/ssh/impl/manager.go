@@ -558,11 +558,11 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToSta
 	update()
 
 	// Start the colocation group, if it hasn't already started.
-	return m.startColocationGroup(g)
+	return m.startColocationGroup(g, req.Component == "main")
 }
 
 // REQUIRES: g.mu is NOT held.
-func (m *manager) startColocationGroup(g *group) error {
+func (m *manager) startColocationGroup(g *group, runMain bool) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.started {
@@ -580,9 +580,10 @@ func (m *manager) startColocationGroup(g *group) error {
 		info := &BabysitterInfo{
 			ManagerAddr: m.mgrAddress,
 			Deployment:  m.dep,
-			Group:       &protos.ColocationGroup{Name: g.name},
+			Group:       g.name,
 			ReplicaId:   int32(replicaId),
 			LogDir:      m.logDir,
+			RunMain:     runMain,
 		}
 		if err := m.startBabysitter(loc, info); err != nil {
 			return fmt.Errorf("unable to start babysitter for group %s at location %s: %w\n", g.name, loc, err)
@@ -625,9 +626,20 @@ func (m *manager) startBabysitter(loc string, info *BabysitterInfo) error {
 }
 
 func (m *manager) getRoutingInfo(_ context.Context, req *GetRoutingInfoRequest) (*GetRoutingInfoReply, error) {
-	g := m.group(req.Component)
-	routing := g.routing(req.Component)
+	g := m.group(req.RequestingGroup)
+	target := m.group(req.Component)
 
+	if !req.Routed && g.name == target.name {
+		// Route locally.
+		return &GetRoutingInfoReply{
+			RoutingInfo: &protos.RoutingInfo{
+				Component: req.Component,
+				Local:     true,
+			},
+		}, nil
+	}
+
+	routing := target.routing(req.Component)
 	version := routing.RLock(req.Version)
 	defer routing.RUnlock()
 	return &GetRoutingInfoReply{

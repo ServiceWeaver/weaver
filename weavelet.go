@@ -30,7 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel"
@@ -51,7 +50,7 @@ type weavelet struct {
 	ctx       context.Context
 	env       env                       // Manages interactions with execution environment
 	info      *protos.WeaveletSetupInfo // Setup info sent by the deployer.
-	transport *transport                // Transport for cross-group communication
+	transport *transport                // Transport for cross-weavelet communication
 	dialAddr  call.NetworkAddress       // Address this weavelet is reachable at
 	tracer    trace.Tracer              // Tracer for this weavelet
 
@@ -68,8 +67,6 @@ type weavelet struct {
 	// avoid the redundancy.
 	clientsLock sync.Mutex
 	tcpClients  map[string]*client // indexed by component
-
-	loads map[string]*loadCollector // load for every local routed component
 }
 
 type transport struct {
@@ -95,7 +92,6 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		componentsByName: byName,
 		componentsByType: byType,
 		tcpClients:       map[string]*client{},
-		loads:            map[string]*loadCollector{},
 	}
 
 	// TODO(mwhittaker): getEnv starts the WeaveletConn handler which calls
@@ -133,23 +129,16 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	}
 	main.impl = &componentImpl{component: main}
 
-	// Place components into colocation groups and OS processes.
-	if err := place(byName, wletInfo); err != nil {
-		return nil, err
-	}
-
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s/%s", wletInfo.Group, wletInfo.Id[:4])),
+			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", wletInfo.Id)),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
 			traceio.AppNameTraceKey.String(wletInfo.App),
 			traceio.VersionTraceKey.String(wletInfo.DeploymentId),
-			traceio.ColocationGroupNameTraceKey.String(wletInfo.Group.Name),
-			traceio.GroupReplicaIDTraceKey.String(wletInfo.GroupId),
 		)),
 		// TODO(spetrovic): Allow the user to create new TracerProviders where
 		// they can control trace sampling and other options.
@@ -197,11 +186,13 @@ func (w *weavelet) start() (Instance, error) {
 	// that the components themselves may not be started, but we still register
 	// their handlers because we want to avoid concurrency issues with on-demand
 	// handler additions.
+	//
+	// TODO(mwhittaker): Only add handlers for a component once it has started?
+	// This will likely require us to update the set of handlers *after* we
+	// start serving them, which might require some additional locking.
 	handlers := &call.HandlerMap{}
 	for _, c := range w.componentsByName {
-		if w.inLocalGroup(c) {
-			w.addHandlers(handlers, c)
-		}
+		w.addHandlers(handlers, c)
 	}
 	// Add a dummy "ready" handler. Clients will repeatedly call this RPC until
 	// it responds successfully, ensuring the server is ready.
@@ -209,12 +200,18 @@ func (w *weavelet) start() (Instance, error) {
 		return nil, nil
 	})
 
-	isMain := w.info.Group.Name == "main"
-	if isMain {
+	if w.info.RunMain {
 		// Set appropriate logger and tracer for main.
 		logSaver := w.env.CreateLogSaver(w.ctx, "main")
 		w.root.logger = newAttrLogger(
 			w.root.info.Name, w.info.DeploymentId, w.root.info.Name, w.info.Id, logSaver)
+	}
+
+	if w.info.SingleProcess {
+		for _, c := range w.componentsByName {
+			// Mark all components as local.
+			c.local.TryWrite(true)
+		}
 	}
 
 	// For a singleprocess deployment, no server is launched because all
@@ -225,9 +222,9 @@ func (w *weavelet) start() (Instance, error) {
 		addr := call.NetworkAddress(fmt.Sprintf("tcp://%s", lis.Addr().String()))
 		w.dialAddr = addr
 		for _, c := range w.componentsByName {
-			if w.inLocalGroup(c) && c.info.Routed {
+			if c.info.Routed {
 				// TODO(rgrandl): In the future, we may want to collect load for all components.
-				w.loads[c.info.Name] = newLoadCollector(c.info.Name, addr)
+				c.load = newLoadCollector(c.info.Name, addr)
 			}
 		}
 
@@ -270,7 +267,7 @@ func (w *weavelet) start() (Instance, error) {
 	// Note that if a component is started locally (e.g., a component in a process
 	// calls Get("B") for a component B assigned to the same process), then the
 	// component's name is also registered with the protos.
-	if isMain {
+	if w.info.RunMain {
 		return w.root.impl, nil
 	}
 
@@ -285,19 +282,10 @@ func (w *weavelet) start() (Instance, error) {
 //	┌ weavelet 5b2d9d03-d21e-4ae9-a875-eab80af85350 started ┐
 //	│   hostname   : alan.turing.com                        │
 //	│   deployment : f20bbe05-85a5-4596-bab6-60e75b366306   │
-//	│   group      : cache.IntCache                         │
-//	│   group id   : 0da893cd-ba9a-47e4-909f-8d5faa924275   │
-//	│   components : [cache.IntCache cache.StringCache]     │
 //	│   address:   : tcp://127.0.0.1:43937                  │
 //	│   pid        : 836347                                 │
 //	└───────────────────────────────────────────────────────┘
 func (w *weavelet) logRolodexCard() {
-	var localComponents []string
-	for name, c := range w.componentsByName {
-		if w.inLocalGroup(c) {
-			localComponents = append(localComponents, logging.ShortenComponent(name))
-		}
-	}
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "UNKNOWN"
@@ -307,9 +295,6 @@ func (w *weavelet) logRolodexCard() {
 	lines := []string{
 		fmt.Sprintf("   hostname   : %s ", hostname),
 		fmt.Sprintf("   deployment : %s ", w.info.DeploymentId),
-		fmt.Sprintf("   group      : %s ", logging.ShortenComponent(w.info.Group.Name)),
-		fmt.Sprintf("   group id   : %s ", w.info.GroupId),
-		fmt.Sprintf("   components : %v ", localComponents),
 		fmt.Sprintf("   address    : %s", string(w.dialAddr)),
 		fmt.Sprintf("   pid        : %v ", os.Getpid()),
 	}
@@ -334,29 +319,6 @@ func (w *weavelet) logRolodexCard() {
 // is local, the returned instance is local. Otherwise, it's a network client.
 // requester is the name of the requesting component.
 func (w *weavelet) getInstance(c *component, requester string) (interface{}, error) {
-	// Consider the scenario where component A invokes a method on component B.
-	// If we're running as a single process, all communication is local.
-	// Otherwise, here's a table showing which type of communication we use.
-	//
-	//                                    B is...
-	//                               unrouted routed
-	//             same coloc group | local  | tcp  |
-	//             diff coloc group | tcp    | tcp  |
-	//                              +--------+------+
-	//
-	// Note that if B is routed, we don't use local communication, even if B
-	// is in the same colocation group as A. The reason is that A's call may
-	// get routed to an instance of B in a different colocation group.
-	var local bool // should we perform local, in-process communication?
-	switch {
-	case w.info.SingleProcess:
-		local = true
-	case c.info.Routed:
-		local = false
-	default:
-		local = w.inLocalGroup(c)
-	}
-
 	// Register the component.
 	c.registerInit.Do(func() {
 		w.env.SystemLogger().Debug("Registering component...", "component", c.info.Name)
@@ -374,7 +336,7 @@ func (w *weavelet) getInstance(c *component, requester string) (interface{}, err
 		return nil, c.registerErr
 	}
 
-	if local {
+	if c.local.Read() {
 		impl, err := w.getImpl(c)
 		if err != nil {
 			return nil, err
@@ -424,12 +386,6 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, nil
 }
 
-// inLocalGroup returns true iff the component is hosted in the same colocation
-// group as us.
-func (w *weavelet) inLocalGroup(c *component) bool {
-	return c.groupName == w.info.Group.Name
-}
-
 // addHandlers registers a component's methods as handlers in stub.HandlerMap.
 // Specifically, for every method m in the component, we register a function f
 // that (1) creates the local component if it hasn't been created yet and (2)
@@ -460,18 +416,20 @@ func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
 	report := &protos.WeaveletLoadReport{
 		App:          w.info.App,
 		DeploymentId: w.info.DeploymentId,
-		Group:        w.info.Group.Name,
 		Replica:      string(w.dialAddr),
 		Loads:        map[string]*protos.WeaveletLoadReport_ComponentLoad{},
 	}
 
-	for c, collector := range w.loads {
-		if x := collector.report(); x != nil {
-			report.Loads[c] = x
+	for _, c := range w.componentsByName {
+		if c.load == nil {
+			continue
+		}
+		if x := c.load.report(); x != nil {
+			report.Loads[c.info.Name] = x
 		}
 		// TODO(mwhittaker): If ReportLoad down below fails, we
 		// likely don't want to reset our load.
-		collector.reset()
+		c.load.reset()
 	}
 	return report, nil
 }
@@ -509,24 +467,45 @@ func (w *weavelet) UpdateComponents(req *protos.ComponentsToStart) error {
 }
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
-func (w *weavelet) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
-	w.env.SystemLogger().Debug("Updating routing info...", "component", routing.Component, "replicas", routing.Replicas)
+func (w *weavelet) UpdateRoutingInfo(routing *protos.RoutingInfo) (err error) {
+	// TODO(rgrandl): After we switch to slog, call With here to avoid
+	// repeating the same attributes again and again.
+	attrs := []any{
+		"component", routing.Component,
+		"local", routing.Local,
+		"replicas", routing.Replicas,
+	}
+	w.env.SystemLogger().Debug("Updating routing info...", attrs...)
+	defer func() {
+		if err != nil {
+			w.env.SystemLogger().Error("Updating routing info failed", err, attrs...)
+		} else {
+			w.env.SystemLogger().Debug("Updating routing info succeeded", attrs...)
+		}
+	}()
 
 	// Update load collector.
-	if collector, ok := w.loads[routing.Component]; ok && routing.Assignment != nil {
-		collector.updateAssignment(routing.Assignment)
+	for _, c := range w.componentsByName {
+		if c.load != nil && routing.Assignment != nil {
+			c.load.updateAssignment(routing.Assignment)
+		}
 	}
 
 	// Update resolver and balancer.
 	client := w.getTCPClient(routing.Component)
 	endpoints, err := parseEndpoints(routing.Replicas)
 	if err != nil {
-		w.env.SystemLogger().Error("Updating routing info failed", err, "component", routing.Component, "replicas", routing.Replicas)
 		return err
 	}
 	client.resolver.update(endpoints)
 	client.balancer.update(routing.Assignment)
-	w.env.SystemLogger().Debug("Updating routing info succeeded", "component", routing.Component, "replicas", routing.Replicas)
+
+	// Update local.
+	c, err := w.getComponent(routing.Component)
+	if err != nil {
+		return err
+	}
+	c.local.TryWrite(routing.Local)
 	return nil
 }
 
@@ -554,10 +533,6 @@ func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
 
 // getImpl returns a component's componentImpl, initializing it if necessary.
 func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
-	if !w.inLocalGroup(c) {
-		return nil, fmt.Errorf("component %q is not local", c.info.Name)
-	}
-
 	init := func(c *component) error {
 		// We have to initialize these fields before passing to c.info.fn
 		// because the user's constructor may use them.
@@ -580,7 +555,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 
 		c.impl.serverStub = c.info.ServerStubFn(c.impl.impl, func(key uint64, v float64) {
 			if c.info.Routed {
-				if err := w.loads[c.info.Name].add(key, v); err != nil {
+				if err := c.load.add(key, v); err != nil {
 					logger.Error("add load", err, "component", c.info.Name, "key", key)
 				}
 			}
@@ -702,53 +677,6 @@ func (c *client) init(ctx context.Context, opts call.ClientOptions) error {
 		return err
 	}
 	return waitUntilReady(ctx, c.client)
-}
-
-// place places registered components into colocation groups.
-//
-// The current placement approach:
-//   - If a group of components appear in the 'same_process' entry in the
-//     Service Weaver application config, they are placed in the same
-//     colocation group.
-//   - Every other component is placed in a colocation group of its own.
-//
-// TODO(spetrovic): Consult envelope for placement.
-func place(registry map[string]*component, w *protos.WeaveletSetupInfo) error {
-	if w.SingleProcess {
-		// If we are running a singleprocess deployment, all the components are
-		// assigned to the same colocation group.
-		for _, c := range registry {
-			c.groupName = "main"
-		}
-		return nil
-	}
-
-	// NOTE: the config should already have been checked to ensure that each
-	// component appears at most once in the same_process entry.
-	for _, components := range w.SameProcess {
-		// Verify components and assign the (same) colocation group name for
-		// them.
-		var groupName string
-		for _, component := range components.Components {
-			c := registry[component]
-			if c == nil {
-				return fmt.Errorf("component %q not registered", component)
-			}
-			if groupName == "" {
-				groupName = c.info.Name
-			}
-			c.groupName = groupName
-		}
-	}
-
-	// Assign every unplaced component to a group of its own.
-	for _, c := range registry {
-		if c.groupName == "" {
-			c.groupName = c.info.Name
-		}
-	}
-
-	return nil
 }
 
 // startWork runs fn() in the background.

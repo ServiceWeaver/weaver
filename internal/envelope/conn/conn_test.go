@@ -101,8 +101,6 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	wlet := &protos.WeaveletSetupInfo{
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
-		Group:         &protos.ColocationGroup{Name: "group"},
-		GroupId:       uuid.New().String(),
 		Id:            uuid.New().String(),
 		SingleProcess: true,
 		SingleMachine: true,

@@ -95,12 +95,10 @@ func RunBabysitter(ctx context.Context) error {
 	wlet := &protos.WeaveletSetupInfo{
 		App:           info.Deployment.App.Name,
 		DeploymentId:  info.Deployment.Id,
-		Group:         info.Group,
-		GroupId:       id,
 		Id:            id,
-		SameProcess:   info.Deployment.App.SameProcess,
 		Sections:      info.Deployment.App.Sections,
 		SingleProcess: info.Deployment.SingleProcess,
+		RunMain:       info.RunMain,
 	}
 	e, err := envelope.NewEnvelope(ctx, wlet, info.Deployment.App, b)
 	if err != nil {
@@ -144,7 +142,7 @@ func (m *metricsCollector) run(ctx context.Context) {
 				Addr:    m.info.ManagerAddr,
 				URLPath: recvMetricsURL,
 				Request: &BabysitterMetrics{
-					GroupName: m.info.Group.Name,
+					GroupName: m.info.Group,
 					ReplicaId: m.info.ReplicaId,
 					Metrics:   metrics,
 				},
@@ -172,7 +170,7 @@ func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
 	defer b.mu.Unlock()
 	if !b.watchingRoutingInfo[req.Component] {
 		b.watchingRoutingInfo[req.Component] = true
-		go b.watchRoutingInfo(req.Component)
+		go b.watchRoutingInfo(req.Component, req.Routed)
 	}
 	return nil
 }
@@ -185,7 +183,7 @@ func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
 		Addr:    b.info.ManagerAddr,
 		URLPath: registerReplicaURL,
 		Request: &ReplicaToRegister{
-			Group:   b.info.Group.Name,
+			Group:   b.info.Group,
 			Address: info.DialAddr,
 			Pid:     info.Pid,
 		},
@@ -225,8 +223,13 @@ func (b *babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 	return reply, nil
 }
 
-func (b *babysitter) getRoutingInfo(component, version string) (*protos.RoutingInfo, string, error) {
-	req := &GetRoutingInfoRequest{Component: component, Version: version}
+func (b *babysitter) getRoutingInfo(component string, routed bool, version string) (*protos.RoutingInfo, string, error) {
+	req := &GetRoutingInfoRequest{
+		RequestingGroup: b.info.Group,
+		Component:       component,
+		Routed:          routed,
+		Version:         version,
+	}
 	reply := &GetRoutingInfoReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
@@ -240,10 +243,10 @@ func (b *babysitter) getRoutingInfo(component, version string) (*protos.RoutingI
 	return reply.RoutingInfo, reply.Version, nil
 }
 
-func (b *babysitter) watchRoutingInfo(component string) {
+func (b *babysitter) watchRoutingInfo(component string, routed bool) {
 	version := ""
 	for r := retry.Begin(); r.Continue(b.ctx); {
-		routing, newVersion, err := b.getRoutingInfo(component, version)
+		routing, newVersion, err := b.getRoutingInfo(component, routed, version)
 		if err != nil {
 			b.logger.Error("cannot get routing info; will retry", err, "component", component)
 			continue
@@ -253,12 +256,17 @@ func (b *babysitter) watchRoutingInfo(component string) {
 			b.logger.Error("cannot update routing info; will retry", err, "component", component)
 			continue
 		}
+		if routing.Local {
+			// If the routing is local, it will never change. There is no need
+			// to watch.
+			return
+		}
 		r.Reset()
 	}
 }
 
 func (b *babysitter) getComponentsToStart(version string) ([]string, string, error) {
-	req := &GetComponentsRequest{Group: b.info.Group.Name, Version: version}
+	req := &GetComponentsRequest{Group: b.info.Group, Version: version}
 	reply := &GetComponentsReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,

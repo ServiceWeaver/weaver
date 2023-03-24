@@ -18,6 +18,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/ServiceWeaver/weaver/internal/register"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -83,9 +84,8 @@ type componentStub struct {
 
 // component represents a Service Weaver component and all corresponding metadata.
 type component struct {
-	wlet      *weavelet             // read-only, once initialized
-	info      *codegen.Registration // read-only, once initialized
-	groupName string                // read-only, once initialized
+	wlet *weavelet             // read-only, once initialized
+	info *codegen.Registration // read-only, once initialized
 
 	registerInit sync.Once // used to register the component
 	registerErr  error     // non-nil if registration fails
@@ -99,6 +99,9 @@ type component struct {
 	stubInit sync.Once      // used to initialize stub
 	stubErr  error          // non-nil if stub creation fails
 	stub     *componentStub // only ever non-nil if this component is remote or routed
+
+	local register.WriteOnce[bool] // routed locally?
+	load  *loadCollector           // non-nil for routed components
 }
 
 var _ Instance = &componentImpl{}

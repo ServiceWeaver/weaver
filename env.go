@@ -36,11 +36,7 @@ type env interface {
 	// listen on to receive messages from other weavelets.
 	WeaveletListener() net.Listener
 
-	// RegisterComponentToStart registers a component to start in a given
-	// target colocation group.
-	//
-	// The target colocation group periodically watches the set of registered
-	// components and starts the components that haven't already been started.
+	// RegisterComponentToStart registers a component to start.
 	RegisterComponentToStart(ctx context.Context, component string, routed bool) error
 
 	// GetAddress returns the address a weavelet should listen on for a

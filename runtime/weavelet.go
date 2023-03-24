@@ -33,15 +33,6 @@ func CheckWeaveletSetupInfo(w *protos.WeaveletSetupInfo) error {
 	if _, err := uuid.Parse(w.DeploymentId); err != nil {
 		return fmt.Errorf("WeaveletSetupInfo: invalid deployment id: %w", err)
 	}
-	if w.Group == nil {
-		return fmt.Errorf("WeaveletSetupInfo: nil colocation group")
-	}
-	if w.Group.Name == "" {
-		return fmt.Errorf("WeaveletSetupInfo: missing colocation group name")
-	}
-	if w.GroupId == "" {
-		return fmt.Errorf("WeaveletSetupInfo: missing colocation group replica id")
-	}
 	if _, err := uuid.Parse(w.Id); err != nil {
 		return fmt.Errorf("WeaveletSetupInfo: invalid weavelet id: %w", err)
 	}

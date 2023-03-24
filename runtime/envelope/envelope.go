@@ -83,8 +83,8 @@ type Envelope struct {
 func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *protos.AppConfig, h EnvelopeHandler) (*Envelope, error) {
 	if h == nil {
 		return nil, fmt.Errorf(
-			"unable to create envelope for group %s due to nil handler",
-			logging.ShortenComponent(wlet.Group.Name))
+			"unable to create envelope for weavelet %s due to nil handler",
+			logging.ShortenComponent(wlet.Id))
 	}
 	logger := logging.FuncLogger{
 		Opts: logging.Options{

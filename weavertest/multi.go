@@ -78,7 +78,6 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 	wlet := &protos.WeaveletSetupInfo{
 		App:           appConfig.Name,
 		DeploymentId:  uuid.New().String(),
-		SameProcess:   appConfig.SameProcess,
 		Sections:      appConfig.Sections,
 		SingleProcess: false,
 		SingleMachine: true,

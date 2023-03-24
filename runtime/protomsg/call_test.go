@@ -27,7 +27,6 @@ var (
 	msg1 = &protos.WeaveletSetupInfo{
 		App:          "foo",
 		DeploymentId: "5678",
-		Group:        &protos.ColocationGroup{Name: "bar"},
 		Id:           "id",
 	}
 

@@ -117,7 +117,6 @@ message Deployment {
 }
 
 // A group of components.
-// TODO(spetrovic): Unify with ColocationGroup.
 message ComponentGroup {
   repeated string components = 1;
 }
@@ -184,27 +183,16 @@ message AppConfig {
   map<string, string> sections = 7;
 }
 
-// A colocation group defines a set of components that are colocated together
-// on the same machine or a VM. A colocation group may be replicated, in which
-// case the communication between components in the same colocation group
-// replica remains local to that replica.
-message ColocationGroup {
-  string name = 1;
-}
-
 // WeaveletSetupInfo contains the setup information provided to a weavelet
 // from its deployer.
 message WeaveletSetupInfo {
-  string app = 1;             // app name
-  string deployment_id = 2;   // deployment id, in UUID format
-  ColocationGroup group = 3;  // colocation group
-  string group_id = 4;        // colocation group replica id
-  string id = 5;              // weavelet id, in UUID format
-  // TODO(spetrovic): Rename to same_group.
-  repeated ComponentGroup same_process = 6;  // See AppConfig.SameProcess.
-  map<string, string> sections = 7;          // See AppConfig.Sections.
-  bool single_process = 8;                   // a single-process deployment?
-  bool single_machine = 9;                   // a single-machine deployment?
+  string app = 1;                    // app name
+  string deployment_id = 2;          // deployment id, in UUID format
+  string id = 3;                     // weavelet id, in UUID format
+  map<string, string> sections = 4;  // See AppConfig.Sections.
+  bool single_process = 5;           // a single-process deployment?
+  bool single_machine = 6;           // a single-machine deployment?
+  bool run_main = 7;                 // run the main function?
 }
 
 // WeaveletInfo contains information provided to the deployer by a running
@@ -222,13 +210,18 @@ message WeaveletInfo {
 message RoutingInfo {
   string component = 1;
 
+  // If true, perform method calls to the component locally. Replicas and
+  // assignment are ignored. Currently, local must always be true or always be
+  // false for a given component.
+  bool local = 2;
+
   // Each replica is a string of the form "<net>://<addr>". E.g.,
   //    tcp://host:1234
   //    unix:///tmp/unix.sock
-  repeated string replicas = 2;
+  repeated string replicas = 3;
 
   // Routing assignment, if the component is routed.
-  Assignment assignment = 3;
+  Assignment assignment = 4;
 }
 
 // ProfileType specifies a type of profile to collect.
@@ -242,7 +235,6 @@ enum ProfileType {
 message RunProfiling {
   string app_name = 1;
   string version_id = 2;
-  string group = 3;  // If non-empty, only profile the given colocation group.
 
   // Type of the profile we want to collect (e.g., heap, cpu).
   ProfileType profile_type = 4;
@@ -277,8 +269,8 @@ message HealthReport {
   HealthStatus status = 1;
 }
 
-// ComponentToStart is a request to the envelope to register a component that
-// should be started by the given colocation group.
+// ComponentToStart is a request to the envelope to start a component, if it
+// hasn't already been started.
 message ComponentToStart {
   string component = 1;
   bool routed = 2;  // whether the component is routed
@@ -448,7 +440,6 @@ message WeaveletLoadReport {
 
   string app = 1;                        // Application name
   string deployment_id = 2;              // Deployment id.
-  string group = 3;                      // Colocation group.
   string replica = 4;                    // e.g., tcp://124.123.123.412:1291
   map<string, ComponentLoad> loads = 5;  // load for weavelet's components
 }
