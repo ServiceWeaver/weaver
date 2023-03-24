@@ -23,10 +23,11 @@ import "runtime/protos/runtime.proto";
 // babysitter started using SSH to manage a colocation group.
 message BabysitterInfo {
   runtime.Deployment deployment = 1;
-  runtime.ColocationGroup group = 2;
+  string group = 2;
   int32 replica_id = 3;
   string manager_addr = 4;
   string logDir = 5;
+  bool run_main = 6;
 }
 
 // A request from the babysitter to the manager to get the latest set of
@@ -44,8 +45,12 @@ message GetComponentsReply {
 // A request from the babysitter to the manager to get the latest routing info
 // for a component.
 message GetRoutingInfoRequest {
-  string component = 1;
-  string version = 2;
+  // Note that requesting group is the group requesting the routing info, not
+  // the group of the component.
+  string requesting_group = 1;
+  string component = 2;
+  bool routed = 3;  // is the component routed?
+  string version = 4;
 }
 
 message GetRoutingInfoReply {

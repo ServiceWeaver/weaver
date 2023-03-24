@@ -116,8 +116,6 @@ func wlet(binary string, args ...string) (*protos.WeaveletSetupInfo, *protos.App
 	weavelet := &protos.WeaveletSetupInfo{
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
-		Group:         &protos.ColocationGroup{Name: "main"},
-		GroupId:       uuid.New().String(),
 		Id:            uuid.New().String(),
 		SingleProcess: true,
 		SingleMachine: true,

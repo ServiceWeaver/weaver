@@ -226,13 +226,11 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 		wlet := &protos.WeaveletSetupInfo{
 			App:           b.dep.App.Name,
 			DeploymentId:  b.dep.Id,
-			Group:         &protos.ColocationGroup{Name: g.name},
-			GroupId:       uuid.New().String(),
 			Id:            uuid.New().String(),
-			SameProcess:   b.dep.App.SameProcess,
 			Sections:      b.dep.App.Sections,
 			SingleProcess: b.dep.SingleProcess,
 			SingleMachine: true,
+			RunMain:       g.components["main"],
 		}
 		h := &handler{
 			Babysitter: b,
@@ -266,24 +264,31 @@ func (b *Babysitter) StartMain() error {
 
 // StartComponent implements the envelope.EnvelopeHandler interface.
 func (h *handler) StartComponent(req *protos.ComponentToStart) error {
-	if err := h.subscribeTo(req.Component); err != nil {
+	if err := h.subscribeTo(req); err != nil {
 		return err
 	}
 	return h.startComponent(req)
 }
 
-func (h *handler) subscribeTo(component string) error {
+func (h *handler) subscribeTo(req *protos.ComponentToStart) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.subscribed[component] {
+	if h.subscribed[req.Component] {
 		return nil
 	}
-	h.subscribed[component] = true
+	h.subscribed[req.Component] = true
 
-	target := h.group(component)
-	target.subscribers[component] = append(target.subscribers[component], h.envelope)
-	return h.envelope.UpdateRoutingInfo(target.routing(component))
+	target := h.group(req.Component)
+	if !req.Routed && h.g.name == target.name {
+		// Route locally.
+		routing := &protos.RoutingInfo{Component: req.Component, Local: true}
+		return h.envelope.UpdateRoutingInfo(routing)
+	}
+
+	// Route remotely.
+	target.subscribers[req.Component] = append(target.subscribers[req.Component], h.envelope)
+	return h.envelope.UpdateRoutingInfo(target.routing(req.Component))
 }
 
 func (b *Babysitter) startComponent(req *protos.ComponentToStart) error {

@@ -11,6 +11,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
+    github.com/ServiceWeaver/weaver/internal/register
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/metrics
@@ -438,6 +439,9 @@ github.com/ServiceWeaver/weaver/internal/proxy
     math/rand
     net/http
     net/http/httputil
+    sync
+github.com/ServiceWeaver/weaver/internal/register
+    fmt
     sync
 github.com/ServiceWeaver/weaver/internal/status
     bytes

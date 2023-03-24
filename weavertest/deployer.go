@@ -186,13 +186,11 @@ func (d *deployer) Init(config string) weaver.Instance {
 	wlet := &protos.WeaveletSetupInfo{
 		App:           d.wlet.App,
 		DeploymentId:  d.wlet.DeploymentId,
-		Group:         &protos.ColocationGroup{Name: "main"},
-		GroupId:       uuid.New().String(),
 		Id:            uuid.New().String(),
-		SameProcess:   d.wlet.SameProcess,
 		Sections:      d.wlet.Sections,
 		SingleProcess: d.wlet.SingleProcess,
 		SingleMachine: d.wlet.SingleMachine,
+		RunMain:       true,
 	}
 	// TODO(mwhittaker): Issue an UpdateComponents call to the main group.
 	// Right now, the main co-location group knows to start main, but in the
@@ -345,9 +343,19 @@ func (h *handler) StartComponent(req *protos.ComponentToStart) error {
 	// Subscribe to the component's routing info.
 	if !h.subscribed[req.Component] {
 		h.subscribed[req.Component] = true
-		target.subscribers[req.Component] = append(target.subscribers[req.Component], h.conn)
-		if err := h.conn.UpdateRoutingInfo(target.routing(req.Component)); err != nil {
-			return err
+
+		if h.group.name == target.name {
+			// Route locally.
+			routing := &protos.RoutingInfo{Component: req.Component, Local: true}
+			if err := h.conn.UpdateRoutingInfo(routing); err != nil {
+				return err
+			}
+		} else {
+			// Route remotely.
+			target.subscribers[req.Component] = append(target.subscribers[req.Component], h.conn)
+			if err := h.conn.UpdateRoutingInfo(target.routing(req.Component)); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -371,10 +379,7 @@ func (d *deployer) startGroup(g *group) error {
 		wlet := &protos.WeaveletSetupInfo{
 			App:           d.wlet.App,
 			DeploymentId:  d.wlet.DeploymentId,
-			Group:         &protos.ColocationGroup{Name: g.name},
-			GroupId:       uuid.New().String(),
 			Id:            uuid.New().String(),
-			SameProcess:   d.wlet.SameProcess,
 			Sections:      d.wlet.Sections,
 			SingleProcess: d.wlet.SingleProcess,
 			SingleMachine: d.wlet.SingleMachine,
