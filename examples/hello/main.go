@@ -45,6 +45,7 @@ func main() {
 		reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		fmt.Fprintf(w, "Hello, %s!\n", reversed)
 	})
