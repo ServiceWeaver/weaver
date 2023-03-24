@@ -222,6 +222,10 @@ func (r *Registry) dead(ctx context.Context, reg Registration) bool {
 		// There is no status server for this deployment, so we consider
 		// the deployment dead.
 		return true
+	case errors.Is(err, syscall.Errno(10061)):
+		// The syscall.ECONNREFUSED doesn't work on Windows. Windows will return
+		// WSAECONNREFUSED(syscall.Errno = 10061) when the connection is refused.
+		return true
 	case err != nil:
 		// Something went wrong. The deployment may be dead, but we're not 100%
 		// sure, so we return false.
