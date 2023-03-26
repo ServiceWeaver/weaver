@@ -59,7 +59,7 @@ type env interface {
 	// CreateTraceExporter returns an exporter that should be used for
 	// exporting trace spans. A nil exporter value means that no traces
 	// should be exported.
-	CreateTraceExporter() (sdktrace.SpanExporter, error)
+	CreateTraceExporter() sdktrace.SpanExporter
 }
 
 // getEnv returns the env to use for this weavelet.

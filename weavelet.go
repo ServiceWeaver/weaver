@@ -108,11 +108,6 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	}
 	w.info = wletInfo
 
-	exporter, err := env.CreateTraceExporter()
-	if err != nil {
-		return nil, fmt.Errorf("internal error: cannot create trace exporter: %w", err)
-	}
-
 	for _, info := range componentInfos {
 		c := &component{
 			wlet: w,
@@ -132,7 +127,7 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
+		sdktrace.WithBatcher(env.CreateTraceExporter()),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", wletInfo.Id)),

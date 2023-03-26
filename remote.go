@@ -122,8 +122,8 @@ func (e *remoteEnv) SystemLogger() logtype.Logger {
 }
 
 // CreateTraceExporter implements the Env interface.
-func (e *remoteEnv) CreateTraceExporter() (sdktrace.SpanExporter, error) {
-	return traceio.NewWriter(e.conn.SendTraceSpans), nil
+func (e *remoteEnv) CreateTraceExporter() sdktrace.SpanExporter {
+	return traceio.NewWriter(e.conn.SendTraceSpans)
 }
 
 // parseEndpoints parses a list of endpoint addresses into a list of
