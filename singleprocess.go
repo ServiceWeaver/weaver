@@ -326,7 +326,7 @@ func (e *singleprocessEnv) Profile(_ context.Context, req *protos.RunProfiling) 
 	return profile, nil
 }
 
-func (e *singleprocessEnv) CreateLogSaver(_ context.Context, component string) func(entry *protos.LogEntry) {
+func (e *singleprocessEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 	pp := logging.NewPrettyPrinter(colors.Enabled())
 	return func(entry *protos.LogEntry) {
 		fmt.Fprintln(os.Stderr, pp.Format(entry))
