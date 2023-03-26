@@ -93,7 +93,7 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 	d.lis = lis
 	dialAddr := fmt.Sprintf("tcp://%s", lis.Addr().String())
 	info := &protos.WeaveletInfo{DialAddr: dialAddr, Pid: int64(os.Getpid())}
-	if err := d.send(&protos.WeaveletMsg{WeaveletInfo: info}); err != nil {
+	if err := d.conn.send(&protos.WeaveletMsg{WeaveletInfo: info}); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -138,16 +138,16 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			def.Labels["serviceweaver_version"] = d.info.DeploymentId
 			def.Labels["serviceweaver_node"] = d.info.Id
 		}
-		return d.send(&protos.WeaveletMsg{Id: -msg.Id, Metrics: update})
+		return d.conn.send(&protos.WeaveletMsg{Id: -msg.Id, Metrics: update})
 	case msg.SendHealthStatus:
-		return d.send(&protos.WeaveletMsg{Id: -msg.Id, HealthReport: &protos.HealthReport{Status: protos.HealthStatus_HEALTHY}})
+		return d.conn.send(&protos.WeaveletMsg{Id: -msg.Id, HealthReport: &protos.HealthReport{Status: protos.HealthStatus_HEALTHY}})
 	case msg.SendLoadInfo:
 		id := msg.Id
 		load, err := d.handler.CollectLoad()
 		if err != nil {
-			return d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+			return d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
 		}
-		return d.send(&protos.WeaveletMsg{Id: -id, LoadReport: load})
+		return d.conn.send(&protos.WeaveletMsg{Id: -id, LoadReport: load})
 	case msg.RunProfiling != nil:
 		// This is a blocking call, and therefore we process it in a separate
 		// goroutine. Note that this will cause profiling requests to be
@@ -159,12 +159,12 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			if err != nil {
 				// Reply with error.
 				//nolint:errcheck // error will be returned on next send
-				d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+				d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
 				return
 			}
 			// Reply with profile data.
 			//nolint:errcheck // error will be returned on next send
-			d.send(&protos.WeaveletMsg{Id: -id, Profile: &protos.Profile{
+			d.conn.send(&protos.WeaveletMsg{Id: -id, Profile: &protos.Profile{
 				AppName:   req.AppName,
 				VersionId: req.VersionId,
 				Data:      data,
@@ -175,16 +175,16 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 		id := msg.Id
 		err := d.handler.UpdateComponents(msg.ComponentsToStart)
 		if err != nil {
-			return d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+			return d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
 		}
-		return d.send(&protos.WeaveletMsg{Id: -id})
+		return d.conn.send(&protos.WeaveletMsg{Id: -id})
 	case msg.RoutingInfo != nil:
 		id := msg.Id
 		err := d.handler.UpdateRoutingInfo(msg.RoutingInfo)
 		if err != nil {
-			return d.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
+			return d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
 		}
-		return d.send(&protos.WeaveletMsg{Id: -id})
+		return d.conn.send(&protos.WeaveletMsg{Id: -id})
 	default:
 		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
 		d.conn.cleanup(err)
@@ -237,24 +237,16 @@ func (d *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, er
 	return msg, nil
 }
 
-func (d *WeaveletConn) send(msg *protos.WeaveletMsg) error {
-	if err := d.conn.send(msg); err != nil {
-		d.conn.cleanup(err)
-		return err
-	}
-	return nil
-}
-
 // SendLogEntry sends a log entry to the envelope, without waiting for a reply.
 func (d *WeaveletConn) SendLogEntry(entry *protos.LogEntry) {
 	//nolint:errcheck // error will be returned on next send
-	d.send(&protos.WeaveletMsg{LogEntry: entry})
+	d.conn.send(&protos.WeaveletMsg{LogEntry: entry})
 }
 
 // SendTraceSpans sends a set of trace spans to the envelope, without waiting
 // for a reply.
 func (d *WeaveletConn) SendTraceSpans(spans *protos.Spans) error {
-	return d.send(&protos.WeaveletMsg{TraceSpans: spans})
+	return d.conn.send(&protos.WeaveletMsg{TraceSpans: spans})
 }
 
 // Profile collects profiles for the weavelet.

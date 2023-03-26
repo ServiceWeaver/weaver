@@ -70,7 +70,7 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, wle
 	}
 	// Send the setup information to the weavelet, and receive the weavelet
 	// information in return.
-	if err := e.send(&protos.EnvelopeMsg{WeaveletSetupInfo: wlet}); err != nil {
+	if err := e.conn.send(&protos.EnvelopeMsg{WeaveletSetupInfo: wlet}); err != nil {
 		e.conn.cleanup(err)
 		return nil, err
 	}
@@ -185,21 +185,21 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 	}
 	switch {
 	case msg.ComponentToStart != nil:
-		return e.send(errReply(h.StartComponent(msg.ComponentToStart)))
+		return e.conn.send(errReply(h.StartComponent(msg.ComponentToStart)))
 	case msg.GetAddressRequest != nil:
 		reply, err := h.GetAddress(msg.GetAddressRequest)
 		if err != nil {
-			return e.send(errReply(err))
+			return e.conn.send(errReply(err))
 		}
-		return e.send(&protos.EnvelopeMsg{Id: -msg.Id, GetAddressReply: reply})
+		return e.conn.send(&protos.EnvelopeMsg{Id: -msg.Id, GetAddressReply: reply})
 	case msg.ExportListenerRequest != nil:
 		reply, err := h.ExportListener(msg.ExportListenerRequest)
 		if err != nil {
 			// Reply with error.
-			return e.send(errReply(err))
+			return e.conn.send(errReply(err))
 		}
 		// Reply with listener info.
-		return e.send(&protos.EnvelopeMsg{Id: -msg.Id, ExportListenerReply: reply})
+		return e.conn.send(&protos.EnvelopeMsg{Id: -msg.Id, ExportListenerReply: reply})
 	case msg.LogEntry != nil:
 		h.RecvLogEntry(msg.LogEntry)
 		return nil
@@ -214,15 +214,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 		e.conn.cleanup(err)
 		return err
 	}
-}
-
-func (e *EnvelopeConn) send(msg *protos.EnvelopeMsg) error {
-	if err := e.conn.send(msg); err != nil {
-		// Connection is broken: tear it down.
-		e.conn.cleanup(err)
-		return err
-	}
-	return nil
 }
 
 // GetMetricsRPC requests the weavelet to return its up-to-date metrics.
