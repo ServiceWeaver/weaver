@@ -51,7 +51,7 @@ type env interface {
 
 	// CreateLogSaver creates and returns a function that saves log entries
 	// to the environment.
-	CreateLogSaver(ctx context.Context, component string) func(entry *protos.LogEntry)
+	CreateLogSaver() func(entry *protos.LogEntry)
 
 	// SystemLogger returns the Logger for system messages.
 	SystemLogger() logtype.Logger

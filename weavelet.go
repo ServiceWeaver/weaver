@@ -202,7 +202,7 @@ func (w *weavelet) start() (Instance, error) {
 
 	if w.info.RunMain {
 		// Set appropriate logger and tracer for main.
-		logSaver := w.env.CreateLogSaver(w.ctx, "main")
+		logSaver := w.env.CreateLogSaver()
 		w.root.logger = newAttrLogger(
 			w.root.info.Name, w.info.DeploymentId, w.root.info.Name, w.info.Id, logSaver)
 	}
@@ -543,7 +543,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		// component is still being constructed is easy to get wrong. Figure out a
 		// way to make this less error-prone.
 		c.impl = &componentImpl{component: c}
-		logSaver := w.env.CreateLogSaver(w.ctx, c.info.Name)
+		logSaver := w.env.CreateLogSaver()
 		logger := newAttrLogger(w.info.App, w.info.DeploymentId, c.info.Name, w.info.Id, logSaver)
 		c.logger = logger
 		c.tracer = w.tracer

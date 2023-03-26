@@ -56,7 +56,7 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 		conn: conn,
 	}
 
-	logSaver := env.CreateLogSaver(ctx, "serviceweaver")
+	logSaver := env.CreateLogSaver()
 	env.sysLogger = newAttrLogger(info.App, info.DeploymentId, "weavelet", info.Id, logSaver)
 	env.sysLogger = env.sysLogger.With("serviceweaver/system", "")
 	return env, nil
@@ -105,7 +105,7 @@ func (e *remoteEnv) ExportListener(_ context.Context, lis *protos.Listener, opts
 }
 
 // CreateLogSaver implements the Env interface.
-func (e *remoteEnv) CreateLogSaver(context.Context, string) func(entry *protos.LogEntry) {
+func (e *remoteEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 	return func(entry *protos.LogEntry) {
 		// Hold lock while creating entry and writing so that records are
 		// printed in timestamp order, and without their contents getting
