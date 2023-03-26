@@ -27,7 +27,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -56,19 +55,13 @@ type EnvelopeHandler interface {
 	RecvTraceSpans(spans []trace.ReadOnlySpan) error
 }
 
-// Ensure that EnvelopeHandler remains in-sync with conn.EnvelopeHandler.
-var (
-	_ EnvelopeHandler      = conn.EnvelopeHandler(nil)
-	_ conn.EnvelopeHandler = EnvelopeHandler(nil)
-)
-
 // Envelope starts and manages a weavelet, i.e., an OS process running inside a
 // colocation group replica, hosting Service Weaver components. It also captures the
 // weavelet's tracing, logging, and metrics information.
 type Envelope struct {
 	// Fields below are constant after construction.
-	conn     *conn.EnvelopeConn // conn to weavelet
-	cmd      *pipe.Cmd          // command that started the weavelet
+	conn     *EnvelopeConn // conn to weavelet
+	cmd      *pipe.Cmd     // command that started the weavelet
 	weavelet *protos.WeaveletSetupInfo
 	config   *protos.AppConfig
 	handler  EnvelopeHandler
@@ -159,7 +152,7 @@ func (e *Envelope) init(ctx context.Context) error {
 	}()
 
 	// Create the connection, now that the weavelet has (hopefully) started.
-	conn, err := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
+	conn, err := NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
 		return err

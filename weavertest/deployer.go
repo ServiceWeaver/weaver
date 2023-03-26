@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/ServiceWeaver/weaver"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
@@ -112,8 +111,8 @@ type handler struct {
 // might not be worth it.
 type connection struct {
 	// One of the following fields will be nil.
-	envelope *envelope.Envelope // envelope to non-main weavelet
-	conn     *conn.EnvelopeConn // conn to main weavelet
+	envelope *envelope.Envelope     // envelope to non-main weavelet
+	conn     *envelope.EnvelopeConn // conn to main weavelet
 }
 
 var _ envelope.EnvelopeHandler = &handler{}
@@ -205,7 +204,7 @@ func (d *deployer) Init(config string) weaver.Instance {
 			group:      g,
 			subscribed: map[string]bool{},
 		}
-		conn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, handler, wlet)
+		conn, err := envelope.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, handler, wlet)
 		if err != nil {
 			panic(fmt.Errorf("cannot create envelope conn: %w", err))
 		}

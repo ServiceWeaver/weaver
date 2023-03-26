@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package conn
+package envelope
 
 import (
 	"fmt"
 	"io"
 
+	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -25,30 +26,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// EnvelopeHandler implements the envelope side processing of messages
-// exchanged with the managed weavelet.
-type EnvelopeHandler interface {
-	// StartComponent starts the given component.
-	StartComponent(entry *protos.ComponentToStart) error
-
-	// GetAddress gets the address a weavelet should listen on for a listener.
-	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
-
-	// ExportListener exports the given listener.
-	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
-
-	// RecvLogEntry enables the envelope to receive a log entry.
-	RecvLogEntry(entry *protos.LogEntry)
-
-	// RecvTraceSpans enables the envelope to receive a sequence of trace spans.
-	RecvTraceSpans(spans []trace.ReadOnlySpan) error
-}
-
 // EnvelopeConn is the envelope side of the connection between a weavelet
 // and the envelope.
 type EnvelopeConn struct {
 	handler  EnvelopeHandler
-	conn     Conn
+	conn     conn.Conn
 	metrics  metrics.Importer
 	weavelet *protos.WeaveletInfo
 }
@@ -61,7 +43,7 @@ type EnvelopeConn struct {
 func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet *protos.WeaveletSetupInfo) (*EnvelopeConn, error) {
 	e := &EnvelopeConn{
 		handler: h,
-		conn:    Conn{name: "envelope", reader: r, writer: w},
+		conn:    conn.NewConn("envelope", r, w),
 	}
 	// Send the setup information to the weavelet, and receive the weavelet
 	// information in return.
