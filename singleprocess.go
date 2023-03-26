@@ -333,8 +333,8 @@ func (e *singleprocessEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 	}
 }
 
-func (e *singleprocessEnv) CreateTraceExporter() (sdktrace.SpanExporter, error) {
-	return traceio.NewWriter(e.traceSaver), nil
+func (e *singleprocessEnv) CreateTraceExporter() sdktrace.SpanExporter {
+	return traceio.NewWriter(e.traceSaver)
 }
 
 func (e *singleprocessEnv) SystemLogger() logtype.Logger {
