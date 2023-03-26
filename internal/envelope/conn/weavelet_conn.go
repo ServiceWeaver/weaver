@@ -49,7 +49,7 @@ type WeaveletHandler interface {
 // and its envelope. It communicates with the envelope over a pair of pipes.
 type WeaveletConn struct {
 	handler WeaveletHandler
-	conn    Conn
+	conn    Conn[*protos.EnvelopeMsg]
 	info    *protos.WeaveletSetupInfo
 	lis     net.Listener // internal network listener for the weavelet
 	metrics metrics.Exporter
@@ -64,7 +64,7 @@ type WeaveletConn struct {
 func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*WeaveletConn, error) {
 	d := &WeaveletConn{
 		handler: h,
-		conn:    Conn{name: "weavelet", reader: r, writer: w},
+		conn:    Conn[*protos.EnvelopeMsg]{name: "weavelet", reader: r, writer: w},
 	}
 
 	// Block until the weavelet information is received.
@@ -194,12 +194,12 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 
 // StartComponentRPC requests the envelope to start the given component.
 func (d *WeaveletConn) StartComponentRPC(componentToStart *protos.ComponentToStart) error {
-	_, err := d.rpc(&protos.WeaveletMsg{ComponentToStart: componentToStart})
+	_, err := d.conn.RPC(&protos.WeaveletMsg{ComponentToStart: componentToStart})
 	return err
 }
 
 func (d *WeaveletConn) GetAddressRPC(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
-	reply, err := d.rpc(&protos.WeaveletMsg{GetAddressRequest: req})
+	reply, err := d.conn.RPC(&protos.WeaveletMsg{GetAddressRequest: req})
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (d *WeaveletConn) GetAddressRPC(req *protos.GetAddressRequest) (*protos.Get
 }
 
 func (d *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
-	reply, err := d.rpc(&protos.WeaveletMsg{ExportListenerRequest: req})
+	reply, err := d.conn.RPC(&protos.WeaveletMsg{ExportListenerRequest: req})
 	if err != nil {
 		return nil, err
 	}
@@ -218,23 +218,6 @@ func (d *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*pr
 		return nil, fmt.Errorf("nil ExportListenerReply received from envelope")
 	}
 	return reply.ExportListenerReply, nil
-}
-
-func (d *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, error) {
-	response, err := d.conn.RPC(request)
-	if err != nil {
-		err := fmt.Errorf("connection to envelope broken: %w", err)
-		d.conn.Cleanup(err)
-		return nil, err
-	}
-	msg, ok := response.(*protos.EnvelopeMsg)
-	if !ok {
-		return nil, fmt.Errorf("envelope response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return nil, fmt.Errorf(msg.Error)
-	}
-	return msg, nil
 }
 
 // SendLogEntry sends a log entry to the envelope, without waiting for a reply.

@@ -197,7 +197,7 @@ func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
 
 // HealthStatus returns the health status of the weavelet.
 func (e *Envelope) HealthStatus() protos.HealthStatus {
-	reply, err := e.conn.rpc(&protos.EnvelopeMsg{SendHealthStatus: true})
+	reply, err := e.conn.conn.RPC(&protos.EnvelopeMsg{SendHealthStatus: true})
 	if err != nil || reply.HealthReport == nil {
 		return protos.HealthStatus_UNHEALTHY
 	}
@@ -211,7 +211,7 @@ func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*p
 		return nil, fmt.Errorf("profiling already in progress")
 	}
 	defer e.toggleProfiling(true)
-	reply, err := e.conn.rpc(&protos.EnvelopeMsg{RunProfiling: req})
+	reply, err := e.conn.conn.RPC(&protos.EnvelopeMsg{RunProfiling: req})
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
 
 // GetLoadInfo returns the latest load information at the weavelet.
 func (e *Envelope) GetLoadInfo() (*protos.WeaveletLoadReport, error) {
-	reply, err := e.conn.rpc(&protos.EnvelopeMsg{SendLoadInfo: true})
+	reply, err := e.conn.conn.RPC(&protos.EnvelopeMsg{SendLoadInfo: true})
 	if err != nil {
 		return nil, err
 	}
@@ -263,41 +263,17 @@ func (e *Envelope) GetLoadInfo() (*protos.WeaveletLoadReport, error) {
 // UpdateComponents updates the weavelet with the latest set of components it
 // should be running.
 func (e *Envelope) UpdateComponents(components []string) error {
-	response, err := e.conn.conn.RPC(&protos.EnvelopeMsg{
+	_, err := e.conn.conn.RPC(&protos.EnvelopeMsg{
 		ComponentsToStart: &protos.ComponentsToStart{Components: components},
 	})
-	if err != nil {
-		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.conn.Cleanup(err)
-		return err
-	}
-	msg, ok := response.(*protos.WeaveletMsg)
-	if !ok {
-		return fmt.Errorf("response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return fmt.Errorf(msg.Error)
-	}
-	return nil
+	return err
 }
 
 // UpdateRoutingInfo updates the weavelet with a component's most recent
 // routing info.
 func (e *Envelope) UpdateRoutingInfo(info *protos.RoutingInfo) error {
-	response, err := e.conn.conn.RPC(&protos.EnvelopeMsg{RoutingInfo: info})
-	if err != nil {
-		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.conn.Cleanup(err)
-		return err
-	}
-	msg, ok := response.(*protos.WeaveletMsg)
-	if !ok {
-		return fmt.Errorf("response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return fmt.Errorf(msg.Error)
-	}
-	return nil
+	_, err := e.conn.conn.RPC(&protos.EnvelopeMsg{RoutingInfo: info})
+	return err
 }
 
 func (e *Envelope) copyLines(component string, src io.Reader) error {

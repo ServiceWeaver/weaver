@@ -28,7 +28,7 @@ import (
 
 // Conn is a bi-directional communication channel that is used in the
 // implementation of EnvelopeConn and WeaveletConn.
-type Conn struct {
+type Conn[Resp RPCResponse] struct {
 	name   string
 	reader io.ReadCloser
 
@@ -39,8 +39,13 @@ type Conn struct {
 	failure error                   // Non-nil when error has been encountered
 }
 
-func NewConn(name string, r io.ReadCloser, w io.WriteCloser) Conn {
-	return Conn{name: name, reader: r, writer: w}
+type RPCResponse interface {
+	proto.Message
+	GetError() string
+}
+
+func NewConn[Resp RPCResponse](name string, r io.ReadCloser, w io.WriteCloser) Conn[Resp] {
+	return Conn[Resp]{name: name, reader: r, writer: w}
 }
 
 type response struct {
@@ -71,7 +76,7 @@ func setId(msg proto.Message, id int64) {
 // Recv reads the next request from the pipe and writes it to msg. Note that
 // Recv does NOT return RPC replies. These replies are returned directly the
 // invoker of the RPC.
-func (c *Conn) Recv(msg proto.Message) error {
+func (c *Conn[Resp]) Recv(msg Resp) error {
 	for {
 		if err := protomsg.Read(c.reader, msg); err != nil {
 			c.Cleanup(err)
@@ -88,14 +93,14 @@ func (c *Conn) Recv(msg proto.Message) error {
 	}
 }
 
-func (c *Conn) Cleanup(err error) {
+func (c *Conn[Resp]) Cleanup(err error) {
 	// Wakeup all waiters.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cleanupLocked(err)
 }
 
-func (c *Conn) cleanupLocked(err error) {
+func (c *Conn[Resp]) cleanupLocked(err error) {
 	if c.failure != nil {
 		return
 	}
@@ -108,7 +113,7 @@ func (c *Conn) cleanupLocked(err error) {
 	c.writer.Close()
 }
 
-func (c *Conn) handleResponse(id int64, result proto.Message) {
+func (c *Conn[Resp]) handleResponse(id int64, result proto.Message) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	ch, ok := c.waiters[id]
@@ -119,7 +124,7 @@ func (c *Conn) handleResponse(id int64, result proto.Message) {
 	ch <- response{result, nil}
 }
 
-func (c *Conn) Send(msg proto.Message) error {
+func (c *Conn[Resp]) Send(msg proto.Message) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.failure != nil {
@@ -133,16 +138,29 @@ func (c *Conn) Send(msg proto.Message) error {
 	return err
 }
 
-func (c *Conn) RPC(request proto.Message) (proto.Message, error) {
+func (c *Conn[Resp]) RPC(request proto.Message) (Resp, error) {
+	var empty Resp
 	ch := c.startRPC(request)
 	r, ok := <-ch
 	if !ok {
-		return nil, fmt.Errorf("%s: connection to peer broken", c.name)
+		return empty, fmt.Errorf("%s: connection to peer broken", c.name)
 	}
-	return r.result, r.err
+	if r.err != nil {
+		err := fmt.Errorf("%v connection broken: %w", c.name, r.err)
+		c.Cleanup(err)
+		return empty, err
+	}
+	msg, ok := r.result.(Resp)
+	if !ok {
+		return empty, fmt.Errorf("response has wrong type %T", r.result)
+	}
+	if errText := msg.GetError(); errText != "" {
+		return empty, fmt.Errorf(errText)
+	}
+	return msg, r.err
 }
 
-func (c *Conn) startRPC(request proto.Message) chan response {
+func (c *Conn[Resp]) startRPC(request proto.Message) chan response {
 	ch := make(chan response, 1)
 
 	// Assign request ID and register in set of waiters.

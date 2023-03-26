@@ -30,7 +30,7 @@ import (
 // and the envelope.
 type EnvelopeConn struct {
 	handler  EnvelopeHandler
-	conn     conn.Conn
+	conn     conn.Conn[*protos.WeaveletMsg]
 	metrics  metrics.Importer
 	weavelet *protos.WeaveletInfo
 }
@@ -43,7 +43,7 @@ type EnvelopeConn struct {
 func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet *protos.WeaveletSetupInfo) (*EnvelopeConn, error) {
 	e := &EnvelopeConn{
 		handler: h,
-		conn:    conn.NewConn("envelope", r, w),
+		conn:    conn.NewConn[*protos.WeaveletMsg]("envelope", r, w),
 	}
 	// Send the setup information to the weavelet, and receive the weavelet
 	// information in return.
@@ -179,7 +179,7 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 
 // GetMetricsRPC requests the weavelet to return its up-to-date metrics.
 func (e *EnvelopeConn) GetMetricsRPC() ([]*metrics.MetricSnapshot, error) {
-	reply, err := e.rpc(&protos.EnvelopeMsg{SendMetrics: true})
+	reply, err := e.conn.RPC(&protos.EnvelopeMsg{SendMetrics: true})
 	if err != nil {
 		return nil, err
 	}
@@ -187,21 +187,4 @@ func (e *EnvelopeConn) GetMetricsRPC() ([]*metrics.MetricSnapshot, error) {
 		return nil, fmt.Errorf("nil metrics reply received from weavelet")
 	}
 	return e.metrics.Import(reply.Metrics)
-}
-
-func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
-	response, err := e.conn.RPC(request)
-	if err != nil {
-		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.Cleanup(err)
-		return nil, err
-	}
-	msg, ok := response.(*protos.WeaveletMsg)
-	if !ok {
-		return nil, fmt.Errorf("response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return nil, fmt.Errorf(msg.Error)
-	}
-	return msg, nil
 }
