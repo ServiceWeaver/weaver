@@ -452,23 +452,10 @@ func (g *group) routing(component string) *protos.RoutingInfo {
 
 // UpdateRoutingInfo is equivalent to Envelope.UpdateRoutingInfo.
 func (c connection) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
-	if c.envelope != nil {
-		return c.envelope.UpdateRoutingInfo(routing)
-	}
-	if c.conn != nil {
-		return c.conn.UpdateRoutingInfoRPC(routing)
-	}
-	panic(fmt.Errorf("nil connection"))
+	return c.envelope.UpdateRoutingInfo(routing)
 }
 
 // UpdateComponents is equivalent to Envelope.UpdateComponents.
 func (c connection) UpdateComponents(components []string) error {
-	if c.envelope != nil {
-		return c.envelope.UpdateComponents(components)
-	}
-	if c.conn != nil {
-		msg := &protos.ComponentsToStart{Components: components}
-		return c.conn.UpdateComponentsRPC(msg)
-	}
-	panic(fmt.Errorf("nil connection"))
+	return c.envelope.UpdateComponents(components)
 }
