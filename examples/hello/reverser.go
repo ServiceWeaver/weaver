@@ -28,13 +28,26 @@ type Reverser interface {
 // Implementation of the Reverser component.
 type reverser struct {
 	weaver.Implements[Reverser]
+	cache Cache
 }
 
-func (r reverser) Reverse(_ context.Context, s string) (string, error) {
+func (r *reverser) Init(context.Context) error {
+	var err error
+	r.cache, err = weaver.Get[Cache](r)
+	return err
+}
+
+func (r reverser) Reverse(ctx context.Context, s string) (string, error) {
+	if reversed, err := r.cache.Get(ctx, s); err == nil {
+		return reversed, nil
+	}
+
 	runes := []rune(s)
 	n := len(runes)
 	for i := 0; i < n/2; i++ {
 		runes[i], runes[n-i-1] = runes[n-i-1], runes[i]
 	}
-	return string(runes), nil
+	reversed := string(runes)
+	_ = r.cache.Set(ctx, s, reversed) // Ignore error.
+	return reversed, nil
 }
