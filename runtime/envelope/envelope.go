@@ -227,14 +227,7 @@ func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*p
 		return nil, fmt.Errorf("profiling already in progress")
 	}
 	defer e.toggleProfiling(true)
-	prof, err := e.conn.DoProfilingRPC(req)
-	if err != nil {
-		return nil, err
-	}
-	if len(prof.Data) == 0 && len(prof.Errors) > 0 {
-		return nil, fmt.Errorf("profiled with errors: %v", prof.Errors)
-	}
-	return prof, nil
+	return e.conn.DoProfilingRPC(req)
 }
 
 // ReadMetrics returns the set of all captured metrics.
