@@ -25,20 +25,22 @@ import (
 //go:generate ../../cmd/weaver/weaver generate
 
 func main() {
-	// Get a network listener on address "localhost:12345".
+	// Initialize the Service Weaver application.
 	root := weaver.Init(context.Background())
-	opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-	lis, err := root.Listener("hello", opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("hello listener available on %v\n", lis)
 
 	// Get a client to the Reverser component.
 	reverser, err := weaver.Get[Reverser](root)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Get a network listener on address "localhost:12345".
+	opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
+	lis, err := root.Listener("hello", opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("hello listener available on %v\n", lis)
 
 	// Serve the /hello endpoint.
 	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {

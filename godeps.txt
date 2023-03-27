@@ -147,6 +147,7 @@ github.com/ServiceWeaver/weaver/examples/hello
     log
     net/http
     reflect
+    sync
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique
     context
