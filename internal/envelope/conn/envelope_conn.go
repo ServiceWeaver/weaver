@@ -280,7 +280,7 @@ func (e *EnvelopeConn) UpdateRoutingInfoRPC(req *protos.RoutingInfo) error {
 }
 
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
-	response, err := e.conn.rpc(request)
+	response, err := e.conn.doBlockingRPC(request)
 	if err != nil {
 		err := fmt.Errorf("connection to weavelet broken: %w", err)
 		e.conn.cleanup(err)
