@@ -335,6 +335,7 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
     golang.org/x/exp/slices
+    golang.org/x/sync/errgroup
     google.golang.org/protobuf/types/known/timestamppb
     math
     net
@@ -363,6 +364,7 @@ github.com/ServiceWeaver/weaver/internal/env
     strings
 github.com/ServiceWeaver/weaver/internal/envelope/conn
     bytes
+    context
     fmt
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime
@@ -651,21 +653,18 @@ github.com/ServiceWeaver/weaver/runtime/colors
 github.com/ServiceWeaver/weaver/runtime/envelope
     bufio
     context
-    errors
     fmt
     github.com/ServiceWeaver/weaver/internal/envelope/conn
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/pipe
     github.com/ServiceWeaver/weaver/runtime
-    github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
     go.opentelemetry.io/otel/sdk/trace
+    golang.org/x/sync/errgroup
     io
     os
     strconv
     sync
-    syscall
 github.com/ServiceWeaver/weaver/runtime/logging
     bufio
     context
@@ -783,6 +782,7 @@ github.com/ServiceWeaver/weaver/runtime/tool
     time
 github.com/ServiceWeaver/weaver/weavertest
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
@@ -796,6 +796,7 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
+    golang.org/x/sync/errgroup
     os
     regexp
     runtime

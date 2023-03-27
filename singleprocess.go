@@ -130,7 +130,12 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		statsProcessor: imetrics.NewStatsProcessor(),
 		traceSaver:     traceSaver,
 	}
-	go env.statsProcessor.CollectMetrics(ctx, metrics.Snapshot)
+	go func() {
+		err := env.statsProcessor.CollectMetrics(ctx, metrics.Snapshot)
+		if err != nil {
+			env.SystemLogger().Error("metric collection stopped with error", err)
+		}
+	}()
 	return env, nil
 }
 

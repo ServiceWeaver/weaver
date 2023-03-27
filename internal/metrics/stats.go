@@ -119,7 +119,7 @@ type methodStats struct {
 
 // CollectMetrics enables the stats processor to update the tracked stats based
 // on a new set of metrics provided by snapshotFn.
-func (s *StatsProcessor) CollectMetrics(ctx context.Context, snapshotFn func() []*metrics.MetricSnapshot) {
+func (s *StatsProcessor) CollectMetrics(ctx context.Context, snapshotFn func() []*metrics.MetricSnapshot) error {
 	tickerCollectMetrics := time.NewTicker(time.Minute)
 	defer tickerCollectMetrics.Stop()
 	for {
@@ -128,7 +128,7 @@ func (s *StatsProcessor) CollectMetrics(ctx context.Context, snapshotFn func() [
 			snapshot := snapshotFn()
 			s.getSnapshot(snapshot)
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		}
 	}
 }

@@ -15,11 +15,12 @@
 package conn_test
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -106,45 +107,39 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		SingleMachine: true,
 	}
 
-	// Start Run goroutines for both conns.
-	started := &sync.WaitGroup{}
-	started.Add(2)
-	done := &sync.WaitGroup{}
-	done.Add(2)
-	var e *conn.EnvelopeConn
-	go func() {
-		defer done.Done()
-		var err error
-		if e, err = conn.NewEnvelopeConn(eReader, eWriter, handler, wlet); err != nil {
-			panic(err)
-		}
-		started.Done()
-		if err := e.Serve(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
-			t.Errorf("envelope failed: %#v", err)
-		}
-	}()
+	// NOTE: We must start the weavelet conn in a separate goroutine because
+	// it initiates a blocking handshake with the envelope.
+	ctx, cancel := context.WithCancel(context.Background())
 	var w *conn.WeaveletConn
+	created := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
-		defer done.Done()
 		var err error
 		if w, err = conn.NewWeaveletConn(wReader, wWriter, nil /*handler*/); err != nil {
 			panic(err)
 		}
-		started.Done()
+		created <- struct{}{}
 		if err := w.Serve(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
-			t.Errorf("weavelet failed: %#v", err)
+			panic(fmt.Sprintf("weavelet failed: %#v", err))
 		}
+		done <- struct{}{}
 	}()
 
-	// Wait for both conns to start.
-	started.Wait()
+	e, err := conn.NewEnvelopeConn(ctx, eReader, eWriter, wlet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-created
+	e.Serve(handler)
 
-	// Stop goroutines when test has finished.
+	// Stop the goroutine when test has finished.
 	t.Cleanup(func() {
-		wReader.Close()
-		eReader.Close()
-		// NOTE(mwhittaker): wWriter and eWriter are closed by the conns.
-		done.Wait()
+		cancel()
+		err := e.Wait()
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal(err)
+		}
+		<-done
 	})
 
 	return e, w

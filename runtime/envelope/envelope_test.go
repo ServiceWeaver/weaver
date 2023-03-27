@@ -16,6 +16,7 @@ package envelope
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -34,6 +35,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -44,7 +46,7 @@ var executable = ""
 
 func TestMain(m *testing.M) {
 	// The tests in this file run the test binary as subprocesses with a
-	// subcommand (e.g., "loop", "succeed"). When run as a subprocess, this
+	// subcommand (e.g., "loop", "fail"). When run as a subprocess, this
 	// test binary prints its pid, performs the specified subcommand, and
 	// exits. It does not run any of the tests.
 	flag.Parse()
@@ -59,22 +61,25 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "unable to create weavelet conn for subprocess: %v\n", err)
 			os.Exit(1)
 		}
+
 		cmds := map[string]func() error{
 			"loop": func() error {
-				for {
-					time.Sleep(10 * time.Millisecond)
-				}
+				// Default behavior of blocking forever.
+				return nil
 			},
-			"succeed": func() error { return nil },
-			"fail":    func() error { os.Exit(1); return nil },
-			"file":    checkFile,
+			"fail":       func() error { os.Exit(1); return nil },
+			"check_file": checkFile,
 			"bigprint": func() error {
 				n, err := strconv.Atoi(flag.Arg(1))
 				if err != nil {
 					return err
 				}
 				// -1 because the pid takes up one line
-				return bigprint(n - 1)
+				if err := bigprint(n - 1); err != nil {
+					return err
+				}
+				os.Exit(0)
+				return nil
 			},
 			"writetraces": func() error { return writeTraces(conn) },
 			"serve_conn":  func() error { return conn.Serve() },
@@ -90,7 +95,7 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "subprocess: %v\n", err)
 			os.Exit(1)
 		}
-		os.Exit(0)
+		conn.Serve()
 	}
 
 	var err error
@@ -105,9 +110,6 @@ func TestMain(m *testing.M) {
 // checkFile succeeds iff the given file exists.
 func checkFile() error {
 	_, err := os.Stat(flag.Arg(1))
-	if err != nil {
-		os.Exit(1)
-	}
 	return err
 }
 
@@ -165,44 +167,56 @@ func (h *handlerForTest) ExportListener(*protos.ExportListenerRequest) (*protos.
 	return nil, nil
 }
 
-func TestRun(t *testing.T) {
+func TestStartStop(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "file.txt")
 	if _, err := os.Create(filename); err != nil {
 		t.Fatal(err)
 	}
-
 	for _, test := range []struct {
 		subcommand string
 		args       []string
-		succeed    bool
+		fail       bool
 	}{
-		{"succeed", []string{}, true},
-		{"fail", []string{}, false},
-		{"file", []string{filename}, true},
+		{"loop", []string{}, false},
+		{"fail", []string{}, true},
+		{"check_file", []string{filename}, false},
 	} {
 		name := test.subcommand
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx, cancel := context.WithCancel(context.Background())
 			var started atomic.Bool
 			args := append([]string{test.subcommand}, test.args...)
 			wlet, config := wlet(executable, args...)
-			e, err := NewEnvelope(ctx, wlet, config, &handlerForTest{
+			e, err := NewEnvelope(ctx, wlet, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e.Serve(&handlerForTest{
 				logSaver: func(*protos.LogEntry) {
 					started.Store(true)
 				},
 			})
-			if err != nil {
-				t.Fatal(err)
+
+			// Wait for the weavelet to start.
+			for r := retry.Begin(); !started.Load() && r.Continue(ctx); {
 			}
-			err = e.Serve(ctx)
-			if err != nil && test.succeed {
-				t.Fatalf("m.Run(): %v", err)
+			if ctx.Err() != nil {
+				t.Fatalf("timeout waiting for weavelet to start")
 			}
-			if err == nil && !test.succeed {
-				t.Fatal("m.Run(): unexpected success")
-			}
-			if !started.Load() {
-				t.Fatalf("expected weavelet to start; it didn't")
+
+			if !test.fail {
+				// Give the weavelet a chance to fail, and verify that it didn't.
+				time.Sleep(200 * time.Millisecond)
+				cancel()
+				if err := e.Wait(); !errors.Is(err, context.Canceled) {
+					t.Fatalf("weavelet failed: %v", err)
+				}
+			} else {
+				// Wait for the weavelet to fail.
+				if err := e.Wait(); errors.Is(err, context.DeadlineExceeded) {
+					t.Fatalf("weavelet didn't fail: %v", err)
+				}
+				cancel()
 			}
 		})
 	}
@@ -214,13 +228,13 @@ func bigprint(n int) error {
 	for i := 0; i < n; i++ {
 		fmt.Println(s)
 	}
-	os.Exit(1)
 	return nil
 }
 
 func TestBigPrints(t *testing.T) {
-	t.Skip("TODO(spetrovic): Fix this test once envelopes are stopped correctly. Right now, an envelope doesn't finish reading from stdout and stderr. This bug was introduced in PR #184.")
-
+	// Test Plan: Start a weavelet that prints a bunch of messages and then
+	// exists, simulating a panic(). Make sure that all messages are received.
+	t.Skip("this test is flaky. Figure out if anything can be done to fix it")
 	ctx := context.Background()
 	var entries []*protos.LogEntry
 	var m sync.Mutex
@@ -232,12 +246,13 @@ func TestBigPrints(t *testing.T) {
 
 	n := 10000
 	wlet, config := wlet(executable, "bigprint", strconv.Itoa(n))
-	e, err := NewEnvelope(ctx, wlet, config, h)
+	e, err := NewEnvelope(ctx, wlet, config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = e.Serve(ctx); err == nil {
-		t.Fatalf("dm.Run(): unexpected success")
+	e.Serve(h)
+	if err := e.Wait(); errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal("deadline exceeded error")
 	}
 
 	var got int
@@ -249,25 +264,27 @@ func TestBigPrints(t *testing.T) {
 	}
 }
 
-// TestCancel test that a envelope run() loop is canceled when the passed-in
+// TestCancel test that a weavelet process is stopped when the passed-in
 // context is canceled.
 func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	wlet, config := wlet(executable, "loop")
-	e, err := NewEnvelope(ctx, wlet, config, &handlerForTest{logSaver: testSaver(t)})
+	e, err := NewEnvelope(ctx, wlet, config)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// End the capture after a delay.
+	// Stop the envelope after a delay.
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		cancel()
 	}()
 
 	// Start the subprocess. It should be ended after a delay.
-	if err := e.Serve(ctx); err == nil {
-		t.Fatal("m.Run(): unexpected success")
+	h := &handlerForTest{logSaver: testSaver(t)}
+	e.Serve(h)
+	if err := e.Wait(); !errors.Is(err, context.Canceled) {
+		t.Fatal("weavelet failed unexpectedly")
 	}
 
 	// Double check that the subprocess was killed.
@@ -324,35 +341,50 @@ func writeTraces(conn *conn.WeaveletConn) error {
 }
 
 func TestTraces(t *testing.T) {
-	h := &handlerForTest{logSaver: testSaver(t)}
-	ctx := context.Background()
 	wlet, config := wlet(executable, "writetraces")
-	e, err := NewEnvelope(ctx, wlet, config, h)
+	ctx, cancel := context.WithCancel(context.Background())
+	e, err := NewEnvelope(ctx, wlet, config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Serve(ctx); err != nil {
-		t.Fatalf("unexpected error from child: %v", err)
-	}
+	defer e.Wait()
+
+	h := &handlerForTest{logSaver: testSaver(t)}
+	e.Serve(h)
+
+	// Wait for traces.
 	expect := []string{"span1", "span2", "span3", "span4"}
-	actual := h.getTraceSpanNames()
+	var actual []string
+	for r := retry.Begin(); r.Continue(ctx); {
+		if actual = h.getTraceSpanNames(); len(actual) >= 4 {
+			break
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Give the weavelet a chance to fail, and verify that it didn't.
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+	if err := e.Wait(); !errors.Is(err, context.Canceled) {
+		t.Fatalf("weavelet failed: %v", err)
+	}
+
 	if diff := cmp.Diff(expect, actual); diff != "" {
 		t.Errorf("traces diff: (-want,+got):\n%s", diff)
 	}
 }
 
-func startEnvelopeWithServing(ctx context.Context, t *testing.T) *Envelope {
-	h := &handlerForTest{logSaver: testSaver(t)}
+func startEnvelope(ctx context.Context, t *testing.T) *Envelope {
 	wlet, config := wlet(executable, "serve_conn")
-	e, err := NewEnvelope(ctx, wlet, config, h)
+	e, err := NewEnvelope(ctx, wlet, config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	go func() {
-		if err := e.Serve(ctx); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	}()
+
+	h := &handlerForTest{logSaver: testSaver(t)}
+	e.Serve(h)
 	return e
 }
 
@@ -361,8 +393,9 @@ func TestSingleProfile(t *testing.T) {
 	// requests, one after another. Verify that both succeed and return
 	// non-empty profile data.
 	ctx, cancel := context.WithCancel(context.Background())
+	e := startEnvelope(ctx, t)
+	defer e.Wait()
 	defer cancel()
-	e := startEnvelopeWithServing(ctx, t)
 
 	for _, typ := range []protos.ProfileType{protos.ProfileType_Heap, protos.ProfileType_CPU} {
 		typ := typ
@@ -391,8 +424,9 @@ func TestConcurrentProfiles(t *testing.T) {
 	// requests. Verify that one of the requests returns an
 	// "already in progress" error.
 	ctx, cancel := context.WithCancel(context.Background())
+	e := startEnvelope(ctx, t)
+	defer e.Wait()
 	defer cancel()
-	e := startEnvelopeWithServing(ctx, t)
 
 	prof := func() error {
 		req := &protos.RunProfiling{

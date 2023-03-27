@@ -204,17 +204,24 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	}()
 
 	// Run the stats collector.
-	go m.statsProcessor.CollectMetrics(m.ctx, func() []*metrics.MetricSnapshot {
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		var result []*metrics.MetricSnapshot
-		for _, ms := range m.metrics {
-			for _, m := range ms {
-				result = append(result, metrics.UnProto(m))
-			}
+	go func() {
+		err := m.statsProcessor.CollectMetrics(
+			m.ctx, func() []*metrics.MetricSnapshot {
+
+				m.mu.Lock()
+				defer m.mu.Unlock()
+				var result []*metrics.MetricSnapshot
+				for _, ms := range m.metrics {
+					for _, m := range ms {
+						result = append(result, metrics.UnProto(m))
+					}
+				}
+				return result
+			})
+		if err != nil {
+			m.logger.Error("Unable to collect metrics", err)
 		}
-		return result
-	})
+	}()
 
 	return func() error {
 		return m.registry.Unregister(m.ctx, m.dep.Id)
