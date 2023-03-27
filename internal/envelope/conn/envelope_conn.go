@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync"
+	sync "sync"
 
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -54,10 +54,6 @@ type EnvelopeConn struct {
 	conn      conn
 	metrics   metrics.Importer
 	weavelet  *protos.WeaveletInfo
-	running   errgroup.Group
-
-	mu  sync.Mutex // guards the fields below
-	err error      // error that stopped the envelope
 }
 
 // NewEnvelopeConn creates the connection to an (already started) weavelet
@@ -94,9 +90,22 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, wle
 }
 
 // Serve accepts incoming messages from the weavelet. Messages that are received
-// are handled as an ordered sequence.
-func (e *EnvelopeConn) Serve(h EnvelopeHandler) {
+// are handled as an ordered sequence. This call blocks until the connection
+// terminates, returning the error that caused it to terminate. This method will
+// never return a non-nil error.
+func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
 	msgs := make(chan *protos.WeaveletMsg, 100)
+	var running errgroup.Group
+
+	var stopErr error
+	var once sync.Once
+	stop := func(err error) {
+		once.Do(func() {
+			stopErr = err
+		})
+		e.ctxCancel()
+		e.conn.cleanup(err)
+	}
 
 	// Spawn a goroutine that repeatedly reads messages from the pipe. A
 	// received message is either an RPC response or an RPC request. conn.recv
@@ -125,11 +134,11 @@ func (e *EnvelopeConn) Serve(h EnvelopeHandler) {
 	// UpdateRoutingInfo). The other pair will be used for RPCs from the
 	// weavelet to the envelope (e.g., StartComponent, RegisterReplica,
 	// RecvLogEntry).
-	e.running.Go(func() error {
+	running.Go(func() error {
 		for {
 			msg := &protos.WeaveletMsg{}
 			if err := e.conn.recv(msg); err != nil {
-				e.stop(err)
+				stop(err)
 				return err
 			}
 			msgs <- msg
@@ -140,41 +149,23 @@ func (e *EnvelopeConn) Serve(h EnvelopeHandler) {
 	// goroutine for every request because we must guarantee that requests are
 	// processed in order. Logs, for example, need to be received and processed
 	// in order.
-	e.running.Go(func() error {
+	running.Go(func() error {
 		for {
 			select {
 			case msg := <-msgs:
 				if err := e.handleMessage(msg, h); err != nil {
-					e.stop(err)
+					stop(err)
 					return err
 				}
 			case <-e.ctx.Done():
-				e.stop(e.ctx.Err())
+				stop(e.ctx.Err())
 				return e.ctx.Err()
 			}
 		}
 	})
-}
 
-// Wait waits for the connection to terminate. It returns an error that
-// caused the connection to terminate. This method will never return
-// a non-nil error.
-func (e *EnvelopeConn) Wait() error {
-	e.running.Wait() //nolint:errcheck // supplanted by e.err
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.err
-}
-
-// REQUIRES: err != nil
-func (e *EnvelopeConn) stop(err error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.err == nil {
-		e.err = err
-	}
-	e.ctxCancel()
-	e.conn.cleanup(err)
+	running.Wait() //nolint:errcheck // supplanted by stopErr
+	return stopErr
 }
 
 // WeaveletInfo returns the information about the weavelet.

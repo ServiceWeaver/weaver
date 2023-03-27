@@ -210,9 +210,8 @@ func (d *deployer) Init(config string) weaver.Instance {
 		subscribed: map[string]bool{},
 		conn:       connection{conn: e},
 	}
-	e.Serve(handler)
 	d.running.Go(func() error {
-		err := e.Wait()
+		err := e.Serve(handler)
 		d.stop(err)
 		return err
 	})
@@ -379,9 +378,8 @@ func (d *deployer) startGroup(g *group) error {
 		if err != nil {
 			return err
 		}
-		e.Serve(handler)
 		d.running.Go(func() error {
-			err := e.Wait()
+			err := e.Serve(handler)
 			d.stop(err)
 			return err
 		})

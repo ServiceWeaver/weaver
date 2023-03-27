@@ -290,15 +290,14 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 			return err
 		}
 		h.envelope = e
-		e.Serve(h)
-		if err := b.registerReplica(g, e.WeaveletInfo()); err != nil {
-			return err
-		}
 		b.running.Go(func() error {
-			err := e.Wait()
+			err := e.Serve(h)
 			b.stop(err)
 			return err
 		})
+		if err := b.registerReplica(g, e.WeaveletInfo()); err != nil {
+			return err
+		}
 		if err := e.UpdateComponents(components); err != nil {
 			return err
 		}

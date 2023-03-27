@@ -17,7 +17,6 @@ package conn_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -112,17 +111,16 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	ctx, cancel := context.WithCancel(context.Background())
 	var w *conn.WeaveletConn
 	created := make(chan struct{})
-	done := make(chan struct{})
+	weaveletDone := make(chan error)
 	go func() {
 		var err error
 		if w, err = conn.NewWeaveletConn(wReader, wWriter, nil /*handler*/); err != nil {
 			panic(err)
 		}
 		created <- struct{}{}
-		if err := w.Serve(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
-			panic(fmt.Sprintf("weavelet failed: %#v", err))
-		}
-		done <- struct{}{}
+		err = w.Serve()
+		weaveletDone <- err
+
 	}()
 
 	e, err := conn.NewEnvelopeConn(ctx, eReader, eWriter, wlet)
@@ -130,16 +128,24 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		t.Fatal(err)
 	}
 	<-created
-	e.Serve(handler)
+
+	envelopeDone := make(chan error)
+	go func() {
+		err := e.Serve(handler)
+		envelopeDone <- err
+	}()
 
 	// Stop the goroutine when test has finished.
 	t.Cleanup(func() {
 		cancel()
-		err := e.Wait()
+		err := <-envelopeDone
 		if !errors.Is(err, context.Canceled) {
 			t.Fatal(err)
 		}
-		<-done
+		err = <-weaveletDone
+		if err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+			t.Fatal("weavelet failed", err)
+		}
 	})
 
 	return e, w

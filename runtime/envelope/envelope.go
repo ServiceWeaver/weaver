@@ -72,11 +72,9 @@ type Envelope struct {
 	cmd        *pipe.Cmd          // command that started the weavelet
 	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
 	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
-	running    errgroup.Group
 
 	mu        sync.Mutex // guards the following fields
 	profiling bool       // are we currently collecting a profile?
-	err       error      // error that stopped the envelope
 }
 
 // NewEnvelope creates a new envelope, starting a weavelet process and
@@ -141,66 +139,58 @@ func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *pr
 }
 
 // Serve accepts incoming messages from the weavelet. Messages that are received
-// are handled as an ordered sequence.
-func (e *Envelope) Serve(h EnvelopeHandler) {
+// are handled as an ordered sequence. This call blocks until the envelope
+// terminates, returning the error that caused it to terminate. This method will
+// never return a non-nil error.
+func (e *Envelope) Serve(h EnvelopeHandler) error {
+	var running errgroup.Group
+
+	var stopErr error
+	var once sync.Once
+	stop := func(err error) {
+		once.Do(func() {
+			stopErr = err
+		})
+		e.ctxCancel()
+	}
+
 	// Capture stdout and stderr from the weavelet.
-	e.running.Go(func() error {
+	running.Go(func() error {
 		err := e.logLines("stdout", e.stdoutPipe, h)
-		e.stop(err)
+		stop(err)
 		return err
 	})
-	e.running.Go(func() error {
+	running.Go(func() error {
 		err := e.logLines("stderr", e.stderrPipe, h)
-		e.stop(err)
+		stop(err)
 		return err
 	})
 
 	// Start the goroutine watching the context for cancelation.
-	e.running.Go(func() error {
+	running.Go(func() error {
 		<-e.ctx.Done()
 		err := e.ctx.Err()
-		e.stop(err)
+		stop(err)
 		return err
 	})
 
 	// Start the goroutine to receive incoming messages.
-	e.running.Go(func() error {
-		e.conn.Serve(h)
-		err := e.conn.Wait()
-		e.stop(err)
+	running.Go(func() error {
+		err := e.conn.Serve(h)
+		stop(err)
 		return err
 	})
 
 	// Start the goroutine that waits for the weavelet process to stop.
-	e.running.Go(func() error {
+	running.Go(func() error {
 		err := e.cmd.Wait()
-		e.stop(err)
+		stop(err)
 		e.cmd.Cleanup()
 		return err
 	})
-}
 
-// Wait waits for the weavelet to terminate. It returns an error that
-// caused the weavelet to terminate. This method will never return
-// a non-nil error.
-func (e *Envelope) Wait() error {
-	e.running.Wait() //nolint:errcheck // supplanted by e.err
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.err
-}
-
-// REQUIRES: err != nil
-func (e *Envelope) stop(err error) {
-	// Record the first error.
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.err == nil {
-		e.err = err
-	}
-
-	// Cancel the context, if it is still active.
-	e.ctxCancel()
+	running.Wait() //nolint:errcheck // supplanted by stopErr
+	return stopErr
 }
 
 // toggleProfiling compares the value of e.profiling to the given expected
