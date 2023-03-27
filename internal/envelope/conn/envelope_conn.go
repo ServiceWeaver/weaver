@@ -268,39 +268,15 @@ func (e *EnvelopeConn) DoProfilingRPC(req *protos.RunProfiling) (*protos.Profile
 // UpdateComponentsRPC updates the weavelet with the latest set of components
 // it should be running.
 func (e *EnvelopeConn) UpdateComponentsRPC(req *protos.ComponentsToStart) error {
-	response, err := e.conn.rpc(&protos.EnvelopeMsg{ComponentsToStart: req})
-	if err != nil {
-		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.cleanup(err)
-		return err
-	}
-	msg, ok := response.(*protos.WeaveletMsg)
-	if !ok {
-		return fmt.Errorf("response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return fmt.Errorf(msg.Error)
-	}
-	return nil
+	_, err := e.rpc(&protos.EnvelopeMsg{ComponentsToStart: req})
+	return err
 }
 
 // UpdateRoutingInfoRPC updates the weavelet with a component's most recent
 // routing info.
 func (e *EnvelopeConn) UpdateRoutingInfoRPC(req *protos.RoutingInfo) error {
-	response, err := e.conn.rpc(&protos.EnvelopeMsg{RoutingInfo: req})
-	if err != nil {
-		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.cleanup(err)
-		return err
-	}
-	msg, ok := response.(*protos.WeaveletMsg)
-	if !ok {
-		return fmt.Errorf("response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return fmt.Errorf(msg.Error)
-	}
-	return nil
+	_, err := e.rpc(&protos.EnvelopeMsg{RoutingInfo: req})
+	return err
 }
 
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
