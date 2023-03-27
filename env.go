@@ -36,6 +36,9 @@ type env interface {
 	// listen on to receive messages from other weavelets.
 	WeaveletListener() net.Listener
 
+	// ServeWeaveletConn blocks serving requests from the envelope.
+	ServeWeaveletConn() error
+
 	// RegisterComponentToStart registers a component to start.
 	RegisterComponentToStart(ctx context.Context, component string, routed bool) error
 
