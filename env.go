@@ -18,10 +18,10 @@ import (
 	"context"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/exp/slog"
 )
 
 // env provides the API by which a Service Weaver application process communicates with
@@ -46,7 +46,7 @@ type env interface {
 	CreateLogSaver() func(entry *protos.LogEntry)
 
 	// SystemLogger returns the Logger for system messages.
-	SystemLogger() logtype.Logger
+	SystemLogger() *slog.Logger
 
 	// CreateTraceExporter returns an exporter that should be used for
 	// exporting trace spans. A nil exporter value means that no traces

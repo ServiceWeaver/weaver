@@ -8,7 +8,6 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/files
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/register
@@ -32,6 +31,7 @@ github.com/ServiceWeaver/weaver
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/slices
+    golang.org/x/exp/slog
     google.golang.org/protobuf/types/known/timestamppb
     math
     math/rand
@@ -242,6 +242,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
     github.com/google/uuid
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+    golang.org/x/exp/slog
     html/template
     io/fs
     math/rand
@@ -261,6 +262,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice
     github.com/google/uuid
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    golang.org/x/exp/slog
     reflect
     strings
     time
@@ -320,7 +322,6 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     context
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/status
@@ -335,6 +336,7 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
     golang.org/x/exp/slices
+    golang.org/x/exp/slog
     golang.org/x/sync/errgroup
     google.golang.org/protobuf/types/known/timestamppb
     math
@@ -386,8 +388,6 @@ github.com/ServiceWeaver/weaver/internal/files
     path/filepath
 github.com/ServiceWeaver/weaver/internal/heap
     container/heap
-github.com/ServiceWeaver/weaver/internal/logtype
-    fmt
 github.com/ServiceWeaver/weaver/internal/metrics
     bytes
     context
@@ -411,13 +411,13 @@ github.com/ServiceWeaver/weaver/internal/net/call
     encoding/binary
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/retry
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    golang.org/x/exp/slog
     io
     math/rand
     net
@@ -437,7 +437,7 @@ github.com/ServiceWeaver/weaver/internal/proto
     google.golang.org/protobuf/proto
 github.com/ServiceWeaver/weaver/internal/proxy
     errors
-    github.com/ServiceWeaver/weaver/internal/logtype
+    golang.org/x/exp/slog
     math/rand
     net/http
     net/http/httputil
@@ -454,7 +454,6 @@ github.com/ServiceWeaver/weaver/internal/status
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/files
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -468,6 +467,7 @@ github.com/ServiceWeaver/weaver/internal/status
     github.com/pkg/browser
     golang.org/x/exp/maps
     golang.org/x/exp/slices
+    golang.org/x/exp/slog
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
@@ -563,7 +563,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/files
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proto
     github.com/ServiceWeaver/weaver/internal/proxy
@@ -581,6 +580,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
     golang.org/x/exp/slices
+    golang.org/x/exp/slog
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
@@ -672,7 +672,6 @@ github.com/ServiceWeaver/weaver/runtime/logging
     fmt
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/heap
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -681,6 +680,7 @@ github.com/ServiceWeaver/weaver/runtime/logging
     github.com/google/cel-go/checker/decls
     github.com/google/cel-go/common/operators
     github.com/google/uuid
+    golang.org/x/exp/slog
     google.golang.org/genproto/googleapis/api/expr/v1alpha1
     google.golang.org/protobuf/proto
     google.golang.org/protobuf/types/known/timestamppb
@@ -742,9 +742,9 @@ github.com/ServiceWeaver/weaver/runtime/protomsg
     encoding/binary
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
+    golang.org/x/exp/slog
     google.golang.org/protobuf/proto
     io
     math
@@ -786,7 +786,6 @@ github.com/ServiceWeaver/weaver/weavertest
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
-    github.com/ServiceWeaver/weaver/internal/logtype
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -796,6 +795,7 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
+    golang.org/x/exp/slog
     golang.org/x/sync/errgroup
     os
     regexp

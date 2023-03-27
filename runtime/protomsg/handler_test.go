@@ -18,23 +18,19 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+
+	"golang.org/x/exp/slog"
 )
-
-// discardingLogger implements the logtype.Logger interface. We can't use a
-// logging.TestLogger because of cyclic imports.
-type discardingLogger struct{}
-
-func (d discardingLogger) Debug(msg string, labels ...any)            {}
-func (d discardingLogger) Info(msg string, labels ...any)             {}
-func (d discardingLogger) Error(msg string, err error, labels ...any) {}
 
 func TestPanicHandler(t *testing.T) {
 	// Run and query server.
 	const msg = "zardoz"
 	server := httptest.NewServer(panicHandler(
-		discardingLogger{},
+		// Discard logs.
+		slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout)),
 		func(http.ResponseWriter, *http.Request) {
 			panic(msg)
 		}),

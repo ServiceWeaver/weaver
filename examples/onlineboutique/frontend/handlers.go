@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice"
@@ -36,6 +35,7 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -66,7 +66,7 @@ var (
 )
 
 func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Info("home", "currency", currentCurrency(r))
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -119,7 +119,7 @@ func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
 	_, id := filepath.Split(r.URL.Path)
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	if id == "" {
 		fe.renderHTTPError(r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
@@ -193,7 +193,7 @@ func (fe *Server) cartHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) addToCartHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	quantity, _ := strconv.ParseUint(r.FormValue("quantity"), 10, 32)
 	productID := r.FormValue("product_id")
 	if productID == "" || quantity == 0 {
@@ -220,7 +220,7 @@ func (fe *Server) addToCartHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Debug("emptying cart")
 
 	if err := fe.cartService.EmptyCart(r.Context(), sessionID(r)); err != nil {
@@ -232,7 +232,7 @@ func (fe *Server) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) viewCartHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Debug("view user cart")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
@@ -308,7 +308,7 @@ func (fe *Server) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Debug("placing order")
 
 	var (
@@ -379,7 +379,7 @@ func (fe *Server) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) logoutHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Debug("logging out")
 	for _, c := range r.Cookies() {
 		c.Expires = time.Now().Add(-time.Hour * 24 * 365)
@@ -391,7 +391,7 @@ func (fe *Server) logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (fe *Server) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	cur := r.FormValue("currency_code")
 	logger.Debug("setting currency", "curr.new", cur, "curr.old", currentCurrency(r))
 
@@ -412,7 +412,7 @@ func (fe *Server) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 
 // chooseAd queries for advertisements available and randomly chooses one, if
 // available. It ignores the error retrieving the ad since it is not critical.
-func (fe *Server) chooseAd(ctx context.Context, ctxKeys []string, logger weaver.Logger) *adservice.Ad {
+func (fe *Server) chooseAd(ctx context.Context, ctxKeys []string, logger *slog.Logger) *adservice.Ad {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 	ads, err := fe.adService.GetAds(ctx, ctxKeys)
@@ -472,7 +472,7 @@ func (fe *Server) getRecommendations(ctx context.Context, userID string, product
 }
 
 func (fe *Server) renderHTTPError(r *http.Request, w http.ResponseWriter, err error, code int) {
-	logger := r.Context().Value(ctxKeyLogger{}).(weaver.Logger)
+	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Error("request error", err)
 	errMsg := fmt.Sprintf("%+v", err)
 

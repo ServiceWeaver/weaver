@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
@@ -33,6 +32,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/exp/slog"
 )
 
 // babysitter starts and manages weavelets belonging to a single colocation
@@ -40,7 +40,7 @@ import (
 type babysitter struct {
 	ctx           context.Context
 	info          *BabysitterInfo
-	logger        logtype.Logger
+	logger        *slog.Logger
 	traceExporter *traceio.Writer // to export traces to the manager
 	envelope      *envelope.Envelope
 
@@ -70,7 +70,7 @@ func RunBabysitter(ctx context.Context) error {
 	b := &babysitter{
 		ctx:  ctx,
 		info: info,
-		logger: logging.FuncLogger{
+		logger: slog.New(&logging.LogHandler{
 			Opts: logging.Options{
 				App:        info.Deployment.App.Name,
 				Deployment: info.Deployment.Id,
@@ -79,7 +79,7 @@ func RunBabysitter(ctx context.Context) error {
 				Attrs:      []string{"serviceweaver/system", "", "weavelet", id},
 			},
 			Write: logSaver,
-		},
+		}),
 		traceExporter: traceio.NewWriter(func(spans *protos.Spans) error {
 			return protomsg.Call(ctx, protomsg.CallArgs{
 				Client:  http.DefaultClient,
@@ -114,7 +114,7 @@ func RunBabysitter(ctx context.Context) error {
 }
 
 type metricsCollector struct {
-	logger   logtype.Logger
+	logger   *slog.Logger
 	envelope *envelope.Envelope
 	info     *BabysitterInfo
 }

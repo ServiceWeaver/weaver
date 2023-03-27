@@ -36,9 +36,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/status"
@@ -76,7 +76,7 @@ const (
 type manager struct {
 	ctx        context.Context
 	dep        *protos.Deployment
-	logger     logtype.Logger
+	logger     *slog.Logger
 	logDir     string
 	locations  []string // addresses of the locations
 	mgrAddress string   // manager address
@@ -147,7 +147,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	}
 	logSaver := fs.Add
 
-	logger := logging.FuncLogger{
+	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       dep.App.Name,
 			Component: "manager",
@@ -155,7 +155,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 			Attrs:     []string{"serviceweaver/system", ""},
 		},
 		Write: logSaver,
-	}
+	})
 
 	// Create the trace saver.
 	traceDB, err := perfetto.Open(ctx)

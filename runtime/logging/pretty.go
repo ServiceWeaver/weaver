@@ -94,7 +94,7 @@ func (pp *PrettyPrinter) Format(e *protos.LogEntry) string {
 		level = strings.ToUpper(e.Level[:1])
 	}
 	levelColor := colors.Reset
-	if e.Level == "error" {
+	if strings.ToLower(e.Level) == "error" {
 		levelColor = errorColor
 	}
 

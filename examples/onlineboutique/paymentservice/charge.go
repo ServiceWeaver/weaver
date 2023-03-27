@@ -19,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
 )
 
 type InvalidCreditCardErr struct{}
@@ -42,7 +42,7 @@ func (e ExpiredCreditCardErr) Error() string {
 	return "credit card expired"
 }
 
-func charge(amount money.T, card CreditCardInfo, logger weaver.Logger) (string, error) {
+func charge(amount money.T, card CreditCardInfo, logger *slog.Logger) (string, error) {
 	// Perform some rudimentary validation.
 	number := strings.ReplaceAll(card.Number, "-", "")
 	var company string

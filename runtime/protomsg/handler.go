@@ -23,9 +23,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/metrics"
+	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -87,7 +87,7 @@ type ProtoPointer[T any] interface {
 // returns an *O, it is marshaled into the body of the HTTP response.
 // Otherwise, the returned error is logged and returned in the HTTP response.
 // The context passed to the handler is the HTTP request's context.
-func HandlerFunc[I, O any, IP ProtoPointer[I], OP ProtoPointer[O]](logger logtype.Logger, handler func(context.Context, *I) (*O, error)) http.HandlerFunc {
+func HandlerFunc[I, O any, IP ProtoPointer[I], OP ProtoPointer[O]](logger *slog.Logger, handler func(context.Context, *I) (*O, error)) http.HandlerFunc {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		var in I
 		if err := fromHTTP(w, r, IP(&in)); err != nil {
@@ -112,7 +112,7 @@ func HandlerFunc[I, O any, IP ProtoPointer[I], OP ProtoPointer[O]](logger logtyp
 // HTTP response. Otherwise, the returned error is logged and returned in the
 // HTTP response. The context passed to the handler is the HTTP request's
 // context.
-func HandlerThunk[O any, OP ProtoPointer[O]](logger logtype.Logger, handler func(context.Context) (*O, error)) http.HandlerFunc {
+func HandlerThunk[O any, OP ProtoPointer[O]](logger *slog.Logger, handler func(context.Context) (*O, error)) http.HandlerFunc {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		out, err := handler(r.Context())
 		if err != nil {
@@ -132,7 +132,7 @@ func HandlerThunk[O any, OP ProtoPointer[O]](logger logtype.Logger, handler func
 // request and invokes the provided handler. Errors are logged and returned in
 // the HTTP response. The context passed to the handler is the HTTP request's
 // context.
-func HandlerDo[I any, IP ProtoPointer[I]](logger logtype.Logger, handler func(context.Context, *I) error) http.HandlerFunc {
+func HandlerDo[I any, IP ProtoPointer[I]](logger *slog.Logger, handler func(context.Context, *I) error) http.HandlerFunc {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		var in I
 		if err := fromHTTP(w, r, IP(&in)); err != nil {
@@ -151,7 +151,7 @@ func HandlerDo[I any, IP ProtoPointer[I]](logger logtype.Logger, handler func(co
 
 // panicHandler wraps the provided handler in a new handler which catches and
 // returns panics as 500 "Internal Server Error" responses.
-func panicHandler(logger logtype.Logger, handler http.HandlerFunc) http.HandlerFunc {
+func panicHandler(logger *slog.Logger, handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
