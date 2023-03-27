@@ -218,6 +218,8 @@ func (w *weavelet) start() (Instance, error) {
 	// method invocations are process-local and executed as regular go function
 	// calls.
 	if !w.info.SingleProcess {
+		startWork(w.ctx, "serve weavelet conn", w.env.ServeWeaveletConn)
+
 		lis := w.env.WeaveletListener()
 		addr := call.NetworkAddress(fmt.Sprintf("tcp://%s", lis.Addr().String()))
 		w.dialAddr = addr

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -57,12 +56,6 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 		conn: conn,
 	}
 
-	go func() {
-		// TODO(mwhittaker): Fix linter and only print if the error is non-nil.
-		// Right now, the linter is complaining that the returned error is
-		// always non-nil.
-		fmt.Fprintln(os.Stderr, env.conn.Serve())
-	}()
 	logSaver := env.CreateLogSaver(ctx, "serviceweaver")
 	env.sysLogger = newAttrLogger(info.App, info.DeploymentId, "weavelet", info.Id, logSaver)
 	env.sysLogger = env.sysLogger.With("serviceweaver/system", "")
@@ -77,6 +70,11 @@ func (e *remoteEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
 // WeaveletListener implements the Env interface.
 func (e *remoteEnv) WeaveletListener() net.Listener {
 	return e.conn.Listener()
+}
+
+// ServeWeaveletConn implements the Env interface.
+func (e *remoteEnv) ServeWeaveletConn() error {
+	return e.conn.Serve()
 }
 
 // RegisterComponentToStart implements the Env interface.
