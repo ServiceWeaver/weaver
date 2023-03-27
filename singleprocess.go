@@ -143,16 +143,6 @@ func (e *singleprocessEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
 	return e.info
 }
 
-func (e *singleprocessEnv) WeaveletListener() net.Listener {
-	// Should never be called.
-	panic("singleprocess.WeaveletListener unimplemented")
-}
-
-func (e *singleprocessEnv) ServeWeaveletConn() error {
-	// Should never be called.
-	panic("singleprocess.ServeWeaveletConn unimplemented")
-}
-
 func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, component string, _ bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
