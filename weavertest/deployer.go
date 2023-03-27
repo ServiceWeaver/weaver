@@ -16,9 +16,9 @@ package weavertest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 
@@ -33,25 +33,13 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
+	"golang.org/x/sync/errgroup"
 )
 
 // The default number of times a component is replicated.
 //
 // TODO(mwhittaker): Include this in the Options struct?
 const DefaultReplication = 2
-
-// TODO(mwhittaker): Upgrade to go 1.20 and replace with errors.Join.
-type errlist struct {
-	errs []error
-}
-
-func (e errlist) Error() string {
-	var b strings.Builder
-	for _, err := range e.errs {
-		fmt.Fprintln(&b, err.Error())
-	}
-	return b.String()
-}
 
 // deployer is the weavertest multiprocess deployer. Every multiprocess
 // weavertest runs its own deployer. The main component is run in the same
@@ -67,25 +55,27 @@ func (e errlist) Error() string {
 //     same process as the deployer. This is special to weavertests and
 //     requires special care. See Init for more details.
 type deployer struct {
-	ctx        context.Context           // cancels all running envelopes
+	ctx        context.Context
+	ctxCancel  context.CancelFunc
 	t          testing.TB                // the unit test
 	wlet       *protos.WeaveletSetupInfo // info for subprocesses
 	config     *protos.AppConfig         // application config
 	logger     logtype.Logger            // logger
 	colocation map[string]string         // maps component to group
-	stopped    sync.WaitGroup            // waits for envelopes to stop
-
-	mu     sync.Mutex        // guards groups
-	groups map[string]*group // groups, by group name
+	running    errgroup.Group
 
 	logMu sync.Mutex // guards log
 	log   bool       // logging enabled?
+
+	mu     sync.Mutex        // guards fields below
+	groups map[string]*group // groups, by group name
+	err    error             // error the test was terminated with, if any.
 }
 
 // A group contains information about a co-location group.
 type group struct {
 	name        string                  // group name
-	envelopes   []*envelope.Envelope    // envelopes, one per weavelet
+	conns       []connection            // connections to the weavelet
 	components  map[string]bool         // started components
 	addresses   map[string]bool         // weavelet addresses
 	subscribers map[string][]connection // routing info subscribers, by component
@@ -129,6 +119,7 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupIn
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
 		ctx:        ctx,
+		ctxCancel:  cancel,
 		t:          t,
 		wlet:       wlet,
 		config:     config,
@@ -147,10 +138,8 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupIn
 	}
 
 	t.Cleanup(func() {
-		// When the unit test ends, kill all subprocs and stop all goroutines.
-		cancel()
-		if err := d.Stop(); err != nil {
-			d.logger.Error("Stop", err)
+		if err := d.cleanup(); err != nil {
+			d.logger.Error("cleanup", err)
 		}
 		maybeLogStacks()
 
@@ -181,7 +170,6 @@ func (d *deployer) Init(config string) weaver.Instance {
 	if err != nil {
 		d.t.Fatalf("cannot create toWeavelet pipe: %v", err)
 	}
-
 	// Run an envelope connection to the main co-location group.
 	wlet := &protos.WeaveletSetupInfo{
 		App:           d.wlet.App,
@@ -192,68 +180,66 @@ func (d *deployer) Init(config string) weaver.Instance {
 		SingleMachine: d.wlet.SingleMachine,
 		RunMain:       true,
 	}
-	// TODO(mwhittaker): Issue an UpdateComponents call to the main group.
-	// Right now, the main co-location group knows to start main, but in the
-	// future, it won't.
+	var e *conn.EnvelopeConn
+	created := make(chan struct{})
 	go func() {
 		// NOTE: We must create the envelope conn in a separate gorotuine
 		// because it initiates a blocking handshake with the weavelet
 		// (initialized below via weaver.Init).
-		g := d.group("main")
-		handler := &handler{
-			deployer:   d,
-			group:      g,
-			subscribed: map[string]bool{},
-		}
-		conn, err := conn.NewEnvelopeConn(fromWeaveletReader, toWeaveletWriter, handler, wlet)
-		if err != nil {
+		var err error
+		if e, err = conn.NewEnvelopeConn(
+			d.ctx, fromWeaveletReader, toWeaveletWriter, wlet); err != nil {
 			panic(fmt.Errorf("cannot create envelope conn: %w", err))
 		}
-		handler.conn = connection{conn: conn}
-		if err := d.registerReplica(g, conn.WeaveletInfo()); err != nil {
-			panic(fmt.Errorf(`cannot register the replica for "main"`))
-		}
-
-		// TODO(mwhittaker): Close this conn when the unit test ends. Right
-		// now, the conn lives forever. This means the pipes are also leaking.
-		// We might have to add a Close method to EnvelopeConn.
-		if err := conn.Serve(); err != nil {
-			d.t.Error(err)
-		}
+		created <- struct{}{}
 	}()
-
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
 		ToEnvelopeFile: fromWeaveletWriter,
 		TestConfig:     config,
 	}
 	ctx := context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
-	return weaver.Init(ctx)
+	instance := weaver.Init(ctx)
+	<-created
+
+	g := d.group("main")
+	g.conns = append(g.conns, connection{conn: e})
+	handler := &handler{
+		deployer:   d,
+		group:      g,
+		subscribed: map[string]bool{},
+		conn:       connection{conn: e},
+	}
+	e.Serve(handler)
+	d.running.Go(func() error {
+		err := e.Wait()
+		d.stop(err)
+		return err
+	})
+
+	if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
+		panic(fmt.Errorf(`cannot register the replica for "main"`))
+	}
+
+	return instance
 }
 
-// Stop shuts down the deployment. It blocks until the deployment is fully
-// destroyed.
-func (d *deployer) Stop() error {
+func (d *deployer) stop(err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	// Stop envelopes.
-	var errs []error
-	for _, group := range d.groups {
-		for _, envelope := range group.envelopes {
-			if err := envelope.Stop(); err != nil {
-				errs = append(errs, err)
-			}
-		}
+	if d.err == nil && !errors.Is(err, context.Canceled) {
+		d.err = err
 	}
+	d.ctxCancel()
+}
 
-	// Wait for all goroutines to end.
-	d.stopped.Wait()
-
-	if len(errs) > 0 {
-		return errlist{errs}
-	}
-	return nil
+// cleanup cleans up all of the running envelopes' state.
+func (d *deployer) cleanup() error {
+	d.ctxCancel()
+	d.running.Wait() //nolint:errcheck // supplanted by b.err
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.err
 }
 
 // RecvLogEntry implements the envelope.EnvelopeHandler interface.
@@ -325,7 +311,7 @@ func (h *handler) StartComponent(req *protos.ComponentToStart) error {
 
 		// Notify the weavelets.
 		components := maps.Keys(target.components)
-		for _, envelope := range target.envelopes {
+		for _, envelope := range target.conns {
 			if err := envelope.UpdateComponents(components); err != nil {
 				return err
 			}
@@ -368,7 +354,7 @@ func (h *handler) StartComponent(req *protos.ComponentToStart) error {
 //
 // REQUIRES: d.mu is held.
 func (d *deployer) startGroup(g *group) error {
-	if len(g.envelopes) > 0 {
+	if len(g.conns) > 0 {
 		// Envelopes already started
 		return nil
 	}
@@ -389,32 +375,25 @@ func (d *deployer) startGroup(g *group) error {
 			group:      g,
 			subscribed: map[string]bool{},
 		}
-		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config, handler)
+		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config)
 		if err != nil {
 			return err
 		}
-		handler.conn = connection{envelope: e}
-
-		// Run the envelope.
-		//
-		// TODO(mwhittaker): We should add 'd.stopped.Add(1)' and 'defer
-		// d.stopped.Done()' calls here, but for some reason, e.Serve() is not
-		// terminating, even after we successfully call e.Stop.
-		go func() {
-			// TODO(mwhittaker): If e.Serve fails because we called Stop, that's
-			// expected. If e.Serve fails for any other reason, we should call
-			// d.t.Error.
-			if err := e.Serve(d.ctx); err != nil {
-				d.logger.Error("e.Run", err)
-			}
-		}()
+		e.Serve(handler)
+		d.running.Go(func() error {
+			err := e.Wait()
+			d.stop(err)
+			return err
+		})
 		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
 			return err
 		}
 		if err := e.UpdateComponents(components); err != nil {
 			return err
 		}
-		g.envelopes = append(g.envelopes, e)
+		c := connection{envelope: e}
+		handler.conn = c
+		g.conns = append(g.conns, c)
 	}
 	return nil
 }

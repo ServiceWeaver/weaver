@@ -100,7 +100,7 @@ func RunBabysitter(ctx context.Context) error {
 		SingleProcess: info.Deployment.SingleProcess,
 		RunMain:       info.RunMain,
 	}
-	e, err := envelope.NewEnvelope(ctx, wlet, info.Deployment.App, b)
+	e, err := envelope.NewEnvelope(ctx, wlet, info.Deployment.App)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,8 @@ func RunBabysitter(ctx context.Context) error {
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
 	go c.run(ctx)
-	return e.Serve(ctx)
+	e.Serve(b)
+	return e.Wait()
 }
 
 type metricsCollector struct {

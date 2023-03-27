@@ -136,13 +136,18 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	userDone := make(chan os.Signal, 1)
+	babysitterDone := make(chan error, 1)
+	go func() {
+		err := b.Wait()
+		babysitterDone <- err
+	}()
 	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		// Wait for the user to kill the app or the app to return an error.
 		select {
 		case <-userDone:
 			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", app.Name)
-		case err := <-b.Done():
+		case err := <-babysitterDone:
 			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", app.Name, err)
 		}
 		if err := registry.Unregister(ctx, dep.Id); err != nil {

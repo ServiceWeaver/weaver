@@ -19,22 +19,19 @@ package envelope
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
 	"github.com/ServiceWeaver/weaver/runtime"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/sync/errgroup"
 )
 
 // EnvelopeHandler implements the envelope side processing of messages
@@ -67,71 +64,57 @@ var (
 // weavelet's tracing, logging, and metrics information.
 type Envelope struct {
 	// Fields below are constant after construction.
-	conn     *conn.EnvelopeConn // conn to weavelet
-	cmd      *pipe.Cmd          // command that started the weavelet
-	weavelet *protos.WeaveletSetupInfo
-	config   *protos.AppConfig
-	handler  EnvelopeHandler
-	logger   logtype.Logger
+	ctx        context.Context
+	ctxCancel  context.CancelFunc
+	weavelet   *protos.WeaveletSetupInfo
+	config     *protos.AppConfig
+	conn       *conn.EnvelopeConn // conn to weavelet
+	cmd        *pipe.Cmd          // command that started the weavelet
+	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
+	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
+	running    errgroup.Group
 
 	mu        sync.Mutex // guards the following fields
-	stopped   bool       // has Stop() been called?
 	profiling bool       // are we currently collecting a profile?
+	err       error      // error that stopped the envelope
 }
 
-// NewEnvelope creates a new envelope.
-func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *protos.AppConfig, h EnvelopeHandler) (*Envelope, error) {
-	if h == nil {
-		return nil, fmt.Errorf(
-			"unable to create envelope for weavelet %s due to nil handler",
-			logging.ShortenComponent(wlet.Id))
-	}
-	logger := logging.FuncLogger{
-		Opts: logging.Options{
-			App:        wlet.App,
-			Deployment: wlet.DeploymentId,
-			Component:  "envelope",
-			Weavelet:   wlet.Id,
-			Attrs:      []string{"serviceweaver/system", ""},
-		},
-		Write: h.RecvLogEntry,
-	}
+// NewEnvelope creates a new envelope, starting a weavelet process and
+// establishing a bidirectional connection with it. The weavelet process can be
+// stopped at any time by canceling the passed-in context.
+func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *protos.AppConfig) (*Envelope, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	e := &Envelope{
-		weavelet: wlet,
-		config:   config,
-		handler:  h,
-		logger:   logger,
+		ctx:       ctx,
+		ctxCancel: cancel,
+		weavelet:  wlet,
+		config:    config,
 	}
-	if err := e.init(ctx); err != nil {
-		return nil, err
-	}
-	return e, nil
-}
 
-func (e *Envelope) init(ctx context.Context) error {
-	// Form the command.
-	cmd := pipe.CommandContext(ctx, e.config.Binary, e.config.Args...)
+	// Form the weavelet command.
+	cmd := pipe.CommandContext(e.ctx, e.config.Binary, e.config.Args...)
 
-	// Create the pipes first, so we can fill env and detect any errors early.
+	// Create the pipes first, so we can fill cmd.Env and detect any errors early.
+	//
 	// Pipe for messages to weavelet.
 	toWeaveletFd, toWeavelet, err := cmd.WPipe()
 	if err != nil {
-		return fmt.Errorf("cannot create weavelet request pipe: %w", err)
+		return nil, fmt.Errorf("cannot create weavelet request pipe: %w", err)
 	}
 	// Pipe for messages to envelope.
 	toEnvelopeFd, toEnvelope, err := cmd.RPipe()
 	if err != nil {
-		return fmt.Errorf("cannot create weavelet response pipe: %w", err)
+		return nil, fmt.Errorf("cannot create weavelet response pipe: %w", err)
 	}
 
 	// Create pipes that capture child outputs.
 	outpipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("create stdout pipe: %w", err)
+		return nil, fmt.Errorf("create stdout pipe: %w", err)
 	}
 	errpipe, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("create stderr pipe: %w", err)
+		return nil, fmt.Errorf("create stderr pipe: %w", err)
 	}
 
 	cmd.Env = os.Environ()
@@ -141,33 +124,83 @@ func (e *Envelope) init(ctx context.Context) error {
 
 	// Start the command.
 	if err := cmd.Start(); err != nil {
-		return err
+		return nil, err
 	}
 
-	// Capture stdout and stderr from the weavelet.
-	// TODO(spetrovic): These need to be terminated and their errors taken into
-	// account. Fix along with fixing the Stop() behavior.
-	go func() {
-		if err := e.copyLines("stdout", outpipe); err != nil {
-			fmt.Fprintf(os.Stderr, "Error copying stdout: %v\n", err)
-		}
-	}()
-	go func() {
-		if err := e.copyLines("stderr", errpipe); err != nil {
-			fmt.Fprintf(os.Stderr, "Error copying stdout: %v\n", err)
-		}
-	}()
-
-	// Create the connection, now that the weavelet has (hopefully) started.
-	conn, err := conn.NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
+	// Create the connection, now that the weavelet is running.
+	conn, err := conn.NewEnvelopeConn(e.ctx, toEnvelope, toWeavelet, e.weavelet)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
-		return err
+		return nil, err
 	}
 
 	e.cmd = cmd
 	e.conn = conn
-	return nil
+	e.stdoutPipe = outpipe
+	e.stderrPipe = errpipe
+	return e, nil
+}
+
+// Serve accepts incoming messages from the weavelet. Messages that are received
+// are handled as an ordered sequence.
+func (e *Envelope) Serve(h EnvelopeHandler) {
+	// Capture stdout and stderr from the weavelet.
+	e.running.Go(func() error {
+		err := e.logLines("stdout", e.stdoutPipe, h)
+		e.stop(err)
+		return err
+	})
+	e.running.Go(func() error {
+		err := e.logLines("stderr", e.stderrPipe, h)
+		e.stop(err)
+		return err
+	})
+
+	// Start the goroutine watching the context for cancelation.
+	e.running.Go(func() error {
+		<-e.ctx.Done()
+		err := e.ctx.Err()
+		e.stop(err)
+		return err
+	})
+
+	// Start the goroutine to receive incoming messages.
+	e.running.Go(func() error {
+		e.conn.Serve(h)
+		err := e.conn.Wait()
+		e.stop(err)
+		return err
+	})
+
+	// Start the goroutine that waits for the weavelet process to stop.
+	e.running.Go(func() error {
+		err := e.cmd.Wait()
+		e.stop(err)
+		e.cmd.Cleanup()
+		return err
+	})
+}
+
+// Wait waits for the weavelet to terminate. It returns an error that
+// caused the weavelet to terminate. This method will never return
+// a non-nil error.
+func (e *Envelope) Wait() error {
+	e.running.Wait() //nolint:errcheck // supplanted by e.err
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.err
+}
+
+// REQUIRES: err != nil
+func (e *Envelope) stop(err error) {
+	// Record the first error.
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.err == nil {
+		e.err = err
+	}
+
+	// Cancel the context, if it is still active.
+	e.ctxCancel()
 }
 
 // toggleProfiling compares the value of e.profiling to the given expected
@@ -182,19 +215,6 @@ func (e *Envelope) toggleProfiling(expected bool) bool {
 	}
 	e.profiling = !e.profiling
 	return true
-}
-
-// Serve blocks accepting incoming messages from the weavelet.
-func (e *Envelope) Serve(ctx context.Context) error {
-	defer e.cmd.Cleanup()
-	connErr := e.conn.Serve() // blocks
-	cmdErr := e.cmd.Wait()    // blocks
-	for _, err := range []error{connErr, cmdErr} {
-		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, os.ErrClosed) && !errors.Is(err, syscall.ECHILD) {
-			return err
-		}
-	}
-	return nil
 }
 
 // WeaveletInfo returns information about the started weavelet.
@@ -227,25 +247,6 @@ func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*p
 	return prof, nil
 }
 
-// Stop permanently terminates the weavelet process managed by the envelope.
-func (e *Envelope) Stop() error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.stopped = true
-	if err := e.cmd.Process.Kill(); err != nil {
-		e.logger.Error("Failed to kill process", err, "pid", e.cmd.Process.Pid)
-		return err
-	}
-	// NOTE(mwhittaker): Serve also calls Wait. The redundant wait leads
-	// to a "waitid: no child processes" error which we ignore.
-	if _, err := e.cmd.Process.Wait(); err != nil && !errors.Is(err, syscall.ECHILD) {
-		e.logger.Error("Failed to kill process", err, "pid", e.cmd.Process.Pid)
-		return err
-	}
-	e.logger.Debug("Killed process", "pid", e.cmd.Process.Pid)
-	return nil
-}
-
 // ReadMetrics returns the set of all captured metrics.
 func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
 	return e.conn.GetMetricsRPC()
@@ -268,7 +269,7 @@ func (e *Envelope) UpdateRoutingInfo(info *protos.RoutingInfo) error {
 	return e.conn.UpdateRoutingInfoRPC(info)
 }
 
-func (e *Envelope) copyLines(component string, src io.Reader) error {
+func (e *Envelope) logLines(component string, src io.Reader, h EnvelopeHandler) error {
 	// Fill partial log entry.
 	entry := &protos.LogEntry{
 		App:       e.weavelet.App,
@@ -286,7 +287,7 @@ func (e *Envelope) copyLines(component string, src io.Reader) error {
 		if len(line) > 0 {
 			entry.Msg = string(dropNewline(line))
 			entry.TimeMicros = 0 // In case previous logSaver() call set it
-			e.handler.RecvLogEntry(entry)
+			h.RecvLogEntry(entry)
 		}
 		if err != nil {
 			return fmt.Errorf("capture %s: %w", component, err)
