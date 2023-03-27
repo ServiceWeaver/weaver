@@ -204,7 +204,7 @@ func (d *deployer) Init(config string) weaver.Instance {
 
 		// TODO(mwhittaker): Close this conn when the unit test ends. Right
 		// now, the conn lives forever. This means the pipes are also leaking.
-		// We might have to add a Close method to EnvelopeConn.
+		// We might have to add a Close method to envelopeConn.
 		if err := e.Serve(envelopeCtx); err != nil {
 			d.t.Error(err)
 		}

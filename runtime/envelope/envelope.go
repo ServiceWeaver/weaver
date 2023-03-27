@@ -61,7 +61,7 @@ type EnvelopeHandler interface {
 // weavelet's tracing, logging, and metrics information.
 type Envelope struct {
 	// Fields below are constant after construction.
-	conn     *EnvelopeConn // conn to weavelet
+	conn     *envelopeConn // conn to weavelet
 	cmd      *pipe.Cmd     // command that started the weavelet
 	weavelet *protos.WeaveletSetupInfo
 	config   *protos.AppConfig
@@ -106,7 +106,7 @@ func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *pr
 func (e *Envelope) init(ctx context.Context) error {
 	// Handle test scenario
 	if connIO, ok := ctx.Value(conn.ContextKey).(conn.IO); ok {
-		conn, err := NewEnvelopeConn(connIO.Reader, connIO.Writer, e.handler, e.weavelet)
+		conn, err := newEnvelopeConn(connIO.Reader, connIO.Writer, e.handler, e.weavelet)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
 			return err
@@ -165,7 +165,7 @@ func (e *Envelope) init(ctx context.Context) error {
 	}()
 
 	// Create the connection, now that the weavelet has (hopefully) started.
-	conn, err := NewEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
+	conn, err := newEnvelopeConn(toEnvelope, toWeavelet, e.handler, e.weavelet)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
 		return err
@@ -205,7 +205,7 @@ func (e *Envelope) Serve(ctx context.Context) error {
 
 // WeaveletInfo returns information about the started weavelet.
 func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
-	return e.conn.WeaveletInfo()
+	return e.conn.weavelet
 }
 
 // HealthStatus returns the health status of the weavelet.

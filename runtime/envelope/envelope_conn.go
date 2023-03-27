@@ -25,21 +25,21 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// EnvelopeConn is the envelope side of the connection between a weavelet
+// envelopeConn is the envelope side of the connection between a weavelet
 // and the envelope.
-type EnvelopeConn struct {
+type envelopeConn struct {
 	handler  EnvelopeHandler
 	conn     conn.Conn[*protos.WeaveletMsg]
 	weavelet *protos.WeaveletInfo
 }
 
-// NewEnvelopeConn creates the envelope side of the connection between a
+// newEnvelopeConn creates the envelope side of the connection between a
 // weavelet and an envelope. The connection uses (r,w) to carry messages.
 // Synthesized high-level events are passed to h.
 //
-// NewEnvelopeConn sends the provided protos.Weavelet to the weavelet.
-func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet *protos.WeaveletSetupInfo) (*EnvelopeConn, error) {
-	e := &EnvelopeConn{
+// newEnvelopeConn sends the provided protos.Weavelet to the weavelet.
+func newEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet *protos.WeaveletSetupInfo) (*envelopeConn, error) {
+	e := &envelopeConn{
 		handler: h,
 		conn:    conn.NewConn[*protos.WeaveletMsg]("envelope", r, w),
 	}
@@ -65,7 +65,7 @@ func NewEnvelopeConn(r io.ReadCloser, w io.WriteCloser, h EnvelopeHandler, wlet 
 
 // Serve accepts incoming messages from the weavelet. Messages that are received
 // are handled as an ordered sequence.
-func (e *EnvelopeConn) Serve() error {
+func (e *envelopeConn) Serve() error {
 	var group errgroup.Group
 	msgs := make(chan *protos.WeaveletMsg, 100)
 
@@ -127,14 +127,9 @@ func (e *EnvelopeConn) Serve() error {
 	return group.Wait()
 }
 
-// WeaveletInfo returns the information about the weavelet.
-func (e *EnvelopeConn) WeaveletInfo() *protos.WeaveletInfo {
-	return e.weavelet
-}
-
 // handleMessage handles all messages initiated by the weavelet. Note that
 // this method doesn't handle RPC reply messages sent over by the weavelet.
-func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
+func (e *envelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 	errReply := func(err error) *protos.EnvelopeMsg {
 		var errStr string
 		if err != nil {
