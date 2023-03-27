@@ -191,11 +191,16 @@ func TestStartStop(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			e.Serve(&handlerForTest{
-				logSaver: func(*protos.LogEntry) {
-					started.Store(true)
-				},
-			})
+			done := make(chan error)
+			go func() {
+				h := &handlerForTest{
+					logSaver: func(*protos.LogEntry) {
+						started.Store(true)
+					},
+				}
+				err := e.Serve(h)
+				done <- err
+			}()
 
 			// Wait for the weavelet to start.
 			for r := retry.Begin(); !started.Load() && r.Continue(ctx); {
@@ -208,12 +213,12 @@ func TestStartStop(t *testing.T) {
 				// Give the weavelet a chance to fail, and verify that it didn't.
 				time.Sleep(200 * time.Millisecond)
 				cancel()
-				if err := e.Wait(); !errors.Is(err, context.Canceled) {
+				if err := <-done; !errors.Is(err, context.Canceled) {
 					t.Fatalf("weavelet failed: %v", err)
 				}
 			} else {
 				// Wait for the weavelet to fail.
-				if err := e.Wait(); errors.Is(err, context.DeadlineExceeded) {
+				if err := <-done; errors.Is(err, context.DeadlineExceeded) {
 					t.Fatalf("weavelet didn't fail: %v", err)
 				}
 				cancel()
@@ -250,8 +255,7 @@ func TestBigPrints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.Serve(h)
-	if err := e.Wait(); errors.Is(err, context.DeadlineExceeded) {
+	if err := e.Serve(h); errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal("deadline exceeded error")
 	}
 
@@ -282,8 +286,7 @@ func TestCancel(t *testing.T) {
 
 	// Start the subprocess. It should be ended after a delay.
 	h := &handlerForTest{logSaver: testSaver(t)}
-	e.Serve(h)
-	if err := e.Wait(); !errors.Is(err, context.Canceled) {
+	if err := e.Serve(h); !errors.Is(err, context.Canceled) {
 		t.Fatal("weavelet failed unexpectedly")
 	}
 
@@ -347,10 +350,13 @@ func TestTraces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer e.Wait()
-
 	h := &handlerForTest{logSaver: testSaver(t)}
-	e.Serve(h)
+
+	done := make(chan error)
+	go func() {
+		err := e.Serve(h)
+		done <- err
+	}()
 
 	// Wait for traces.
 	expect := []string{"span1", "span2", "span3", "span4"}
@@ -367,7 +373,7 @@ func TestTraces(t *testing.T) {
 	// Give the weavelet a chance to fail, and verify that it didn't.
 	time.Sleep(100 * time.Millisecond)
 	cancel()
-	if err := e.Wait(); !errors.Is(err, context.Canceled) {
+	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("weavelet failed: %v", err)
 	}
 
@@ -376,16 +382,20 @@ func TestTraces(t *testing.T) {
 	}
 }
 
-func startEnvelope(ctx context.Context, t *testing.T) *Envelope {
+func startEnvelope(ctx context.Context, t *testing.T) (*Envelope, chan error) {
 	wlet, config := wlet(executable, "serve_conn")
 	e, err := NewEnvelope(ctx, wlet, config)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	h := &handlerForTest{logSaver: testSaver(t)}
-	e.Serve(h)
-	return e
+	done := make(chan error)
+	go func() {
+		h := &handlerForTest{logSaver: testSaver(t)}
+		err := e.Serve(h)
+		done <- err
+	}()
+	return e, done
 }
 
 func TestSingleProfile(t *testing.T) {
@@ -393,8 +403,8 @@ func TestSingleProfile(t *testing.T) {
 	// requests, one after another. Verify that both succeed and return
 	// non-empty profile data.
 	ctx, cancel := context.WithCancel(context.Background())
-	e := startEnvelope(ctx, t)
-	defer e.Wait()
+	e, done := startEnvelope(ctx, t)
+	defer func() { <-done }()
 	defer cancel()
 
 	for _, typ := range []protos.ProfileType{protos.ProfileType_Heap, protos.ProfileType_CPU} {
@@ -424,8 +434,8 @@ func TestConcurrentProfiles(t *testing.T) {
 	// requests. Verify that one of the requests returns an
 	// "already in progress" error.
 	ctx, cancel := context.WithCancel(context.Background())
-	e := startEnvelope(ctx, t)
-	defer e.Wait()
+	e, done := startEnvelope(ctx, t)
+	defer func() { <-done }()
 	defer cancel()
 
 	prof := func() error {

@@ -110,8 +110,7 @@ func RunBabysitter(ctx context.Context) error {
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
 	go c.run(ctx)
-	e.Serve(b)
-	return e.Wait()
+	return e.Serve(b)
 }
 
 type metricsCollector struct {
