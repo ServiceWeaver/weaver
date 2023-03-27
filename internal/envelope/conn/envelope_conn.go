@@ -262,6 +262,9 @@ func (e *EnvelopeConn) DoProfilingRPC(req *protos.RunProfiling) (*protos.Profile
 	if reply.Profile == nil {
 		return nil, fmt.Errorf("nil profile reply received from weavelet")
 	}
+	if len(reply.Profile.Data) == 0 && len(reply.Profile.Errors) > 0 {
+		return nil, fmt.Errorf("profiled with errors: %v", reply.Profile.Errors)
+	}
 	return reply.Profile, nil
 }
 
