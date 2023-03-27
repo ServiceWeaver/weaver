@@ -16,7 +16,6 @@ package weaver
 
 import (
 	"context"
-	"net"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
@@ -31,13 +30,6 @@ type env interface {
 	// WeaveletSetupInfo returns the weavelet's setup information sent by
 	// the deployer.
 	WeaveletSetupInfo() *protos.WeaveletSetupInfo
-
-	// WeaveletListener returns the internal listener the weavelet should
-	// listen on to receive messages from other weavelets.
-	WeaveletListener() net.Listener
-
-	// ServeWeaveletConn blocks serving requests from the envelope.
-	ServeWeaveletConn() error
 
 	// RegisterComponentToStart registers a component to start.
 	RegisterComponentToStart(ctx context.Context, component string, routed bool) error

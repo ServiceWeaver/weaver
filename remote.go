@@ -17,7 +17,6 @@ package weaver
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -65,11 +64,6 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 // WeaveletSetupInfo implements the Env interface.
 func (e *remoteEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
 	return e.info
-}
-
-// WeaveletListener implements the Env interface.
-func (e *remoteEnv) WeaveletListener() net.Listener {
-	return e.conn.Listener()
 }
 
 // ServeWeaveletConn implements the Env interface.

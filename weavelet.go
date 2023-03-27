@@ -212,10 +212,10 @@ func (w *weavelet) start() (Instance, error) {
 	// For a singleprocess deployment, no server is launched because all
 	// method invocations are process-local and executed as regular go function
 	// calls.
-	if !w.info.SingleProcess {
-		startWork(w.ctx, "serve weavelet conn", w.env.ServeWeaveletConn)
+	if remote, ok := w.env.(*remoteEnv); ok {
+		startWork(w.ctx, "serve weavelet conn", remote.conn.Serve)
 
-		lis := w.env.WeaveletListener()
+		lis := remote.conn.Listener()
 		addr := call.NetworkAddress(fmt.Sprintf("tcp://%s", lis.Addr().String()))
 		w.dialAddr = addr
 		for _, c := range w.componentsByName {
