@@ -27,6 +27,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -66,6 +67,7 @@ type Envelope struct {
 	config   *protos.AppConfig
 	handler  EnvelopeHandler
 	logger   logtype.Logger
+	metrics  metrics.Importer
 
 	mu        sync.Mutex // guards the following fields
 	stopped   bool       // has Stop() been called?
@@ -102,6 +104,17 @@ func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *pr
 }
 
 func (e *Envelope) init(ctx context.Context) error {
+	// Handle test scenario
+	if connIO, ok := ctx.Value(conn.ContextKey).(conn.IO); ok {
+		conn, err := NewEnvelopeConn(connIO.Reader, connIO.Writer, e.handler, e.weavelet)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to start envelope conn: %v\n", err)
+			return err
+		}
+		e.conn = conn
+		return nil
+	}
+
 	// Form the command.
 	cmd := pipe.CommandContext(ctx, e.config.Binary, e.config.Args...)
 
@@ -245,7 +258,14 @@ func (e *Envelope) Stop() error {
 
 // ReadMetrics returns the set of all captured metrics.
 func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
-	return e.conn.GetMetricsRPC()
+	reply, err := e.conn.conn.RPC(&protos.EnvelopeMsg{SendMetrics: true})
+	if err != nil {
+		return nil, err
+	}
+	if reply.Metrics == nil {
+		return nil, fmt.Errorf("nil metrics reply received from weavelet")
+	}
+	return e.metrics.Import(reply.Metrics)
 }
 
 // GetLoadInfo returns the latest load information at the weavelet.

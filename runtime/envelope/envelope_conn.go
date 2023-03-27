@@ -20,7 +20,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
-	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
@@ -31,7 +30,6 @@ import (
 type EnvelopeConn struct {
 	handler  EnvelopeHandler
 	conn     conn.Conn[*protos.WeaveletMsg]
-	metrics  metrics.Importer
 	weavelet *protos.WeaveletInfo
 }
 
@@ -175,16 +173,4 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg) error {
 		e.conn.Cleanup(err)
 		return err
 	}
-}
-
-// GetMetricsRPC requests the weavelet to return its up-to-date metrics.
-func (e *EnvelopeConn) GetMetricsRPC() ([]*metrics.MetricSnapshot, error) {
-	reply, err := e.conn.RPC(&protos.EnvelopeMsg{SendMetrics: true})
-	if err != nil {
-		return nil, err
-	}
-	if reply.Metrics == nil {
-		return nil, fmt.Errorf("nil metrics reply received from weavelet")
-	}
-	return e.metrics.Import(reply.Metrics)
 }

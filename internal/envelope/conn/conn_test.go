@@ -15,6 +15,7 @@
 package conn_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -44,7 +45,7 @@ func TestMetricPropagation(t *testing.T) {
 	var metrics map[string]float64
 	readMetrics := func() {
 		t.Helper()
-		list, err := envelope.GetMetricsRPC()
+		list, err := envelope.ReadMetrics()
 		if err != nil {
 			t.Fatalf("metrics fetch: %v", err)
 		}
@@ -81,7 +82,7 @@ func TestMetricPropagation(t *testing.T) {
 	checkValue("TestMetricPropagation.hist", 1000)
 }
 
-func makeConnections(t *testing.T, handler envelope.EnvelopeHandler) (*envelope.EnvelopeConn, *conn.WeaveletConn) {
+func makeConnections(t *testing.T, handler envelope.EnvelopeHandler) (*envelope.Envelope, *conn.WeaveletConn) {
 	t.Helper()
 
 	// Create the pipes. Note that we use os.Pipe instead of io.Pipe. The pipes
@@ -112,15 +113,20 @@ func makeConnections(t *testing.T, handler envelope.EnvelopeHandler) (*envelope.
 	started.Add(2)
 	done := &sync.WaitGroup{}
 	done.Add(2)
-	var e *envelope.EnvelopeConn
+	var e *envelope.Envelope
 	go func() {
 		defer done.Done()
+
+		ctx := context.WithValue(context.Background(), conn.ContextKey, conn.IO{
+			Reader: eReader,
+			Writer: eWriter,
+		})
 		var err error
-		if e, err = envelope.NewEnvelopeConn(eReader, eWriter, handler, wlet); err != nil {
+		if e, err = envelope.NewEnvelope(ctx, wlet, &protos.AppConfig{}, handler); err != nil {
 			panic(err)
 		}
 		started.Done()
-		if err := e.Serve(); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+		if err := e.Serve(ctx); err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
 			t.Errorf("envelope failed: %#v", err)
 		}
 	}()

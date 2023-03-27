@@ -33,8 +33,7 @@ import (
 )
 
 type pipeForTest struct {
-	envelopeConn *envelope.EnvelopeConn
-	wletConn     *conn.WeaveletConn
+	wletConn *conn.WeaveletConn
 
 	waitToExportSpans sync.WaitGroup // wait for trace spans to be exported
 	spans             []sdk.ReadOnlySpan
@@ -255,7 +254,7 @@ func TestTracesReadWrite(t *testing.T) {
 	}
 
 	pipe := &pipeForTest{}
-	pipe.envelopeConn, pipe.wletConn = makeConnections(t, pipe)
+	_, pipe.wletConn = makeConnections(t, pipe)
 	msg, err := writeAndRead(&traceio.ReadSpan{Span: expect}, pipe)
 	if err != nil {
 		t.Fatal(err)

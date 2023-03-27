@@ -103,6 +103,9 @@ func (c *Cmd) Start() error {
 
 // Wait is identical to exec.Command.Wait.
 func (c *Cmd) Wait() error {
+	if c == nil {
+		return nil
+	}
 	if err := c.Cmd.Wait(); err != nil {
 		return err
 	}
@@ -112,6 +115,9 @@ func (c *Cmd) Wait() error {
 
 // Cleanup cleans up any unused resources.
 func (c *Cmd) Cleanup() {
+	if c == nil {
+		return
+	}
 	closeAll(&c.closeAfterStart)
 	closeAll(&c.closeAfterWait)
 }
