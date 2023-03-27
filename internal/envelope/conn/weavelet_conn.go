@@ -221,7 +221,7 @@ func (d *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*pr
 }
 
 func (d *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, error) {
-	response, err := d.conn.rpc(request)
+	response, err := d.conn.doBlockingRPC(request)
 	if err != nil {
 		err := fmt.Errorf("connection to envelope broken: %w", err)
 		d.conn.cleanup(err)

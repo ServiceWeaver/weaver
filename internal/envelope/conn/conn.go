@@ -129,7 +129,9 @@ func (c *conn) send(msg proto.Message) error {
 	return err
 }
 
-func (c *conn) rpc(request proto.Message) (proto.Message, error) {
+// doBlockingRPC performs an RPC request, and blocks until a response is received by
+// handleResponse, or cleanup is called with an error.
+func (c *conn) doBlockingRPC(request proto.Message) (proto.Message, error) {
 	ch := c.startRPC(request)
 	r, ok := <-ch
 	if !ok {
