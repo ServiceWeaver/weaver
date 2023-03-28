@@ -17,10 +17,10 @@ package call
 import (
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/exp/slog"
 )
 
 // ClientOptions are the options to configure an RPC client.
@@ -29,7 +29,7 @@ type ClientOptions struct {
 	Balancer Balancer
 
 	// Logger. Defaults to a logger that logs to stderr.
-	Logger logtype.Logger
+	Logger *slog.Logger
 
 	// If non-zero, each call will optimistically spin for a given duration
 	// before blocking, waiting for the results.
@@ -43,7 +43,7 @@ type ClientOptions struct {
 // ServerOption are the options to configure an RPC server.
 type ServerOptions struct {
 	// Logger. Defaults to a logger that logs to stderr.
-	Logger logtype.Logger
+	Logger *slog.Logger
 
 	// Tracer. Defaults to a discarding tracer.
 	Tracer trace.Tracer

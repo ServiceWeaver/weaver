@@ -21,19 +21,19 @@ import (
 	"net/http/httputil"
 	"sync"
 
-	"github.com/ServiceWeaver/weaver/internal/logtype"
+	"golang.org/x/exp/slog"
 )
 
 // Proxy is an HTTP proxy that forwards traffic to a set of backends.
 type Proxy struct {
-	logger   logtype.Logger        // logger
+	logger   *slog.Logger          // logger
 	reverse  httputil.ReverseProxy // underlying proxy
 	mu       sync.Mutex            // guards backends
 	backends []string              // backend addresses
 }
 
 // NewProxy returns a new proxy.
-func NewProxy(logger logtype.Logger) *Proxy {
+func NewProxy(logger *slog.Logger) *Proxy {
 	p := &Proxy{logger: logger}
 	p.reverse = httputil.ReverseProxy{Director: p.director}
 	return p

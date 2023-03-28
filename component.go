@@ -21,6 +21,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/register"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/exp/slog"
 )
 
 // Glossary of component related types:
@@ -40,7 +41,7 @@ import (
 // that component.
 type Instance interface {
 	// Logger returns a logger that associates its log entries with this component.
-	Logger() Logger
+	Logger() *slog.Logger
 
 	// Listener returns a network listener with the given name that is suitable
 	// for hosting an HTTP server.
@@ -93,7 +94,7 @@ type component struct {
 	implInit sync.Once      // used to initialize impl, logger
 	implErr  error          // non-nil if impl creation fails
 	impl     *componentImpl // only ever non-nil if this component is local
-	logger   Logger         // read-only after implInit.Do()
+	logger   *slog.Logger   // read-only after implInit.Do()
 	tracer   trace.Tracer   // read-only after implInit.Do()
 
 	stubInit sync.Once      // used to initialize stub
@@ -174,7 +175,7 @@ func (l *Listener) ProxyAddr() string {
 func (c *componentImpl) rep() *component { return c.component }
 
 // Logger returns a logger that associates its log entries with this component.
-func (c *componentImpl) Logger() Logger { return c.component.logger }
+func (c *componentImpl) Logger() *slog.Logger { return c.component.logger }
 
 // Listener returns a network listener with the given name.
 func (c *componentImpl) Listener(name string, options ListenerOptions) (*Listener, error) {

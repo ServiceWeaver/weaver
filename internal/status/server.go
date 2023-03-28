@@ -19,11 +19,11 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -47,7 +47,7 @@ type Server interface {
 
 // RegisterServer registers a Server's methods with the provided mux under the
 // /debug/serviceweaver/ prefix. You can use a Client to interact with a Status server.
-func RegisterServer(mux *http.ServeMux, server Server, logger logtype.Logger) {
+func RegisterServer(mux *http.ServeMux, server Server, logger *slog.Logger) {
 	mux.Handle(statusEndpoint, protomsg.HandlerThunk(logger, server.Status))
 	mux.Handle(metricsEndpoint, protomsg.HandlerThunk(logger, server.Metrics))
 	mux.Handle(profileEndpoint, protomsg.HandlerFunc(logger, server.Profile))

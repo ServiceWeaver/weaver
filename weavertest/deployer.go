@@ -24,7 +24,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
@@ -33,6 +32,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -60,7 +60,7 @@ type deployer struct {
 	t          testing.TB                // the unit test
 	wlet       *protos.WeaveletSetupInfo // info for subprocesses
 	config     *protos.AppConfig         // application config
-	logger     logtype.Logger            // logger
+	logger     *slog.Logger              // logger
 	colocation map[string]string         // maps component to group
 	running    errgroup.Group
 
@@ -127,7 +127,7 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupIn
 		groups:     map[string]*group{},
 		log:        true,
 	}
-	d.logger = logging.FuncLogger{
+	d.logger = slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       wlet.App,
 			Component: "deployer",
@@ -135,7 +135,7 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupIn
 			Attrs:     []string{"serviceweaver/system", ""},
 		},
 		Write: d.RecvLogEntry,
-	}
+	})
 
 	t.Cleanup(func() {
 		if err := d.cleanup(); err != nil {

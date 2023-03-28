@@ -21,6 +21,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
 )
 
 type ctxKeyLogger struct{}
@@ -50,7 +51,7 @@ func (r *responseRecorder) WriteHeader(statusCode int) {
 }
 
 type logHandler struct {
-	logger weaver.Logger
+	logger *slog.Logger
 	next   http.Handler
 }
 

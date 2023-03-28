@@ -78,11 +78,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -137,7 +137,7 @@ type reconnectingConnection struct {
 
 // clientConnection manages one network connection on the client-side.
 type clientConnection struct {
-	logger         logtype.Logger
+	logger         *slog.Logger
 	endpoint       Endpoint
 	c              net.Conn
 	cbuf           *bufio.Reader    // Buffered reader wrapped around c
@@ -839,7 +839,7 @@ func (c *serverConnection) shutdown(details string, err error) {
 	}
 }
 
-func logError(logger logtype.Logger, details string, err error) {
+func logError(logger *slog.Logger, details string, err error) {
 	if errors.Is(err, context.Canceled) ||
 		errors.Is(err, io.EOF) ||
 		errors.Is(err, io.ErrUnexpectedEOF) ||

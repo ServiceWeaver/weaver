@@ -30,7 +30,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/files"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -44,6 +43,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -327,9 +327,9 @@ func (e *singleprocessEnv) CreateTraceExporter() sdktrace.SpanExporter {
 	return traceio.NewWriter(e.traceSaver)
 }
 
-func (e *singleprocessEnv) SystemLogger() logtype.Logger {
+func (e *singleprocessEnv) SystemLogger() *slog.Logger {
 	// In single process execution, system logs are hidden.
-	return discardingLogger{}
+	return slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout))
 }
 
 // serveHTTP serves HTTP traffic on the provided listener using the provided

@@ -15,10 +15,17 @@
 package logging
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/exp/slog"
 )
 
 func TestTestLogger(t *testing.T) {
@@ -38,15 +45,99 @@ func TestTestLogger(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 }
 
-func BenchmarkMakeEntry(b *testing.B) {
-	opt := Options{
-		App:        "app",
-		Deployment: "dep",
-		Component:  "comp",
-		Weavelet:   "wlet",
+func TestWithAttribute(t *testing.T) {
+	var got []string
+	logSaver := func(e *protos.LogEntry) {
+		got = e.Attrs
 	}
-	for i := 0; i < b.N; i++ {
-		e := makeEntry("info", "test", nil, 0, opt)
-		proto.Marshal(e)
+	logger := newAttrLogger("app", "version", "component", "weavelet", logSaver)
+	logger.Info("", "foo", "bar")
+	want := []string{"foo", "bar"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected attributes (-want +got):\n%s", diff)
 	}
+}
+
+func TestWithAttributes(t *testing.T) {
+	var got []string
+	logSaver := func(e *protos.LogEntry) {
+		got = e.Attrs
+	}
+	logger := newAttrLogger("app", "version", "component", "weavelet", logSaver)
+	logger.Info("", "foo", "bar", "baz", "qux")
+	want := []string{"foo", "bar", "baz", "qux"}
+	less := func(x, y string) bool { return x < y }
+	if diff := cmp.Diff(want, got, cmpopts.SortSlices(less)); diff != "" {
+		t.Fatalf("unexpected attributes (-want +got):\n%s", diff)
+	}
+}
+
+func TestConcurrentAttributes(t *testing.T) {
+	// Test plan: start a number of goroutines that emit attributes with sequential
+	// values. Confirm that attributes are saved in the same sequential order
+	// for each goroutine.
+	var mu sync.Mutex
+	var allAttributes []string
+	logSaver := func(e *protos.LogEntry) {
+		if len(e.Attrs) != 2 {
+			panic(fmt.Sprintf("too many attributes, want 2, got %d", len(e.Attrs)))
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		allAttributes = append(allAttributes, e.Attrs...)
+	}
+	logger := newAttrLogger("app", "version", "component", "weavelet", logSaver)
+	var wait sync.WaitGroup
+	const parallelism = 5
+	wait.Add(parallelism)
+	for i := 0; i < parallelism; i++ {
+		i := i
+		go func() {
+			defer wait.Done()
+			l := fmt.Sprintf("routine%d", i)
+			for j := 1; j < 100000; j++ {
+				logger.Info("", l, fmt.Sprintf("value%d", j))
+			}
+		}()
+	}
+	wait.Wait()
+
+	var lastVal [parallelism]int
+	for i := 0; i < len(allAttributes)-1; i += 2 {
+		attribute := allAttributes[i]
+		value := allAttributes[i+1]
+		if !strings.HasPrefix(attribute, "routine") {
+			t.Fatalf("invalid attribute format, want routine<idx>, got %s", attribute)
+		}
+		rIdx, err := strconv.Atoi(strings.TrimPrefix(attribute, "routine"))
+		if err != nil {
+			t.Fatalf("invalid routine index %s: %v", attribute, err)
+		}
+		if rIdx < 0 || rIdx >= parallelism {
+			t.Fatalf("out-of-bound routine index %s", attribute)
+		}
+		if !strings.HasPrefix(value, "value") {
+			t.Fatalf("invalid value format, want value<idx>, got %s", value)
+		}
+		vIdx, err := strconv.Atoi(strings.TrimPrefix(value, "value"))
+		if err != nil {
+			t.Fatalf("invalid value index %s: %v", value, err)
+		}
+		if lastVal[rIdx]+1 != vIdx {
+			t.Fatalf("unexpected value index for routine %d, want %d, got %d", rIdx, lastVal[rIdx]+1, vIdx)
+		}
+		lastVal[rIdx] = vIdx
+	}
+}
+
+func newAttrLogger(app, version, component, weavelet string, saver func(*protos.LogEntry)) *slog.Logger {
+	return slog.New(&LogHandler{
+		Opts: Options{
+			App:        app,
+			Deployment: version,
+			Component:  component,
+			Weavelet:   weavelet,
+		},
+		Write: saver,
+	})
 }
