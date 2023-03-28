@@ -20,6 +20,7 @@ import (
 	"io"
 	sync "sync"
 
+	"github.com/ServiceWeaver/weaver/internal/queue"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -54,6 +55,11 @@ type EnvelopeConn struct {
 	conn      conn
 	metrics   metrics.Importer
 	weavelet  *protos.WeaveletInfo
+	running   errgroup.Group
+	msgs      queue.Queue[*protos.WeaveletMsg]
+
+	once sync.Once
+	err  error
 }
 
 // NewEnvelopeConn creates the connection to an (already started) weavelet
@@ -68,6 +74,7 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, wle
 		ctxCancel: cancel,
 		conn:      conn{name: "envelope", reader: r, writer: w},
 	}
+
 	// Send the setup information to the weavelet, and receive the weavelet
 	// information in return.
 	if err := e.conn.send(&protos.EnvelopeMsg{WeaveletSetupInfo: wlet}); err != nil {
@@ -86,35 +93,24 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, wle
 		return nil, err
 	}
 	e.weavelet = reply.WeaveletInfo
-	return e, nil
-}
-
-// Serve accepts incoming messages from the weavelet. Messages that are received
-// are handled as an ordered sequence. This call blocks until the connection
-// terminates, returning the error that caused it to terminate. This method will
-// never return a non-nil error.
-func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
-	msgs := make(chan *protos.WeaveletMsg, 100)
-	var running errgroup.Group
-
-	var stopErr error
-	var once sync.Once
-	stop := func(err error) {
-		once.Do(func() {
-			stopErr = err
-		})
-		e.ctxCancel()
-		e.conn.cleanup(err)
-	}
 
 	// Spawn a goroutine that repeatedly reads messages from the pipe. A
 	// received message is either an RPC response or an RPC request. conn.recv
-	// handles RPC responses internally but returns all RPC requests. The
-	// reading goroutine forwards those requests to the goroutine spawned below
-	// for execution.
+	// handles RPC responses internally but returns all RPC requests. We store
+	// the returned RPC requests in a queue to be handled after Serve() is
+	// called.
 	//
-	// We have to split receiving requests and processing requests across two
-	// different goroutines to avoid deadlocking. Assume for contradiction that
+	// There are two reasons to split the tasks of receiving requests and
+	// processing requests across two different goroutines.
+	//
+	// The first reason is to allow envelope-issued RPCs to run and complete
+	// before envelope's Serve() method has been called:
+	//
+	//     e, err := NewEnvelopeConn(ctx, r, w, wlet)
+	//     ms, err := e.GetMetricsRPC() // should complete
+	//     e.Serve()
+	//
+	// The second reason is to avoid deadlocking. Assume for contradiction that
 	// we called conn.recv and handleMessage in the same goroutine:
 	//
 	//     for {
@@ -126,46 +122,69 @@ func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
 	// If an EnvelopeHandler, invoked by handleMessage, calls an RPC on the
 	// weavelet (e.g., GetHealth), then it will block forever, as the RPC
 	// response will never be read by conn.recv.
-	//
-	// TODO(mwhittaker): I think we may be able to clean up this code if we use
-	// four pipes instead of two. The four pipes will be divided into two
-	// pairs. One pair will be used for RPCs from the envelope to the weavelet
-	// (e.g., GetHealth, GetMetrics, GetLoad, UpdateComponents,
-	// UpdateRoutingInfo). The other pair will be used for RPCs from the
-	// weavelet to the envelope (e.g., StartComponent, RegisterReplica,
-	// RecvLogEntry).
-	running.Go(func() error {
+	e.running.Go(func() error {
 		for {
 			msg := &protos.WeaveletMsg{}
 			if err := e.conn.recv(msg); err != nil {
-				stop(err)
+				e.stop(err)
 				return err
 			}
-			msgs <- msg
+			e.msgs.Push(msg)
 		}
 	})
 
-	// Spawn a goroutine to handle RPC requests. Note that we don't spawn one
-	// goroutine for every request because we must guarantee that requests are
-	// processed in order. Logs, for example, need to be received and processed
-	// in order.
-	running.Go(func() error {
+	// Start a goroutine that watches for context cancelation.
+	// NOTE: This goroutine is redundant but useful if the caller never
+	// calls e.Serve().
+	e.running.Go(func() error {
+		<-e.ctx.Done()
+		e.stop(e.ctx.Err())
+		return e.ctx.Err()
+	})
+
+	return e, nil
+}
+
+// REQUIRES: err != nil
+func (e *EnvelopeConn) stop(err error) {
+	e.once.Do(func() {
+		e.err = err
+	})
+
+	e.ctxCancel()
+	e.conn.cleanup(err)
+}
+
+// Serve accepts incoming messages from the weavelet. Messages that are received
+// are handled as an ordered sequence. This call blocks until the connection
+// terminates, returning the error that caused it to terminate. This method will
+// never return a non-nil error.
+func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
+	// Spawn a goroutine to handle envelope-issued RPC requests. Note that we
+	// don't spawn one goroutine for every request because we must guarantee
+	// that requests are processed in order. Logs, for example, need to be
+	// received and processed in order.
+	//
+	// NOTE: it is possible for stop() to have already been called at this
+	// point. This is fine as this goroutine will fail immediately after
+	// starting.
+	e.running.Go(func() error {
 		for {
-			select {
-			case msg := <-msgs:
-				if err := e.handleMessage(msg, h); err != nil {
-					stop(err)
-					return err
-				}
-			case <-e.ctx.Done():
-				stop(e.ctx.Err())
-				return e.ctx.Err()
+			// Read the next queue message.
+			msg, err := e.msgs.Pop(e.ctx)
+			if err != nil { // e.ctx canceled
+				e.stop(err)
+				return err
+			}
+			if err := e.handleMessage(msg, h); err != nil {
+				e.stop(err)
+				return err
 			}
 		}
 	})
 
-	running.Wait() //nolint:errcheck // supplanted by stopErr
-	return stopErr
+	e.running.Wait() //nolint:errcheck // supplanted by e.err
+	return e.err
 }
 
 // WeaveletInfo returns the information about the weavelet.

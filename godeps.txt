@@ -368,6 +368,7 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     bytes
     context
     fmt
+    github.com/ServiceWeaver/weaver/internal/queue
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/metrics
@@ -441,6 +442,10 @@ github.com/ServiceWeaver/weaver/internal/proxy
     math/rand
     net/http
     net/http/httputil
+    sync
+github.com/ServiceWeaver/weaver/internal/queue
+    context
+    github.com/ServiceWeaver/weaver/internal/cond
     sync
 github.com/ServiceWeaver/weaver/internal/register
     fmt
