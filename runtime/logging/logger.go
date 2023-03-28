@@ -109,11 +109,11 @@ func (h *LogHandler) makeEntry(rec slog.Record) *protos.LogEntry {
 	}
 
 	// Get the file and line information.
-	details := runtime.FuncForPC(rec.PC)
-	if details != nil {
-		file, line := details.FileLine(rec.PC)
-		entry.File = file
-		entry.Line = int32(line)
+	fs := runtime.CallersFrames([]uintptr{rec.PC})
+	if fs != nil {
+		frame, _ := fs.Next()
+		entry.File = frame.File
+		entry.Line = int32(frame.Line)
 	}
 	return &entry
 }
