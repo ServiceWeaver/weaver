@@ -38,6 +38,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -113,9 +114,9 @@ func checkFile() error {
 	return err
 }
 
-// wlet returns a WeaveletSetupInfo and AppConfig for testing.
-func wlet(binary string, args ...string) (*protos.WeaveletSetupInfo, *protos.AppConfig) {
-	weavelet := &protos.WeaveletSetupInfo{
+// wlet returns a EnvelopeInfo and AppConfig for testing.
+func wlet(binary string, args ...string) (*protos.EnvelopeInfo, *protos.AppConfig) {
+	weavelet := &protos.EnvelopeInfo{
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
@@ -143,7 +144,7 @@ type handlerForTest struct {
 
 var _ EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) RecvTraceSpans(spans []sdktrace.ReadOnlySpan) error {
+func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, span := range spans {
@@ -158,12 +159,20 @@ func (h *handlerForTest) getTraceSpanNames() []string {
 	return h.traces
 }
 
-func (h *handlerForTest) RecvLogEntry(entry *protos.LogEntry)           { h.logSaver(entry) }
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error { return nil }
-func (h *handlerForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+func (h *handlerForTest) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
+	h.logSaver(entry)
+	return nil
+}
+
+func (*handlerForTest) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	return nil, nil
 }
-func (h *handlerForTest) ExportListener(*protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+
+func (*handlerForTest) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	return nil, nil
+}
+
+func (*handlerForTest) ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, nil
 }
 
@@ -392,7 +401,7 @@ func TestRPCBeforeServe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	health := e.HealthStatus()
+	health := e.GetHealth()
 	if health != protos.HealthStatus_HEALTHY {
 		t.Fatalf("expected healthy, got %v", health)
 	}
@@ -454,18 +463,15 @@ func TestSingleProfile(t *testing.T) {
 		typ := typ
 		t.Run(typ.String(), func(t *testing.T) {
 			// Send a profiling request and wait for a reply.
-			req := &protos.RunProfiling{
+			req := &protos.GetProfileRequest{
 				ProfileType:   typ,
 				CpuDurationNs: int64(100 * time.Millisecond / time.Nanosecond),
 			}
-			reply, err := e.RunProfiling(ctx, req)
+			data, err := e.GetProfile(req)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(reply.Errors) > 0 {
-				t.Fatalf("profiling error: %v", reply.Errors)
-			}
-			if len(reply.Data) == 0 {
+			if len(data) == 0 {
 				t.Fatal("empty profile data")
 			}
 		})
@@ -482,11 +488,11 @@ func TestConcurrentProfiles(t *testing.T) {
 	defer cancel()
 
 	prof := func() error {
-		req := &protos.RunProfiling{
+		req := &protos.GetProfileRequest{
 			ProfileType:   protos.ProfileType_CPU,
 			CpuDurationNs: int64(9999 * time.Hour / time.Nanosecond), // ensure overlap
 		}
-		_, err := e.RunProfiling(ctx, req)
+		_, err := e.GetProfile(req)
 		return err
 	}
 

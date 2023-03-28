@@ -123,7 +123,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 	config.RolloutNanos = int64(parsed.Rollout)
 	for _, colocate := range parsed.Colocate {
 		group := &protos.ComponentGroup{Components: colocate}
-		config.SameProcess = append(config.SameProcess, group)
+		config.Colocate = append(config.Colocate, group)
 	}
 	if err := canonicalizeConfig(config, filepath.Dir(file)); err != nil {
 		return err
@@ -166,7 +166,7 @@ func canonicalizeConfig(c *protos.AppConfig, dir string) error {
 // checkSameProcess checks that the same_process entry is valid.
 func checkSameProcess(c *protos.AppConfig) error {
 	seen := map[string]struct{}{}
-	for _, components := range c.SameProcess {
+	for _, components := range c.Colocate {
 		for _, component := range components.Components {
 			if _, ok := seen[component]; ok {
 				return fmt.Errorf("component %q placed multiple times", component)

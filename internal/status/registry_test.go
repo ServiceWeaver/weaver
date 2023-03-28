@@ -20,9 +20,9 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
-	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 // fakeClient is a fake Server that returns the provided status and error.
@@ -42,7 +42,7 @@ func (f fakeClient) Metrics(context.Context) (*Metrics, error) {
 }
 
 // Profile implements the Server interface.
-func (f fakeClient) Profile(context.Context, *protos.RunProfiling) (*protos.Profile, error) {
+func (f fakeClient) Profile(context.Context, *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
 

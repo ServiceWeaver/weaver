@@ -97,7 +97,7 @@ type manager struct {
 	//
 	// traceSaver is called concurrently from multiple goroutines, so it should
 	// be thread safe.
-	traceSaver func(spans *protos.Spans) error
+	traceSaver func(spans *protos.TraceSpans) error
 
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
@@ -107,11 +107,10 @@ type manager struct {
 	// itself.
 	colocation map[string]string
 
-	mu        sync.Mutex                                    // guards following structures, but not contents
-	listeners map[string]*protos.Listener                   // listeners, by name
-	groups    map[string]*group                             // groups, by group name
-	proxies   map[string]*proxyInfo                         // proxies, by listener name
-	metrics   map[groupReplicaInfo][]*protos.MetricSnapshot // latest metrics, by group name and replica id
+	mu      sync.Mutex                                    // guards following structures, but not contents
+	groups  map[string]*group                             // groups, by group name
+	proxies map[string]*proxyInfo                         // proxies, by listener name
+	metrics map[groupReplicaInfo][]*protos.MetricSnapshot // latest metrics, by group name and replica id
 }
 
 type group struct {
@@ -162,7 +161,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
-	traceSaver := func(spans *protos.Spans) error {
+	traceSaver := func(spans *protos.TraceSpans) error {
 		var traces []trace.ReadOnlySpan
 		for _, span := range spans.Span {
 			traces = append(traces, &traceio.ReadSpan{Span: span})
@@ -172,7 +171,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 
 	// Form co-location.
 	colocation := map[string]string{}
-	for _, group := range dep.App.SameProcess {
+	for _, group := range dep.App.Colocate {
 		for _, c := range group.Components {
 			colocation[c] = group.Components[0]
 		}
@@ -190,7 +189,6 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 		statsProcessor: imetrics.NewStatsProcessor(),
 		started:        time.Now(),
 		colocation:     colocation,
-		listeners:      map[string]*protos.Listener{},
 		groups:         map[string]*group{},
 		proxies:        map[string]*proxyInfo{},
 		metrics:        map[groupReplicaInfo][]*protos.MetricSnapshot{},
@@ -252,7 +250,7 @@ func (m *manager) run() error {
 	}()
 
 	// Start the main process.
-	if err := m.startComponent(m.ctx, &protos.ComponentToStart{
+	if err := m.startComponent(m.ctx, &protos.ActivateComponentRequest{
 		Component: "main",
 	}); err != nil {
 		return err
@@ -384,7 +382,7 @@ func (m *manager) Metrics(context.Context) (*status.Metrics, error) {
 }
 
 // Profile implements the status.Server interface.
-func (m *manager) Profile(context.Context, *protos.RunProfiling) (*protos.Profile, error) {
+func (m *manager) Profile(context.Context, *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
 	return nil, nil
 }
 
@@ -491,14 +489,9 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Update our state.
-	if _, ok := m.listeners[req.Listener.Name]; !ok {
-		m.listeners[req.Listener.Name] = req.Listener
-	}
-
 	// Update the proxy.
-	if p, ok := m.proxies[req.Listener.Name]; ok {
-		p.proxy.AddBackend(req.Listener.Addr)
+	if p, ok := m.proxies[req.Listener]; ok {
+		p.proxy.AddBackend(req.Address)
 		return &protos.ExportListenerReply{ProxyAddress: p.addr}, nil
 	}
 
@@ -513,9 +506,9 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	addr := lis.Addr().String()
 	m.logger.Info("Proxy listening", "address", addr)
 	proxy := proxy.NewProxy(m.logger)
-	proxy.AddBackend(req.Listener.Addr)
-	m.proxies[req.Listener.Name] = &proxyInfo{
-		listener: req.Listener.Name,
+	proxy.AddBackend(req.Address)
+	m.proxies[req.Listener] = &proxyInfo{
+		listener: req.Listener,
 		proxy:    proxy,
 		addr:     addr,
 	}
@@ -527,7 +520,7 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
 }
 
-func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToStart) error {
+func (m *manager) startComponent(ctx context.Context, req *protos.ActivateComponentRequest) error {
 	g := m.group(req.Component)
 
 	// Record the component.
@@ -554,12 +547,7 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ComponentToSta
 
 		routing.Val.Replicas = addresses
 		if req.Routed {
-			assignment := &protos.Assignment{
-				App:          m.dep.App.Name,
-				DeploymentId: m.dep.Id,
-				Component:    req.Component,
-			}
-			routing.Val.Assignment = routingAlgo(assignment, routing.Val.Replicas)
+			routing.Val.Assignment = routingAlgo(&protos.Assignment{}, routing.Val.Replicas)
 		}
 	}
 	update()
@@ -605,7 +593,7 @@ func (m *manager) handleLogEntry(_ context.Context, entry *protos.LogEntry) erro
 	return nil
 }
 
-func (m *manager) handleTraceSpans(_ context.Context, spans *protos.Spans) error {
+func (m *manager) handleTraceSpans(_ context.Context, spans *protos.TraceSpans) error {
 	if m.traceSaver == nil {
 		return nil
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tool_test
+package profiling_test
 
 import (
 	"bytes"
@@ -20,15 +20,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/google/pprof/profile"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
 func TestProfileGroups(t *testing.T) {
 	type testCase struct {
 		name   string
-		groups [][]func() (*protos.Profile, error)
+		groups [][]func() ([]byte, error)
 		expect int64
 		errors []string // List of expected errors
 	}
@@ -41,7 +40,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"single_group",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{fakeProfile(100)},
 			},
 			100,
@@ -49,7 +48,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"multiple_groups",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{fakeProfile(100)},
 				{fakeProfile(200)},
 				{fakeProfile(300)},
@@ -59,7 +58,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"with_empty_group",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{fakeProfile(100)},
 				{},
 			},
@@ -68,7 +67,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"multiple_replicas",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{fakeProfile(100), fakeProfile(100), fakeProfile(100)},
 			},
 			300,
@@ -76,7 +75,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"error",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{makeError("foo")},
 			},
 			0,
@@ -84,7 +83,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"partial_error",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{fakeProfile(100)},
 				{makeError("foo")},
 			},
@@ -93,7 +92,7 @@ func TestProfileGroups(t *testing.T) {
 		},
 		{
 			"bad_replica_skipped",
-			[][]func() (*protos.Profile, error){
+			[][]func() ([]byte, error){
 				{makeError("foo"), fakeProfile(100)},
 			},
 			200,
@@ -101,34 +100,21 @@ func TestProfileGroups(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			p, err := tool.ProfileGroups(c.groups)
-			var gotErrors []string
-			if err != nil {
-				gotErrors = append(gotErrors, err.Error())
-			}
-			if p != nil {
-				gotErrors = append(gotErrors, p.Errors...)
-			}
+			p, err := profiling.ProfileGroups(c.groups)
 			if n := sum(p); n != c.expect {
 				t.Errorf("profile has sum %d, expecting %d", n, c.expect)
 			}
-			for i := 0; i < len(c.errors) && i < len(gotErrors); i++ {
-				if !strings.Contains(gotErrors[i], c.errors[i]) {
-					t.Errorf("error %v does not contain expected %q", gotErrors[i], c.errors[i])
+			for _, want := range c.errors {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error %v does not contain expected %q", err.Error(), want)
 				}
-			}
-			for i := len(c.errors); i < len(gotErrors); i++ {
-				t.Errorf("unexpected error %v", gotErrors[i])
-			}
-			for i := len(gotErrors); i < len(c.errors); i++ {
-				t.Errorf("missing error %v", c.errors[i])
 			}
 		})
 	}
 }
 
 // fakeProfile returns a function that returns a synthetic profile with the specified total value.
-func fakeProfile(value int64) func() (*protos.Profile, error) {
+func fakeProfile(value int64) func() ([]byte, error) {
 	// Dummy profile constituents
 	mapping := &profile.Mapping{
 		ID:           1,
@@ -165,17 +151,17 @@ func fakeProfile(value int64) func() (*protos.Profile, error) {
 	if err := p.Write(&buf); err != nil {
 		panic(err)
 	}
-	return func() (*protos.Profile, error) {
-		return &protos.Profile{Data: buf.Bytes()}, nil
+	return func() ([]byte, error) {
+		return buf.Bytes(), nil
 	}
 }
 
 // sum returns the sum of the sample counts in a profile.
-func sum(p *protos.Profile) int64 {
-	if p == nil || len(p.Data) == 0 {
+func sum(data []byte) int64 {
+	if len(data) == 0 {
 		return 0
 	}
-	prof, err := profile.ParseData(p.Data)
+	prof, err := profile.ParseData(data)
 	if err != nil {
 		panic(err)
 	}
@@ -187,8 +173,8 @@ func sum(p *protos.Profile) int64 {
 }
 
 // makeError returns a function that generates an error when invoked.
-func makeError(msg string) func() (*protos.Profile, error) {
-	return func() (*protos.Profile, error) {
+func makeError(msg string) func() ([]byte, error) {
+	return func() ([]byte, error) {
 		return nil, fmt.Errorf("%s", msg)
 	}
 }

@@ -17,6 +17,7 @@ syntax = "proto3";
 option go_package = "github.com/ServiceWeaver/weaver/internal/tool/ssh/impl";
 
 package impl;
+import "runtime/protos/config.proto";
 import "runtime/protos/runtime.proto";
 
 // BabysitterInfo contains app deployment information that is needed by a

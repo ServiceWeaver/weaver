@@ -57,11 +57,11 @@ const DefaultReplication = 2
 type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
-	t          testing.TB                // the unit test
-	wlet       *protos.WeaveletSetupInfo // info for subprocesses
-	config     *protos.AppConfig         // application config
-	logger     *slog.Logger              // logger
-	colocation map[string]string         // maps component to group
+	t          testing.TB           // the unit test
+	wlet       *protos.EnvelopeInfo // info for subprocesses
+	config     *protos.AppConfig    // application config
+	logger     *slog.Logger         // logger
+	colocation map[string]string    // maps component to group
 	running    errgroup.Group
 
 	logMu sync.Mutex // guards log
@@ -109,9 +109,9 @@ type connection struct {
 var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer returns a new weavertest multiprocess deployer.
-func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupInfo, config *protos.AppConfig) *deployer {
+func newDeployer(ctx context.Context, t testing.TB, wlet *protos.EnvelopeInfo, config *protos.AppConfig) *deployer {
 	colocation := map[string]string{}
-	for _, group := range config.SameProcess {
+	for _, group := range config.Colocate {
 		for _, c := range group.Components {
 			colocation[c] = group.Components[0]
 		}
@@ -134,7 +134,9 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.WeaveletSetupIn
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
 		},
-		Write: d.RecvLogEntry,
+		Write: func(e *protos.LogEntry) {
+			d.HandleLogEntry(d.ctx, e) //nolint:errcheck // TODO(mwhittaker): Propagate error.
+		},
 	})
 
 	t.Cleanup(func() {
@@ -171,7 +173,7 @@ func (d *deployer) Init(config string) weaver.Instance {
 		d.t.Fatalf("cannot create toWeavelet pipe: %v", err)
 	}
 	// Run an envelope connection to the main co-location group.
-	wlet := &protos.WeaveletSetupInfo{
+	wlet := &protos.EnvelopeInfo{
 		App:           d.wlet.App,
 		DeploymentId:  d.wlet.DeploymentId,
 		Id:            uuid.New().String(),
@@ -241,8 +243,8 @@ func (d *deployer) cleanup() error {
 	return d.err
 }
 
-// RecvLogEntry implements the envelope.EnvelopeHandler interface.
-func (d *deployer) RecvLogEntry(entry *protos.LogEntry) {
+// HandleLogEntry implements the envelope.EnvelopeHandler interface.
+func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	d.logMu.Lock()
 	defer d.logMu.Unlock()
 	if d.log {
@@ -252,27 +254,22 @@ func (d *deployer) RecvLogEntry(entry *protos.LogEntry) {
 		// various other test logs, it is confusing.
 		d.t.Log(logging.NewPrettyPrinter(colors.Enabled()).Format(entry))
 	}
+	return nil
 }
 
-// RecvTraceSpans implements the envelope.EnvelopeHandler interface.
-func (d *deployer) RecvTraceSpans([]trace.ReadOnlySpan) error {
+// HandleTraceSpans implements the envelope.EnvelopeHandler interface.
+func (d *deployer) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error {
 	// Ignore traces.
 	return nil
 }
 
-// ReportLoad implements the envelope.EnvelopeHandler interface.
-func (d *deployer) ReportLoad(*protos.WeaveletLoadReport) error {
-	// Ignore load.
-	return nil
-}
-
-// GetAddress implements the envelope.EnvelopeHandler interface.
-func (d *deployer) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
-	return &protos.GetAddressReply{Address: "localhost:0"}, nil
+// GetListenerAddress implements the envelope.EnvelopeHandler interface.
+func (d *deployer) GetListenerAddress(_ context.Context, req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	return &protos.GetListenerAddressReply{Address: "localhost:0"}, nil
 }
 
 // ExportListener implements the envelope.EnvelopeHandler interface.
-func (d *deployer) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return &protos.ExportListenerReply{}, nil
 }
 
@@ -298,8 +295,8 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 	return nil
 }
 
-// StartComponent implements the envelope.EnvelopeHandler interface.
-func (h *handler) StartComponent(req *protos.ComponentToStart) error {
+// ActivateComponent implements the envelope.EnvelopeHandler interface.
+func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -312,7 +309,7 @@ func (h *handler) StartComponent(req *protos.ComponentToStart) error {
 		components := maps.Keys(target.components)
 		for _, envelope := range target.conns {
 			if err := envelope.UpdateComponents(components); err != nil {
-				return err
+				return nil, err
 			}
 		}
 
@@ -320,7 +317,7 @@ func (h *handler) StartComponent(req *protos.ComponentToStart) error {
 		routing := target.routing(req.Component)
 		for _, sub := range target.subscribers[req.Component] {
 			if err := sub.UpdateRoutingInfo(routing); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -333,19 +330,19 @@ func (h *handler) StartComponent(req *protos.ComponentToStart) error {
 			// Route locally.
 			routing := &protos.RoutingInfo{Component: req.Component, Local: true}
 			if err := h.conn.UpdateRoutingInfo(routing); err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			// Route remotely.
 			target.subscribers[req.Component] = append(target.subscribers[req.Component], h.conn)
 			if err := h.conn.UpdateRoutingInfo(target.routing(req.Component)); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
 	// Start the co-location group
-	return h.deployer.startGroup(target)
+	return &protos.ActivateComponentReply{}, h.deployer.startGroup(target)
 }
 
 // startGroup starts the provided co-location group in a subprocess, if it
@@ -361,7 +358,7 @@ func (d *deployer) startGroup(g *group) error {
 	components := maps.Keys(g.components)
 	for r := 0; r < DefaultReplication; r++ {
 		// Start the weavelet.
-		wlet := &protos.WeaveletSetupInfo{
+		wlet := &protos.EnvelopeInfo{
 			App:           d.wlet.App,
 			DeploymentId:  d.wlet.DeploymentId,
 			Id:            uuid.New().String(),
@@ -445,8 +442,7 @@ func (c connection) UpdateComponents(components []string) error {
 		return c.envelope.UpdateComponents(components)
 	}
 	if c.conn != nil {
-		msg := &protos.ComponentsToStart{Components: components}
-		return c.conn.UpdateComponentsRPC(msg)
+		return c.conn.UpdateComponentsRPC(components)
 	}
 	panic(fmt.Errorf("nil connection"))
 }

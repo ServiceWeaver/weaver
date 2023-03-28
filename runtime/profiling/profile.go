@@ -12,25 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tool
+package profiling
 
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/pprof/profile"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
+
+type errlist struct {
+	errs []error
+}
+
+func (e errlist) Error() string {
+	var b strings.Builder
+	for _, err := range e.errs {
+		fmt.Fprintln(&b, err.Error())
+	}
+	return b.String()
+}
 
 // ProfileGroups returns the approximate sum of the profiles of all members of all groups.
 // If a group has more than one member, only a subset of the group may be profiled and the
 // result scaled up assuming non-profiled members of the group have similar profiles.
 // Each group member is represented by a function that profiles that group member.
-func ProfileGroups(groups [][]func() (*protos.Profile, error)) (*protos.Profile, error) {
+func ProfileGroups(groups [][]func() ([]byte, error)) ([]byte, error) {
 	type groupState struct {
 		profile *profile.Profile
-		errs    []string
+		errs    []error
 	}
 	profiles := make([]groupState, len(groups))
 
@@ -51,22 +63,19 @@ func ProfileGroups(groups [][]func() (*protos.Profile, error)) (*protos.Profile,
 			var lastErr error
 			var p *profile.Profile
 			for _, fn := range group {
-				reply, err := fn()
+				data, err := fn()
 				if err != nil {
 					lastErr = err
 					continue
 				}
-				if len(reply.Errors) > 0 {
-					lastErr = fmt.Errorf("%v", reply.Errors)
-				}
-				if len(reply.Data) == 0 {
+				if len(data) == 0 {
 					p = nil
 					break
 				}
 
 				// Parse the profile data and scale it based on the number of replicas
 				// for the given process
-				prof, err := profile.ParseData(reply.Data)
+				prof, err := profile.ParseData(data)
 				if err != nil {
 					lastErr = err
 					continue
@@ -78,7 +87,7 @@ func ProfileGroups(groups [][]func() (*protos.Profile, error)) (*protos.Profile,
 				break
 			}
 			if lastErr != nil {
-				profiles[i].errs = append(profiles[i].errs, lastErr.Error())
+				profiles[i].errs = append(profiles[i].errs, lastErr)
 			}
 			profiles[i].profile = p
 		}()
@@ -87,7 +96,7 @@ func ProfileGroups(groups [][]func() (*protos.Profile, error)) (*protos.Profile,
 
 	// Fill the final merged profile.
 	var profs []*profile.Profile
-	var errs []string
+	var errs []error
 	for _, p := range profiles {
 		errs = append(errs, p.errs...)
 		if p.profile != nil {
@@ -112,5 +121,5 @@ func ProfileGroups(groups [][]func() (*protos.Profile, error)) (*protos.Profile,
 			return nil, err
 		}
 	}
-	return &protos.Profile{Data: buf.Bytes(), Errors: errs}, nil
+	return buf.Bytes(), errlist{errs}
 }

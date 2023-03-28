@@ -27,19 +27,17 @@ import (
 // env provides the API by which a Service Weaver application process communicates with
 // its execution environment, e.g., to do thing like starting processes etc.
 type env interface {
-	// WeaveletSetupInfo returns the weavelet's setup information sent by
-	// the deployer.
-	WeaveletSetupInfo() *protos.WeaveletSetupInfo
+	// EnvelopeInfo returns the EnvelopeInfo sent by the envelope.
+	EnvelopeInfo() *protos.EnvelopeInfo
 
-	// RegisterComponentToStart registers a component to start.
-	RegisterComponentToStart(ctx context.Context, component string, routed bool) error
+	// ActivateComponent ensures that the provided component is running somewhere.
+	ActivateComponent(ctx context.Context, component string, routed bool) error
 
-	// GetAddress returns the address a weavelet should listen on for a
-	// listener.
-	GetAddress(ctx context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error)
+	// GetListenerAddress returns the address a weavelet should listen on for a listener.
+	GetListenerAddress(ctx context.Context, listener string, opts ListenerOptions) (*protos.GetListenerAddressReply, error)
 
 	// ExportListener exports a listener.
-	ExportListener(ctx context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error)
+	ExportListener(ctx context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error)
 
 	// CreateLogSaver creates and returns a function that saves log entries
 	// to the environment.

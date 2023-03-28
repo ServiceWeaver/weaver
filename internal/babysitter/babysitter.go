@@ -33,9 +33,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
+	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
@@ -151,7 +151,7 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 
 	// Form co-location.
 	colocation := map[string]string{}
-	for _, group := range dep.App.SameProcess {
+	for _, group := range dep.App.Colocate {
 		for _, c := range group.Components {
 			colocation[c] = group.Components[0]
 		}
@@ -271,7 +271,7 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 	components := maps.Keys(g.components)
 	for r := 0; r < defaultReplication; r++ {
 		// Start the weavelet and capture its logs, traces, and metrics.
-		wlet := &protos.WeaveletSetupInfo{
+		wlet := &protos.EnvelopeInfo{
 			App:           b.dep.App.Name,
 			DeploymentId:  b.dep.Id,
 			Id:            uuid.New().String(),
@@ -307,18 +307,18 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 }
 
 func (b *Babysitter) StartMain() error {
-	return b.startComponent(&protos.ComponentToStart{Component: "main"})
+	return b.activateComponent(&protos.ActivateComponentRequest{Component: "main"})
 }
 
-// StartComponent implements the envelope.EnvelopeHandler interface.
-func (h *handler) StartComponent(req *protos.ComponentToStart) error {
+// ActivateComponent implements the envelope.EnvelopeHandler interface.
+func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	if err := h.subscribeTo(req); err != nil {
-		return err
+		return nil, err
 	}
-	return h.startComponent(req)
+	return &protos.ActivateComponentReply{}, h.activateComponent(req)
 }
 
-func (h *handler) subscribeTo(req *protos.ComponentToStart) error {
+func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -339,7 +339,7 @@ func (h *handler) subscribeTo(req *protos.ComponentToStart) error {
 	return h.envelope.UpdateRoutingInfo(target.routing(req.Component))
 }
 
-func (b *Babysitter) startComponent(req *protos.ComponentToStart) error {
+func (b *Babysitter) activateComponent(req *protos.ActivateComponentRequest) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -358,13 +358,8 @@ func (b *Babysitter) startComponent(req *protos.ComponentToStart) error {
 
 		// Create an initial assignment.
 		if req.Routed {
-			assignment := &protos.Assignment{
-				App:          b.dep.App.Name,
-				DeploymentId: b.dep.Id,
-				Component:    req.Component,
-			}
 			replicas := maps.Keys(target.addresses)
-			target.assignments[req.Component] = routingAlgo(assignment, replicas)
+			target.assignments[req.Component] = routingAlgo(&protos.Assignment{}, replicas)
 		}
 
 		// Notify the subscribers.
@@ -410,32 +405,33 @@ func (b *Babysitter) registerReplica(g *group, info *protos.WeaveletInfo) error 
 	return nil
 }
 
-// RecvLogEntry implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) RecvLogEntry(entry *protos.LogEntry) {
+// HandleLogEntry implements the envelope.EnvelopeHandler interface.
+func (b *Babysitter) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	b.logSaver(entry)
+	return nil
 }
 
-// RecvTraceSpans implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) RecvTraceSpans(spans []trace.ReadOnlySpan) error {
+// HandleTraceSpans implements the envelope.EnvelopeHandler interface.
+func (b *Babysitter) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
 	if b.traceSaver == nil {
 		return nil
 	}
 	return b.traceSaver(spans)
 }
 
-// GetAddress implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
-	return &protos.GetAddressReply{Address: "localhost:0"}, nil
+// GetListenerAddress implements the envelope.EnvelopeHandler interface.
+func (b *Babysitter) GetListenerAddress(_ context.Context, req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	return &protos.GetListenerAddressReply{Address: "localhost:0"}, nil
 }
 
 // ExportListener implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+func (b *Babysitter) ExportListener(_ context.Context, req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	// Update the proxy.
-	if p, ok := b.proxies[req.Listener.Name]; ok {
-		p.proxy.AddBackend(req.Listener.Addr)
+	if p, ok := b.proxies[req.Listener]; ok {
+		p.proxy.AddBackend(req.Address)
 		return &protos.ExportListenerReply{ProxyAddress: p.addr}, nil
 	}
 
@@ -450,9 +446,9 @@ func (b *Babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.
 	addr := lis.Addr().String()
 	b.logger.Info("Proxy listening", "address", addr)
 	proxy := proxy.NewProxy(b.logger)
-	proxy.AddBackend(req.Listener.Addr)
-	b.proxies[req.Listener.Name] = &proxyInfo{
-		listener: req.Listener.Name,
+	proxy.AddBackend(req.Address)
+	b.proxies[req.Listener] = &proxyInfo{
+		listener: req.Listener,
 		proxy:    proxy,
 		addr:     addr,
 	}
@@ -471,7 +467,7 @@ func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {
 	var ms []*metrics.MetricSnapshot
 	for _, group := range b.groups {
 		for _, envelope := range group.envelopes {
-			m, err := envelope.ReadMetrics()
+			m, err := envelope.GetMetrics()
 			if err != nil {
 				continue
 			}
@@ -482,7 +478,7 @@ func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {
 }
 
 // Profile implements the status.Server interface.
-func (b *Babysitter) Profile(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
+func (b *Babysitter) Profile(_ context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
 	// Make a copy of the envelopes so we can operate on it without holding the
 	// lock. A profile can last a long time.
 	b.mu.Lock()
@@ -496,8 +492,6 @@ func (b *Babysitter) Profile(_ context.Context, req *protos.RunProfiling) (*prot
 	if err != nil {
 		return nil, err
 	}
-	profile.AppName = b.dep.App.Name
-	profile.VersionId = b.dep.Id
 	return profile, nil
 }
 
@@ -667,17 +661,18 @@ func nextPowerOfTwo(x int) int {
 }
 
 // runProfiling runs a profiling request on a set of processes.
-func runProfiling(ctx context.Context, req *protos.RunProfiling, processes map[string][]*envelope.Envelope) (*protos.Profile, error) {
+func runProfiling(ctx context.Context, req *protos.GetProfileRequest, processes map[string][]*envelope.Envelope) (*protos.GetProfileReply, error) {
 	// Collect together the groups we want to profile.
-	groups := make([][]func() (*protos.Profile, error), 0, len(processes))
+	groups := make([][]func() ([]byte, error), 0, len(processes))
 	for _, envelopes := range processes {
-		group := make([]func() (*protos.Profile, error), 0, len(envelopes))
+		group := make([]func() ([]byte, error), 0, len(envelopes))
 		for _, e := range envelopes {
-			group = append(group, func() (*protos.Profile, error) {
-				return e.RunProfiling(ctx, req)
+			group = append(group, func() ([]byte, error) {
+				return e.GetProfile(req)
 			})
 		}
 		groups = append(groups, group)
 	}
-	return tool.ProfileGroups(groups)
+	data, err := profiling.ProfileGroups(groups)
+	return &protos.GetProfileReply{Data: data}, err
 }

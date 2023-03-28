@@ -19,30 +19,30 @@ import (
 	"math"
 	"sync"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 // Writer writes a sequence of trace spans to a specified export function.
 type Writer struct {
 	mu     sync.Mutex
-	export func(spans *protos.Spans) error
+	export func(spans *protos.TraceSpans) error
 }
 
 // NewWriter creates a Writer that writes a sequence of trace spans to a
 // specified export function.
-func NewWriter(export func(spans *protos.Spans) error) *Writer { return &Writer{export: export} }
+func NewWriter(export func(spans *protos.TraceSpans) error) *Writer { return &Writer{export: export} }
 
 var _ sdk.SpanExporter = &Writer{}
 
 // ExportSpans implements the sdk.SpanExporter interface.
 func (w *Writer) ExportSpans(_ context.Context, spans []sdk.ReadOnlySpan) error {
-	msg := &protos.Spans{}
+	msg := &protos.TraceSpans{}
 	msg.Span = make([]*protos.Span, len(spans))
 	for i, span := range spans {
 		msg.Span[i] = toProtoSpan(span)

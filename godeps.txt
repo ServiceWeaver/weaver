@@ -329,9 +329,9 @@ github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/perfetto
+    github.com/ServiceWeaver/weaver/runtime/profiling
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
@@ -741,6 +741,12 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     strconv
     sync
     time
+github.com/ServiceWeaver/weaver/runtime/profiling
+    bytes
+    fmt
+    github.com/google/pprof/profile
+    strings
+    sync
 github.com/ServiceWeaver/weaver/runtime/protomsg
     bytes
     context
@@ -768,7 +774,6 @@ github.com/ServiceWeaver/weaver/runtime/retry
     sync
     time
 github.com/ServiceWeaver/weaver/runtime/tool
-    bytes
     context
     encoding/json
     errors
@@ -776,13 +781,10 @@ github.com/ServiceWeaver/weaver/runtime/tool
     fmt
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/google/pprof/profile
     io
     os
     sort
     strings
-    sync
     text/template
     time
 github.com/ServiceWeaver/weaver/weavertest

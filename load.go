@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/DataDog/hyperloglog"
-	"github.com/lightstep/varopt"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/lightstep/varopt"
 )
 
 func approxEqual(a, b float64) bool {
@@ -165,7 +165,7 @@ func (lc *loadCollector) updateAssignment(assignment *protos.Assignment) {
 // report returns a report of the collected load. If the load collector
 // doesn't have any collected load---this is possible if the load collector
 // doesn't have an assignment yet---then Report returns nil.
-func (lc *loadCollector) report() *protos.WeaveletLoadReport_ComponentLoad {
+func (lc *loadCollector) report() *protos.LoadReport_ComponentLoad {
 	lc.mu.Lock()
 	defer lc.mu.Unlock()
 	if lc.assignment == nil {
@@ -174,12 +174,12 @@ func (lc *loadCollector) report() *protos.WeaveletLoadReport_ComponentLoad {
 
 	now := lc.now()
 	delta := now.Sub(lc.start)
-	report := &protos.WeaveletLoadReport_ComponentLoad{
+	report := &protos.LoadReport_ComponentLoad{
 		Version: lc.assignment.GetVersion(),
 	}
 	for _, summary := range lc.slices {
 		report.Load = append(report.Load,
-			&protos.WeaveletLoadReport_ComponentLoad_SliceLoad{
+			&protos.LoadReport_SliceLoad{
 				Start:  summary.slice.start,
 				End:    summary.slice.end,
 				Load:   summary.load / delta.Seconds(),
@@ -231,7 +231,7 @@ func newSliceSummary(slice slice) (*sliceSummary, error) {
 }
 
 // splits splits the slice into subslices with roughly even load.
-func (s *sliceSummary) splits(delta time.Duration) []*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad {
+func (s *sliceSummary) splits(delta time.Duration) []*protos.LoadReport_SubsliceLoad {
 	// Splits divides the slice into subslices of roughly even load. In the
 	// normal case, Splits splits a slice into 20 subslices, each representing
 	// 5% of the total load. If the number of samples is small, however, fewer
@@ -298,14 +298,14 @@ func (s *sliceSummary) splits(delta time.Duration) []*protos.WeaveletLoadReport_
 //
 // REQUIRES xs is sorted in increasing order
 // REQUIRES n > 0
-func subslices(load float64, xs []uint64, n int) []*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad {
+func subslices(load float64, xs []uint64, n int) []*protos.LoadReport_SubsliceLoad {
 	quantum := load / float64(n)
 	ps := percentiles(xs, n)
-	subslices := []*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{{Start: ps[0], Load: quantum}}
+	subslices := []*protos.LoadReport_SubsliceLoad{{Start: ps[0], Load: quantum}}
 	for _, p := range ps[1:] {
 		last := subslices[len(subslices)-1]
 		if last.Start != p {
-			subslices = append(subslices, &protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{Start: p, Load: quantum})
+			subslices = append(subslices, &protos.LoadReport_SubsliceLoad{Start: p, Load: quantum})
 		} else {
 			// Hot keys may occupy multiple slices. We merge these slices
 			// together.

@@ -64,14 +64,14 @@ func (c *Client) Metrics(ctx context.Context) (*Metrics, error) {
 }
 
 // Profile implements the Server interface.
-func (c *Client) Profile(ctx context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
-	profile := &protos.Profile{}
+func (c *Client) Profile(ctx context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
+	reply := &protos.GetProfileReply{}
 	err := protomsg.Call(ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    "http://" + c.addr,
 		URLPath: profileEndpoint,
 		Request: req,
-		Reply:   profile,
+		Reply:   reply,
 	})
-	return profile, err
+	return reply, err
 }

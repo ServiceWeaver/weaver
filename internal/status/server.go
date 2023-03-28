@@ -42,7 +42,7 @@ type Server interface {
 	Metrics(context.Context) (*Metrics, error)
 
 	// Profile returns a profile of the deployment.
-	Profile(context.Context, *protos.RunProfiling) (*protos.Profile, error)
+	Profile(context.Context, *protos.GetProfileRequest) (*protos.GetProfileReply, error)
 }
 
 // RegisterServer registers a Server's methods with the provided mux under the
