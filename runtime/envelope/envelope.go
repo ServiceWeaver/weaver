@@ -181,15 +181,15 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 		return err
 	})
 
-	// Start the goroutine that waits for the weavelet process to stop.
-	running.Go(func() error {
-		err := e.cmd.Wait()
-		stop(err)
-		e.cmd.Cleanup()
-		return err
-	})
-
 	running.Wait() //nolint:errcheck // supplanted by stopErr
+
+	// Wait for the weavelet command to finish. This needs to be done after
+	// we're done reading from stdout/stderr pipes, per comments on
+	// exec.Cmd.StdoutPipe and exec.Cmd.StderrPipe.
+	err := e.cmd.Wait()
+	stop(err)
+	e.cmd.Cleanup()
+
 	return stopErr
 }
 

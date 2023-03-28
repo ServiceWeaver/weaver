@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 				if err := bigprint(n - 1); err != nil {
 					return err
 				}
-				os.Exit(0)
+				os.Exit(1)
 				return nil
 			},
 			"writetraces": func() error { return writeTraces(conn) },
@@ -239,7 +239,6 @@ func bigprint(n int) error {
 func TestBigPrints(t *testing.T) {
 	// Test Plan: Start a weavelet that prints a bunch of messages and then
 	// exists, simulating a panic(). Make sure that all messages are received.
-	t.Skip("this test is flaky. Figure out if anything can be done to fix it")
 	ctx := context.Background()
 	var entries []*protos.LogEntry
 	var m sync.Mutex
