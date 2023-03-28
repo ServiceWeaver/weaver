@@ -20,18 +20,19 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
-	"github.com/ServiceWeaver/weaver/internal/logtype"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/exp/slog"
 )
 
 // remoteEnv implements the env used for non-single-process Service Weaver applications.
 type remoteEnv struct {
 	info      *protos.WeaveletSetupInfo
-	sysLogger Logger
+	sysLogger *slog.Logger
 	conn      *conn.WeaveletConn
 	logmu     sync.Mutex
 }
@@ -54,10 +55,16 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 		info: info,
 		conn: conn,
 	}
-
-	logSaver := env.CreateLogSaver()
-	env.sysLogger = newAttrLogger(info.App, info.DeploymentId, "weavelet", info.Id, logSaver)
-	env.sysLogger = env.sysLogger.With("serviceweaver/system", "")
+	env.sysLogger = slog.New(&logging.LogHandler{
+		Opts: logging.Options{
+			App:        info.App,
+			Deployment: info.DeploymentId,
+			Component:  "weavelet",
+			Weavelet:   info.Id,
+			Attrs:      []string{"serviceweaver/system", ""},
+		},
+		Write: env.CreateLogSaver(),
+	})
 	return env, nil
 }
 
@@ -111,7 +118,7 @@ func (e *remoteEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 }
 
 // SystemLogger implements the Env interface.
-func (e *remoteEnv) SystemLogger() logtype.Logger {
+func (e *remoteEnv) SystemLogger() *slog.Logger {
 	return e.sysLogger
 }
 

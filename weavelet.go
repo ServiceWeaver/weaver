@@ -30,6 +30,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel"
@@ -39,6 +40,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/slices"
+	"golang.org/x/exp/slog"
 )
 
 // readyMethodKey holds the key for a method used to check if a backend is ready.
@@ -112,8 +114,9 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		c := &component{
 			wlet: w,
 			info: info,
-			// may be remote, so start with no-op logger. May set real logger later.
-			logger: discardingLogger{},
+			// May be remote, so start with no-op logger. May set real logger later.
+			// Discard all log entries.
+			logger: slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout)),
 		}
 		byName[info.Name] = c
 		byType[info.Iface] = c
@@ -197,9 +200,15 @@ func (w *weavelet) start() (Instance, error) {
 
 	if w.info.RunMain {
 		// Set appropriate logger and tracer for main.
-		logSaver := w.env.CreateLogSaver()
-		w.root.logger = newAttrLogger(
-			w.root.info.Name, w.info.DeploymentId, w.root.info.Name, w.info.Id, logSaver)
+		w.root.logger = slog.New(&logging.LogHandler{
+			Opts: logging.Options{
+				App:        w.root.info.Name,
+				Deployment: w.info.DeploymentId,
+				Component:  w.root.info.Name,
+				Weavelet:   w.info.Id,
+			},
+			Write: w.env.CreateLogSaver(),
+		})
 	}
 
 	if w.info.SingleProcess {
@@ -538,9 +547,15 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		// component is still being constructed is easy to get wrong. Figure out a
 		// way to make this less error-prone.
 		c.impl = &componentImpl{component: c}
-		logSaver := w.env.CreateLogSaver()
-		logger := newAttrLogger(w.info.App, w.info.DeploymentId, c.info.Name, w.info.Id, logSaver)
-		c.logger = logger
+		c.logger = slog.New(&logging.LogHandler{
+			Opts: logging.Options{
+				App:        w.info.App,
+				Deployment: w.info.DeploymentId,
+				Component:  c.info.Name,
+				Weavelet:   w.info.Id,
+			},
+			Write: w.env.CreateLogSaver(),
+		})
 		c.tracer = w.tracer
 
 		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
@@ -553,7 +568,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		c.impl.serverStub = c.info.ServerStubFn(c.impl.impl, func(key uint64, v float64) {
 			if c.info.Routed {
 				if err := c.load.add(key, v); err != nil {
-					logger.Error("add load", err, "component", c.info.Name, "key", key)
+					c.logger.Error("add load", err, "component", c.info.Name, "key", key)
 				}
 			}
 		})

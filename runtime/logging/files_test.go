@@ -108,14 +108,14 @@ func follow(t *testing.T, ctx context.Context, q Query) Reader {
 	return query(t, ctx, q, true)
 }
 
-type testLogger struct {
+type fileTestLogger struct {
 	app, dep, component, weavelet string // used to construct a FileLogger
 	n                             int    // the number of entries to write
 }
 
 // Log logs the messages 0, ..., l.n - 1, sleeping for the provided amount of
 // time after every message.
-func (l *testLogger) Log(ctx context.Context, sleep time.Duration) error {
+func (l *fileTestLogger) Log(ctx context.Context, sleep time.Duration) error {
 	// Make the logger.
 	os.MkdirAll(logdir, 0o777)
 	fname := filename(l.app, l.dep, l.weavelet, "info")
@@ -151,7 +151,7 @@ func (l *testLogger) Log(ctx context.Context, sleep time.Duration) error {
 }
 
 // Entries returns the entries that are written by Log.
-func (l *testLogger) Entries() []*protos.LogEntry {
+func (l *fileTestLogger) Entries() []*protos.LogEntry {
 	entries := make([]*protos.LogEntry, l.n)
 	for i := 0; i < l.n; i++ {
 		entries[i] = &protos.LogEntry{
@@ -170,13 +170,13 @@ func (l *testLogger) Entries() []*protos.LogEntry {
 }
 
 // loggers returns a set of loggers, each of which logs n messages.
-func loggers(n int) []*testLogger {
+func loggers(n int) []*fileTestLogger {
 	i := 0
-	loggers := []*testLogger{}
+	loggers := []*fileTestLogger{}
 	for _, app := range []string{"test"} {
 		for _, dep := range []string{"v1", "v2"} {
 			for _, c := range []string{"a", "b"} {
-				logger := testLogger{
+				logger := fileTestLogger{
 					app:       app,
 					dep:       dep,
 					component: c,
