@@ -50,12 +50,12 @@ import (
 // singleprocessEnv implements the env used for singleprocess Service Weaver applications.
 type singleprocessEnv struct {
 	ctx    context.Context
-	info   *protos.WeaveletSetupInfo
+	info   *protos.EnvelopeInfo
 	config *protos.AppConfig
 
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
-	traceSaver     func(spans *protos.Spans) error
+	traceSaver     func(spans *protos.TraceSpans) error
 
 	mu         sync.Mutex
 	listeners  map[string][]string // listener addresses, keyed by name
@@ -96,7 +96,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	appConfig.Binary = os.Args[0]
 	appConfig.Args = os.Args[1:]
 
-	wlet := &protos.WeaveletSetupInfo{
+	wlet := &protos.EnvelopeInfo{
 		App:           appConfig.Name,
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
@@ -105,7 +105,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		SingleMachine: true,
 		RunMain:       true,
 	}
-	if err := runtime.CheckWeaveletSetupInfo(wlet); err != nil {
+	if err := runtime.CheckEnvelopeInfo(wlet); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +113,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
-	traceSaver := func(spans *protos.Spans) error {
+	traceSaver := func(spans *protos.TraceSpans) error {
 		traces := make([]sdktrace.ReadOnlySpan, len(spans.Span))
 		for i, span := range spans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
@@ -139,25 +139,25 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	return env, nil
 }
 
-func (e *singleprocessEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
+func (e *singleprocessEnv) EnvelopeInfo() *protos.EnvelopeInfo {
 	return e.info
 }
 
-func (e *singleprocessEnv) RegisterComponentToStart(_ context.Context, component string, _ bool) error {
+func (e *singleprocessEnv) ActivateComponent(_ context.Context, component string, _ bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.components = append(e.components, component)
 	return nil
 }
 
-func (e *singleprocessEnv) GetAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetAddressReply, error) {
-	return &protos.GetAddressReply{Address: opts.LocalAddress}, nil
+func (e *singleprocessEnv) GetListenerAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetListenerAddressReply, error) {
+	return &protos.GetListenerAddressReply{Address: opts.LocalAddress}, nil
 }
 
-func (e *singleprocessEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
+func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.listeners[lis.Name] = append(e.listeners[lis.Name], lis.Addr)
+	e.listeners[listener] = append(e.listeners[listener], addr)
 	return &protos.ExportListenerReply{}, nil
 }
 
@@ -303,17 +303,9 @@ func (e *singleprocessEnv) Metrics(context.Context) (*status.Metrics, error) {
 }
 
 // Profile implements the status.Server interface.
-func (e *singleprocessEnv) Profile(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
+func (e *singleprocessEnv) Profile(_ context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
 	data, err := conn.Profile(req)
-	profile := &protos.Profile{
-		AppName:   e.info.App,
-		VersionId: e.info.DeploymentId,
-		Data:      data,
-	}
-	if err != nil {
-		profile.Errors = []string{err.Error()}
-	}
-	return profile, nil
+	return &protos.GetProfileReply{Data: data}, err
 }
 
 func (e *singleprocessEnv) CreateLogSaver() func(entry *protos.LogEntry) {

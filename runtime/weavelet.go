@@ -21,23 +21,22 @@ import (
 	"github.com/google/uuid"
 )
 
-// CheckWeaveletSetupInfo checks that weavelet setup information is
-// well-formed.
-func CheckWeaveletSetupInfo(w *protos.WeaveletSetupInfo) error {
+// CheckEnvelopeInfo checks that EnvelopeInfo is well-formed.
+func CheckEnvelopeInfo(w *protos.EnvelopeInfo) error {
 	if w == nil {
-		return fmt.Errorf("WeaveletSetupInfo: nil")
+		return fmt.Errorf("EnvelopeInfo: nil")
 	}
 	if w.App == "" {
-		return fmt.Errorf("WeaveletSetupInfo: missing app name")
+		return fmt.Errorf("EnvelopeInfo: missing app name")
 	}
 	if _, err := uuid.Parse(w.DeploymentId); err != nil {
-		return fmt.Errorf("WeaveletSetupInfo: invalid deployment id: %w", err)
+		return fmt.Errorf("EnvelopeInfo: invalid deployment id: %w", err)
 	}
 	if _, err := uuid.Parse(w.Id); err != nil {
-		return fmt.Errorf("WeaveletSetupInfo: invalid weavelet id: %w", err)
+		return fmt.Errorf("EnvelopeInfo: invalid weavelet id: %w", err)
 	}
 	if w.SingleProcess && !w.SingleMachine {
-		return fmt.Errorf("WeaveletSetupInfo: single process but not single machine")
+		return fmt.Errorf("EnvelopeInfo: single process but not single machine")
 	}
 	return nil
 }

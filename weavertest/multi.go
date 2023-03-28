@@ -58,7 +58,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 		return nil
 	}
 
-	// Construct AppConfig and WeaveletSetupInfo.
+	// Construct AppConfig and EnvelopeInfo.
 	appConfig := &protos.AppConfig{}
 	if config != "" {
 		var err error
@@ -75,7 +75,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, config string) weaver.I
 	appConfig.Binary = exe
 	appConfig.Args = []string{"-test.run", regexp.QuoteMeta(t.Name())}
 
-	wlet := &protos.WeaveletSetupInfo{
+	wlet := &protos.EnvelopeInfo{
 		App:           appConfig.Name,
 		DeploymentId:  uuid.New().String(),
 		Sections:      appConfig.Sections,

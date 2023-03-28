@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	sync "sync"
+	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/queue"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -28,27 +28,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// EnvelopeHandler implements the envelope side processing of messages
-// exchanged with the managed weavelet.
+// See envelope.EnvelopeHandler
 type EnvelopeHandler interface {
-	// StartComponent starts the given component.
-	StartComponent(entry *protos.ComponentToStart) error
-
-	// GetAddress gets the address a weavelet should listen on for a listener.
-	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
-
-	// ExportListener exports the given listener.
-	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
-
-	// RecvLogEntry enables the envelope to receive a log entry.
-	RecvLogEntry(entry *protos.LogEntry)
-
-	// RecvTraceSpans enables the envelope to receive a sequence of trace spans.
-	RecvTraceSpans(spans []trace.ReadOnlySpan) error
+	ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error)
+	GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error)
+	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
+	HandleLogEntry(context.Context, *protos.LogEntry) error
+	HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
 }
 
-// EnvelopeConn is the envelope side of the connection between a weavelet
-// and the envelope.
+// EnvelopeConn is the envelope side of the connection between a weavelet and
+// an envelope. For more information, refer to runtime/protos/runtime.proto and
+// https://serviceweaver.dev/blog/deployers.html.
 type EnvelopeConn struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -62,12 +53,16 @@ type EnvelopeConn struct {
 	err  error
 }
 
-// NewEnvelopeConn creates the connection to an (already started) weavelet
-// and starts accepting messages from it. The connection uses (r,w) to carry
-// messages. Synthesized high-level events are passed to h.
+// NewEnvelopeConn returns a connection to an already started weavelet. The
+// connection sends messages to and receives messages from the weavelet using r
+// and w. The provided EnvelopeInfo is sent to the weavelet as part of the
+// handshake.
+//
+// You can issue RPCs *to* the weavelet using the returned EnvelopeConn. To
+// start receiving messages *from* the weavelet, call [Serve].
 //
 // The connection stops on error or when the provided context is canceled.
-func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, wlet *protos.WeaveletSetupInfo) (*EnvelopeConn, error) {
+func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, info *protos.EnvelopeInfo) (*EnvelopeConn, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	e := &EnvelopeConn{
 		ctx:       ctx,
@@ -75,9 +70,8 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, wle
 		conn:      conn{name: "envelope", reader: r, writer: w},
 	}
 
-	// Send the setup information to the weavelet, and receive the weavelet
-	// information in return.
-	if err := e.conn.send(&protos.EnvelopeMsg{WeaveletSetupInfo: wlet}); err != nil {
+	// Perform the handshake. Send EnvelopeInfo and receive WeaveletInfo.
+	if err := e.conn.send(&protos.EnvelopeMsg{EnvelopeInfo: info}); err != nil {
 		e.conn.cleanup(err)
 		return nil, err
 	}
@@ -155,10 +149,11 @@ func (e *EnvelopeConn) stop(err error) {
 	e.conn.cleanup(err)
 }
 
-// Serve accepts incoming messages from the weavelet. Messages that are received
-// are handled as an ordered sequence. This call blocks until the connection
-// terminates, returning the error that caused it to terminate. This method will
-// never return a non-nil error.
+// Serve accepts incoming messages from the weavelet. RPC requests are handled
+// serially in the order they are received. Serve blocks until the connection
+// terminates, returning the error that caused it to terminate. You can cancel
+// the connection by cancelling the context passed to [NewEnvelopeConn]. This
+// method never returns a non-nil error.
 func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
 	// Spawn a goroutine to handle envelope-issued RPC requests. Note that we
 	// don't spawn one goroutine for every request because we must guarantee
@@ -187,47 +182,51 @@ func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
 	return e.err
 }
 
-// WeaveletInfo returns the information about the weavelet.
+// WeaveletInfo returns information about the weavelet.
 func (e *EnvelopeConn) WeaveletInfo() *protos.WeaveletInfo {
 	return e.weavelet
 }
 
-// handleMessage handles all messages initiated by the weavelet. Note that
-// this method doesn't handle RPC reply messages sent over by the weavelet.
+// handleMessage handles all messages initiated by the weavelet. Note that this
+// method doesn't handle RPC replies from weavelet.
 func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler) error {
-	errReply := func(err error) *protos.EnvelopeMsg {
-		var errStr string
-		if err != nil {
-			errStr = err.Error()
+	errstring := func(err error) string {
+		if err == nil {
+			return ""
 		}
-		return &protos.EnvelopeMsg{Id: -msg.Id, Error: errStr}
+		return err.Error()
 	}
+
 	switch {
-	case msg.ComponentToStart != nil:
-		return e.conn.send(errReply(h.StartComponent(msg.ComponentToStart)))
-	case msg.GetAddressRequest != nil:
-		reply, err := h.GetAddress(msg.GetAddressRequest)
-		if err != nil {
-			return e.conn.send(errReply(err))
-		}
-		return e.conn.send(&protos.EnvelopeMsg{Id: -msg.Id, GetAddressReply: reply})
+	case msg.ActivateComponentRequest != nil:
+		reply, err := h.ActivateComponent(e.ctx, msg.ActivateComponentRequest)
+		return e.conn.send(&protos.EnvelopeMsg{
+			Id:                     -msg.Id,
+			Error:                  errstring(err),
+			ActivateComponentReply: reply,
+		})
+	case msg.GetListenerAddressRequest != nil:
+		reply, err := h.GetListenerAddress(e.ctx, msg.GetListenerAddressRequest)
+		return e.conn.send(&protos.EnvelopeMsg{
+			Id:                      -msg.Id,
+			Error:                   errstring(err),
+			GetListenerAddressReply: reply,
+		})
 	case msg.ExportListenerRequest != nil:
-		reply, err := h.ExportListener(msg.ExportListenerRequest)
-		if err != nil {
-			// Reply with error.
-			return e.conn.send(errReply(err))
-		}
-		// Reply with listener info.
-		return e.conn.send(&protos.EnvelopeMsg{Id: -msg.Id, ExportListenerReply: reply})
+		reply, err := h.ExportListener(e.ctx, msg.ExportListenerRequest)
+		return e.conn.send(&protos.EnvelopeMsg{
+			Id:                  -msg.Id,
+			Error:               errstring(err),
+			ExportListenerReply: reply,
+		})
 	case msg.LogEntry != nil:
-		h.RecvLogEntry(msg.LogEntry)
-		return nil
+		return h.HandleLogEntry(e.ctx, msg.LogEntry)
 	case msg.TraceSpans != nil:
 		traces := make([]trace.ReadOnlySpan, len(msg.TraceSpans.Span))
 		for i, span := range msg.TraceSpans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
 		}
-		return h.RecvTraceSpans(traces)
+		return h.HandleTraceSpans(e.ctx, traces)
 	default:
 		err := fmt.Errorf("envelope_conn: unexpected message %+v", msg)
 		e.conn.cleanup(err)
@@ -235,70 +234,93 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 	}
 }
 
-// GetMetricsRPC requests the weavelet to return its up-to-date metrics.
+// GetMetricsRPC gets a weavelet's metrics. There can only be one outstanding
+// GetMetricsRPC at a time.
 func (e *EnvelopeConn) GetMetricsRPC() ([]*metrics.MetricSnapshot, error) {
-	reply, err := e.rpc(&protos.EnvelopeMsg{SendMetrics: true})
+	req := &protos.EnvelopeMsg{GetMetricsRequest: &protos.GetMetricsRequest{}}
+	reply, err := e.rpc(req)
 	if err != nil {
 		return nil, err
 	}
-	if reply.Metrics == nil {
-		return nil, fmt.Errorf("nil metrics reply received from weavelet")
+	if reply.GetMetricsReply == nil {
+		return nil, fmt.Errorf("nil GetMetricsReply received from weavelet")
 	}
-	return e.metrics.Import(reply.Metrics)
+	return e.metrics.Import(reply.GetMetricsReply.Update)
 }
 
-// HealthStatusRPC requests the weavelet to return its health status.
-func (e *EnvelopeConn) HealthStatusRPC() (protos.HealthStatus, error) {
-	reply, err := e.rpc(&protos.EnvelopeMsg{SendHealthStatus: true})
+// GetHealthRPC gets a weavelet's health.
+func (e *EnvelopeConn) GetHealthRPC() (protos.HealthStatus, error) {
+	req := &protos.EnvelopeMsg{GetHealthRequest: &protos.GetHealthRequest{}}
+	reply, err := e.rpc(req)
 	if err != nil {
 		return protos.HealthStatus_UNHEALTHY, err
 	}
-	if reply.HealthReport == nil {
-		return protos.HealthStatus_UNHEALTHY, fmt.Errorf("nil health status reply received from weavelet")
+	if reply.GetHealthReply == nil {
+		return protos.HealthStatus_UNHEALTHY, fmt.Errorf("nil HealthStatusReply received from weavelet")
 	}
-	return reply.HealthReport.Status, nil
+	return reply.GetHealthReply.Status, nil
 }
 
-// GetLoadInfoRPC requests the weavelet to return the latest load information.
-func (e *EnvelopeConn) GetLoadInfoRPC() (*protos.WeaveletLoadReport, error) {
-	reply, err := e.rpc(&protos.EnvelopeMsg{SendLoadInfo: true})
+// GetLoadRPC gets a load report from the weavelet.
+func (e *EnvelopeConn) GetLoadRPC() (*protos.LoadReport, error) {
+	req := &protos.EnvelopeMsg{GetLoadRequest: &protos.GetLoadRequest{}}
+	reply, err := e.rpc(req)
 	if err != nil {
 		return nil, err
 	}
-	if reply.LoadReport == nil {
-		return nil, fmt.Errorf("nil load info reply received from weavelet")
+	if reply.GetLoadReply == nil {
+		return nil, fmt.Errorf("nil GetLoadReply received from weavelet")
 	}
-	return reply.LoadReport, nil
+	return reply.GetLoadReply.Load, nil
 }
 
-// DoProfilingRPC requests the weavelet to profile itself and return its
-// profile data.
-func (e *EnvelopeConn) DoProfilingRPC(req *protos.RunProfiling) (*protos.Profile, error) {
-	reply, err := e.rpc(&protos.EnvelopeMsg{RunProfiling: req})
+// GetProfileRPC gets a profile from the weavelet. There can only be one
+// outstanding GetProfileRPC at a time.
+func (e *EnvelopeConn) GetProfileRPC(req *protos.GetProfileRequest) ([]byte, error) {
+	reply, err := e.rpc(&protos.EnvelopeMsg{GetProfileRequest: req})
 	if err != nil {
 		return nil, err
 	}
-	if reply.Profile == nil {
-		return nil, fmt.Errorf("nil profile reply received from weavelet")
+	if reply.GetProfileReply == nil {
+		return nil, fmt.Errorf("nil GetProfileReply received from weavelet")
 	}
-	if len(reply.Profile.Data) == 0 && len(reply.Profile.Errors) > 0 {
-		return nil, fmt.Errorf("profiled with errors: %v", reply.Profile.Errors)
-	}
-	return reply.Profile, nil
+	return reply.GetProfileReply.Data, nil
 }
 
 // UpdateComponentsRPC updates the weavelet with the latest set of components
 // it should be running.
-func (e *EnvelopeConn) UpdateComponentsRPC(req *protos.ComponentsToStart) error {
-	_, err := e.rpc(&protos.EnvelopeMsg{ComponentsToStart: req})
-	return err
+func (e *EnvelopeConn) UpdateComponentsRPC(components []string) error {
+	req := &protos.EnvelopeMsg{
+		UpdateComponentsRequest: &protos.UpdateComponentsRequest{
+			Components: components,
+		},
+	}
+	reply, err := e.rpc(req)
+	if err != nil {
+		return err
+	}
+	if reply.UpdateComponentsReply == nil {
+		return fmt.Errorf("nil UpdateComponentsReply received from weavelet")
+	}
+	return nil
 }
 
 // UpdateRoutingInfoRPC updates the weavelet with a component's most recent
 // routing info.
-func (e *EnvelopeConn) UpdateRoutingInfoRPC(req *protos.RoutingInfo) error {
-	_, err := e.rpc(&protos.EnvelopeMsg{RoutingInfo: req})
-	return err
+func (e *EnvelopeConn) UpdateRoutingInfoRPC(routing *protos.RoutingInfo) error {
+	req := &protos.EnvelopeMsg{
+		UpdateRoutingInfoRequest: &protos.UpdateRoutingInfoRequest{
+			RoutingInfo: routing,
+		},
+	}
+	reply, err := e.rpc(req)
+	if err != nil {
+		return err
+	}
+	if reply.UpdateRoutingInfoReply == nil {
+		return fmt.Errorf("nil UpdateRoutingInfoReply received from weavelet")
+	}
+	return nil
 }
 
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
@@ -310,7 +332,7 @@ func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, er
 	}
 	msg, ok := response.(*protos.WeaveletMsg)
 	if !ok {
-		return nil, fmt.Errorf("response has wrong type %T", response)
+		return nil, fmt.Errorf("weavelet response has wrong type %T", response)
 	}
 	if msg.Error != "" {
 		return nil, fmt.Errorf(msg.Error)

@@ -20,11 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/testing/protocmp"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func at(seconds int) time.Time {
@@ -103,10 +102,7 @@ func TestLoadCollector(t *testing.T) {
 			{Start: 20, Replicas: []string{"test://a"}},
 			{Start: 30, Replicas: []string{"test://b"}},
 		},
-		App:          "app",
-		DeploymentId: uuid.New().String(),
-		Component:    "component",
-		Version:      0,
+		Version: 0,
 	}
 	lc := newLoadCollector("component", call.NetworkAddress("test://a"))
 	lc.now = func() time.Time { return at(0) }
@@ -127,8 +123,8 @@ func TestLoadCollector(t *testing.T) {
 
 	lc.now = func() time.Time { return at(10) }
 	got := lc.report()
-	want := &protos.WeaveletLoadReport_ComponentLoad{
-		Load: []*protos.WeaveletLoadReport_ComponentLoad_SliceLoad{
+	want := &protos.LoadReport_ComponentLoad{
+		Load: []*protos.LoadReport_SliceLoad{
 			{Start: 0, End: 10, Load: 0.4},
 			{Start: 20, End: 30, Load: 6.0},
 		},
@@ -136,7 +132,7 @@ func TestLoadCollector(t *testing.T) {
 	}
 	opts := []cmp.Option{
 		protocmp.Transform(),
-		protocmp.IgnoreFields(&protos.WeaveletLoadReport_ComponentLoad_SliceLoad{}, "size", "splits"),
+		protocmp.IgnoreFields(&protos.LoadReport_SliceLoad{}, "size", "splits"),
 	}
 	if diff := cmp.Diff(want, got, opts...); diff != "" {
 		t.Fatalf("bad load report: (-want +got):\n%s", diff)
@@ -159,10 +155,7 @@ func TestLoadCollectorSizeAndSplitEstimates(t *testing.T) {
 			{Start: 0, Replicas: []string{"test://a"}},
 			{Start: 1 << 20, Replicas: []string{"test://b"}},
 		},
-		App:          "app",
-		DeploymentId: uuid.New().String(),
-		Component:    "component",
-		Version:      0,
+		Version: 0,
 	}
 	lc := newLoadCollector("component", call.NetworkAddress("test://a"))
 	lc.now = func() time.Time { return at(0) }
@@ -177,15 +170,15 @@ func TestLoadCollectorSizeAndSplitEstimates(t *testing.T) {
 	// Check the load.
 	lc.now = func() time.Time { return at(10) }
 	got := lc.report()
-	want := &protos.WeaveletLoadReport_ComponentLoad{
-		Load: []*protos.WeaveletLoadReport_ComponentLoad_SliceLoad{
+	want := &protos.LoadReport_ComponentLoad{
+		Load: []*protos.LoadReport_SliceLoad{
 			{Start: 0, End: 1 << 20, Load: n / 10},
 		},
 		Version: 0,
 	}
 	opts := []cmp.Option{
 		protocmp.Transform(),
-		protocmp.IgnoreFields(&protos.WeaveletLoadReport_ComponentLoad_SliceLoad{}, "size", "splits"),
+		protocmp.IgnoreFields(&protos.LoadReport_SliceLoad{}, "size", "splits"),
 	}
 	if diff := cmp.Diff(want, got, opts...); diff != "" {
 		t.Fatalf("bad load report: (-want +got):\n%s", diff)
@@ -243,14 +236,14 @@ func TestSubslices(t *testing.T) {
 		load float64
 		xs   []uint64
 		n    int
-		want []*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad
+		want []*protos.LoadReport_SubsliceLoad
 	}{
 		// Balanced load, 1 split.
 		{
 			10.0,
 			[]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 			1,
-			[]*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{
+			[]*protos.LoadReport_SubsliceLoad{
 				{Start: 0, Load: 10.0},
 			},
 		},
@@ -259,7 +252,7 @@ func TestSubslices(t *testing.T) {
 			10.0,
 			[]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 			2,
-			[]*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{
+			[]*protos.LoadReport_SubsliceLoad{
 				{Start: 0, Load: 5.0},
 				{Start: 5, Load: 5.0},
 			},
@@ -269,7 +262,7 @@ func TestSubslices(t *testing.T) {
 			10.0,
 			[]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 			3,
-			[]*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{
+			[]*protos.LoadReport_SubsliceLoad{
 				{Start: 0, Load: 10.0 / 3.0},
 				{Start: 3, Load: 10.0 / 3.0},
 				{Start: 6, Load: 10.0 / 3.0},
@@ -280,7 +273,7 @@ func TestSubslices(t *testing.T) {
 			10.0,
 			[]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 			4,
-			[]*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{
+			[]*protos.LoadReport_SubsliceLoad{
 				{Start: 0, Load: 2.5},
 				{Start: 2, Load: 2.5},
 				{Start: 5, Load: 2.5},
@@ -292,7 +285,7 @@ func TestSubslices(t *testing.T) {
 			10.0,
 			[]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 			5,
-			[]*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{
+			[]*protos.LoadReport_SubsliceLoad{
 				{Start: 0, Load: 2.0},
 				{Start: 2, Load: 2.0},
 				{Start: 4, Load: 2.0},
@@ -305,7 +298,7 @@ func TestSubslices(t *testing.T) {
 			10.0,
 			[]uint64{0, 0, 0, 0, 0, 1, 1, 2, 3, 4},
 			5,
-			[]*protos.WeaveletLoadReport_ComponentLoad_SliceLoad_SubsliceLoad{
+			[]*protos.LoadReport_SubsliceLoad{
 				{Start: 0, Load: 6.0},
 				{Start: 1, Load: 2.0},
 				{Start: 3, Load: 2.0},

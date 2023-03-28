@@ -23,9 +23,9 @@ import (
 	"text/template"
 	"time"
 
-	pprof "github.com/google/pprof/profile"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
+	pprof "github.com/google/pprof/profile"
 )
 
 // TODO(mwhittaker): Right now, a user has to (1) run `weaver profile` to get a
@@ -116,9 +116,16 @@ Examples:
 				}
 				return fmt.Errorf("multiple deployments with prefix %q found", prefix)
 			}
+			client := NewClient(candidates[0].Addr) // candidates[0] is the only candidate
+
+			// Get the deployment's status.
+			status, err := client.Status(ctx)
+			if err != nil {
+				return err
+			}
 
 			// Form the profile request.
-			req := &protos.RunProfiling{}
+			req := &protos.GetProfileRequest{}
 			if *profileType == "heap" {
 				req.ProfileType = protos.ProfileType_Heap
 			} else {
@@ -127,11 +134,10 @@ Examples:
 			}
 
 			// Start the profile request.
-			var reply *protos.Profile
+			var reply *protos.GetProfileReply
 			done := make(chan struct{})
 			go func() {
 				defer close(done)
-				client := NewClient(candidates[0].Addr)
 				reply, err = client.Profile(ctx, req)
 			}()
 
@@ -143,17 +149,17 @@ Examples:
 				<-done
 			}
 
-			if err != nil {
+			if reply == nil {
+				return fmt.Errorf("nil profile: %v", err)
+			}
+			if len(reply.Data) == 0 && err != nil {
 				return fmt.Errorf("cannot create profile: %w", err)
 			}
 			if len(reply.Data) == 0 {
-				if len(reply.Errors) == 0 {
-					return fmt.Errorf("empty profile data")
-				}
-				// NOTE: This branch should never be taken.
-				return fmt.Errorf("cannot create profile: %v", reply.Errors)
-			} else if len(reply.Errors) > 0 {
-				fmt.Fprintln(os.Stderr, "Partial profile data received: the profile may not be accurate. Errors:", reply.Errors)
+				return fmt.Errorf("empty profile data")
+			}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Partial profile data received: the profile may not be accurate. Errors:", err)
 			}
 			prof, err := pprof.ParseData(reply.Data)
 			if err != nil {
@@ -161,7 +167,7 @@ Examples:
 			}
 
 			// Save the profile in a file.
-			name := fmt.Sprintf("serviceweaver_%s_%s_profile_*.pb.gz", reply.AppName, *profileType)
+			name := fmt.Sprintf("serviceweaver_%s_%s_profile_*.pb.gz", status.App, *profileType)
 			f, err := os.CreateTemp(os.TempDir(), name)
 			if err != nil {
 				return fmt.Errorf("saving profile: %w", err)

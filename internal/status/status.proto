@@ -18,6 +18,7 @@ option go_package = "github.com/ServiceWeaver/weaver/internal/status";
 package status;
 
 import "google/protobuf/timestamp.proto";
+import "runtime/protos/config.proto";
 import "runtime/protos/runtime.proto";
 
 // Status describes the status of a Service Weaver application deployment.

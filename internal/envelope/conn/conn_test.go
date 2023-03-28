@@ -98,7 +98,7 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	}
 
 	// Construct the conns.
-	wlet := &protos.WeaveletSetupInfo{
+	wlet := &protos.EnvelopeInfo{
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
@@ -155,12 +155,22 @@ type handlerForTest struct{}
 
 var _ conn.EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) RecvTraceSpans([]trace.ReadOnlySpan) error     { return nil }
-func (h *handlerForTest) RecvLogEntry(*protos.LogEntry)                 {}
-func (h *handlerForTest) StartComponent(*protos.ComponentToStart) error { return nil }
-func (h *handlerForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+func (*handlerForTest) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error {
+	return nil
+}
+
+func (*handlerForTest) HandleLogEntry(context.Context, *protos.LogEntry) error {
+	return nil
+}
+
+func (*handlerForTest) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	return nil, nil
 }
-func (h *handlerForTest) ExportListener(*protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+
+func (*handlerForTest) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	return nil, nil
+}
+
+func (*handlerForTest) ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, nil
 }

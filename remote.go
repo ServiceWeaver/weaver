@@ -31,7 +31,7 @@ import (
 
 // remoteEnv implements the env used for non-single-process Service Weaver applications.
 type remoteEnv struct {
-	info      *protos.WeaveletSetupInfo
+	info      *protos.EnvelopeInfo
 	sysLogger *slog.Logger
 	conn      *conn.WeaveletConn
 	logmu     sync.Mutex
@@ -49,7 +49,7 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 	if err != nil {
 		return nil, fmt.Errorf("new weavelet conn: %w", err)
 	}
-	info := conn.WeaveletSetupInfo()
+	info := conn.EnvelopeInfo()
 
 	env := &remoteEnv{
 		info: info,
@@ -68,8 +68,8 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 	return env, nil
 }
 
-// WeaveletSetupInfo implements the Env interface.
-func (e *remoteEnv) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
+// EnvelopeInfo implements the Env interface.
+func (e *remoteEnv) EnvelopeInfo() *protos.EnvelopeInfo {
 	return e.info
 }
 
@@ -78,28 +78,29 @@ func (e *remoteEnv) ServeWeaveletConn() error {
 	return e.conn.Serve()
 }
 
-// RegisterComponentToStart implements the Env interface.
-func (e *remoteEnv) RegisterComponentToStart(_ context.Context, component string, routed bool) error {
-	request := &protos.ComponentToStart{
+// ActivateComponent implements the Env interface.
+func (e *remoteEnv) ActivateComponent(_ context.Context, component string, routed bool) error {
+	request := &protos.ActivateComponentRequest{
 		Component: component,
 		Routed:    routed,
 	}
-	return e.conn.StartComponentRPC(request)
+	return e.conn.ActivateComponentRPC(request)
 }
 
-// GetAddress implements the Env interface.
-func (e *remoteEnv) GetAddress(_ context.Context, name string, opts ListenerOptions) (*protos.GetAddressReply, error) {
-	request := &protos.GetAddressRequest{
+// GetListenerAddress implements the Env interface.
+func (e *remoteEnv) GetListenerAddress(_ context.Context, name string, opts ListenerOptions) (*protos.GetListenerAddressReply, error) {
+	request := &protos.GetListenerAddressRequest{
 		Name:         name,
 		LocalAddress: opts.LocalAddress,
 	}
-	return e.conn.GetAddressRPC(request)
+	return e.conn.GetListenerAddressRPC(request)
 }
 
 // ExportListener implements the Env interface.
-func (e *remoteEnv) ExportListener(_ context.Context, lis *protos.Listener, opts ListenerOptions) (*protos.ExportListenerReply, error) {
+func (e *remoteEnv) ExportListener(_ context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error) {
 	request := &protos.ExportListenerRequest{
-		Listener:     lis,
+		Listener:     listener,
+		Address:      addr,
 		LocalAddress: opts.LocalAddress,
 	}
 	return e.conn.ExportListenerRPC(request)
@@ -113,7 +114,7 @@ func (e *remoteEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 		// jumbled together.
 		e.logmu.Lock()
 		defer e.logmu.Unlock()
-		e.conn.SendLogEntry(entry)
+		e.conn.SendLogEntry(entry) //nolint:errcheck // TODO(mwhittaker): Propagate error.
 	}
 }
 

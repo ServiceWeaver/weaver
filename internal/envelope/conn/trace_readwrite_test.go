@@ -27,6 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/sdk/trace"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -41,18 +42,25 @@ type pipeForTest struct {
 
 var _ conn.EnvelopeHandler = &pipeForTest{}
 
-func (p *pipeForTest) RecvTraceSpans(spans []sdk.ReadOnlySpan) error {
+func (p *pipeForTest) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
 	p.spans = spans
 	p.waitToExportSpans.Done()
 	return nil
 }
 
-func (p *pipeForTest) RecvLogEntry(*protos.LogEntry)                 {}
-func (p *pipeForTest) StartComponent(*protos.ComponentToStart) error { return nil }
-func (p *pipeForTest) GetAddress(*protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+func (*pipeForTest) HandleLogEntry(context.Context, *protos.LogEntry) error {
+	return nil
+}
+
+func (*pipeForTest) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	return nil, nil
 }
-func (p *pipeForTest) ExportListener(*protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+
+func (*pipeForTest) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	return nil, nil
+}
+
+func (*pipeForTest) ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, nil
 }
 

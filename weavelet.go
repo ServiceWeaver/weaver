@@ -50,11 +50,11 @@ var readyMethodKey = call.MakeMethodKey("", "ready")
 // analogous to a kubelet.
 type weavelet struct {
 	ctx       context.Context
-	env       env                       // Manages interactions with execution environment
-	info      *protos.WeaveletSetupInfo // Setup info sent by the deployer.
-	transport *transport                // Transport for cross-weavelet communication
-	dialAddr  call.NetworkAddress       // Address this weavelet is reachable at
-	tracer    trace.Tracer              // Tracer for this weavelet
+	env       env                  // Manages interactions with execution environment
+	info      *protos.EnvelopeInfo // Setup info sent by the deployer.
+	transport *transport           // Transport for cross-weavelet communication
+	dialAddr  call.NetworkAddress  // Address this weavelet is reachable at
+	tracer    trace.Tracer         // Tracer for this weavelet
 
 	root             *component                  // The automatically created "root" component
 	componentsByName map[string]*component       // component name -> component
@@ -104,11 +104,11 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	}
 	w.env = env
 
-	wletInfo := env.WeaveletSetupInfo()
-	if wletInfo == nil {
+	info := env.EnvelopeInfo()
+	if info == nil {
 		return nil, fmt.Errorf("unable to get weavelet information")
 	}
-	w.info = wletInfo
+	w.info = info
 
 	for _, info := range componentInfos {
 		c := &component{
@@ -133,10 +133,10 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		sdktrace.WithBatcher(env.CreateTraceExporter()),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", wletInfo.Id)),
+			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", info.Id)),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
-			traceio.AppNameTraceKey.String(wletInfo.App),
-			traceio.VersionTraceKey.String(wletInfo.DeploymentId),
+			traceio.AppNameTraceKey.String(info.App),
+			traceio.VersionTraceKey.String(info.DeploymentId),
 		)),
 		// TODO(spetrovic): Allow the user to create new TracerProviders where
 		// they can control trace sampling and other options.
@@ -330,7 +330,7 @@ func (w *weavelet) getInstance(c *component, requester string) (interface{}, err
 		w.env.SystemLogger().Debug("Registering component...", "component", c.info.Name)
 		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
 		c.registerErr = w.repeatedly(errMsg, func() error {
-			return w.env.RegisterComponentToStart(w.ctx, c.info.Name, c.info.Routed)
+			return w.env.ActivateComponent(w.ctx, c.info.Name, c.info.Routed)
 		})
 		if c.registerErr != nil {
 			w.env.SystemLogger().Error("Registering component failed", c.registerErr, "component", c.info.Name)
@@ -364,7 +364,7 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	}
 
 	// Get the address to listen on.
-	addr, err := w.env.GetAddress(w.ctx, name, opts)
+	addr, err := w.env.GetListenerAddress(w.ctx, name, opts)
 	if err != nil {
 		return nil, fmt.Errorf("getListener(%q): %w", name, err)
 	}
@@ -376,12 +376,11 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	}
 
 	// Export the listener.
-	lis := &protos.Listener{Name: name, Addr: l.Addr().String()}
-	errMsg := fmt.Sprintf("getListener(%q): error exporting listener %v", name, lis.Addr)
+	errMsg := fmt.Sprintf("getListener(%q): error exporting listener %v", name, l.Addr())
 	var reply *protos.ExportListenerReply
 	if err := w.repeatedly(errMsg, func() error {
 		var err error
-		reply, err = w.env.ExportListener(w.ctx, lis, opts)
+		reply, err = w.env.ExportListener(w.ctx, name, l.Addr().String(), opts)
 		return err
 	}); err != nil {
 		return nil, err
@@ -417,13 +416,10 @@ func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 	}
 }
 
-// CollectLoad implements the WeaveletHandler interface.
-func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
-	report := &protos.WeaveletLoadReport{
-		App:          w.info.App,
-		DeploymentId: w.info.DeploymentId,
-		Replica:      string(w.dialAddr),
-		Loads:        map[string]*protos.WeaveletLoadReport_ComponentLoad{},
+// GetLoad implements the WeaveletHandler interface.
+func (w *weavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error) {
+	report := &protos.LoadReport{
+		Loads: map[string]*protos.LoadReport_ComponentLoad{},
 	}
 
 	for _, c := range w.componentsByName {
@@ -437,11 +433,11 @@ func (w *weavelet) CollectLoad() (*protos.WeaveletLoadReport, error) {
 		// likely don't want to reset our load.
 		c.load.reset()
 	}
-	return report, nil
+	return &protos.GetLoadReply{Load: report}, nil
 }
 
 // UpdateComponents implements the conn.WeaverHandler interface.
-func (w *weavelet) UpdateComponents(req *protos.ComponentsToStart) error {
+func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	// Create components in a separate goroutine. A component's Init function
 	// may be slow or block. It may also call weaver.Get which will trigger
 	// pipe communication. We want to avoid blocking and pipe communication in
@@ -469,17 +465,17 @@ func (w *weavelet) UpdateComponents(req *protos.ComponentsToStart) error {
 			}
 		}
 	}()
-	return nil
+	return &protos.UpdateComponentsReply{}, nil
 }
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
-func (w *weavelet) UpdateRoutingInfo(routing *protos.RoutingInfo) (err error) {
+func (w *weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
 	// TODO(rgrandl): After we switch to slog, call With here to avoid
 	// repeating the same attributes again and again.
 	attrs := []any{
-		"component", routing.Component,
-		"local", routing.Local,
-		"replicas", routing.Replicas,
+		"component", req.RoutingInfo.Component,
+		"local", req.RoutingInfo.Local,
+		"replicas", req.RoutingInfo.Replicas,
 	}
 	w.env.SystemLogger().Debug("Updating routing info...", attrs...)
 	defer func() {
@@ -492,27 +488,27 @@ func (w *weavelet) UpdateRoutingInfo(routing *protos.RoutingInfo) (err error) {
 
 	// Update load collector.
 	for _, c := range w.componentsByName {
-		if c.load != nil && routing.Assignment != nil {
-			c.load.updateAssignment(routing.Assignment)
+		if c.load != nil && req.RoutingInfo.Assignment != nil {
+			c.load.updateAssignment(req.RoutingInfo.Assignment)
 		}
 	}
 
 	// Update resolver and balancer.
-	client := w.getTCPClient(routing.Component)
-	endpoints, err := parseEndpoints(routing.Replicas)
+	client := w.getTCPClient(req.RoutingInfo.Component)
+	endpoints, err := parseEndpoints(req.RoutingInfo.Replicas)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	client.resolver.update(endpoints)
-	client.balancer.update(routing.Assignment)
+	client.balancer.update(req.RoutingInfo.Assignment)
 
 	// Update local.
-	c, err := w.getComponent(routing.Component)
+	c, err := w.getComponent(req.RoutingInfo.Component)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.local.TryWrite(routing.Local)
-	return nil
+	c.local.TryWrite(req.RoutingInfo.Local)
+	return &protos.UpdateRoutingInfoReply{}, nil
 }
 
 // getComponent returns the component with the given name.

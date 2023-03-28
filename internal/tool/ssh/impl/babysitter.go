@@ -80,7 +80,7 @@ func RunBabysitter(ctx context.Context) error {
 			},
 			Write: logSaver,
 		}),
-		traceExporter: traceio.NewWriter(func(spans *protos.Spans) error {
+		traceExporter: traceio.NewWriter(func(spans *protos.TraceSpans) error {
 			return protomsg.Call(ctx, protomsg.CallArgs{
 				Client:  http.DefaultClient,
 				Addr:    info.ManagerAddr,
@@ -92,7 +92,7 @@ func RunBabysitter(ctx context.Context) error {
 	}
 
 	// Start the envelope.
-	wlet := &protos.WeaveletSetupInfo{
+	wlet := &protos.EnvelopeInfo{
 		App:           info.Deployment.App.Name,
 		DeploymentId:  info.Deployment.Id,
 		Id:            id,
@@ -125,7 +125,7 @@ func (m *metricsCollector) run(ctx context.Context) {
 	for {
 		select {
 		case <-tickerCollectMetrics.C:
-			ms, err := m.envelope.ReadMetrics()
+			ms, err := m.envelope.GetMetrics()
 			if err != nil {
 				m.logger.Error("Unable to collect metrics", err)
 				continue
@@ -155,15 +155,15 @@ func (m *metricsCollector) run(ctx context.Context) {
 	}
 }
 
-// StartComponent implements the protos.EnvelopeHandler interface.
-func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
+// ActivateComponent implements the protos.EnvelopeHandler interface.
+func (b *babysitter) ActivateComponent(_ context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
 		URLPath: startComponentURL,
 		Request: req,
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
 	b.mu.Lock()
@@ -172,7 +172,7 @@ func (b *babysitter) StartComponent(req *protos.ComponentToStart) error {
 		b.watchingRoutingInfo[req.Component] = true
 		go b.watchRoutingInfo(req.Component, req.Routed)
 	}
-	return nil
+	return &protos.ActivateComponentReply{}, nil
 }
 
 // registerReplica registers the information about a colocation group replica
@@ -195,21 +195,17 @@ func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
 	return nil
 }
 
-// ReportLoad implements the protos.EnvelopeHandler interface.
-func (b *babysitter) ReportLoad(*protos.WeaveletLoadReport) error {
-	return nil
-}
-
-// ExportListener implements the protos.EnvelopeHandler interface.
-func (b *babysitter) GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
+// GetListenerAddress implements the protos.EnvelopeHandler interface.
+func (b *babysitter) GetListenerAddress(_ context.Context, req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
 	host, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
-	return &protos.GetAddressReply{Address: fmt.Sprintf("%s:0", host)}, nil
+	return &protos.GetListenerAddressReply{Address: fmt.Sprintf("%s:0", host)}, nil
 }
 
-func (b *babysitter) ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+// ExportListener implements the protos.EnvelopeHandler interface.
+func (b *babysitter) ExportListener(_ context.Context, req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	reply := &protos.ExportListenerReply{}
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
@@ -297,20 +293,17 @@ func (b *babysitter) watchComponents() {
 	}
 }
 
-// RecvLogEntry implements the protos.EnvelopeHandler interface.
-func (b *babysitter) RecvLogEntry(req *protos.LogEntry) {
-	err := protomsg.Call(b.ctx, protomsg.CallArgs{
+// HandleLogEntry implements the protos.EnvelopeHandler interface.
+func (b *babysitter) HandleLogEntry(_ context.Context, req *protos.LogEntry) error {
+	return protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
 		URLPath: recvLogEntryURL,
 		Request: req,
 	})
-	if err != nil {
-		b.logger.Error("Error receiving logs", err, "fromAddr", b.info.ManagerAddr)
-	}
 }
 
-// RecvTraceSpans implements the protos.EnvelopeHandler interface.
-func (b *babysitter) RecvTraceSpans(spans []trace.ReadOnlySpan) error {
+// HandleTraceSpans implements the protos.EnvelopeHandler interface.
+func (b *babysitter) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
 	return b.traceExporter.ExportSpans(b.ctx, spans)
 }

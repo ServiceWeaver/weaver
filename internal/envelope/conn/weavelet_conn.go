@@ -29,62 +29,63 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
-// WeaveletHandler implements the weavelet side processing of messages exchanged
-// with the corresponding envelope.
-//
-// The handlers should not block and should not communicate over the pipe.
+// WeaveletHandler handles messages from the envelope. A handler should not
+// block and should not perform RPCs over the pipe. Values passed to the
+// handlers are only valid for the duration of the handler's execution.
 type WeaveletHandler interface {
-	// CollectLoad returns the latest load information at the weavelet.
-	CollectLoad() (*protos.WeaveletLoadReport, error)
+	// TODO(mwhittaker): Add context.Context to these methods?
 
-	// UpdateComponents is called with the latest set of components to run.
-	UpdateComponents(*protos.ComponentsToStart) error
+	// GetLoad returns a load report.
+	GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error)
 
-	// UpdateRoutingInfo is called with the latest routing info for a
-	// component.
-	UpdateRoutingInfo(*protos.RoutingInfo) error
+	// UpdateComponents updates the set of components the weavelet should be
+	// running. Currently, the set of components only increases over time.
+	UpdateComponents(*protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
+
+	// UpdateRoutingInfo updates a component's routing information.
+	UpdateRoutingInfo(*protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error)
 }
 
-// WeaveletConn is the weavelet side of the connection between a weavelet
-// and its envelope. It communicates with the envelope over a pair of pipes.
+// WeaveletConn is the weavelet side of the connection between a weavelet and
+// an envelope. For more information, refer to runtime/protos/runtime.proto and
+// https://serviceweaver.dev/blog/deployers.html.
 type WeaveletConn struct {
 	handler WeaveletHandler
 	conn    conn
-	info    *protos.WeaveletSetupInfo
+	info    *protos.EnvelopeInfo
 	lis     net.Listener // internal network listener for the weavelet
 	metrics metrics.Exporter
 }
 
-// NewWeaveletConn creates the weavelet side of the connection between a
-// weavelet and its envelope. The connection uses (r,w) to carry messages.
-// Synthesized high-level events are passed to h.
+// NewWeaveletConn returns a connection to an envelope. The connection sends
+// messages to and receives messages from the envelope using r and w. Note that
+// all RPCs will block until [Serve] is called.
 //
-// NewWeaveletConn blocks until it receives a protos.Weavelet from the
-// envelope.
+// TODO(mwhittaker): Pass in a context.Context?
 func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*WeaveletConn, error) {
 	d := &WeaveletConn{
 		handler: h,
 		conn:    conn{name: "weavelet", reader: r, writer: w},
 	}
 
-	// Block until the weavelet information is received.
+	// Perform the handshake. First, receive EnvelopeInfo.
 	msg := &protos.EnvelopeMsg{}
 	if err := d.conn.recv(msg); err != nil {
 		d.conn.cleanup(err)
 		return nil, err
 	}
-	d.info = msg.WeaveletSetupInfo
+	d.info = msg.EnvelopeInfo
 	if d.info == nil {
-		err := fmt.Errorf("expected WeaveletSetupInfo, got %v", msg)
+		err := fmt.Errorf("expected EnvelopeInfo, got %v", msg)
 		d.conn.cleanup(err)
 		return nil, err
 	}
-	if err := runtime.CheckWeaveletSetupInfo(d.info); err != nil {
+	if err := runtime.CheckEnvelopeInfo(d.info); err != nil {
 		d.conn.cleanup(err)
 		return nil, err
 	}
 
-	// Reply to the envelope with weavelet's runtime information.
+	// Second, send WeaveletInfo.
 	lis, err := listen(d.info)
 	if err != nil {
 		d.conn.cleanup(err)
@@ -99,8 +100,8 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 	return d, nil
 }
 
-// Serve accepts incoming messages from the envelope. Messages that are received
-// are handled as an ordered sequence.
+// Serve accepts RPC requests from the envelope. Requests are handled serially
+// in the order they are received.
 func (d *WeaveletConn) Serve() error {
 	msg := &protos.EnvelopeMsg{}
 	for {
@@ -113,8 +114,8 @@ func (d *WeaveletConn) Serve() error {
 	}
 }
 
-// Bootstrap returns the setup information for the weavelet.
-func (d *WeaveletConn) WeaveletSetupInfo() *protos.WeaveletSetupInfo {
+// EnvelopeInfo returns the EnvelopeInfo received from the envelope.
+func (d *WeaveletConn) EnvelopeInfo() *protos.EnvelopeInfo {
 	return d.info
 }
 
@@ -123,11 +124,18 @@ func (d *WeaveletConn) Listener() net.Listener {
 	return d.lis
 }
 
-// handleMessage handles all messages initiated by the envelope. Note that
-// this method doesn't handle RPC reply messages sent over by the envelope.
+// handleMessage handles all RPC requests initiated by the envelope. Note that
+// this method doesn't handle RPC replies from the envelope.
 func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
+	errstring := func(err error) string {
+		if err == nil {
+			return ""
+		}
+		return err.Error()
+	}
+
 	switch {
-	case msg.SendMetrics:
+	case msg.GetMetricsRequest != nil:
 		// Inject Service Weaver specific labels.
 		update := d.metrics.Export()
 		for _, def := range update.Defs {
@@ -138,53 +146,53 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			def.Labels["serviceweaver_version"] = d.info.DeploymentId
 			def.Labels["serviceweaver_node"] = d.info.Id
 		}
-		return d.conn.send(&protos.WeaveletMsg{Id: -msg.Id, Metrics: update})
-	case msg.SendHealthStatus:
-		return d.conn.send(&protos.WeaveletMsg{Id: -msg.Id, HealthReport: &protos.HealthReport{Status: protos.HealthStatus_HEALTHY}})
-	case msg.SendLoadInfo:
-		id := msg.Id
-		load, err := d.handler.CollectLoad()
-		if err != nil {
-			return d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
-		}
-		return d.conn.send(&protos.WeaveletMsg{Id: -id, LoadReport: load})
-	case msg.RunProfiling != nil:
+		return d.conn.send(&protos.WeaveletMsg{
+			Id:              -msg.Id,
+			GetMetricsReply: &protos.GetMetricsReply{Update: update},
+		})
+	case msg.GetHealthRequest != nil:
+		return d.conn.send(&protos.WeaveletMsg{
+			Id:             -msg.Id,
+			GetHealthReply: &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY},
+		})
+	case msg.GetLoadRequest != nil:
+		reply, err := d.handler.GetLoad(msg.GetLoadRequest)
+		return d.conn.send(&protos.WeaveletMsg{
+			Id:           -msg.Id,
+			Error:        errstring(err),
+			GetLoadReply: reply,
+		})
+	case msg.GetProfileRequest != nil:
 		// This is a blocking call, and therefore we process it in a separate
 		// goroutine. Note that this will cause profiling requests to be
 		// processed out-of-order w.r.t. other messages.
 		id := msg.Id
-		req := protomsg.Clone(msg.RunProfiling)
+		req := protomsg.Clone(msg.GetProfileRequest)
 		go func() {
 			data, err := Profile(req)
-			if err != nil {
-				// Reply with error.
-				//nolint:errcheck // error will be returned on next send
-				d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
-				return
-			}
 			// Reply with profile data.
-			//nolint:errcheck // error will be returned on next send
-			d.conn.send(&protos.WeaveletMsg{Id: -id, Profile: &protos.Profile{
-				AppName:   req.AppName,
-				VersionId: req.VersionId,
-				Data:      data,
-			}})
+			//nolint:errcheck //errMsg will be returned on next send
+			d.conn.send(&protos.WeaveletMsg{
+				Id:              -id,
+				Error:           errstring(err),
+				GetProfileReply: &protos.GetProfileReply{Data: data},
+			})
 		}()
 		return nil
-	case msg.ComponentsToStart != nil:
-		id := msg.Id
-		err := d.handler.UpdateComponents(msg.ComponentsToStart)
-		if err != nil {
-			return d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
-		}
-		return d.conn.send(&protos.WeaveletMsg{Id: -id})
-	case msg.RoutingInfo != nil:
-		id := msg.Id
-		err := d.handler.UpdateRoutingInfo(msg.RoutingInfo)
-		if err != nil {
-			return d.conn.send(&protos.WeaveletMsg{Id: -id, Error: err.Error()})
-		}
-		return d.conn.send(&protos.WeaveletMsg{Id: -id})
+	case msg.UpdateComponentsRequest != nil:
+		reply, err := d.handler.UpdateComponents(msg.UpdateComponentsRequest)
+		return d.conn.send(&protos.WeaveletMsg{
+			Id:                    -msg.Id,
+			Error:                 errstring(err),
+			UpdateComponentsReply: reply,
+		})
+	case msg.UpdateRoutingInfoRequest != nil:
+		reply, err := d.handler.UpdateRoutingInfo(msg.UpdateRoutingInfoRequest)
+		return d.conn.send(&protos.WeaveletMsg{
+			Id:                     -msg.Id,
+			Error:                  errstring(err),
+			UpdateRoutingInfoReply: reply,
+		})
 	default:
 		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
 		d.conn.cleanup(err)
@@ -192,23 +200,34 @@ func (d *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 	}
 }
 
-// StartComponentRPC requests the envelope to start the given component.
-func (d *WeaveletConn) StartComponentRPC(componentToStart *protos.ComponentToStart) error {
-	_, err := d.rpc(&protos.WeaveletMsg{ComponentToStart: componentToStart})
-	return err
+// ActivateComponentRPC ensures that the provided component is running
+// somewhere. A call to ActivateComponentRPC also implicitly signals that a
+// weavelet is interested in receiving routing info for the component.
+func (d *WeaveletConn) ActivateComponentRPC(req *protos.ActivateComponentRequest) error {
+	reply, err := d.rpc(&protos.WeaveletMsg{ActivateComponentRequest: req})
+	if err != nil {
+		return err
+	}
+	if reply.ActivateComponentReply == nil {
+		return fmt.Errorf("nil ActivateComponentReply received from envelope")
+	}
+	return nil
 }
 
-func (d *WeaveletConn) GetAddressRPC(req *protos.GetAddressRequest) (*protos.GetAddressReply, error) {
-	reply, err := d.rpc(&protos.WeaveletMsg{GetAddressRequest: req})
+// GetListenerAddressRPC returns the address the weavelet should listen on for
+// a particular listener.
+func (d *WeaveletConn) GetListenerAddressRPC(req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	reply, err := d.rpc(&protos.WeaveletMsg{GetListenerAddressRequest: req})
 	if err != nil {
 		return nil, err
 	}
-	if reply.GetAddressReply == nil {
-		return nil, fmt.Errorf("nil GetAddressReply received from envelope")
+	if reply.GetListenerAddressReply == nil {
+		return nil, fmt.Errorf("nil GetListenerAddressReply received from envelope")
 	}
-	return reply.GetAddressReply, nil
+	return reply.GetListenerAddressReply, nil
 }
 
+// ExportListenerRPC exports the provided listener.
 func (d *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	reply, err := d.rpc(&protos.WeaveletMsg{ExportListenerRequest: req})
 	if err != nil {
@@ -238,19 +257,18 @@ func (d *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, er
 }
 
 // SendLogEntry sends a log entry to the envelope, without waiting for a reply.
-func (d *WeaveletConn) SendLogEntry(entry *protos.LogEntry) {
-	//nolint:errcheck // error will be returned on next send
-	d.conn.send(&protos.WeaveletMsg{LogEntry: entry})
+func (d *WeaveletConn) SendLogEntry(entry *protos.LogEntry) error {
+	return d.conn.send(&protos.WeaveletMsg{LogEntry: entry})
 }
 
 // SendTraceSpans sends a set of trace spans to the envelope, without waiting
 // for a reply.
-func (d *WeaveletConn) SendTraceSpans(spans *protos.Spans) error {
+func (d *WeaveletConn) SendTraceSpans(spans *protos.TraceSpans) error {
 	return d.conn.send(&protos.WeaveletMsg{TraceSpans: spans})
 }
 
 // Profile collects profiles for the weavelet.
-func Profile(req *protos.RunProfiling) ([]byte, error) {
+func Profile(req *protos.GetProfileRequest) ([]byte, error) {
 	var buf bytes.Buffer
 	switch req.ProfileType {
 	case protos.ProfileType_Heap:
@@ -273,7 +291,7 @@ func Profile(req *protos.RunProfiling) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func listen(info *protos.WeaveletSetupInfo) (net.Listener, error) {
+func listen(info *protos.EnvelopeInfo) (net.Listener, error) {
 	// Pick a hostname to listen on.
 	host := "localhost"
 	if !info.SingleMachine {

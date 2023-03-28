@@ -1,0 +1,97 @@
+// Copyright 2023 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+option go_package = "github.com/ServiceWeaver/weaver/runtime/protos";
+
+package runtime;
+
+// A group of components.
+message ComponentGroup {
+  repeated string components = 1;
+}
+
+// AppConfig holds configuration for a Service Weaver application.
+message AppConfig {
+  // Application name (derived from binary if missing).
+  string name = 1;
+
+  // File name of the binary that implements the app.
+  string binary = 2;
+
+  // Arguments to pass to the binary.
+  repeated string args = 3;
+
+  // Environment variables available to the binary. Every entry should be of the
+  // form "key=value". If a key appears more than once, only the last value of
+  // the key is used.
+  repeated string env = 4;
+
+  // Groups of components that must be co-located in the same OS process.
+  //
+  // This grouping allows the developer a level of control on where the Service
+  // Weaver runtime will place each component. For example, suppose that the
+  // application binary contains six components: A, B, C, D, E, and F.
+  // Furthermore, suppose that the developer specifies the following grouping in
+  // the config.
+  //
+  //  colocate = [[A, B], [C, D, E]]
+  //
+  // In that case, no matter what algorithm the Service Weaver runtime uses to
+  // place the components, components A and B will always be grouped together,
+  // and components C, D, and E will always be grouped together. This means that
+  // a pair of replicas of the components can share in-memory state and
+  // communicate efficiently with each other (though not with other replicas).
+  //
+  // The placement algorithm the Service Weaver runtime uses varies across
+  // deployment environment. For example, a multiprocess deployer may choose to
+  // place each component into its own group, for maximum parallelism. A
+  // singleprocess deployer, on the other hand, may choose to group all of the
+  // components together. Regardless of which deployment environment is used,
+  // however, this configuration option guarantees that specified components
+  // will end up in the same group.
+  //
+  // Components are identified using their full package paths, e.g.:
+  //
+  //   "github.com/my/project/package/ComponentName"
+  //
+  // with the exception of the component associated with the application main(),
+  // which is identified using the name "main".
+  repeated ComponentGroup colocate = 5;
+
+  // A knob that lets the user specifies how many nanoseconds it expects for
+  // the rollout to take. This is used internally by Service Weaver to figure
+  // out the rollout strategy.
+  //
+  // If not specified, Service Weaver will pick a default value.
+  int64 rollout_nanos = 6;
+
+  // All config sections (includes [serviceweaver], [<deployer>], and
+  // [<component>] sections).
+  map<string, string> sections = 7;
+}
+
+// Deployment holds internal information necessary for an application
+// deployment.
+//
+// TODO(mwhittaker): Delete this proto.
+message Deployment {
+  string id = 1;  // Unique identifier for the deployment.
+
+  // Application configuration.
+  AppConfig app = 2;
+
+  // Run as a single process locally.
+  bool single_process = 10;
+}

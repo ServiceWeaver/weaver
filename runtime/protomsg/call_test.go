@@ -24,17 +24,15 @@ import (
 )
 
 var (
-	msg1 = &protos.WeaveletSetupInfo{
+	msg1 = &protos.EnvelopeInfo{
 		App:          "foo",
 		DeploymentId: "5678",
 		Id:           "id",
 	}
 
 	msg2 = &protos.ExportListenerRequest{
-		Listener: &protos.Listener{
-			Name: "lis",
-			Addr: "lis_addr",
-		},
+		Listener: "lis",
+		Address:  "lis_addr",
 	}
 
 	msg3 = &protos.MetricUpdate{

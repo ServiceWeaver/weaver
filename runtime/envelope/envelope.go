@@ -34,23 +34,28 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// EnvelopeHandler implements the envelope side processing of messages
-// exchanged with the managed weavelet.
+// EnvelopeHandler handles messages from the weavelet. Values passed to the
+// handlers are only valid for the duration of the handler's execution.
 type EnvelopeHandler interface {
-	// StartComponent starts the given component.
-	StartComponent(entry *protos.ComponentToStart) error
+	// ActivateComponent ensures that the provided component is running
+	// somewhere. A call to ActivateComponent also implicitly signals that a
+	// weavelet is interested in receiving routing info for the component.
+	ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error)
 
-	// GetAddress gets the address a weavelet should listen on for a listener.
-	GetAddress(req *protos.GetAddressRequest) (*protos.GetAddressReply, error)
+	// GetListenerAddress returns the address the weavelet should listen on for
+	// a particular listener.
+	GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error)
 
-	// ExportListener exports the given listener.
-	ExportListener(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
+	// ExportListener exports the provided listener. Exporting a listener
+	// typically, but not always, involves running a proxy that forwards
+	// traffic to the provided address.
+	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
-	// RecvLogEntry enables the envelope to receive a log entry.
-	RecvLogEntry(entry *protos.LogEntry)
+	// HandleLogEntry handles a log entry.
+	HandleLogEntry(context.Context, *protos.LogEntry) error
 
-	// RecvTraceSpans enables the envelope to receive a sequence of trace spans.
-	RecvTraceSpans(spans []trace.ReadOnlySpan) error
+	// HandleTraceSpans handles a set of trace spans.
+	HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
 }
 
 // Ensure that EnvelopeHandler remains in-sync with conn.EnvelopeHandler.
@@ -59,14 +64,15 @@ var (
 	_ conn.EnvelopeHandler = EnvelopeHandler(nil)
 )
 
-// Envelope starts and manages a weavelet, i.e., an OS process running inside a
-// colocation group replica, hosting Service Weaver components. It also captures the
-// weavelet's tracing, logging, and metrics information.
+// Envelope starts and manages a weavelet in a subprocess.
+//
+// For more information, refer to runtime/protos/runtime.proto and
+// https://serviceweaver.dev/blog/deployers.html.
 type Envelope struct {
 	// Fields below are constant after construction.
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
-	weavelet   *protos.WeaveletSetupInfo
+	weavelet   *protos.EnvelopeInfo
 	config     *protos.AppConfig
 	conn       *conn.EnvelopeConn // conn to weavelet
 	cmd        *pipe.Cmd          // command that started the weavelet
@@ -77,10 +83,13 @@ type Envelope struct {
 	profiling bool       // are we currently collecting a profile?
 }
 
-// NewEnvelope creates a new envelope, starting a weavelet process and
+// NewEnvelope creates a new envelope, starting a weavelet subprocess and
 // establishing a bidirectional connection with it. The weavelet process can be
 // stopped at any time by canceling the passed-in context.
-func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *protos.AppConfig) (*Envelope, error) {
+//
+// You can issue RPCs *to* the weavelet using the returned Envelope. To start
+// receiving messages *from* the weavelet, call [Serve].
+func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig) (*Envelope, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	e := &Envelope{
 		ctx:       ctx,
@@ -138,10 +147,11 @@ func NewEnvelope(ctx context.Context, wlet *protos.WeaveletSetupInfo, config *pr
 	return e, nil
 }
 
-// Serve accepts incoming messages from the weavelet. Messages that are received
-// are handled as an ordered sequence. This call blocks until the envelope
-// terminates, returning the error that caused it to terminate. This method will
-// never return a non-nil error.
+// Serve accepts incoming messages from the weavelet. RPC requests are handled
+// serially in the order they are received. Serve blocks until the connection
+// terminates, returning the error that caused it to terminate. You can cancel
+// the connection by cancelling the context passed to [NewEnvelope]. This
+// method never returns a non-nil error.
 func (e *Envelope) Serve(h EnvelopeHandler) error {
 	var running errgroup.Group
 
@@ -212,44 +222,44 @@ func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
 	return e.conn.WeaveletInfo()
 }
 
-// HealthStatus returns the health status of the weavelet.
-func (e *Envelope) HealthStatus() protos.HealthStatus {
-	healthStatus, err := e.conn.HealthStatusRPC()
+// GetHealth returns the health status of the weavelet.
+func (e *Envelope) GetHealth() protos.HealthStatus {
+	status, err := e.conn.GetHealthRPC()
 	if err != nil {
 		return protos.HealthStatus_UNHEALTHY
 	}
-	return healthStatus
+	return status
 }
 
-// RunProfiling returns weavelet profiling information.
-func (e *Envelope) RunProfiling(_ context.Context, req *protos.RunProfiling) (*protos.Profile, error) {
+// GetProfile gets a profile from the weavelet.
+func (e *Envelope) GetProfile(req *protos.GetProfileRequest) ([]byte, error) {
 	if ok := e.toggleProfiling(false); !ok {
 		return nil, fmt.Errorf("profiling already in progress")
 	}
 	defer e.toggleProfiling(true)
-	return e.conn.DoProfilingRPC(req)
+	return e.conn.GetProfileRPC(req)
 }
 
-// ReadMetrics returns the set of all captured metrics.
-func (e *Envelope) ReadMetrics() ([]*metrics.MetricSnapshot, error) {
+// GetMetrics returns a weavelet's metrics.
+func (e *Envelope) GetMetrics() ([]*metrics.MetricSnapshot, error) {
 	return e.conn.GetMetricsRPC()
 }
 
-// GetLoadInfo returns the latest load information at the weavelet.
-func (e *Envelope) GetLoadInfo() (*protos.WeaveletLoadReport, error) {
-	return e.conn.GetLoadInfoRPC()
+// GetLoad gets a load report from the weavelet.
+func (e *Envelope) GetLoad() (*protos.LoadReport, error) {
+	return e.conn.GetLoadRPC()
 }
 
 // UpdateComponents updates the weavelet with the latest set of components it
 // should be running.
 func (e *Envelope) UpdateComponents(components []string) error {
-	return e.conn.UpdateComponentsRPC(&protos.ComponentsToStart{Components: components})
+	return e.conn.UpdateComponentsRPC(components)
 }
 
 // UpdateRoutingInfo updates the weavelet with a component's most recent
 // routing info.
-func (e *Envelope) UpdateRoutingInfo(info *protos.RoutingInfo) error {
-	return e.conn.UpdateRoutingInfoRPC(info)
+func (e *Envelope) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
+	return e.conn.UpdateRoutingInfoRPC(routing)
 }
 
 func (e *Envelope) logLines(component string, src io.Reader, h EnvelopeHandler) error {
@@ -270,7 +280,9 @@ func (e *Envelope) logLines(component string, src io.Reader, h EnvelopeHandler) 
 		if len(line) > 0 {
 			entry.Msg = string(dropNewline(line))
 			entry.TimeMicros = 0 // In case previous logSaver() call set it
-			h.RecvLogEntry(entry)
+			if err := h.HandleLogEntry(e.ctx, entry); err != nil {
+				return err
+			}
 		}
 		if err != nil {
 			return fmt.Errorf("capture %s: %w", component, err)
