@@ -51,3 +51,64 @@ jobs:
 
       - name: ${{ matrix.command }}
         run: ./dev/build_and_test ${{ matrix.command }}
+
+  generate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["1.19", "1.20"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.version }}
+          cache: true
+
+      - name: Cache protoc-gen-go
+        uses: actions/cache@v3
+        with:
+          path: ~/go/bin/protoc-gen-go
+          key: protoc-gen-go-v1.26
+
+      - name: Cache addlicense
+        uses: actions/cache@v3
+        with:
+          path: ~/go/bin/addlicense
+          key: addlicense-v1.1.1
+
+      - name: Install protoc
+        run: sudo apt install -y protobuf-compiler
+
+      - name: Install protoc-gen-go
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26
+
+      - name: Install addlicense
+        run: go install github.com/google/addlicense@v1.1.1
+
+      - name: Generate code
+        run: ./dev/build_and_test generate
+
+      - name: Check spurious changes
+        run: |
+          # TODO(mwhittaker): Check .pb.go files.
+          # Exclude the weaver binary, which is built by the generate tool.
+          rm ./cmd/weaver/weaver
+          # Exclude .pb.go files, as the protoc version may differ.
+          if [[ $(git ls-files --modified --others | grep -v '.*\.pb\.go') ]]; then
+            for f in $(git ls-files --modified); do
+              if ! [[ $f == *.pb.go ]]; then
+                echo "❌ File $f modified."
+                git diff "$f"
+              fi
+            done
+            for f in $(git ls-files --others); do
+              echo "❌ File $f untracked."
+            done
+            echo "Run './dev/build_and_test generate' and commit the changes."
+            exit 1
+          fi
+          echo "Success ✅"
