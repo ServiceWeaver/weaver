@@ -152,7 +152,7 @@ func (s *impl) GetProduct(ctx context.Context, productID string) (Product, error
 func (s *impl) SearchProducts(ctx context.Context, query string) ([]Product, error) {
 	time.Sleep(s.extraLatency)
 
-	// Intepret query as a substring match in name or description.
+	// Interpret query as a substring match in name or description.
 	var ps []Product
 	for _, p := range s.parseCatalog() {
 		if strings.Contains(strings.ToLower(p.Name), strings.ToLower(query)) ||

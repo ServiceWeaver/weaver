@@ -15,6 +15,7 @@
 linters:
   enable:
     - nolintlint
+    - misspell
 issues:
   exclude-rules:
     - path: '_test\.go'

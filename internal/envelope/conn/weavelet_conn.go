@@ -204,7 +204,7 @@ func (d *WeaveletConn) GetAddressRPC(req *protos.GetAddressRequest) (*protos.Get
 		return nil, err
 	}
 	if reply.GetAddressReply == nil {
-		return nil, fmt.Errorf("nil GetAddressReply recieved from envelope")
+		return nil, fmt.Errorf("nil GetAddressReply received from envelope")
 	}
 	return reply.GetAddressReply, nil
 }

@@ -20,7 +20,7 @@ import (
 )
 
 // constantResolver is a trivial constant resolver that returns a fixed set of
-// endponts.
+// endpoints.
 type constantResolver struct {
 	endpoints []Endpoint
 }
