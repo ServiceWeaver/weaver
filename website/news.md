@@ -14,17 +14,6 @@
  limitations under the License.
 -->
 
-* For general questions and discussions, consider joining our
-[discussion list][sw_group] or our Discord [channel][sw_discord].
+[*2023-03-30*] We are now on Discord. Follow us [here][sw_discord].
 
-* For bugs and code-related issues, please create a [GitHub issue][issue].
-
-* If you're interested in contributing, please read our
-[contribution guide][contrib_guide].
-
-* If you need to get in touch with us, feel free to [e-mail](mailto:serviceweaver@google.com) us.
-
-[sw_group]: https://groups.google.com/g/serviceweaver
 [sw_discord]: https://discord.gg/p36aYaaN
-[issue]: https://github.com/ServiceWeaver/weaver/issues
-[contrib_guide]: https://github.com/ServiceWeaver/weaver/blob/main/CONTRIBUTING.md

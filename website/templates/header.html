@@ -23,6 +23,7 @@
       <li><a href="/" class="navlink {{if eq .Path "index.html"}}active{{end}}">Home</a></li>
       <li><a href="/docs.html" class="navlink {{if eq .Path "docs.html"}}active{{end}}">Docs</a></li>
       <li><a href="/blog" class="navlink {{if prefix .Path "blog/"}}active{{end}}">Blog</a></li>
+      <li><a href="/news.html" class="news navlink {{if eq .Path "news.html"}}active{{end}}">News</a></li>
       <li><a href="/contact.html" class="navlink {{if eq .Path "contact.html"}}active{{end}}">Contact Us</a></li>
       <li><a href="https://pkg.go.dev/github.com/ServiceWeaver/weaver" class="navlink">API</a></li>
     </ul>
