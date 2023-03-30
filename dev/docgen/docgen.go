@@ -60,6 +60,7 @@ var files = []file{
 
 	{dst: "blog/index.html", html: "blog/index.html", template: "blog.html", license: true},
 	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog_entry.html", title: "A Quick Introduction to Service Weaver", license: true},
+	{dst: "news.html", markdown: "news.md", template: "news.html", license: true},
 
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
