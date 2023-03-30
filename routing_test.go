@@ -31,7 +31,7 @@ type nilEndpoint struct{ Addr string }
 
 // Dial implements the call.Endpoint interface.
 func (nilEndpoint) Dial(context.Context) (net.Conn, error) {
-	return nil, fmt.Errorf("unimpemented")
+	return nil, fmt.Errorf("unimplemented")
 }
 
 // Address implements the call.Endpoint interface.

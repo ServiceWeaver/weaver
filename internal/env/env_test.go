@@ -66,7 +66,7 @@ func TestSplit(t *testing.T) {
 				t.Fatalf("env.Split(%q): %v", test.s, err)
 			}
 			if !test.good && err == nil {
-				t.Fatalf("env.Split(%q): unexpected succeess", test.s)
+				t.Fatalf("env.Split(%q): unexpected success", test.s)
 			}
 			if test.good && (k != test.k || v != test.v) {
 				t.Fatalf("env.Split(%q): got (%q, %q), want (%q, %q)", test.s, k, v, test.k, test.v)
@@ -94,7 +94,7 @@ func TestParse(t *testing.T) {
 				t.Fatalf("env.Parse(%v): %v", test.env, err)
 			}
 			if test.want == nil && err == nil {
-				t.Fatalf("env.Parse(%v): unexpected succeess", test.env)
+				t.Fatalf("env.Parse(%v): unexpected success", test.env)
 			}
 			if test.want != nil {
 				if diff := cmp.Diff(test.want, vars); diff != "" {
