@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-.contents {
-  padding-left: 4ch;
-  padding-right: 4ch;
-}
-
 #serviceweaver-jumbotron {
   background: rgba(255, 234, 167, 1.0);
   border-radius: 1em;
@@ -56,6 +51,12 @@
   padding: 0.75ch;
 }
 
+.serviceweaver-subtitle {
+  max-width: 75%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .intro-row {
   display: flex;
   flex-wrap: wrap;
@@ -73,7 +74,7 @@
   margin-left: auto;
   margin-right: auto;
   flex: 0 0 auto;
-  width: 45%;
+  width: 47%;
   min-width: 20em;
 }
 

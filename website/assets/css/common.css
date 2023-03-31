@@ -46,9 +46,15 @@ code {
 
 /* Limit the page content width to keep lines readable. */
 .page {
-  max-width: 80em;
+  max-width: 65rem;
   margin-left: auto;
   margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.page p, .page li {
+  line-height: 1.5;
 }
 
 header {

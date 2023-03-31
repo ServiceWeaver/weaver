@@ -104,8 +104,12 @@
 .contents {
   flex: 1 0 auto;
   width: 10em;
-  padding-left: 1ch;
-  padding-right: 1ch;
+}
+
+@media (min-width: 800px) {
+  .contents {
+    padding-left: 1rem;
+  }
 }
 
 .contents pre {
