@@ -319,34 +319,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
-github.com/ServiceWeaver/weaver/internal/babysitter
-    context
-    errors
-    fmt
-    github.com/ServiceWeaver/weaver/internal/metrics
-    github.com/ServiceWeaver/weaver/internal/proxy
-    github.com/ServiceWeaver/weaver/internal/status
-    github.com/ServiceWeaver/weaver/runtime/envelope
-    github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/metrics
-    github.com/ServiceWeaver/weaver/runtime/perfetto
-    github.com/ServiceWeaver/weaver/runtime/profiling
-    github.com/ServiceWeaver/weaver/runtime/protomsg
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
-    golang.org/x/sync/errgroup
-    google.golang.org/protobuf/types/known/timestamppb
-    math
-    net
-    net/http
-    sort
-    sync
-    syscall
-    time
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
     fmt
@@ -517,24 +489,40 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     errors
     flag
     fmt
-    github.com/ServiceWeaver/weaver/internal/babysitter
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/internal/metrics
+    github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/perfetto
+    github.com/ServiceWeaver/weaver/runtime/profiling
+    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/uuid
+    go.opentelemetry.io/otel/sdk/trace
+    golang.org/x/exp/maps
+    golang.org/x/exp/slices
+    golang.org/x/exp/slog
+    golang.org/x/sync/errgroup
+    google.golang.org/protobuf/types/known/timestamppb
     io
+    math
     net
     net/http
     os
     os/signal
     path/filepath
+    sort
+    sync
     syscall
+    time
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
     fmt
