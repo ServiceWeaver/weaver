@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/ServiceWeaver/weaver/internal/babysitter"
 	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -82,14 +81,14 @@ func deploy(ctx context.Context, args []string) error {
 	}
 	logSaver := fs.Add
 
-	// Create the babysitter.
+	// Create the deployer.
 	dep := &protos.Deployment{
 		Id:  uuid.New().String(),
 		App: app,
 	}
-	b, err := babysitter.NewBabysitter(ctx, dep, logSaver)
+	d, err := newDeployer(ctx, dep, logSaver)
 	if err != nil {
-		return fmt.Errorf("create babysitter: %w", err)
+		return fmt.Errorf("create deployer: %w", err)
 	}
 
 	// Run a status server.
@@ -98,7 +97,7 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	mux := http.NewServeMux()
-	b.RegisterStatusPages(mux)
+	d.registerStatusPages(mux)
 	go func() {
 		if err := serveHTTP(ctx, lis, mux); err != nil {
 			fmt.Fprintf(os.Stderr, "status server: %v\n", err)
@@ -106,7 +105,7 @@ func deploy(ctx context.Context, args []string) error {
 	}()
 
 	// Deploy main.
-	if err := b.StartMain(); err != nil {
+	if err := d.startMain(); err != nil {
 		return fmt.Errorf("start main process: %w", err)
 	}
 
@@ -136,10 +135,10 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	userDone := make(chan os.Signal, 1)
-	babysitterDone := make(chan error, 1)
+	deployerDone := make(chan error, 1)
 	go func() {
-		err := b.Wait()
-		babysitterDone <- err
+		err := d.wait()
+		deployerDone <- err
 	}()
 	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -147,7 +146,7 @@ func deploy(ctx context.Context, args []string) error {
 		select {
 		case <-userDone:
 			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", app.Name)
-		case err := <-babysitterDone:
+		case err := <-deployerDone:
 			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", app.Name, err)
 		}
 		if err := registry.Unregister(ctx, dep.Id); err != nil {
@@ -184,18 +183,4 @@ func defaultRegistry(ctx context.Context) (*status.Registry, error) {
 		return nil, err
 	}
 	return status.NewRegistry(ctx, filepath.Join(dir, "multi_registry"))
-}
-
-// serveHTTP serves HTTP traffic on the provided listener using the provided
-// handler. The server is shut down when then provided context is cancelled.
-func serveHTTP(ctx context.Context, lis net.Listener, handler http.Handler) error {
-	server := http.Server{Handler: handler}
-	errs := make(chan error, 1)
-	go func() { errs <- server.Serve(lis) }()
-	select {
-	case err := <-errs:
-		return err
-	case <-ctx.Done():
-		return server.Shutdown(ctx)
-	}
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package babysitter
+package multi
 
 import (
 	"context"
@@ -42,14 +42,14 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // The default number of times a component is replicated.
 const defaultReplication = 2
 
-// A Babysitter manages an application deployment.
-type Babysitter struct {
+// A deployer manages an application deployment.
+type deployer struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	dep       *protos.Deployment
@@ -75,7 +75,7 @@ type Babysitter struct {
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
-	// The babysitter places components into co-location groups based on the
+	// The deployer places components into co-location groups based on the
 	// colocate stanza in a config. For example, consider the following config.
 	//
 	//     colocate = [
@@ -83,7 +83,7 @@ type Babysitter struct {
 	//         ["D", "E"],
 	//     ]
 	//
-	// The babysitter creates a co-location group with components "A", "B", and
+	// The deployer creates a co-location group with components "A", "B", and
 	// "C" and a co-location group with components "D" and "E". All other
 	// components are placed in their own co-location group. We use the first
 	// listed component as the co-location group name.
@@ -119,7 +119,7 @@ type proxyInfo struct {
 
 // handler handles a connection to a weavelet.
 type handler struct {
-	*Babysitter
+	*deployer
 	g          *group
 	envelope   *envelope.Envelope
 	subscribed map[string]bool // routing info subscriptions, by component
@@ -127,13 +127,13 @@ type handler struct {
 
 var _ envelope.EnvelopeHandler = &handler{}
 
-// NewBabysitter creates a new babysitter. The babysitter can be stopped at any
+// newDeployer creates a new deployer. The deployer can be stopped at any
 // time by canceling the passed-in context.
-func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*protos.LogEntry)) (*Babysitter, error) {
+func newDeployer(ctx context.Context, dep *protos.Deployment, logSaver func(*protos.LogEntry)) (*deployer, error) {
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       dep.App.Name,
-			Component: "babysitter",
+			Component: "deployer",
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
 		},
@@ -158,7 +158,7 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	b := &Babysitter{
+	d := &deployer{
 		ctx:            ctx,
 		ctxCancel:      cancel,
 		logger:         logger,
@@ -173,61 +173,61 @@ func NewBabysitter(ctx context.Context, dep *protos.Deployment, logSaver func(*p
 	}
 
 	// Start a goroutine that collects metrics.
-	b.running.Go(func() error {
-		err := b.statsProcessor.CollectMetrics(b.ctx, b.readMetrics)
-		b.stop(err)
+	d.running.Go(func() error {
+		err := d.statsProcessor.CollectMetrics(d.ctx, d.readMetrics)
+		d.stop(err)
 		return err
 	})
 
 	// Start a goroutine that watches for context cancelation.
-	b.running.Go(func() error {
-		<-b.ctx.Done()
-		err := b.ctx.Err()
-		b.stop(err)
+	d.running.Go(func() error {
+		<-d.ctx.Done()
+		err := d.ctx.Err()
+		d.stop(err)
 		return err
 	})
 
-	return b, nil
+	return d, nil
 }
 
-// Wait waits for the babysitter to terminate. It returns an error that
-// caused the babysitter to terminate. This method will never return
+// wait waits for the deployer to terminate. It returns an error that
+// caused the deployer to terminate. This method will never return
 // a non-nil error.
-func (b *Babysitter) Wait() error {
-	b.running.Wait() //nolint:errcheck // supplanted by b.err
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.err
+func (d *deployer) wait() error {
+	d.running.Wait() //nolint:errcheck // supplanted by b.err
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.err
 }
 
 // REQUIRES: err != nil
-func (b *Babysitter) stop(err error) {
+func (d *deployer) stop(err error) {
 	// Record the first error.
-	b.mu.Lock()
-	if b.err == nil {
-		b.err = err
+	d.mu.Lock()
+	if d.err == nil {
+		d.err = err
 	}
-	b.mu.Unlock()
+	d.mu.Unlock()
 
 	// Cancel the context.
-	b.ctxCancel()
+	d.ctxCancel()
 }
 
-// RegisterStatusPages registers the status pages with the provided mux.
-func (b *Babysitter) RegisterStatusPages(mux *http.ServeMux) {
-	status.RegisterServer(mux, b, b.logger)
+// registerStatusPages registers the status pages with the provided mux.
+func (d *deployer) registerStatusPages(mux *http.ServeMux) {
+	status.RegisterServer(mux, d, d.logger)
 }
 
 // group returns the co-location group containing the provided component.
 //
 // REQUIRES: b.mu is held.
-func (b *Babysitter) group(component string) *group {
-	name, ok := b.colocation[component]
+func (d *deployer) group(component string) *group {
+	name, ok := d.colocation[component]
 	if !ok {
 		name = component
 	}
 
-	g, ok := b.groups[name]
+	g, ok := d.groups[name]
 	if !ok {
 		g = &group{
 			name:        name,
@@ -236,7 +236,7 @@ func (b *Babysitter) group(component string) *group {
 			assignments: map[string]*protos.Assignment{},
 			subscribers: map[string][]*envelope.Envelope{},
 		}
-		b.groups[name] = g
+		d.groups[name] = g
 	}
 	return g
 }
@@ -256,12 +256,12 @@ func (g *group) routing(component string) *protos.RoutingInfo {
 // component, if it hasn't been started already.
 //
 // REQUIRES: b.mu is held.
-func (b *Babysitter) startColocationGroup(g *group) error {
-	// Check if the babysitter has already been stopped. The cleanup protocol
-	// requires that no further envelopes be started after the babysitter
+func (d *deployer) startColocationGroup(g *group) error {
+	// Check if the deployer has already been stopped. The cleanup protocol
+	// requires that no further envelopes be started after the deployer
 	// has been stopped.
-	if b.err != nil {
-		return b.err
+	if d.err != nil {
+		return d.err
 	}
 	if len(g.envelopes) == defaultReplication {
 		// Already started.
@@ -272,30 +272,30 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 	for r := 0; r < defaultReplication; r++ {
 		// Start the weavelet and capture its logs, traces, and metrics.
 		wlet := &protos.EnvelopeInfo{
-			App:           b.dep.App.Name,
-			DeploymentId:  b.dep.Id,
+			App:           d.dep.App.Name,
+			DeploymentId:  d.dep.Id,
 			Id:            uuid.New().String(),
-			Sections:      b.dep.App.Sections,
-			SingleProcess: b.dep.SingleProcess,
+			Sections:      d.dep.App.Sections,
+			SingleProcess: d.dep.SingleProcess,
 			SingleMachine: true,
 			RunMain:       g.components["main"],
 		}
 		h := &handler{
-			Babysitter: b,
+			deployer:   d,
 			g:          g,
 			subscribed: map[string]bool{},
 		}
-		e, err := envelope.NewEnvelope(b.ctx, wlet, b.dep.App)
+		e, err := envelope.NewEnvelope(d.ctx, wlet, d.dep.App)
 		if err != nil {
 			return err
 		}
 		h.envelope = e
-		b.running.Go(func() error {
+		d.running.Go(func() error {
 			err := e.Serve(h)
-			b.stop(err)
+			d.stop(err)
 			return err
 		})
-		if err := b.registerReplica(g, e.WeaveletInfo()); err != nil {
+		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
 			return err
 		}
 		if err := e.UpdateComponents(components); err != nil {
@@ -306,8 +306,8 @@ func (b *Babysitter) startColocationGroup(g *group) error {
 	return nil
 }
 
-func (b *Babysitter) StartMain() error {
-	return b.activateComponent(&protos.ActivateComponentRequest{Component: "main"})
+func (d *deployer) startMain() error {
+	return d.activateComponent(&protos.ActivateComponentRequest{Component: "main"})
 }
 
 // ActivateComponent implements the envelope.EnvelopeHandler interface.
@@ -339,12 +339,12 @@ func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 	return h.envelope.UpdateRoutingInfo(target.routing(req.Component))
 }
 
-func (b *Babysitter) activateComponent(req *protos.ActivateComponentRequest) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (d *deployer) activateComponent(req *protos.ActivateComponentRequest) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Update the set of components in the target co-location group.
-	target := b.group(req.Component)
+	target := d.group(req.Component)
 	if !target.components[req.Component] {
 		target.components[req.Component] = true
 
@@ -372,12 +372,12 @@ func (b *Babysitter) activateComponent(req *protos.ActivateComponentRequest) err
 	}
 
 	// Start the co-location group, if it hasn't started already.
-	return b.startColocationGroup(target)
+	return d.startColocationGroup(target)
 }
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-func (b *Babysitter) registerReplica(g *group, info *protos.WeaveletInfo) error {
+func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 	// Update addresses and pids.
 	if g.addresses[info.DialAddr] {
 		// Replica already registered.
@@ -406,31 +406,31 @@ func (b *Babysitter) registerReplica(g *group, info *protos.WeaveletInfo) error 
 }
 
 // HandleLogEntry implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	b.logSaver(entry)
+func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
+	d.logSaver(entry)
 	return nil
 }
 
 // HandleTraceSpans implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
-	if b.traceSaver == nil {
+func (d *deployer) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
+	if d.traceSaver == nil {
 		return nil
 	}
-	return b.traceSaver(spans)
+	return d.traceSaver(spans)
 }
 
 // GetListenerAddress implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) GetListenerAddress(_ context.Context, req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+func (d *deployer) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
 	return &protos.GetListenerAddressReply{Address: "localhost:0"}, nil
 }
 
 // ExportListener implements the envelope.EnvelopeHandler interface.
-func (b *Babysitter) ExportListener(_ context.Context, req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	// Update the proxy.
-	if p, ok := b.proxies[req.Listener]; ok {
+	if p, ok := d.proxies[req.Listener]; ok {
 		p.proxy.AddBackend(req.Address)
 		return &protos.ExportListenerReply{ProxyAddress: p.addr}, nil
 	}
@@ -444,28 +444,28 @@ func (b *Babysitter) ExportListener(_ context.Context, req *protos.ExportListene
 		return nil, fmt.Errorf("proxy listen: %w", err)
 	}
 	addr := lis.Addr().String()
-	b.logger.Info("Proxy listening", "address", addr)
-	proxy := proxy.NewProxy(b.logger)
+	d.logger.Info("Proxy listening", "address", addr)
+	proxy := proxy.NewProxy(d.logger)
 	proxy.AddBackend(req.Address)
-	b.proxies[req.Listener] = &proxyInfo{
+	d.proxies[req.Listener] = &proxyInfo{
 		listener: req.Listener,
 		proxy:    proxy,
 		addr:     addr,
 	}
 	go func() {
-		if err := serveHTTP(b.ctx, lis, proxy); err != nil {
-			b.logger.Error("proxy", err)
+		if err := serveHTTP(d.ctx, lis, proxy); err != nil {
+			d.logger.Error("proxy", err)
 		}
 	}()
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
 }
 
-func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (d *deployer) readMetrics() []*metrics.MetricSnapshot {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	var ms []*metrics.MetricSnapshot
-	for _, group := range b.groups {
+	for _, group := range d.groups {
 		for _, envelope := range group.envelopes {
 			m, err := envelope.GetMetrics()
 			if err != nil {
@@ -478,17 +478,17 @@ func (b *Babysitter) readMetrics() []*metrics.MetricSnapshot {
 }
 
 // Profile implements the status.Server interface.
-func (b *Babysitter) Profile(_ context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
-	// Make a copy of the envelopes so we can operate on it without holding the
+func (d *deployer) Profile(_ context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
+	// Make a copy of the envelopes, so we can operate on it without holding the
 	// lock. A profile can last a long time.
-	b.mu.Lock()
+	d.mu.Lock()
 	envelopes := map[string][]*envelope.Envelope{}
-	for _, group := range b.groups {
+	for _, group := range d.groups {
 		envelopes[group.name] = slices.Clone(group.envelopes)
 	}
-	b.mu.Unlock()
+	d.mu.Unlock()
 
-	profile, err := runProfiling(b.ctx, req, envelopes)
+	profile, err := runProfiling(d.ctx, req, envelopes)
 	if err != nil {
 		return nil, err
 	}
@@ -496,13 +496,13 @@ func (b *Babysitter) Profile(_ context.Context, req *protos.GetProfileRequest) (
 }
 
 // Status implements the status.Server interface.
-func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (d *deployer) Status(context.Context) (*status.Status, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
-	stats := b.statsProcessor.GetStatsStatusz()
+	stats := d.statsProcessor.GetStatsStatusz()
 	var components []*status.Component
-	for _, group := range b.groups {
+	for _, group := range d.groups {
 		for component := range group.components {
 			c := &status.Component{
 				Name:  component,
@@ -543,7 +543,7 @@ func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
 	}
 
 	var listeners []*status.Listener
-	for _, proxy := range b.proxies {
+	for _, proxy := range d.proxies {
 		listeners = append(listeners, &status.Listener{
 			Name: proxy.listener,
 			Addr: proxy.addr,
@@ -551,19 +551,19 @@ func (b *Babysitter) Status(ctx context.Context) (*status.Status, error) {
 	}
 
 	return &status.Status{
-		App:            b.dep.App.Name,
-		DeploymentId:   b.dep.Id,
-		SubmissionTime: timestamppb.New(b.started),
+		App:            d.dep.App.Name,
+		DeploymentId:   d.dep.Id,
+		SubmissionTime: timestamppb.New(d.started),
 		Components:     components,
 		Listeners:      listeners,
-		Config:         b.dep.App,
+		Config:         d.dep.App,
 	}, nil
 }
 
 // Metrics implements the status.Server interface.
-func (b *Babysitter) Metrics(ctx context.Context) (*status.Metrics, error) {
+func (d *deployer) Metrics(context.Context) (*status.Metrics, error) {
 	m := &status.Metrics{}
-	for _, snap := range b.readMetrics() {
+	for _, snap := range d.readMetrics() {
 		m.Metrics = append(m.Metrics, snap.ToProto())
 	}
 	return m, nil
@@ -661,7 +661,7 @@ func nextPowerOfTwo(x int) int {
 }
 
 // runProfiling runs a profiling request on a set of processes.
-func runProfiling(ctx context.Context, req *protos.GetProfileRequest, processes map[string][]*envelope.Envelope) (*protos.GetProfileReply, error) {
+func runProfiling(_ context.Context, req *protos.GetProfileRequest, processes map[string][]*envelope.Envelope) (*protos.GetProfileReply, error) {
 	// Collect together the groups we want to profile.
 	groups := make([][]func() ([]byte, error), 0, len(processes))
 	for _, envelopes := range processes {

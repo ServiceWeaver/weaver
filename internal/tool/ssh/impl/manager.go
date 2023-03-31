@@ -300,7 +300,7 @@ func (m *manager) registerStatusPages(mux *http.ServeMux) {
 
 // Status implements the status.Server interface.
 //
-// TODO(rgrandl): the implementation is the same as the internal/babysitter.go.
+// TODO(rgrandl): the implementation is the same as the internal/tool/multi/deployer.go.
 // See if we can remove duplication.
 func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 	stats := m.statsProcessor.GetStatsStatusz()
