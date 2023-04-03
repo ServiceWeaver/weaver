@@ -55,9 +55,12 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/tool/ssh
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/tool
     os
     os/exec
+    runtime
+    runtime/debug
     strings
 github.com/ServiceWeaver/weaver/dev/docgen
     bytes
