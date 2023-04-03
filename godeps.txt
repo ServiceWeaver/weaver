@@ -563,6 +563,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/internal/versioned
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
