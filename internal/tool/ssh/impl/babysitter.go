@@ -24,6 +24,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -105,12 +106,41 @@ func RunBabysitter(ctx context.Context) error {
 		return err
 	}
 	b.envelope = e
-	if err := b.registerReplica(e.WeaveletInfo()); err != nil {
+
+	// Make sure the version of the deployer matches the version of the
+	// compiled binary.
+	winfo := e.WeaveletInfo()
+	if err := checkVersion(winfo.Version); err != nil {
+		// TODO: Propagate the error and stop the deployer.
+		b.logger.Error("version mismatch", err)
+		return err
+	}
+
+	if err := b.registerReplica(winfo); err != nil {
 		return err
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
 	go c.run(ctx)
 	return e.Serve(b)
+}
+
+// checkVersion checks that the deployer API version the deployer was built
+// with is compatible with the deployer API version the app was built with,
+// erroring out if they are not compatible.
+func checkVersion(appVersion *protos.SemVer) error {
+	if appVersion == nil {
+		return fmt.Errorf("version mismatch: nil app version")
+	}
+	if appVersion.Major != runtime.Major ||
+		appVersion.Minor != runtime.Minor ||
+		appVersion.Patch != runtime.Patch {
+		return fmt.Errorf(
+			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d.",
+			runtime.Major, runtime.Minor, runtime.Patch,
+			appVersion.Major, appVersion.Minor, appVersion.Patch,
+		)
+	}
+	return nil
 }
 
 type metricsCollector struct {

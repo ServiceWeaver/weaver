@@ -29,6 +29,7 @@ import (
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -289,19 +290,46 @@ func (d *deployer) startColocationGroup(g *group) error {
 		if err != nil {
 			return err
 		}
+
+		// Make sure the version of the deployer matches the version of the
+		// compiled binary.
+		info := e.WeaveletInfo()
+		if err := checkVersion(info.Version); err != nil {
+			return err
+		}
+
 		h.envelope = e
 		d.running.Go(func() error {
 			err := e.Serve(h)
 			d.stop(err)
 			return err
 		})
-		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
+		if err := d.registerReplica(g, info); err != nil {
 			return err
 		}
 		if err := e.UpdateComponents(components); err != nil {
 			return err
 		}
 		g.envelopes = append(g.envelopes, e)
+	}
+	return nil
+}
+
+// checkVersion checks that the deployer API version the deployer was built
+// with is compatible with the deployer API version the app was built with,
+// erroring out if they are not compatible.
+func checkVersion(appVersion *protos.SemVer) error {
+	if appVersion == nil {
+		return fmt.Errorf("version mismatch: nil app version")
+	}
+	if appVersion.Major != runtime.Major ||
+		appVersion.Minor != runtime.Minor ||
+		appVersion.Patch != runtime.Patch {
+		return fmt.Errorf(
+			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d.",
+			runtime.Major, runtime.Minor, runtime.Patch,
+			appVersion.Major, appVersion.Minor, appVersion.Patch,
+		)
 	}
 	return nil
 }

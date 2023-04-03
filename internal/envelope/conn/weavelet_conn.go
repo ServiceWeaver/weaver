@@ -93,7 +93,15 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 	}
 	d.lis = lis
 	dialAddr := fmt.Sprintf("tcp://%s", lis.Addr().String())
-	info := &protos.WeaveletInfo{DialAddr: dialAddr, Pid: int64(os.Getpid())}
+	info := &protos.WeaveletInfo{
+		DialAddr: dialAddr,
+		Pid:      int64(os.Getpid()),
+		Version: &protos.SemVer{
+			Major: runtime.Major,
+			Minor: runtime.Minor,
+			Patch: runtime.Patch,
+		},
+	}
 	if err := d.conn.send(&protos.WeaveletMsg{WeaveletInfo: info}); err != nil {
 		return nil, err
 	}
