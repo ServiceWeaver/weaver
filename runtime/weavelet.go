@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/google/uuid"
 )
 
 // CheckEnvelopeInfo checks that EnvelopeInfo is well-formed.
@@ -29,11 +28,11 @@ func CheckEnvelopeInfo(w *protos.EnvelopeInfo) error {
 	if w.App == "" {
 		return fmt.Errorf("EnvelopeInfo: missing app name")
 	}
-	if _, err := uuid.Parse(w.DeploymentId); err != nil {
-		return fmt.Errorf("EnvelopeInfo: invalid deployment id: %w", err)
+	if w.DeploymentId == "" {
+		return fmt.Errorf("EnvelopeInfo: missing deployment id")
 	}
-	if _, err := uuid.Parse(w.Id); err != nil {
-		return fmt.Errorf("EnvelopeInfo: invalid weavelet id: %w", err)
+	if w.Id == "" {
+		return fmt.Errorf("EnvelopeInfo: missing weavelet id")
 	}
 	if w.SingleProcess && !w.SingleMachine {
 		return fmt.Errorf("EnvelopeInfo: single process but not single machine")
