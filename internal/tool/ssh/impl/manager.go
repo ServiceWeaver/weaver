@@ -18,19 +18,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
+	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -643,73 +642,10 @@ func (m *manager) getRoutingInfo(_ context.Context, req *GetRoutingInfoRequest) 
 	}, nil
 }
 
-// routingAlgo is an implementation of a routing algorithm that distributes the
-// entire key space approximately equally across all healthy resources.
-//
-// The algorithm is as follows:
-// - split the entire key space in a number of slices that is more likely to
-// spread uniformly the key space among all healthy resources
-//
-// - distribute the slices round robin across all healthy resources
 func routingAlgo(currAssignment *protos.Assignment, candidates []string) *protos.Assignment {
-	newAssignment := protomsg.Clone(currAssignment)
-	newAssignment.Version++
-
-	// Note that the healthy resources should be sorted. This is required because
-	// we want to do a deterministic assignment of slices to resources among
-	// different invocations, to avoid unnecessary churn while generating
-	// new assignments.
-	sort.Strings(candidates)
-
-	if len(candidates) == 0 {
-		newAssignment.Slices = nil
-		return newAssignment
-	}
-
-	const minSliceKey = 0
-	const maxSliceKey = math.MaxUint64
-
-	// If there is only one healthy resource, assign the entire key space to it.
-	if len(candidates) == 1 {
-		newAssignment.Slices = []*protos.Assignment_Slice{
-			{Start: minSliceKey, Replicas: candidates},
-		}
-		return newAssignment
-	}
-
-	// Compute the total number of slices in the assignment.
-	numSlices := nextPowerOfTwo(len(candidates))
-
-	// Split slices in equal subslices in order to generate numSlices.
-	splits := [][]uint64{{minSliceKey, maxSliceKey}}
-	var curr []uint64
-	for ok := true; ok; ok = len(splits) != numSlices {
-		curr, splits = splits[0], splits[1:]
-		midPoint := curr[0] + uint64(math.Floor(0.5*float64(curr[1]-curr[0])))
-		splitl := []uint64{curr[0], midPoint}
-		splitr := []uint64{midPoint, curr[1]}
-		splits = append(splits, splitl, splitr)
-	}
-
-	// Sort the computed slices in increasing order based on the start key, in
-	// order to provide a deterministic assignment across multiple runs, hence to
-	// minimize churn.
-	sort.Slice(splits, func(i, j int) bool {
-		return splits[i][0] <= splits[j][0]
-	})
-
-	// Assign the computed slices to resources in a round robin fashion.
-	slices := make([]*protos.Assignment_Slice, len(splits))
-	rId := 0
-	for i, s := range splits {
-		slices[i] = &protos.Assignment_Slice{
-			Start:    s[0],
-			Replicas: []string{candidates[rId]},
-		}
-		rId = (rId + 1) % len(candidates)
-	}
-	newAssignment.Slices = slices
-	return newAssignment
+	assignment := routing.EqualSlices(candidates)
+	assignment.Version = currAssignment.Version + 1
+	return assignment
 }
 
 // serveHTTP serves HTTP traffic on the provided listener using the provided
@@ -735,13 +671,4 @@ func DefaultRegistry(ctx context.Context) (*status.Registry, error) {
 		return nil, err
 	}
 	return status.NewRegistry(ctx, filepath.Join(dir, "ssh_registry"))
-}
-
-// nextPowerOfTwo returns the next power of 2 that is greater or equal to x.
-func nextPowerOfTwo(x int) int {
-	// If x is already power of 2, return x.
-	if x&(x-1) == 0 {
-		return x
-	}
-	return int(math.Pow(2, math.Ceil(math.Log2(float64(x)))))
 }
