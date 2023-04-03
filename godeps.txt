@@ -614,7 +614,6 @@ github.com/ServiceWeaver/weaver/runtime
     github.com/BurntSushi/toml
     github.com/ServiceWeaver/weaver/internal/env
     github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/google/uuid
     io
     os
     path/filepath

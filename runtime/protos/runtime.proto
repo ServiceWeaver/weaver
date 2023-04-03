@@ -144,10 +144,9 @@ message WeaveletMsg {
 // EnvelopeInfo is the information provided by an envelope to a weavelet during
 // the initial envelope-weavelet handshake.
 message EnvelopeInfo {
-  // TODO(mwhittaker): Don't require weavelet ids to be UUIDs.
   string app = 1;                    // app name
-  string deployment_id = 2;          // deployment id, in UUID format
-  string id = 3;                     // weavelet id, in UUID format
+  string deployment_id = 2;          // globally unique deployment id
+  string id = 3;                     // globally unique weavelet id
   map<string, string> sections = 4;  // See AppConfig.Sections.
   bool single_process = 5;           // a single-process deployment?
   bool single_machine = 6;           // a single-machine deployment?

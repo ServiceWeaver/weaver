@@ -672,10 +672,9 @@ type EnvelopeInfo struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// TODO(mwhittaker): Don't require weavelet ids to be UUIDs.
 	App           string            `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`                                                                                                   // app name
-	DeploymentId  string            `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`                                                             // deployment id, in UUID format
-	Id            string            `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`                                                                                                     // weavelet id, in UUID format
+	DeploymentId  string            `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`                                                             // globally unique deployment id
+	Id            string            `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`                                                                                                     // globally unique weavelet id
 	Sections      map[string]string `protobuf:"bytes,4,rep,name=sections,proto3" json:"sections,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"` // See AppConfig.Sections.
 	SingleProcess bool              `protobuf:"varint,5,opt,name=single_process,json=singleProcess,proto3" json:"single_process,omitempty"`                                                         // a single-process deployment?
 	SingleMachine bool              `protobuf:"varint,6,opt,name=single_machine,json=singleMachine,proto3" json:"single_machine,omitempty"`                                                         // a single-machine deployment?
