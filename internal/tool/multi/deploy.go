@@ -174,13 +174,21 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
-// defaultRegistry returns the default registry in
-// $XDG_DATA_HOME/serviceweaver/multi_registry, or
+// defaultRegistryDir() returns $XDG_DATA_HOME/serviceweaver/multi_registry, or
 // ~/.local/share/serviceweaver/multi_registry if XDG_DATA_HOME is not set.
-func defaultRegistry(ctx context.Context) (*status.Registry, error) {
+func defaultRegistryDir() (string, error) {
 	dir, err := files.DefaultDataDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "multi_registry"), nil
+}
+
+// defaultRegistry returns a registry in defaultRegistryDir().
+func defaultRegistry(ctx context.Context) (*status.Registry, error) {
+	dir, err := defaultRegistryDir()
 	if err != nil {
 		return nil, err
 	}
-	return status.NewRegistry(ctx, filepath.Join(dir, "multi_registry"))
+	return status.NewRegistry(ctx, dir)
 }
