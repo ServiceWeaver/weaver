@@ -14,6 +14,8 @@
  limitations under the License.
 -->
 
+*2023-04-03*&nbsp;&nbsp; Service Weaver at Container Day in Amsterdam. [Register][container_day_register] if you want to learn more.
+
 *2023-03-30*&nbsp;&nbsp; We are now on Discord. Follow us [here][sw_discord].
 
 *2023-03-29*&nbsp;&nbsp; [Matthew][mw_linkedin] presented Service Weaver at [Women Who Go London][women_go].
@@ -42,3 +44,4 @@
 [sw_launch_post]: https://opensource.googleblog.com/2023/03/introducing-service-weaver-framework-for-writing-distributed-applications.html
 [jeff_sw_tweet]: https://twitter.com/JeffDean/status/1631379386476953600
 [kelsey_sw_launch_tweet]: https://twitter.com/kelseyhightower/status/1630995723956412420
+[container_day_register]: https://rsvp.withgoogle.com/events/google-container-day/
