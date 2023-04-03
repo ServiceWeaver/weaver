@@ -380,6 +380,7 @@ github.com/ServiceWeaver/weaver/internal/metrics
     strings
     sync
     time
+github.com/ServiceWeaver/weaver/internal/must
 github.com/ServiceWeaver/weaver/internal/net/benchmarks
 github.com/ServiceWeaver/weaver/internal/net/call
     bufio
@@ -494,6 +495,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     fmt
     github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
+    github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime
@@ -530,6 +532,7 @@ github.com/ServiceWeaver/weaver/internal/tool/single
     context
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime/tool
     path/filepath
@@ -766,6 +769,7 @@ github.com/ServiceWeaver/weaver/runtime/retry
     sync
     time
 github.com/ServiceWeaver/weaver/runtime/tool
+    bufio
     context
     encoding/json
     errors

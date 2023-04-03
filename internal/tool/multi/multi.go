@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
@@ -41,6 +42,14 @@ var (
 		},
 	}
 
+	purgeSpec = &tool.PurgeSpec{
+		Tool: "weaver multi",
+		Paths: []string{
+			logdir,
+			must.Must(defaultRegistryDir()),
+		},
+	}
+
 	Commands = map[string]*tool.Command{
 		"deploy": &deployCmd,
 		"logs": tool.LogsCmd(&tool.LogsSpec{
@@ -53,5 +62,6 @@ var (
 		"status":    status.StatusCommand("weaver multi", defaultRegistry),
 		"metrics":   status.MetricsCommand("weaver multi", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver multi", defaultRegistry),
+		"purge":     tool.PurgeCmd(purgeSpec),
 	}
 )

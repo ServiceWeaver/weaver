@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
+	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
@@ -36,11 +37,17 @@ var (
 		},
 	}
 
+	purgeSpec = &tool.PurgeSpec{
+		Tool:  "weaver single",
+		Paths: []string{filepath.Join(must.Must(files.DefaultDataDir()), "single_registry")},
+	}
+
 	Commands = map[string]*tool.Command{
 		"status":    status.StatusCommand("weaver single", defaultRegistry),
 		"dashboard": status.DashboardCommand(dashboardSpec),
 		"metrics":   status.MetricsCommand("weaver single", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver single", defaultRegistry),
+		"purge":     tool.PurgeCmd(purgeSpec),
 	}
 )
 
