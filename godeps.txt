@@ -424,6 +424,13 @@ github.com/ServiceWeaver/weaver/internal/queue
 github.com/ServiceWeaver/weaver/internal/register
     fmt
     sync
+github.com/ServiceWeaver/weaver/internal/routing
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/protos
+    golang.org/x/exp/slices
+    math
+    sort
+    strings
 github.com/ServiceWeaver/weaver/internal/status
     bytes
     context
@@ -494,6 +501,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proxy
+    github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -503,7 +511,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/profiling
-    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/tool
@@ -515,13 +522,11 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     golang.org/x/sync/errgroup
     google.golang.org/protobuf/types/known/timestamppb
     io
-    math
     net
     net/http
     os
     os/signal
     path/filepath
-    sort
     sync
     syscall
     time
@@ -563,6 +568,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/proto
     github.com/ServiceWeaver/weaver/internal/proxy
+    github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/internal/versioned
@@ -582,14 +588,12 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
-    math
     net
     net/http
     os
     os/exec
     path/filepath
     reflect
-    sort
     sync
     syscall
     time
