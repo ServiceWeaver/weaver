@@ -22,18 +22,22 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/ServiceWeaver/weaver/internal/tool/generate"
 	"github.com/ServiceWeaver/weaver/internal/tool/multi"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh"
+	swruntime "github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
 const usage = `USAGE
 
   weaver generate                 // weaver code generator
+  weaver version                  // show weaver version
   weaver single    <command> ...  // for single process deployments
   weaver multi     <command> ...  // for multiprocess deployments
   weaver ssh       <command> ...  // for multimachine deployments
@@ -77,6 +81,23 @@ func main() {
 			fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
 		}
+		return
+
+	case "version":
+		semver := fmt.Sprintf("%d.%d.%d", swruntime.Major, swruntime.Minor, swruntime.Patch)
+		commit := "?"
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, setting := range info.Settings {
+				// vcs.revision stores the commit at which the weaver tool was
+				// built. See https://pkg.go.dev/runtime/debug#BuildSetting for
+				// more information.
+				if setting.Key == "vcs.revision" {
+					commit = setting.Value
+					break
+				}
+			}
+		}
+		fmt.Printf("weaver version: commit=%s deployer=v%s target=%s/%s\n", commit, semver, runtime.GOOS, runtime.GOARCH)
 		return
 
 	case "single", "multi", "ssh":
