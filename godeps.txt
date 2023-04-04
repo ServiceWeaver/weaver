@@ -779,6 +779,7 @@ github.com/ServiceWeaver/weaver/runtime/tool
     github.com/ServiceWeaver/weaver/runtime/logging
     io
     os
+    os/exec
     sort
     strings
     text/template

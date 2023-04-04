@@ -44,6 +44,7 @@ var (
 
 	purgeSpec = &tool.PurgeSpec{
 		Tool: "weaver multi",
+		Kill: "weaver multi (dashboard|deploy|logs|profile)",
 		Paths: []string{
 			logdir,
 			must.Must(defaultRegistryDir()),

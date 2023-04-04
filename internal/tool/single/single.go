@@ -39,6 +39,7 @@ var (
 
 	purgeSpec = &tool.PurgeSpec{
 		Tool:  "weaver single",
+		Kill:  "weaver single (dashboard|profile)",
 		Paths: []string{filepath.Join(must.Must(files.DefaultDataDir()), "single_registry")},
 	}
 
