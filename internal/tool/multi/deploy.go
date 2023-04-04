@@ -33,7 +33,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/google/uuid"
@@ -59,34 +58,24 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Load the config file.
-	cfgFile := args[0]
-	cfg, err := os.ReadFile(cfgFile)
+	configFile := args[0]
+	bytes, err := os.ReadFile(configFile)
 	if err != nil {
-		return fmt.Errorf("load config file %q: %w\n", cfgFile, err)
+		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
-	app, err := runtime.ParseConfig(cfgFile, string(cfg), codegen.ComponentConfigValidator)
+	config, err := runtime.ParseConfig(configFile, string(bytes), codegen.ComponentConfigValidator)
 	if err != nil {
-		return fmt.Errorf("load config file %q: %w\n", cfgFile, err)
+		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
 
 	// Sanity check the config.
-	if _, err := os.Stat(app.Binary); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("binary %q doesn't exist", app.Binary)
+	if _, err := os.Stat(config.Binary); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("binary %q doesn't exist", config.Binary)
 	}
-
-	// Create the log saver.
-	fs, err := logging.NewFileStore(logdir)
-	if err != nil {
-		return fmt.Errorf("cannot create log storage: %w", err)
-	}
-	logSaver := fs.Add
 
 	// Create the deployer.
-	dep := &protos.Deployment{
-		Id:  uuid.New().String(),
-		App: app,
-	}
-	d, err := newDeployer(ctx, dep, logSaver)
+	deploymentId := uuid.New().String()
+	d, err := newDeployer(ctx, deploymentId, config)
 	if err != nil {
 		return fmt.Errorf("create deployer: %w", err)
 	}
@@ -97,7 +86,7 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 	mux := http.NewServeMux()
-	d.registerStatusPages(mux)
+	status.RegisterServer(mux, d, d.logger)
 	go func() {
 		if err := serveHTTP(ctx, lis, mux); err != nil {
 			fmt.Fprintf(os.Stderr, "status server: %v\n", err)
@@ -125,8 +114,8 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("create registry: %w", err)
 	}
 	reg := status.Registration{
-		DeploymentId: dep.Id,
-		App:          app.Name,
+		DeploymentId: deploymentId,
+		App:          config.Name,
 		Addr:         lis.Addr().String(),
 	}
 	fmt.Fprint(os.Stderr, reg.Rolodex())
@@ -145,11 +134,11 @@ func deploy(ctx context.Context, args []string) error {
 		// Wait for the user to kill the app or the app to return an error.
 		select {
 		case <-userDone:
-			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", app.Name)
+			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", config.Name)
 		case err := <-deployerDone:
-			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", app.Name, err)
+			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", config.Name, err)
 		}
-		if err := registry.Unregister(ctx, dep.Id); err != nil {
+		if err := registry.Unregister(ctx, deploymentId); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
 		}
 		os.Exit(1)
@@ -157,7 +146,7 @@ func deploy(ctx context.Context, args []string) error {
 
 	// Follow the logs.
 	source := logging.FileSource(logdir)
-	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, dep.Id)
+	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, deploymentId)
 	r, err := source.Query(ctx, query, true)
 	if err != nil {
 		return err
