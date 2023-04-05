@@ -188,19 +188,29 @@ type serverState struct {
 
 // Serve starts listening for connections and requests on l. Handlers to handle
 // incoming requests are found in hmap.
+//
+// Serve always returns a non-nil error and closes l.
 func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOptions) error {
 	opts = opts.withDefaults()
 	ss := &serverState{opts: opts}
 	defer ss.stop()
 
-	for ctx.Err() == nil {
+	// Arrange to close the listener when the context is canceled.
+	go func() {
+		<-ctx.Done()
+		l.Close()
+	}()
+
+	for {
 		conn, err := l.Accept()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if err != nil {
 			return fmt.Errorf("call server error listening on %s: %w", l.Addr(), err)
 		}
 		ss.serveConnection(ctx, conn, hmap)
 	}
-	return ctx.Err()
 }
 
 // ServeOn serves client requests received over an already established
@@ -843,7 +853,6 @@ func logError(logger *slog.Logger, details string, err error) {
 	if errors.Is(err, context.Canceled) ||
 		errors.Is(err, io.EOF) ||
 		errors.Is(err, io.ErrUnexpectedEOF) ||
-		errors.Is(err, io.ErrClosedPipe) ||
 		errors.Is(err, io.ErrClosedPipe) {
 		logger.Info(details, "err", err)
 	} else {

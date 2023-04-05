@@ -1343,7 +1343,7 @@ func TestCancelServe(t *testing.T) {
 	go func() {
 		opts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
 		err := call.Serve(ctx, lis, handlers, opts)
-		if err != nil && ctx.Err() == nil {
+		if err != ctx.Err() {
 			t.Errorf("unexpected error from Serve: %v", err)
 		}
 		close(done)
@@ -1352,7 +1352,6 @@ func TestCancelServe(t *testing.T) {
 	// Cancel after a delay and check that the server stops quickly.
 	time.Sleep(shortDelay)
 	cancelFunc()
-	lis.Close()
 	start := time.Now()
 	select {
 	case <-done:

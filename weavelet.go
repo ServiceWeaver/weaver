@@ -234,24 +234,9 @@ func (w *weavelet) start() (Instance, error) {
 			}
 		}
 
-		// Start serving the transport.
-		serve := func(lis net.Listener, transport *transport) {
-			if lis == nil || transport == nil {
-				// TODO(spetrovic): Can this ever happen?
-				return
-			}
-
-			// Arrange to close the listener when we are canceled.
-			go func() {
-				<-w.ctx.Done()
-				lis.Close()
-			}()
-
-			startWork(w.ctx, "handle calls", func() error {
-				return call.Serve(w.ctx, lis, handlers, transport.serverOpts)
-			})
-		}
-		serve(lis, w.transport)
+		startWork(w.ctx, "handle calls", func() error {
+			return call.Serve(w.ctx, lis, handlers, w.transport.serverOpts)
+		})
 	}
 
 	w.logRolodexCard()
