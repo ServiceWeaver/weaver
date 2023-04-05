@@ -30,6 +30,7 @@ var (
 		"deploy":    &deployCmd,
 		"logs":      tool.LogsCmd(&logsSpec),
 		"dashboard": status.DashboardCommand(dashboardSpec),
+		"version":   tool.VersionCmd("weaver ssh"),
 
 		// Hidden commands.
 		"babysitter": &babysitterCmd,

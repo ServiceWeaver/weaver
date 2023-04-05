@@ -55,12 +55,9 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/tool/ssh
-    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/tool
     os
     os/exec
-    runtime
-    runtime/debug
     strings
 github.com/ServiceWeaver/weaver/dev/docgen
     bytes
@@ -775,11 +772,14 @@ github.com/ServiceWeaver/weaver/runtime/tool
     errors
     flag
     fmt
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     io
     os
     os/exec
+    runtime
+    runtime/debug
     sort
     strings
     text/template

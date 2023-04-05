@@ -64,5 +64,6 @@ var (
 		"metrics":   status.MetricsCommand("weaver multi", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver multi", defaultRegistry),
 		"purge":     tool.PurgeCmd(purgeSpec),
+		"version":   tool.VersionCmd("weaver multi"),
 	}
 )
