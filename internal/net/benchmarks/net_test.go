@@ -65,7 +65,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	defer lis.Close()
 
 	opts := config.serverOpts()
 	opts.Logger = logging.StderrLogger(logging.Options{})
@@ -157,10 +156,7 @@ func serve(b *testing.B, config config) {
 
 	// Kill the server to free up the port it's listening on.
 	ctx, cancel := context.WithCancel(context.Background())
-	b.Cleanup(func() {
-		cancel()
-		lis.Close()
-	})
+	b.Cleanup(cancel)
 
 	// Launch the server.
 	go func() {

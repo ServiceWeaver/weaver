@@ -49,31 +49,31 @@ const currentVersion = initialVersion
 // # Message formats
 //
 // All messages have the following format:
-//	id	[8]byte
-//	type	[1]byte		-- messageType
-//	length	[7]byte		-- length of the remainder of the message
-//	payload	[length]byte	-- message-type-specific data
+//    id        [8]byte       -- identifier used to track the message
+//    type      [1]byte       -- messageType
+//    length    [7]byte       -- length of the remainder of the message
+//    payload   [length]byte  -- message-type-specific data
 //
 // The format of payload depends on the message typo.
 //
 // versionMessage: this is the first message sent on a connection by both sides.
-//      version  [4]byte
+//  version  [4]byte
 //
 //
 //  requestMessage:
-//	headerKey    [16]byte   -- fingerprint of method name
-//	deadline      [8]byte   -- zero, or deadline in microseconds
-//  traceContext [25]byte   -- zero, or trace context
-//	remainder		        -- call argument serialization
+//    headerKey    [16]byte   -- fingerprint of method name
+//    deadline      [8]byte   -- zero, or deadline in microseconds
+//    traceContext [25]byte   -- zero, or trace context
+//    remainder               -- call argument serialization
 //
 // responseMessage:
-//	payload holds call result serialization
+//    payload holds call result serialization
 //
 // responseError:
-//	payload holds error serialization
+//    payload holds error serialization
 //
 // cancelMessage:
-//	payload is empty
+//    payload is empty
 
 // writeMessage formats and sends a message over w.
 //
