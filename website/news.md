@@ -14,6 +14,8 @@
  limitations under the License.
 -->
 
+*2023-04-05*&nbsp;&nbsp; New blog post on [how to implement a Service Weaver deployer][deployers_blog].
+
 *2023-04-03*&nbsp;&nbsp; Service Weaver at Container Day in Amsterdam. [Register][container_day_register] if you want to learn more.
 
 *2023-03-30*&nbsp;&nbsp; We are now on Discord. Follow us [here][sw_discord].
@@ -24,7 +26,7 @@
 
 *2023-03-11*&nbsp;&nbsp; [InfoQ][infoq] wrote a blog [post][infoq_sw_blog_post] about Service Weaver.
 
-*2023-03-03*&nbsp;&nbsp; [Article][sw_medium_post] on [Medium][medium_link] about Service Weaver. 
+*2023-03-03*&nbsp;&nbsp; [Article][sw_medium_post] on [Medium][medium_link] about Service Weaver.
 
 *2023-03-02*&nbsp;&nbsp; We had a great time [talking][sw_launch_twitter_space] about Service Weaver with [Kelsey Hightower][kelsey_tweeter].
 
@@ -45,3 +47,4 @@
 [jeff_sw_tweet]: https://twitter.com/JeffDean/status/1631379386476953600
 [kelsey_sw_launch_tweet]: https://twitter.com/kelseyhightower/status/1630995723956412420
 [container_day_register]: https://rsvp.withgoogle.com/events/google-container-day/
+[deployers_blog]: https://serviceweaver.dev/blog/deployers.html
