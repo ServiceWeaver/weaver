@@ -49,6 +49,7 @@ var (
 		"metrics":   status.MetricsCommand("weaver single", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver single", defaultRegistry),
 		"purge":     tool.PurgeCmd(purgeSpec),
+		"version":   tool.VersionCmd("weaver single"),
 	}
 )
 
