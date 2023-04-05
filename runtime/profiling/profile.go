@@ -121,5 +121,9 @@ func ProfileGroups(groups [][]func() ([]byte, error)) ([]byte, error) {
 			return nil, err
 		}
 	}
-	return buf.Bytes(), errlist{errs}
+	var err error
+	if len(errs) > 0 {
+		err = errlist{errs}
+	}
+	return buf.Bytes(), err
 }
