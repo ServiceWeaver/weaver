@@ -135,8 +135,8 @@ type testLogger struct {
 	finished bool           // has t finished?
 }
 
-// Log logs the provided log entry using t.Log.
-func (t *testLogger) Log(entry *protos.LogEntry) {
+// log logs the provided log entry using t.log.
+func (t *testLogger) log(entry *protos.LogEntry) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.finished {
@@ -148,8 +148,8 @@ func (t *testLogger) Log(entry *protos.LogEntry) {
 	t.t.Log(t.pp.Format(entry))
 }
 
-// Silence prevents any future log entries from being logged.
-func (t *testLogger) Silence() {
+// silence prevents any future log entries from being logged.
+func (t *testLogger) silence() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.finished = true
@@ -158,10 +158,10 @@ func (t *testLogger) Silence() {
 // NewTestLogger returns a new logger for tests.
 func NewTestLogger(t testing.TB) *slog.Logger {
 	th := &testLogger{t: t, pp: NewPrettyPrinter(colors.Enabled())}
-	t.Cleanup(th.Silence)
+	t.Cleanup(th.silence)
 	return slog.New(&LogHandler{
 		Opts:  Options{Component: "TestLogger", Weavelet: uuid.New().String()},
-		Write: th.Log,
+		Write: th.log,
 	})
 }
 
