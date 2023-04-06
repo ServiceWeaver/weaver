@@ -128,7 +128,6 @@ type reconnectingConnection struct {
 	connections map[string]*clientConnection // keys are endpoint addresses
 	draining    map[string]*clientConnection // keys are endpoint addresses
 	closed      bool
-	balancer    Balancer
 
 	resolver       Resolver
 	cancelResolver func()         // cancels the watchResolver goroutine
@@ -260,18 +259,12 @@ func (ss *serverState) unregister(c *serverConnection) {
 // Connect creates a connection to the servers at the endpoints returned by the
 // resolver.
 func Connect(ctx context.Context, resolver Resolver, opts ClientOptions) (Connection, error) {
-	// Fill in default options.
-	if opts.Balancer == nil {
-		opts.Balancer = RoundRobin()
-	}
-
 	// Construct the connection.
 	conn := reconnectingConnection{
 		opts:           opts.withDefaults(),
 		endpoints:      []Endpoint{},
 		connections:    map[string]*clientConnection{},
 		draining:       map[string]*clientConnection{},
-		balancer:       opts.Balancer,
 		resolver:       resolver,
 		cancelResolver: func() {},
 	}
@@ -476,7 +469,7 @@ func (rc *reconnectingConnection) updateEndpoints(endpoints []Endpoint) error {
 		rc.draining[addr] = conn
 	}
 	rc.connections = connections
-	rc.balancer.Update(endpoints)
+	rc.opts.Balancer.Update(endpoints)
 
 	// Close draining connections that don't have any pending requests. If a
 	// draining connection does have pending requests, then the connection will
@@ -519,7 +512,7 @@ func (rc *reconnectingConnection) startCall(ctx context.Context, rpc *call, opts
 	// important that we index into rc.connections with addr while still
 	// holding rc.mu. Otherwise, a Pick() call could operate on a stale set of
 	// endpoints and return an endpoint that does not exist in rc.connections.
-	var balancer = rc.balancer
+	var balancer = rc.opts.Balancer
 	if opts.Balancer != nil {
 		balancer = opts.Balancer
 		balancer.Update(rc.endpoints)
