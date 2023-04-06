@@ -147,7 +147,7 @@ func (fs *FileStore) Add(e *protos.LogEntry) {
 // level redundantly in every log entry. Omit them from the log entries and
 // infer them from the log name.
 func filename(app, deployment, weavelet, level string) string {
-	return fmt.Sprintf("%s.%s.%s.%s.log", app, deployment, weavelet, level)
+	return fmt.Sprintf("%s#%s#%s#%s.log", app, deployment, weavelet, level)
 }
 
 // logfile represents a log file for a specific (app, deployment, weavelet,
@@ -164,11 +164,25 @@ func parseLogfile(filename string) (logfile, error) {
 	// TODO(mwhittaker): Ensure that apps, deployments, weavelet ids, levels
 	// don't contain a ".". Or, switch to some other delimiter that doesn't
 	// show up.
-	parts := strings.SplitN(filename, ".", 5)
-	if len(parts) < 5 || parts[4] != "log" {
-		want := "<app>.<deployment>.<weavelet>.<level>.log"
+
+	dotParts := strings.Split(filename, ".")
+	dotPartsLen := len(dotParts)
+
+	if len(dotParts) < 2 || dotParts[dotPartsLen-1] != "log" {
+		want := "<app>#<deployment>#<weavelet>#<level>.log"
 		return logfile{}, fmt.Errorf("filename %q must have format %q", filename, want)
 	}
+
+	noExtension := strings.Join(dotParts[0:dotPartsLen-1], ".")
+
+	parts := strings.Split(noExtension, "#")
+	partsLen := len(parts)
+
+	if partsLen != 4 {
+		want := "<app>#<deployment>#<weavelet>#<level>.log"
+		return logfile{}, fmt.Errorf("filename %q must have format %q", filename, want)
+	}
+
 	return logfile{
 		app:        parts[0],
 		deployment: parts[1],
