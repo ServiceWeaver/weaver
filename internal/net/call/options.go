@@ -78,6 +78,9 @@ func (c ClientOptions) withDefaults() ClientOptions {
 	if c.Logger == nil {
 		c.Logger = logging.StderrLogger(logging.Options{})
 	}
+	if c.Balancer == nil {
+		c.Balancer = RoundRobin()
+	}
 	return c
 }
 
