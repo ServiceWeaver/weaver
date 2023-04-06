@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/DataDog/hyperloglog"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/lightstep/varopt"
 )
@@ -50,9 +49,9 @@ func approxEqual(a, b float64) bool {
 // The load collector will report a load of 4 requests per second on the slice
 // [0, 10) and a load of 2 requests per second on the slice [100, 200).
 type loadCollector struct {
-	component string              // Service Weaver component
-	addr      call.NetworkAddress // dialable address found in assignments
-	now       func() time.Time    // time.Now usually, but injected fake in tests
+	component string           // Service Weaver component
+	addr      string           // dialable address found in assignments
+	now       func() time.Time // time.Now usually, but injected fake in tests
 
 	mu         sync.Mutex               // guards the following fields
 	assignment *protos.Assignment       // latest assignment
@@ -73,7 +72,7 @@ type sliceSummary struct {
 // newLoadCollector returns a new load collector. Note that load is collected
 // with respect to an assignment, so load won't be collected until
 // UpdateAssignment is called.
-func newLoadCollector(component string, addr call.NetworkAddress) *loadCollector {
+func newLoadCollector(component string, addr string) *loadCollector {
 	return &loadCollector{
 		component: component,
 		addr:      addr,
@@ -107,7 +106,7 @@ func (lc *loadCollector) add(key uint64, v float64) error {
 		// now, we execute them.
 		return nil
 	}
-	if !slice.replicaSet[string(lc.addr)] {
+	if !slice.replicaSet[lc.addr] {
 		return nil
 	}
 
@@ -366,7 +365,12 @@ func newIndex(proto *protos.Assignment) index {
 		}
 
 		// Form the slice.
-		slices[i] = slice{proto.Slices[i].Start, end, replicas, replicaSet}
+		slices[i] = slice{
+			start:      proto.Slices[i].Start,
+			end:        end,
+			replicas:   replicas,
+			replicaSet: replicaSet,
+		}
 	}
 	return slices
 }

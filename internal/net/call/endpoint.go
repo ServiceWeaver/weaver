@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 )
 
 // An endpoint is a dialable entity with an address. For example,
@@ -64,7 +65,7 @@ type NetEndpoint struct {
 }
 
 // Check that NetEndpoint implements the Endpoint interface.
-var _ Endpoint = &NetEndpoint{}
+var _ Endpoint = NetEndpoint{}
 
 // Dial implements the Endpoint interface.
 func (ne NetEndpoint) Dial(ctx context.Context) (net.Conn, error) {
@@ -75,4 +76,21 @@ func (ne NetEndpoint) Dial(ctx context.Context) (net.Conn, error) {
 // Address implements the Endpoint interface.
 func (ne NetEndpoint) Address() string {
 	return fmt.Sprintf("%s://%s", ne.Net, ne.Addr)
+}
+
+func (ne NetEndpoint) String() string {
+	return ne.Address()
+}
+
+// ParseNetEndpoint parses a string with a format of net://addr into a
+// NetAddress. For example,
+//
+//	ParseNetEndpoint("tcp://localhost:80") // NetEndpoint{"tcp", "localhost:80"}
+//	ParseNetEndpoint("unix://unix.sock")   // NetEndpoint{"unix", "unix.sock"}
+func ParseNetEndpoint(endpoint string) (NetEndpoint, error) {
+	net, addr, ok := strings.Cut(endpoint, "://")
+	if !ok {
+		return NetEndpoint{}, fmt.Errorf("%q does not have format <network>://<address>", endpoint)
+	}
+	return NetEndpoint{Net: net, Addr: addr}, nil
 }

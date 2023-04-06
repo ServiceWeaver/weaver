@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -104,7 +103,7 @@ func TestLoadCollector(t *testing.T) {
 		},
 		Version: 0,
 	}
-	lc := newLoadCollector("component", call.NetworkAddress("test://a"))
+	lc := newLoadCollector("component", "test://a")
 	lc.now = func() time.Time { return at(0) }
 	lc.updateAssignment(assignment)
 
@@ -157,7 +156,7 @@ func TestLoadCollectorSizeAndSplitEstimates(t *testing.T) {
 		},
 		Version: 0,
 	}
-	lc := newLoadCollector("component", call.NetworkAddress("test://a"))
+	lc := newLoadCollector("component", "test://a")
 	lc.now = func() time.Time { return at(0) }
 	lc.updateAssignment(assignment)
 

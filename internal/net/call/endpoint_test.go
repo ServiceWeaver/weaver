@@ -20,7 +20,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 )
 
-func TestSplit(t *testing.T) {
+func TestParseNetEndpoint(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		s       string
@@ -34,24 +34,23 @@ func TestSplit(t *testing.T) {
 		{"ExtraDelim", "network://a://b://c", "network", "a://b://c"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			network, address, err := call.NetworkAddress(test.s).Split()
+			netEndpoint, err := call.ParseNetEndpoint(test.s)
 			if err != nil {
-				t.Fatalf("%q.Split(): unexpected error: %v", test.s, err)
+				t.Fatalf("%q: unexpected error: %v", test.s, err)
 			}
-			if got, want := network, test.network; got != want {
-				t.Fatalf("%q.Split() bad network: got %q, want %q", test.s, got, want)
+			if got, want := netEndpoint.Net, test.network; got != want {
+				t.Fatalf("%q bad network: got %q, want %q", test.s, got, want)
 			}
-			if got, want := address, test.address; got != want {
-				t.Fatalf("%q.Split() bad address: got %q, want %q", test.s, got, want)
+			if got, want := netEndpoint.Addr, test.address; got != want {
+				t.Fatalf("%q bad address: got %q, want %q", test.s, got, want)
 			}
 		})
 	}
 }
 
-func TestSplitError(t *testing.T) {
-	na := call.NetworkAddress("there is no delimiter here")
-	_, _, err := na.Split()
+func TestParseNetEndpointError(t *testing.T) {
+	_, err := call.ParseNetEndpoint("there is no delimiter here")
 	if err == nil {
-		t.Fatalf("%q.Split(): unexpected success", string(na))
+		t.Fatal("expected an error parsing invalid endpoint")
 	}
 }

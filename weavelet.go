@@ -53,7 +53,7 @@ type weavelet struct {
 	env       env                  // Manages interactions with execution environment
 	info      *protos.EnvelopeInfo // Setup info sent by the deployer.
 	transport *transport           // Transport for cross-weavelet communication
-	dialAddr  call.NetworkAddress  // Address this weavelet is reachable at
+	dialAddr  string               // Address this weavelet is reachable at
 	tracer    trace.Tracer         // Tracer for this weavelet
 
 	root             *component                  // The automatically created "root" component
@@ -225,7 +225,7 @@ func (w *weavelet) start() (Instance, error) {
 		startWork(w.ctx, "serve weavelet conn", remote.conn.Serve)
 
 		lis := remote.conn.Listener()
-		addr := call.NetworkAddress(fmt.Sprintf("tcp://%s", lis.Addr().String()))
+		addr := fmt.Sprintf("tcp://%s", lis.Addr().String())
 		w.dialAddr = addr
 		for _, c := range w.componentsByName {
 			if c.info.Routed {
@@ -301,7 +301,7 @@ func (w *weavelet) logRolodexCard() {
 	lines := []string{
 		fmt.Sprintf("   hostname   : %s ", hostname),
 		fmt.Sprintf("   deployment : %s ", w.info.DeploymentId),
-		fmt.Sprintf("   address    : %s", string(w.dialAddr)),
+		fmt.Sprintf("   address    : %s", w.dialAddr),
 		fmt.Sprintf("   pid        : %v ", os.Getpid()),
 	}
 
