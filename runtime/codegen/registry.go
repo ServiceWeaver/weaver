@@ -133,7 +133,7 @@ func ComponentConfigValidator(path, cfg string) error {
 	if info.ConfigFn == nil {
 		return fmt.Errorf("unexpected configuration for component %v "+
 			"that does not support configuration (add a "+
-			"weaver.WithConfig[configType] embedded field to %v ",
+			"weaver.WithConfig[configType] embedded field to %v and run weaver generate again)",
 			info.Name, info.Iface)
 	}
 	objConfig := info.ConfigFn(info.New())
