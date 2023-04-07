@@ -32,9 +32,33 @@
   margin: 0.5rem;
 }
 
+#wrapped-title {
+  display: inline-block;
+}
+
 #linewidth {
   font-size: 1.6rem;
   width: 4ch;
+}
+
+#copy {
+  font-size: 1.6rem;
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  border: 0;
+  cursor: pointer;
+}
+
+#copy:active {
+  background: #888;
+}
+
+#copied {
+  font-size: 1rem;
+  background: #5A5A5A;
+  color: white;
+  border-radius: 4pt;
+  padding: 4pt;
 }
 
 #unwrapped {

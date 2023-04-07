@@ -27,17 +27,31 @@ function main() {
   const linewidth = document.getElementById('linewidth');
   const unwrapped = document.getElementById('unwrapped');
   const wrapped = document.getElementById('wrapped');
+  const copy = document.getElementById('copy');
+  const copied = document.getElementById('copied');
+
   linewidth.addEventListener('change', () => {
     wrapped.style.width = `${linewidth.value}ch`;
     wrap(unwrapped.value, linewidth.value).then((s) => {
       wrapped.innerHTML = s;
     });
   });
+
   unwrapped.addEventListener('input', () => {
     console.log(linewidth.value);
     wrap(unwrapped.value, linewidth.value).then((s) => {
       wrapped.innerHTML = s;
     });
+  });
+
+  let timer;
+  copy.addEventListener('click', function() {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(wrapped.innerHTML);
+      copied.hidden = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => copied.hidden = true, 1000);
+    }
   });
 }
 
