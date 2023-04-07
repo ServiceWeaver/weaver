@@ -30,7 +30,9 @@
           <textarea id="unwrapped" placeholder="Enter text here..."></textarea>
         </div>
         <div>
-          <h1>Wrapped to <input id="linewidth" type="number" value="40" min="1"/> Characters</h1>
+          <h1 id="wrapped-title">Wrapped to <input id="linewidth" type="number" value="40" min="1"/> Characters</h1>
+          <button id="copy">📋</button>
+          <span id="copied" hidden>Copied!</span>
           <pre id="wrapped"></pre>
         </div>
       </div>
