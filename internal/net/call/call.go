@@ -194,6 +194,8 @@ func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOpt
 	ss := &serverState{opts: opts}
 	defer ss.stop()
 
+	l = &onceCloseListener{Listener: l}
+
 	// Arrange to close the listener when the context is canceled.
 	go func() {
 		<-ctx.Done()
@@ -206,10 +208,26 @@ func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOpt
 		case ctx.Err() != nil:
 			return ctx.Err()
 		case err != nil:
+			l.Close()
 			return fmt.Errorf("call server error listening on %s: %w", l.Addr(), err)
 		}
 		ss.serveConnection(ctx, conn, hmap)
 	}
+}
+
+// onceCloseListener wraps a net.Listener, protecting it from multiple Close calls.
+// TODO: replace with sync.OnceValues which should be available in go1.21
+type onceCloseListener struct {
+	net.Listener
+	once     sync.Once
+	closeErr error
+}
+
+func (oc *onceCloseListener) Close() error {
+	oc.once.Do(func() {
+		oc.closeErr = oc.Listener.Close()
+	})
+	return oc.closeErr
 }
 
 // ServeOn serves client requests received over an already established
