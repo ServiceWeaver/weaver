@@ -16,14 +16,13 @@
 
 #container {
   font-family: sans-serif;
-  max-width: 65rem;
+  max-width: 80rem;
   margin-left: auto;
   margin-right: auto;
 }
 
 #content {
   display: flex;
-  justify-content: space-between;
   flex-wrap: wrap;
   margin-bottom: 2rem;
 }
@@ -33,16 +32,28 @@
   margin: 0.5rem;
 }
 
+#linewidth {
+  font-size: 1.6rem;
+  width: 4ch;
+}
+
 #unwrapped {
   border: 1pt solid black;
-  width: 40ch;
+  width: 60ch;
   height: 10rem;
   padding: 0.5ch;
+  margin-right: 2rem;
+}
+
+@media (max-width: 40rem) {
+  #unwrapped {
+    width: 40ch;
+  }
 }
 
 #wrapped {
   border: 1pt solid black;
-  min-width: 80ch;
+  width: 40ch;
   min-height: 10rem;
   margin: 0;
   padding: 0.5ch;
