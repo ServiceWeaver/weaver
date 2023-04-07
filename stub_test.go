@@ -22,9 +22,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/google/go-cmp/cmp"
 )
 
 type localClient struct {
@@ -222,53 +222,6 @@ func TestErrorResultsNotDecoded(t *testing.T) {
 		if val, ok := reflect.ValueOf(resPtr).Elem().Interface().(string); !ok || val != "" {
 			t.Errorf("result expected to be empty; it was: %v", val)
 		}
-	}
-}
-
-func TestWrapErrors(t *testing.T) {
-	// Make encoding and decoding errors by passing invalid inputs.
-	decError := convertCallPanicToError(func() error {
-		codegen.NewDecoder(nil).Uint8()
-		return nil
-	})
-	encError := convertCallPanicToError(func() error {
-		codegen.NewEncoder().Len(-2)
-		return nil
-	})
-
-	for _, test := range []struct {
-		name      string
-		err       error
-		retriable bool
-	}{
-		{"other", fmt.Errorf("foo"), false},
-		{"encoder", encError, false},
-		{"decoder", decError, false},
-		{"communication", call.CommunicationError, true},
-		{"unreachable", call.Unreachable, true},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if test.err == nil {
-				t.Fatal("unexpected nil error")
-			}
-			stub := stub{}
-			err := stub.WrapError(test.err)
-			if got, want := errors.Is(err, ErrRetriable), test.retriable; got != want {
-				t.Fatalf("stub.WrapError: got %v, want %v", got, want)
-			}
-		})
-
-		// Try with error wrapped in another layer.
-		t.Run("wrapped-"+test.name, func(t *testing.T) {
-			if test.err == nil {
-				t.Fatal("unexpected nil error")
-			}
-			stub := stub{}
-			err := stub.WrapError(fmt.Errorf("wrapped(%w)", test.err))
-			if got, want := errors.Is(err, ErrRetriable), test.retriable; got != want {
-				t.Fatalf("stub.WrapError: got %v, want %v", got, want)
-			}
-		})
 	}
 }
 

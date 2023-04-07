@@ -110,6 +110,7 @@ github.com/ServiceWeaver/weaver/examples/chat
     time
 github.com/ServiceWeaver/weaver/examples/collatz
     context
+    errors
     flag
     fmt
     github.com/ServiceWeaver/weaver
@@ -125,6 +126,7 @@ github.com/ServiceWeaver/weaver/examples/collatz
     time
 github.com/ServiceWeaver/weaver/examples/factors
     context
+    errors
     flag
     fmt
     github.com/ServiceWeaver/weaver
@@ -139,6 +141,7 @@ github.com/ServiceWeaver/weaver/examples/factors
     time
 github.com/ServiceWeaver/weaver/examples/hello
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -158,6 +161,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique
     os
 github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -182,6 +186,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice
@@ -202,6 +207,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice
     context
     embed
     encoding/json
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
@@ -217,6 +223,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/emailservice
     bytes
     context
     embed
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types
@@ -256,6 +263,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
@@ -271,6 +279,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice
     context
     embed
     encoding/json
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
@@ -286,6 +295,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice
     context
+    errors
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -296,6 +306,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice
@@ -323,6 +334,7 @@ github.com/ServiceWeaver/weaver/examples/wrap
     bufio
     context
     embed
+    errors
     flag
     fmt
     github.com/ServiceWeaver/weaver
@@ -338,6 +350,7 @@ github.com/ServiceWeaver/weaver/examples/wrap
     unicode
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -756,9 +769,9 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     time
 github.com/ServiceWeaver/weaver/runtime/profiling
     bytes
+    errors
     fmt
     github.com/google/pprof/profile
-    strings
     sync
 github.com/ServiceWeaver/weaver/runtime/protomsg
     bytes
@@ -831,6 +844,7 @@ github.com/ServiceWeaver/weaver/weavertest
     time
 github.com/ServiceWeaver/weaver/weavertest/internal/deploy
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -853,6 +867,7 @@ github.com/ServiceWeaver/weaver/weavertest/internal/diverge
     time
 github.com/ServiceWeaver/weaver/weavertest/internal/generate
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -862,6 +877,7 @@ github.com/ServiceWeaver/weaver/weavertest/internal/generate
     time
 github.com/ServiceWeaver/weaver/weavertest/internal/protos
     context
+    errors
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
@@ -873,6 +889,7 @@ github.com/ServiceWeaver/weaver/weavertest/internal/protos
     time
 github.com/ServiceWeaver/weaver/weavertest/internal/simple
     context
+    errors
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes

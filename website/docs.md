@@ -695,26 +695,28 @@ Noting the points above:
     another client's `Put`. For this example, this means that the `Cache` has
     [weak consistency][weak_consistency].
 
-Method calls are executed with at-most-once semantics. This means that Service Weaver
-does not automatically retry method calls that fail. However, you can detect and
-retry failed method calls explicitly using `weaver.ErrRetriable`. If a method
-call fails because of a transient system error (e.g., a component replica
-crashed, the network is partitioned), it returns an error with an embedded
-`weaver.ErrRetriable`. This allows you to retry failed method calls like this:
+If a remote method call fails to execute properly&mdash;because of a machine
+crash or a network partition, for example&mdash;it returns an error with an
+embedded `weaver.RemoteCallError`. Here's an illustrative example:
 
 ```go
-// Retry the cache.Get method call up to five times.
-var val string
-var err error
-for i := 0; i < 5; i++ {
-    val, err = cache.Get(ctx, "key")
-    if errors.Is(err, weaver.ErrRetriable) {
-        // Retriable system error! Retry.
-        continue
-    }
-    break
+// Call the cache.Get method.
+value, err := cache.Get(ctx, "key")
+if errors.Is(err, weaver.RemoteCallError) {
+    // cache.Get did not execute properly.
+} else if err != nil {
+    // cache.Get executed properly, but returned an error.
+} else {
+    // cache.Get executed properly and did not return an error.
 }
 ```
+
+Note that if a method call returns an error with an embedded
+`weaver.RemoteCallError`, it does *not* mean that the method never executed. The
+method may have executed partially or fully. Thus, you must be careful retrying
+method calls that result in a `weaver.RemoteCallError`. Ensuring that all
+methods are either read-only or idempotent is one way to ensure safe retries,
+for example. Service Weaver does not automatically retry method calls that fail.
 
 ## Lifetime
 
@@ -2681,9 +2683,9 @@ overly burdensome, you can explicitly place relevant components in the same
 [colocation group](#config-files), ensuring that they always run in the same OS
 process.
 
-**Note**: Service Weaver guarantees that all network errors are surfaced to the
-application code as `weaver.ErrRetriable`, which can be handled as described in
-an [earlier section](#components-semantics).
+**Note**: Service Weaver guarantees that all system errors are surfaced to the
+application code as `weaver.RemoteCallError`, which can be handled as described
+in an [earlier section](#components-semantics).
 
 ### What types of distributed applications does Service Weaver target?
 

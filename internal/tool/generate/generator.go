@@ -866,8 +866,10 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`		// Catch and return any panics detected during encoding/decoding/rpc.`)
 			p(`		if err == nil {`)
 			p(`			err = %s(recover())`, g.codegen().qualify("CatchPanics"))
+			p(`			if err != nil {`)
+			p(`				err = %s(%s, err)`, g.errorsPackage().qualify("Join"), g.weaver().qualify("RemoteCallError"))
+			p(`			}`)
 			p(`		}`)
-			p(`		err = s.stub.WrapError(err)`)
 			p(``)
 			p(`		if err != nil {`)
 			p(`			span.RecordError(err)`)
@@ -948,6 +950,7 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`	var results []byte`)
 			p(`	results, err = s.stub.Run(ctx, %d, %s, shardKey)`, methodIndex[m.Name()], data)
 			p(`	if err != nil {`)
+			p(`		err = %s(%s, err)`, g.errorsPackage().qualify("Join"), g.weaver().qualify("RemoteCallError"))
 			p(`		return`)
 			p(`	}`)
 			p(`	s.%sMetrics.BytesReply.Put(float64(len(results)))`, notExported(m.Name()))
@@ -1860,6 +1863,11 @@ func (g *generator) generateEncDecMethodsFor(p printFn, t types.Type) {
 	}
 }
 
+// weaver imports and returns the weaver package.
+func (g *generator) weaver() importPkg {
+	return g.tset.importPackage(weaverPackagePath, "weaver")
+}
+
 // codegen imports and returns the codegen package.
 func (g *generator) codegen() importPkg {
 	path := fmt.Sprintf("%s/runtime/codegen", weaverPackagePath)
@@ -1879,6 +1887,11 @@ func (g *generator) trace() importPkg {
 // codes imports and returns the otel codes package.
 func (g *generator) codes() importPkg {
 	return g.tset.importPackage("go.opentelemetry.io/otel/codes", "codes")
+}
+
+// errors imports and returns the errors package.
+func (g *generator) errorsPackage() importPkg {
+	return g.tset.importPackage("errors", "errors")
 }
 
 // sanitize generates a (somewhat pretty printed) name for the provided type

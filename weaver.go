@@ -42,21 +42,27 @@ import (
 //go:generate ./dev/protoc.sh runtime/protos/config.proto
 //go:generate ./dev/writedeps.sh
 
-// ErrRetriable indicates a component method call failed but may succeed if
-// retried. You can use ErrRetriable in conjunction with errors.Is to detect
-// and retry failed operations. For example:
+// RemoteCallError indicates that a remote component method call failed to
+// execute properly. This can happen, for example, because of a failed machine
+// or a network partition. Here's an illustrative example:
 //
-//	// Retry the foo.Foo call up to three times.
-//	var err error
-//	for i := 0; i < 3; i++ {
-//	    err = foo.Foo(ctx)
-//	    if errors.Is(err, weaver.ErrRetriable) {
-//	        time.Sleep(delay)  // Backoff
-//	        continue
-//	    }
-//	    break
+//	// Call the foo.Foo method.
+//	err := foo.Foo(ctx)
+//	if errors.Is(err, weaver.RemoteCallError) {
+//	    // foo.Foo did not execute properly.
+//	} else if err != nil {
+//	    // foo.Foo executed properly, but returned an error.
+//	} else {
+//	    // foo.Foo executed properly and did not return an error.
 //	}
-var ErrRetriable = errors.New("retriable")
+//
+// Note that if a method call returns an error with an embedded
+// RemoteCallError, it does NOT mean that the method never executed. The method
+// may have executed partially or fully. Thus, you must be careful retrying
+// method calls that result in a RemoteCallError. Ensuring that all methods are
+// either read-only or idempotent is one way to ensure safe retries, for
+// example.
+var RemoteCallError = errors.New("Service Weaver remote call error")
 
 // mainIface is an empty interface "implemented" by the user main function,
 // allowing us to treat the user main as a regular Service Weaver component in the

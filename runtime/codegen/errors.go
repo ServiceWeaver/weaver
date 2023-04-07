@@ -14,7 +14,9 @@
 
 package codegen
 
-import "errors"
+import (
+	"errors"
+)
 
 // CatchPanics recovers from panic() calls that occur during encoding,
 // decoding, and RPC execution.
