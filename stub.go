@@ -16,39 +16,11 @@ package weaver
 
 import (
 	"context"
-	"errors"
 
-	"go.opentelemetry.io/otel/trace"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"go.opentelemetry.io/otel/trace"
 )
-
-// retriable is a retriable error. If err is a retriable, then errors.Is(err,
-// ErrRetriable) is true.
-//
-// TODO(mwhittaker): Once [1] is implemented, we don't need retriable. We can
-// instead join an error with ErrRetriable using fmt.Errorf.
-//
-// [1]: https://github.com/golang/go/issues/53435
-type retriable struct {
-	err error
-}
-
-// Error implements the error interface.
-func (r retriable) Error() string {
-	return r.err.Error()
-}
-
-// Is makes retriable compatible with errors.Is.
-func (r retriable) Is(err error) bool {
-	return err == ErrRetriable
-}
-
-// Unwrap makes systemError compatible with errors.Is, errors.As, and
-// errors.Unwrap.
-func (r retriable) Unwrap() error {
-	return r.err
-}
 
 // stub holds information about a client stub to the remote component.
 type stub struct {
@@ -72,12 +44,4 @@ func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64
 		Balancer: s.balancer,
 	}
 	return s.client.Call(ctx, s.methods[method], args, opts)
-}
-
-// WrapError implements the codegen.Stub interface.
-func (s *stub) WrapError(err error) error {
-	if errors.Is(err, call.CommunicationError) || errors.Is(err, call.Unreachable) {
-		return retriable{err}
-	}
-	return err
 }

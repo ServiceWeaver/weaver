@@ -16,24 +16,12 @@ package profiling
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/google/pprof/profile"
 )
-
-type errlist struct {
-	errs []error
-}
-
-func (e errlist) Error() string {
-	var b strings.Builder
-	for _, err := range e.errs {
-		fmt.Fprintln(&b, err.Error())
-	}
-	return b.String()
-}
 
 // ProfileGroups returns the approximate sum of the profiles of all members of all groups.
 // If a group has more than one member, only a subset of the group may be profiled and the
@@ -121,9 +109,5 @@ func ProfileGroups(groups [][]func() ([]byte, error)) ([]byte, error) {
 			return nil, err
 		}
 	}
-	var err error
-	if len(errs) > 0 {
-		err = errlist{errs}
-	}
-	return buf.Bytes(), err
+	return buf.Bytes(), errors.Join(errs...)
 }

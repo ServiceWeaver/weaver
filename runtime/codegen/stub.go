@@ -35,11 +35,6 @@ type Stub interface {
 	// serialized arguments and results, respectively. shardKey is the shard
 	// key for routed components, and 0 otherwise.
 	Run(ctx context.Context, method int, args []byte, shardKey uint64) (results []byte, err error)
-
-	// WrapError embeds ErrRetriable into the appropriate errors. The codegen
-	// package cannot perform this wrapping itself because of cyclic
-	// dependencies.
-	WrapError(error) error
 }
 
 // A Server allows a Service Weaver component in one process to receive and execute

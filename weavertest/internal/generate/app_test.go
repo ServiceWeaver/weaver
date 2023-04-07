@@ -55,8 +55,8 @@ func TestErrors(t *testing.T) {
 
 	// Trigger a panic.
 	_, err = client.Get(ctx, "foo", panicError)
-	if err == nil || !errors.Is(err, weaver.ErrRetriable) {
-		t.Fatalf("expected a weaver.ErrRetriable; got: %v", err)
+	if err == nil || !errors.Is(err, weaver.RemoteCallError) {
+		t.Fatalf("expected a weaver.RemoteCallError; got: %v", err)
 	}
 }
 
