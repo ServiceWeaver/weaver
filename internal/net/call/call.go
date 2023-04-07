@@ -202,10 +202,10 @@ func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOpt
 
 	for {
 		conn, err := l.Accept()
-		if ctx.Err() != nil {
+		switch {
+		case ctx.Err() != nil:
 			return ctx.Err()
-		}
-		if err != nil {
+		case err != nil:
 			return fmt.Errorf("call server error listening on %s: %w", l.Addr(), err)
 		}
 		ss.serveConnection(ctx, conn, hmap)

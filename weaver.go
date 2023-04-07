@@ -51,7 +51,7 @@ import (
 //	for i := 0; i < 3; i++ {
 //	    err = foo.Foo(ctx)
 //	    if errors.Is(err, weaver.ErrRetriable) {
-//	    time.Sleep(delay)  // Backoff
+//	        time.Sleep(delay)  // Backoff
 //	        continue
 //	    }
 //	    break
