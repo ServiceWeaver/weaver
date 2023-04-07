@@ -319,6 +319,22 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
+github.com/ServiceWeaver/weaver/examples/wrap
+    bufio
+    context
+    embed
+    flag
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    log
+    net/http
+    reflect
+    strings
+    time
+    unicode
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
     fmt
