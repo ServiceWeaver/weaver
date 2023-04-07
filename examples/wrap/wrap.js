@@ -15,20 +15,27 @@
  */
 
 // TODO(mwhittaker): Debounce.
-// TODO(mwhittaker): Allow the user to change n.
 
 'use strict';
 
 async function wrap(s, n) {
-  const response = await fetch(`/wrap?s=${encodeURIComponent(s)}`);
+  const response = await fetch(`/wrap?s=${encodeURIComponent(s)}&n=${n}`);
   return await response.text();
 }
 
 function main() {
+  const linewidth = document.getElementById('linewidth');
   const unwrapped = document.getElementById('unwrapped');
   const wrapped = document.getElementById('wrapped');
+  linewidth.addEventListener('change', () => {
+    wrapped.style.width = `${linewidth.value}ch`;
+    wrap(unwrapped.value, linewidth.value).then((s) => {
+      wrapped.innerHTML = s;
+    });
+  });
   unwrapped.addEventListener('input', () => {
-    wrap(unwrapped.value, 80).then((s) => {
+    console.log(linewidth.value);
+    wrap(unwrapped.value, linewidth.value).then((s) => {
       wrapped.innerHTML = s;
     });
   });
