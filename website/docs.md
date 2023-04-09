@@ -1890,6 +1890,18 @@ By default, all listeners are **private**, i.e., accessible only from the cloud
 project's internal network. In our example, we declare that the `hello` listener
 is public.
 
+In order to perform rolling update, an API to be used for health check is required.
+Implement a "GET /" API that returns status code 200 as follows:
+
+```
+    ...
+    // Health Check
+    http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+        fmt.Fprintf(writer, "OK")
+    })
+    ...
+```
+
 Deploy the application using `weaver gke deploy`:
 
 ```console
