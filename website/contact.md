@@ -25,6 +25,6 @@
 * If you need to get in touch with us, feel free to [e-mail](mailto:serviceweaver@google.com) us.
 
 [sw_group]: https://groups.google.com/g/serviceweaver
-[sw_discord]: https://discord.gg/p36aYaaN
+[sw_discord]: https://discord.gg/FzbQ3SM8R5
 [issue]: https://github.com/ServiceWeaver/weaver/issues
 [contrib_guide]: https://github.com/ServiceWeaver/weaver/blob/main/CONTRIBUTING.md
