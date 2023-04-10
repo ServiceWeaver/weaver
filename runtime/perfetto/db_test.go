@@ -38,7 +38,7 @@ func storeSpans(ctx context.Context, t *testing.T, db *DB, app, version string, 
 }
 
 // makeSpan creates a test span with the given information.
-func makeSpan(name string, dur time.Duration, pid int, cgroup string) sdktrace.ReadOnlySpan {
+func makeSpan(name string, dur time.Duration, pid int, weavelet string) sdktrace.ReadOnlySpan {
 	return tracetest.SpanStub{
 		Name:      name,
 		StartTime: now,
@@ -50,8 +50,8 @@ func makeSpan(name string, dur time.Duration, pid int, cgroup string) sdktrace.R
 				Value: attribute.IntValue(pid),
 			},
 			{
-				Key:   "coloc_group",
-				Value: attribute.StringValue(cgroup),
+				Key:   "weavelet",
+				Value: attribute.StringValue(weavelet),
 			},
 		},
 	}.Snapshot()
@@ -70,12 +70,12 @@ func TestStoreFetch(t *testing.T) {
 	defer db.Close()
 
 	// Store a bunch of spans.
-	s1 := makeSpan("s1", time.Minute, 1, "cg1")
-	s2 := makeSpan("s2", time.Second, 2, "cg1")
-	s3 := makeSpan("s3", 2*time.Minute, 3, "cg2")
-	s4 := makeSpan("s4", time.Minute, 5, "cg3")
-	s5 := makeSpan("s5", time.Minute, 6, "cg4")
-	s6 := makeSpan("s6", time.Minute, 7, "cg5")
+	s1 := makeSpan("s1", time.Minute, 1, "w1")
+	s2 := makeSpan("s2", time.Second, 2, "w1")
+	s3 := makeSpan("s3", 2*time.Minute, 3, "w2")
+	s4 := makeSpan("s4", time.Minute, 5, "w3")
+	s5 := makeSpan("s5", time.Minute, 6, "w4")
+	s6 := makeSpan("s6", time.Minute, 7, "w5")
 	storeSpans(ctx, t, db, "app1", "v1", s1, s2)
 	storeSpans(ctx, t, db, "app1", "v1", s3)
 	storeSpans(ctx, t, db, "app1", "v2", s4)
@@ -125,9 +125,8 @@ func TestStoreFetch(t *testing.T) {
 
 func TestReplicaNum(t *testing.T) {
 	// Test Plan: Retrieve replica numbers for a number of different
-	// application versions and their colocation groups. Ensure that different
-	// replicas of the same colocation group get assigned sequential replica
-	// numbers, starting with zero.
+	// application versions. Ensure that different replicas of the same version
+	// get assigned sequential replica numbers, starting with zero.
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
 	db, err := open(ctx, fname)
@@ -135,26 +134,25 @@ func TestReplicaNum(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	expect := func(app, version, cgroup, replicaID string, num int) {
-		rn, err := db.getReplicaNumber(ctx, app, version, cgroup, replicaID)
+	expect := func(app, version, weavelet string, num int) {
+		rn, err := db.getReplicaNumber(ctx, app, version, weavelet)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if rn != num {
-			t.Errorf("unexpected replica for %s %s %s %s; want %d, got %d", app, version, cgroup, replicaID, num, rn)
+			t.Errorf("unexpected replica for %s %s %s; want %d, got %d", app, version, weavelet, num, rn)
 		}
 	}
-	expect("app1", "v1", "cg1", "rid1", 0)
-	expect("app1", "v1", "cg1", "rid1", 0)
-	expect("app1", "v1", "cg1", "rid2", 1)
-	expect("app1", "v1", "cg1", "rid3", 2)
-	expect("app1", "v1", "cg2", "rid1", 0)
-	expect("app1", "v1", "cg2", "rid1", 0)
-	expect("app1", "v1", "cg2", "rid2", 1)
-	expect("app1", "v2", "cg1", "rid1", 0)
-	expect("app1", "v2", "cg1", "rid1", 0)
-	expect("app1", "v2", "cg1", "rid2", 1)
-	expect("app2", "v1", "cg1", "rid1", 0)
-	expect("app2", "v1", "cg1", "rid1", 0)
-	expect("app2", "v1", "cg1", "rid2", 1)
+	expect("app1", "v1", "w1", 0)
+	expect("app1", "v1", "w2", 1)
+	expect("app1", "v1", "w3", 2)
+	expect("app1", "v2", "w1", 0)
+	expect("app1", "v2", "w2", 1)
+	expect("app1", "v2", "w3", 2)
+	expect("app2", "v1", "w1", 0)
+	expect("app2", "v1", "w2", 1)
+	expect("app2", "v1", "w3", 2)
+	expect("app2", "v2", "w1", 0)
+	expect("app2", "v2", "w2", 1)
+	expect("app2", "v2", "w3", 2)
 }

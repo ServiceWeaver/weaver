@@ -752,7 +752,6 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     fmt
     github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/traceio
-    github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/hashicorp/golang-lru/v2
     go.opentelemetry.io/otel/sdk/trace
