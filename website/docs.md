@@ -35,7 +35,7 @@ section for a tutorial on how to write Service Weaver applications.
 
 # Installation
 
-Ensure you have [Go installed][go_install], version 1.19 or higher. Then, run
+Ensure you have [Go installed][go_install], version 1.20 or higher. Then, run
 the following to install the `weaver` command:
 
 ```console

@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ["1.19", "1.20"]
+        version: ["1.20"]
         command: ["build", "vet", "lint", "test", "testrace"]
     steps:
       - name: Check out repository
@@ -57,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ["1.19", "1.20"]
+        version: ["1.20"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
