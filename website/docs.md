@@ -924,15 +924,15 @@ Here's an example of how to add metrics to a simple `Adder` component.
 
 ```go
 var (
-    addCount = weaver.NewCounter(
+    addCount = metrics.NewCounter(
         "add_count",
         "The number of times Adder.Add has been called",
     )
-    addConcurrent = weaver.NewGauge(
+    addConcurrent = metrics.NewGauge(
         "add_concurrent",
         "The number of concurrent Adder.Add calls",
     )
-    addSum = weaver.NewHistogram(
+    addSum = metrics.NewHistogram(
         "add_sum",
         "The sums returned by Adder.Add",
         []float64{1, 10, 100, 1000, 10000},
@@ -972,7 +972,7 @@ type halveLabels struct {
 }
 
 var (
-    halveCounts = weaver.NewCounterMap[halveLabels](
+    halveCounts = metrics.NewCounterMap[halveLabels](
         "halve_count",
         "The number of values that have been halved",
     )

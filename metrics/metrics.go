@@ -19,9 +19,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
-// This file re-exports the user-facing types and functions in runtime/metrics
-// so that they appear in the root weaver package.
-
 // A Counter is a float-valued, monotonically increasing metric. For example,
 // you can use a Counter to count the number of requests received, the number
 // of requests that resulted in an error, etc.
@@ -48,38 +45,8 @@ func (c *Counter) Add(delta float64) {
 }
 
 // A CounterMap is a collection of Counters with the same name and label schema
-// but with different label values.
-//
-// # Labels
-//
-// Labels are represented as a comparable struct of type L. We say a label
-// struct L is valid if every field of L is a string, bool or integer type and
-// is exported. For example, the following are valid label structs:
-//
-//	struct{}         // an empty struct
-//	struct{X string} // a struct with one field
-//	struct{X, Y int} // a struct with two fields
-//
-// The following are invalid label structs:
-//
-//	struct{x string}   // unexported field
-//	string             // not a struct
-//	struct{X chan int} // unsupported label type (i.e. chan int)
-//
-// Note that the order of the fields within a label struct is unimportant. For
-// example, if one program exports metric foo with labels struct{X, Y string},
-// another program can safely export the same metric with labels struct{Y, X
-// string}.
-//
-// By default, the first letter of every label names is lowercased. You can use
-// the "weaver" struct tag to override this behavior and assign a different
-// name to a label. For example,
-//
-//	struct {
-//	    Foo string                // "foo"
-//	    Bar string `weaver:"Bar"` // "Bar"
-//	    Baz string `weaver:"sup"` // "sup"
-//	}
+// but with different label values. See package documentation for a description
+// of L.
 type CounterMap[L comparable] struct {
 	impl *metrics.MetricMap[L]
 }
@@ -140,7 +107,7 @@ func (g *Gauge) Sub(delta float64) {
 }
 
 // A GaugeMap is a collection of Gauges with the same name and label schema but
-// with different label values. See CounterMap for a description of L.
+// with different label values. See package documentation for a description of L.
 type GaugeMap[L comparable] struct {
 	impl *metrics.MetricMap[L]
 }
@@ -207,8 +174,8 @@ func (h *Histogram) Put(val float64) {
 }
 
 // A HistogramMap is a collection of Histograms with the same name and label
-// schema but with different label values. See CounterMap for a description of
-// L.
+// schema but with different label values. See package documentation for a
+// description of L.
 type HistogramMap[L comparable] struct {
 	impl *metrics.MetricMap[L]
 }

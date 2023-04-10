@@ -269,7 +269,7 @@ are uploaded to [Google Cloud Tracing][cloud_trace]. Here is an example of how
 to add a counter to the Reverser component:
 
 ```go
-var reverseCount = weaver.NewCounter(
+var reverseCount = metrics.NewCounter(
     "reverse_count",
     "The number of times Reverser.Reverse has been called",
 )
