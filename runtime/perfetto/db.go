@@ -35,7 +35,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	lru "github.com/hashicorp/golang-lru/v2"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -68,7 +67,7 @@ type metadataEvent struct {
 }
 
 type replicaCacheKey struct {
-	app, version, colocGroup, colocGroupReplicaID string
+	app, version, weaveletId string
 }
 
 // DB is a trace database that stores traces on the local file system.
@@ -103,6 +102,8 @@ func Open(ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
+	// TODO(mwhittaker): Use a different db for every deployer. Have the purge
+	// commands delete the db.
 	fname := filepath.Join(dataDir, "perfetto.db")
 	return open(ctx, fname)
 }
@@ -140,23 +141,13 @@ CREATE TABLE IF NOT EXISTS traces (
 	events TEXT NOT NULL
 );
 
--- Map from a group replica id to a replica number.
+-- Map from a weavelet id to a replica number.
 CREATE TABLE IF NOT EXISTS replica_num (
 	app TEXT NOT NULL,
 	version TEXT NOT NULL,
-	cgroup TEXT NOT NULL,
-	cgroup_replica_id TEXT NOT NULL,
+	weavelet_id TEXT NOT NULL,
 	num INTEGER NOT NULL,
-	PRIMARY KEY(app,version,cgroup,cgroup_replica_id)
-);
-
--- Next replica number for a colocation group.
-CREATE TABLE IF NOT EXISTS next_replica_num (
-	app TEXT NOT NULL,
-	version TEXT NOT NULL,
-	cgroup TEXT NOT NULL,
-	next INTEGER NOT NULL,
-	PRIMARY KEY(app,version,cgroup)
+	PRIMARY KEY(app,version,weavelet_id)
 );
 `
 	if _, err := t.execDB(ctx, initTables); err != nil {
@@ -214,23 +205,20 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 
 	// Extract information from the span attributes.
 	var pid int
-	var colocGroup string
-	var colocGroupReplicaID string
+	var weaveletId string
 	for _, a := range span.Resource().Attributes() {
 		switch a.Key {
 		case semconv.ProcessPIDKey:
 			pid = int(a.Value.AsInt64())
-		case traceio.ColocationGroupNameTraceKey:
-			colocGroup = a.Value.AsString()
-		case traceio.GroupReplicaIDTraceKey:
-			colocGroupReplicaID = a.Value.AsString()
+		case traceio.WeaveletIdTraceKey:
+			weaveletId = a.Value.AsString()
 		}
 	}
 
 	// Get replica number that corresponds to the colocation group replica
 	// that generated the span. We do this to avoid displaying long random
 	// numbers on the Perfetto UI.
-	replicaNum, err := d.getReplicaNumber(ctx, app, version, colocGroup, colocGroupReplicaID)
+	replicaNum, err := d.getReplicaNumber(ctx, app, version, weaveletId)
 	if err != nil {
 		return err
 	}
@@ -267,7 +255,7 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 	}
 
 	// Generate a complete event and a series of metadata events.
-	colocGroupFP := fp(colocGroup)
+	weaveletFP := fp(weaveletId)
 
 	// Build two metadata events for each colocation group (one to replace the
 	// process name label and one for the thread name).
@@ -275,9 +263,9 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 		Ph:   "M", // make it a metadata event
 		Name: "process_name",
 		Cat:  span.SpanKind().String(),
-		Pid:  colocGroupFP,
+		Pid:  weaveletFP,
 		Tid:  replicaNum,
-		Args: map[string]string{"name": fmt.Sprintf("%s+", logging.ShortenComponent(colocGroup))},
+		Args: map[string]string{"name": fmt.Sprintf("Weavelet %d", replicaNum)},
 	}); err != nil {
 		return err
 	}
@@ -285,9 +273,9 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 		Ph:   "M", // make it a metadata event
 		Name: "thread_name",
 		Cat:  span.SpanKind().String(),
-		Pid:  colocGroupFP,
+		Pid:  weaveletFP,
 		Tid:  replicaNum,
-		Args: map[string]string{"name": "Replica"},
+		Args: map[string]string{"name": "Weavelet"},
 	}); err != nil {
 		return err
 	}
@@ -297,7 +285,7 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 		Ph:   "X", // make it a complete event
 		Name: eventName,
 		Cat:  span.SpanKind().String(),
-		Pid:  colocGroupFP,
+		Pid:  weaveletFP,
 		Tid:  replicaNum,
 		Args: args,
 		Ts:   span.StartTime().UnixMicro(),
@@ -316,7 +304,7 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 			Ph:   "M", // make it a metadata event
 			Name: e.Name,
 			Cat:  span.SpanKind().String(),
-			Pid:  colocGroupFP,
+			Pid:  weaveletFP,
 			Tid:  replicaNum,
 			Args: attrs,
 		}); err != nil {
@@ -327,25 +315,27 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 }
 
 // getReplicaNumber returns a replica number associated with the given
-// colocation group replica. If no such number exists, a new number will be
-// associated. The returned replica number is guaranteed to come from a dense
-// number space.
-func (d *DB) getReplicaNumber(ctx context.Context, app, version, cgroup, replicaID string) (replicaNum int, err error) {
-	// First check in the cache.
-	cacheKey := replicaCacheKey{app, version, cgroup, replicaID}
+// weavelet. If no such number exists, a new number will be associated. The
+// returned replica number is guaranteed to come from a dense number space.
+func (d *DB) getReplicaNumber(ctx context.Context, app, version, weaveletId string) (int, error) {
+	// Try to return the replica number from the cache.
+	cacheKey := replicaCacheKey{app, version, weaveletId}
 	if replicaNum, ok := d.replicaNumCache.Get(cacheKey); ok {
 		return replicaNum, nil
 	}
-	defer func() {
-		if err == nil {
-			d.replicaNumCache.Add(cacheKey, replicaNum)
-		}
-	}()
 
-	// Check in the database.
+	// Get the replica number from the database.
+	replicaNum, err := d.getReplicaNumberUncached(ctx, app, version, weaveletId)
+	if err == nil {
+		d.replicaNumCache.Add(cacheKey, replicaNum)
+	}
+	return replicaNum, err
+}
+
+func (d *DB) getReplicaNumberUncached(ctx context.Context, app, version, weaveletId string) (int, error) {
 	tx, err := d.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelLinearizable})
 	if err != nil {
-		return
+		return -1, err
 	}
 	defer tx.Rollback() //nolint:errcheck // rollback errors can be ignored
 
@@ -353,81 +343,56 @@ func (d *DB) getReplicaNumber(ctx context.Context, app, version, cgroup, replica
 	const query = `
 		SELECT num
 		FROM replica_num
-		WHERE app=? AND version=? AND cgroup=? AND cgroup_replica_id=?;
+		WHERE app=? AND version=? AND weavelet_id=?;
 	`
-	rows, err := tx.QueryContext(ctx, query, app, version, cgroup, replicaID)
+	rows, err := tx.QueryContext(ctx, query, app, version, weaveletId)
 	if err != nil {
-		return
+		return -1, err
 	}
 	defer rows.Close()
 	if rows.Next() { // already associated
+		var replicaNum int
 		err = rows.Scan(&replicaNum)
-		return
+		return replicaNum, err
+	}
+	if err := rows.Err(); err != nil {
+		return -1, err
 	}
 
-	// Get the next replica number.
-	replicaNum, err = d.getNextReplicaNumber(ctx, tx, app, version, cgroup)
+	// Compute the next replica number.
+	const nextReplicaNumberQuery = `
+		SELECT COALESCE(MAX(num), -1)
+		FROM replica_num
+		WHERE app=? AND version=?;
+	`
+	rows, err = tx.QueryContext(ctx, nextReplicaNumberQuery, app, version)
 	if err != nil {
-		return
+		return -1, err
+	}
+	defer rows.Close()
+	replicaNum := 0
+	if rows.Next() {
+		if err = rows.Scan(&replicaNum); err != nil {
+			return -1, err
+		}
+		replicaNum++
+	}
+	if err := rows.Err(); err != nil {
+		return -1, err
 	}
 
 	// Associate the next replica number.
 	const stmt = `
-		INSERT INTO replica_num(app, version, cgroup, cgroup_replica_id, num)
-		VALUES (?,?,?,?,?);
+		INSERT INTO replica_num(app, version, weavelet_id, num)
+		VALUES (?,?,?,?);
 	`
-	if _, err = tx.ExecContext(ctx, stmt, app, version, cgroup, replicaID, replicaNum); err != nil {
-		return
+	if _, err = tx.ExecContext(ctx, stmt, app, version, weaveletId, replicaNum); err != nil {
+		return -1, err
 	}
 
 	// Commit the transaction.
 	err = tx.Commit()
-	return
-}
-
-func (d *DB) getNextReplicaNumber(ctx context.Context, tx *sql.Tx, app, version, cgroup string) (int, error) {
-	const query = `
-		SELECT next
-		FROM next_replica_num
-		WHERE app=? AND version=? AND cgroup=?;
-	`
-	rows, err := tx.QueryContext(ctx, query, app, version, cgroup)
-	if err != nil {
-		return -1, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		// The row for the next replica number hasn't yet been inserted: add it.
-		const replicaNum = 0
-		if err := rows.Err(); err != nil {
-			return -1, err
-		}
-
-		const stmt = `
-			INSERT INTO next_replica_num(app, version, cgroup, next)
-			VALUES (?,?,?,?);
-		`
-		if _, err = tx.ExecContext(ctx, stmt, app, version, cgroup, replicaNum+1); err != nil {
-			return -1, err
-		}
-		return replicaNum, nil
-	}
-
-	// Increment the next replica number.
-	var replicaNum int
-	if err := rows.Scan(&replicaNum); err != nil {
-		return -1, err
-	}
-	const stmt = `
-		UPDATE next_replica_num
-		SET next = ?
-		WHERE app=? AND version=? AND cgroup=?;
-	`
-	if _, err := tx.ExecContext(ctx, stmt, replicaNum+1, app, version, cgroup); err != nil {
-		return -1, err
-	}
-	return replicaNum, nil
+	return replicaNum, err
 }
 
 // fetch returns all trace events for the given application version.

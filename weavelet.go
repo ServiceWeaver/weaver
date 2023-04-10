@@ -135,8 +135,9 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", info.Id)),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
-			traceio.AppNameTraceKey.String(info.App),
-			traceio.VersionTraceKey.String(info.DeploymentId),
+			traceio.AppTraceKey.String(info.App),
+			traceio.DeploymentIdTraceKey.String(info.DeploymentId),
+			traceio.WeaveletIdTraceKey.String(info.Id),
 		)),
 		// TODO(spetrovic): Allow the user to create new TracerProviders where
 		// they can control trace sampling and other options.
