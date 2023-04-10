@@ -217,7 +217,17 @@ func formatMetrics(metrics []*protos.MetricSnapshot) {
 
 				row = append(row, entry)
 			}
+
 			entry := colors.Atom{S: fmt.Sprint(m.Value)}
+			if typ == protos.MetricType_HISTOGRAM {
+				count := uint64(0)
+				for _, bucketCount := range m.Counts {
+					count += bucketCount
+				}
+				if count != 0 {
+					entry = colors.Atom{S: fmt.Sprint(m.Value / float64(count))}
+				}
+			}
 			if m.Value == 0 {
 				entry.Color = dim
 			}
