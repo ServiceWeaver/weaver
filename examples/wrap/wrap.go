@@ -22,6 +22,25 @@ import (
 	"unicode"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/metrics"
+)
+
+var (
+	// stringLength is a histogram that tracks the length of strings passed to
+	// the Wrap method.
+	stringLength = metrics.NewHistogram(
+		"wrap_string_length",
+		"The length of strings passed to Wrap",
+		metrics.NonNegativeBuckets,
+	)
+
+	// lineLength is a histogram that tracks the line length, n, passed to the
+	// Wrap method.
+	lineLength = metrics.NewHistogram(
+		"wrap_line_length",
+		"The line length, n, passed to Wrap",
+		metrics.NonNegativeBuckets,
+	)
 )
 
 // The Wrapper component interface.
@@ -50,6 +69,9 @@ type wrapper struct {
 
 // Wrap wraps the provided text to n characters.
 func (wrapper) Wrap(_ context.Context, s string, n int) (string, error) {
+	stringLength.Put(float64(len(s))) // Update the stringLength metric.
+	lineLength.Put(float64(n))        // Update the lineLength metric.
+
 	var b strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(s))
 	for scanner.Scan() {
