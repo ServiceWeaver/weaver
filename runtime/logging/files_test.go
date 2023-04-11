@@ -367,6 +367,43 @@ func TestFileFollowerNoMatches(t *testing.T) {
 	}
 }
 
+func TestParseLogfile(t *testing.T) {
+	for _, want := range []logfile{
+		// Simple strings.
+		{"a", "b", "c", "d"},
+
+		// Some empty strings.
+		{"", "b", "c", "d"},
+		{"a", "", "c", "d"},
+		{"a", "b", "", "d"},
+		{"a", "b", "c", ""},
+		{"", "", "c", "d"},
+		{"a", "", "", "d"},
+		{"a", "b", "", ""},
+		{"", "", "", "d"},
+		{"a", "", "", ""},
+		{"", "", "", ""},
+
+		// Periods.
+		{"a", "b.b", "c.c.c", "d.d.d.d"},
+		{"a.x", "b", "c", "d"},
+
+		// File suffix.
+		{"log", "log", "log", "log"},
+	} {
+		name := filename(want.app, want.deployment, want.weavelet, want.level)
+		t.Run(name, func(t *testing.T) {
+			got, err := parseLogfile(name)
+			if err != nil {
+				t.Fatalf("parseLogFile(name): %v", err)
+			}
+			if got != want {
+				t.Errorf("parseLogFile(name): got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 // drain reads and returns every entry from r.
 func drain(t *testing.T, ctx context.Context, r Reader) []*protos.LogEntry {
 	t.Helper()

@@ -162,24 +162,20 @@ type logfile struct {
 // parseLogfile parses a logfile filename.
 func parseLogfile(filename string) (logfile, error) {
 	// TODO(mwhittaker): Ensure that apps, deployments, weavelet ids, levels
-	// don't contain a ".". Or, switch to some other delimiter that doesn't
+	// don't contain a "#". Or, switch to some other delimiter that doesn't
 	// show up.
 
-	dotParts := strings.Split(filename, ".")
-	dotPartsLen := len(dotParts)
+	const want = "<app>#<deployment>#<weavelet>#<level>.log"
 
-	if len(dotParts) < 2 || dotParts[dotPartsLen-1] != "log" {
-		want := "<app>#<deployment>#<weavelet>#<level>.log"
+	prefix, hasLogSuffix := strings.CutSuffix(filename, ".log")
+
+	if !hasLogSuffix {
 		return logfile{}, fmt.Errorf("filename %q must have format %q", filename, want)
 	}
 
-	noExtension := strings.Join(dotParts[0:dotPartsLen-1], ".")
+	parts := strings.SplitN(prefix, "#", 4)
 
-	parts := strings.Split(noExtension, "#")
-	partsLen := len(parts)
-
-	if partsLen != 4 {
-		want := "<app>#<deployment>#<weavelet>#<level>.log"
+	if len(parts) < 4 {
 		return logfile{}, fmt.Errorf("filename %q must have format %q", filename, want)
 	}
 
