@@ -91,13 +91,13 @@ func HandlerFunc[I, O any, IP ProtoPointer[I], OP ProtoPointer[O]](logger *slog.
 	f := func(w http.ResponseWriter, r *http.Request) {
 		var in I
 		if err := fromHTTP(w, r, IP(&in)); err != nil {
-			logger.Error("parse http request", err, "method", r.Method, "url", r.URL)
+			logger.Error("parse http request", "err", err, "method", r.Method, "url", r.URL)
 			return
 		}
 		out, err := handler(r.Context(), &in)
 		if err != nil {
 			httpRequestErrorCounts.Get(errorLabels{r.URL.Path, "execute request"}).Add(1.0)
-			logger.Error("handle http RPC", err, "method", r.Method, "url", r.URL)
+			logger.Error("handle http RPC", "err", err, "method", r.Method, "url", r.URL)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		} else {
@@ -117,7 +117,7 @@ func HandlerThunk[O any, OP ProtoPointer[O]](logger *slog.Logger, handler func(c
 		out, err := handler(r.Context())
 		if err != nil {
 			httpRequestErrorCounts.Get(errorLabels{r.URL.Path, "execute request"}).Add(1.0)
-			logger.Error("handle http RPC", err, "method", r.Method, "url", r.URL)
+			logger.Error("handle http RPC", "err", err, "method", r.Method, "url", r.URL)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		} else {
@@ -136,12 +136,12 @@ func HandlerDo[I any, IP ProtoPointer[I]](logger *slog.Logger, handler func(cont
 	f := func(w http.ResponseWriter, r *http.Request) {
 		var in I
 		if err := fromHTTP(w, r, IP(&in)); err != nil {
-			logger.Error("parse http request", err, "method", r.Method, "url", r.URL)
+			logger.Error("parse http request", "err", err, "method", r.Method, "url", r.URL)
 			return
 		}
 		if err := handler(r.Context(), &in); err != nil {
 			httpRequestErrorCounts.Get(errorLabels{r.URL.Path, "execute request"}).Add(1.0)
-			logger.Error("handle http RPC", err, "method", r.Method, "url", r.URL)
+			logger.Error("handle http RPC", "err", err, "method", r.Method, "url", r.URL)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -156,7 +156,7 @@ func panicHandler(logger *slog.Logger, handler http.HandlerFunc) http.HandlerFun
 		defer func() {
 			if err := recover(); err != nil {
 				err := fmt.Errorf("%s:\n%v", err, string(debug.Stack()))
-				logger.Error("panic in HTTP handler", err)
+				logger.Error("panic in HTTP handler", "err", err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

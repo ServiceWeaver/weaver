@@ -141,7 +141,7 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.EnvelopeInfo, c
 
 	t.Cleanup(func() {
 		if err := d.cleanup(); err != nil {
-			d.logger.Error("cleanup", err)
+			d.logger.Error("cleanup", "err", err)
 		}
 		maybeLogStacks()
 

@@ -113,7 +113,7 @@ func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"platform_name":   fe.platform.provider,
 		"is_cymbal_brand": isCymbalBrand,
 	}); err != nil {
-		logger.Error("generate home page", err)
+		logger.Error("generate home page", "err", err)
 	}
 }
 
@@ -175,7 +175,7 @@ func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
 		"platform_name":   fe.platform.provider,
 		"is_cymbal_brand": isCymbalBrand,
 	}); err != nil {
-		logger.Error("generate product page", err)
+		logger.Error("generate product page", "err", err)
 	}
 }
 
@@ -303,7 +303,7 @@ func (fe *Server) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 		"platform_name":    fe.platform.provider,
 		"is_cymbal_brand":  isCymbalBrand,
 	}); err != nil {
-		logger.Error("generate cart page", err)
+		logger.Error("generate cart page", "err", err)
 	}
 }
 
@@ -374,7 +374,7 @@ func (fe *Server) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 		"platform_name":   fe.platform.provider,
 		"is_cymbal_brand": isCymbalBrand,
 	}); err != nil {
-		logger.Error("generate order page", err)
+		logger.Error("generate order page", "err", err)
 	}
 }
 
@@ -417,7 +417,7 @@ func (fe *Server) chooseAd(ctx context.Context, ctxKeys []string, logger *slog.L
 	defer cancel()
 	ads, err := fe.adService.GetAds(ctx, ctxKeys)
 	if err != nil {
-		logger.Error("failed to retrieve ads", err)
+		logger.Error("failed to retrieve ads", "err", err)
 		return nil
 	}
 	return &ads[rand.Intn(len(ads))]
@@ -473,7 +473,7 @@ func (fe *Server) getRecommendations(ctx context.Context, userID string, product
 
 func (fe *Server) renderHTTPError(r *http.Request, w http.ResponseWriter, err error, code int) {
 	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
-	logger.Error("request error", err)
+	logger.Error("request error", "err", err)
 	errMsg := fmt.Sprintf("%+v", err)
 
 	w.WriteHeader(code)
@@ -486,7 +486,7 @@ func (fe *Server) renderHTTPError(r *http.Request, w http.ResponseWriter, err er
 		"status_code": code,
 		"status":      http.StatusText(code),
 	}); templateErr != nil {
-		logger.Error("generate error page", templateErr)
+		logger.Error("generate error page", "err", templateErr)
 	}
 }
 

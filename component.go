@@ -292,8 +292,8 @@ type AutoMarshal struct{}
 // codegen.AutoMarshal. Alternatively, we could modify the code generator to
 // ignore AutoMarshal during marshaling and unmarshaling.
 
-func (AutoMarshal) WeaverMarshal(enc *codegen.Encoder)   {}
-func (AutoMarshal) WeaverUnmarshal(dec *codegen.Decoder) {}
+func (AutoMarshal) WeaverMarshal(*codegen.Encoder)   {}
+func (AutoMarshal) WeaverUnmarshal(*codegen.Decoder) {}
 
 // WithConfig[T] is a type that can be embedded inside a component
 // implementation. Service Weaver runtime will take per-component configuration

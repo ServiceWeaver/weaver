@@ -112,7 +112,7 @@ func RunBabysitter(ctx context.Context) error {
 	winfo := e.WeaveletInfo()
 	if err := checkVersion(winfo.Version); err != nil {
 		// TODO: Propagate the error and stop the deployer.
-		b.logger.Error("version mismatch", err)
+		b.logger.Error("version mismatch", "err", err)
 		return err
 	}
 
@@ -157,7 +157,7 @@ func (m *metricsCollector) run(ctx context.Context) {
 		case <-tickerCollectMetrics.C:
 			ms, err := m.envelope.GetMetrics()
 			if err != nil {
-				m.logger.Error("Unable to collect metrics", err)
+				m.logger.Error("Unable to collect metrics", "err", err)
 				continue
 			}
 			ms = append(ms, metrics.Snapshot()...)
@@ -177,7 +177,7 @@ func (m *metricsCollector) run(ctx context.Context) {
 					Metrics:   metrics,
 				},
 			}); err != nil {
-				m.logger.Error("Error collecting metrics", err)
+				m.logger.Error("Error collecting metrics", "err", err)
 			}
 		case <-ctx.Done():
 			return
@@ -274,12 +274,12 @@ func (b *babysitter) watchRoutingInfo(component string, routed bool) {
 	for r := retry.Begin(); r.Continue(b.ctx); {
 		routing, newVersion, err := b.getRoutingInfo(component, routed, version)
 		if err != nil {
-			b.logger.Error("cannot get routing info; will retry", err, "component", component)
+			b.logger.Error("cannot get routing info; will retry", "err", err, "component", component)
 			continue
 		}
 		version = newVersion
 		if err := b.envelope.UpdateRoutingInfo(routing); err != nil {
-			b.logger.Error("cannot update routing info; will retry", err, "component", component)
+			b.logger.Error("cannot update routing info; will retry", "err", err, "component", component)
 			continue
 		}
 		if routing.Local {
@@ -311,12 +311,12 @@ func (b *babysitter) watchComponents() {
 	for r := retry.Begin(); r.Continue(b.ctx); {
 		components, newVersion, err := b.getComponentsToStart(version)
 		if err != nil {
-			b.logger.Error("cannot get components to start; will retry", err)
+			b.logger.Error("cannot get components to start; will retry", "err", err)
 			continue
 		}
 		version = newVersion
 		if err := b.envelope.UpdateComponents(components); err != nil {
-			b.logger.Error("cannot update components to start; will retry", err)
+			b.logger.Error("cannot update components to start; will retry", "err", err)
 			continue
 		}
 		r.Reset()

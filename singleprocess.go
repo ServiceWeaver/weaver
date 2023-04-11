@@ -133,7 +133,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 	go func() {
 		err := env.statsProcessor.CollectMetrics(ctx, metrics.Snapshot)
 		if err != nil {
-			env.SystemLogger().Error("metric collection stopped with error", err)
+			env.SystemLogger().Error("metric collection stopped with error", "err", err)
 		}
 	}()
 	return env, nil
@@ -182,7 +182,7 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 		if err == nil {
 			break
 		}
-		e.SystemLogger().Error("status server unavailable", err, "address", lis.Addr())
+		e.SystemLogger().Error("status server unavailable", "err", err, "address", lis.Addr())
 	}
 
 	// Register the deployment.
