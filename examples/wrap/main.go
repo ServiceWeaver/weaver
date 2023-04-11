@@ -24,6 +24,7 @@ import (
 	"strconv"
 
 	"github.com/ServiceWeaver/weaver"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //go:generate ../../cmd/weaver/weaver generate
@@ -106,6 +107,7 @@ func main() {
 		}
 		fmt.Fprintf(w, wrapped)
 	})
-	handler := weaver.InstrumentHandler("hello", &mux)
-	http.Serve(lis, handler)
+	instrumented := weaver.InstrumentHandler("wrap", &mux)
+	traced := otelhttp.NewHandler(instrumented, "http")
+	http.Serve(lis, traced)
 }
