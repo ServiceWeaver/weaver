@@ -14,6 +14,8 @@
  limitations under the License.
 -->
 
+*2023-04-12*&nbsp;&nbsp; We will be at [KubeCon][kubecon_23_eu] in Amsterdam next week. You can find us in the Google booth.
+
 *2023-04-05*&nbsp;&nbsp; New blog post on [how to implement a Service Weaver deployer][deployers_blog].
 
 *2023-04-03*&nbsp;&nbsp; Service Weaver at Container Day in Amsterdam. [Register][container_day_register] if you want to learn more.
@@ -48,3 +50,4 @@
 [kelsey_sw_launch_tweet]: https://twitter.com/kelseyhightower/status/1630995723956412420
 [container_day_register]: https://rsvp.withgoogle.com/events/google-container-day/
 [deployers_blog]: https://serviceweaver.dev/blog/deployers.html
+[kubecon_23_eu]: https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/
