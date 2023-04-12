@@ -1859,11 +1859,6 @@ to it. Go to [this page][gcloud_billing] to create a new billing account, and
 [this page][gcloud_billing_projects] to associate a billing account with your
 cloud project.
 
-<div hidden class="todo">
-TODO(mwhittaker): Explain how to set up a `/healthz` endpoint once we
-finalize that design.
-</div>
-
 ## Getting Started
 
 Consider again the "Hello, World!" Service Weaver application from the [Step by
@@ -1891,6 +1886,60 @@ The `[gke]` section configures the regions where the application is deployed
 By default, all listeners are **private**, i.e., accessible only from the cloud
 project's internal network. In our example, we declare that the `hello` listener
 is public.
+
+All listeners deployed to GKE are configured to be health-checked by GKE
+load-balancers on the `/healthz` HTTP path. To make the `hello` application
+compatible with these health checks, augment the application code to have
+the HTTP server return status `200` on the `/healthz` endpoint:
+
+```
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "net/http"
+
+    "github.com/ServiceWeaver/weaver"
+)
+
+func main() {
+    // Initialize the Service Weaver application.
+    root := weaver.Init(context.Background())
+
+    // Get a client to the Reverser component.
+    reverser, err := weaver.Get[Reverser](root)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Get a network listener on address "localhost:12345".
+    opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
+    lis, err := root.Listener("hello", opts)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("hello listener available on %v\n", lis)
+
+    // Serve the /hello endpoint.
+    http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+        reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+        fmt.Fprintf(w, "Hello, %s!\n", reversed)
+    })
+
+    // Serve Health Check endpoint.
+    http.HandleFunc("/healthz", func(writer http.ResponseWriter, request *http.Request) {
+        fmt.Fprintf(writer, "OK")
+    })
+
+    http.Serve(lis, nil)
+}
+```
 
 Deploy the application using `weaver gke deploy`:
 
