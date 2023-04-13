@@ -867,6 +867,6 @@ func logError(logger *slog.Logger, details string, err error) {
 		errors.Is(err, io.ErrClosedPipe) {
 		logger.Info(details, "err", err)
 	} else {
-		logger.Error(details, err)
+		logger.Error(details, "err", err)
 	}
 }

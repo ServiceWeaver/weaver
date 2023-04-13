@@ -124,7 +124,7 @@ func (s *impl) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (types.Ord
 	}
 
 	if err := s.emailService.SendOrderConfirmation(ctx, req.Email, order); err != nil {
-		s.Logger().Error("failed to send order confirmation", err, "email", req.Email)
+		s.Logger().Error("failed to send order confirmation", "err", err, "email", req.Email)
 	} else {
 		s.Logger().Info("order confirmation email sent", "email", req.Email)
 	}

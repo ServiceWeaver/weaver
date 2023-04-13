@@ -51,7 +51,7 @@ type LogHandler struct {
 var _ slog.Handler = &LogHandler{}
 
 // Handle implements the slog.Handler interface.
-func (h *LogHandler) Handle(rec slog.Record) error {
+func (h *LogHandler) Handle(ctx context.Context, rec slog.Record) error {
 	h.Write(h.makeEntry(rec))
 	return nil
 }

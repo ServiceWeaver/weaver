@@ -176,7 +176,7 @@ func (w *weavelet) start() (Instance, error) {
 	if single, ok := w.env.(*singleprocessEnv); ok {
 		go func() {
 			if err := single.serveStatus(w.ctx); err != nil {
-				single.SystemLogger().Error("status server", err)
+				single.SystemLogger().Error("status server", "err", err)
 			}
 		}()
 	}
@@ -319,7 +319,7 @@ func (w *weavelet) getInstance(c *component, requester string) (interface{}, err
 			return w.env.ActivateComponent(w.ctx, c.info.Name, c.info.Routed)
 		})
 		if c.registerErr != nil {
-			w.env.SystemLogger().Error("Registering component failed", c.registerErr, "component", c.info.Name)
+			w.env.SystemLogger().Error("Registering component failed", "err", c.registerErr, "component", c.info.Name)
 		} else {
 			w.env.SystemLogger().Debug("Registering component succeeded", "component", c.info.Name)
 		}
@@ -456,19 +456,18 @@ func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*proto
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
 func (w *weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
-	// TODO(rgrandl): After we switch to slog, call With here to avoid
-	// repeating the same attributes again and again.
-	attrs := []any{
+	logger := w.env.SystemLogger().With(
 		"component", req.RoutingInfo.Component,
 		"local", req.RoutingInfo.Local,
 		"replicas", req.RoutingInfo.Replicas,
-	}
-	w.env.SystemLogger().Debug("Updating routing info...", attrs...)
+	)
+
+	logger.Debug("Updating routing info...")
 	defer func() {
 		if err != nil {
-			w.env.SystemLogger().Error("Updating routing info failed", err, attrs...)
+			logger.Error("Updating routing info failed", "err", err)
 		} else {
-			w.env.SystemLogger().Debug("Updating routing info succeeded", attrs...)
+			logger.Debug("Updating routing info succeeded")
 		}
 	}()
 
@@ -542,7 +541,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 
 		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
 		if err := createComponent(w.ctx, c); err != nil {
-			w.env.SystemLogger().Error("Constructing component failed", err, "component", c.info.Name)
+			w.env.SystemLogger().Error("Constructing component failed", "err", err, "component", c.info.Name)
 			return err
 		}
 		w.env.SystemLogger().Debug("Constructing component succeeded", "component", c.info.Name)
@@ -550,7 +549,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		c.impl.serverStub = c.info.ServerStubFn(c.impl.impl, func(key uint64, v float64) {
 			if c.info.Routed {
 				if err := c.load.add(key, v); err != nil {
-					c.logger.Error("add load", err, "component", c.info.Name, "key", key)
+					c.logger.Error("add load", "err", err, "component", c.info.Name, "key", key)
 				}
 			}
 		})
@@ -591,7 +590,7 @@ func createComponent(ctx context.Context, c *component) error {
 func (w *weavelet) repeatedly(errMsg string, f func() error) error {
 	for r := retry.Begin(); r.Continue(w.ctx); {
 		if err := f(); err != nil {
-			w.env.SystemLogger().Error(errMsg+"; will retry", err)
+			w.env.SystemLogger().Error(errMsg+"; will retry", "err", err)
 			continue
 		}
 		return nil
@@ -606,7 +605,7 @@ func (w *weavelet) getStub(c *component) (*componentStub, error) {
 		w.env.SystemLogger().Debug("Getting TCP client to component...", "component", c.info.Name)
 		client := w.getTCPClient(c.info.Name)
 		if err := client.init(w.ctx, w.transport.clientOpts); err != nil {
-			w.env.SystemLogger().Error("Getting TCP client to component failed", err, "component", c.info.Name)
+			w.env.SystemLogger().Error("Getting TCP client to component failed", "err", err, "component", c.info.Name)
 			return err
 		}
 		w.env.SystemLogger().Debug("Getting TCP client to component succeeded", "component", c.info.Name)

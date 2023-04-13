@@ -470,7 +470,7 @@ func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerR
 	}
 	go func() {
 		if err := serveHTTP(d.ctx, lis, proxy); err != nil {
-			d.logger.Error("proxy", err)
+			d.logger.Error("proxy", "err", err)
 		}
 	}()
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil

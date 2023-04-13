@@ -196,7 +196,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	// Run the manager.
 	go func() {
 		if err := m.run(); err != nil {
-			m.logger.Error("Unable to run the manager", err)
+			m.logger.Error("Unable to run the manager", "err", err)
 		}
 	}()
 
@@ -216,7 +216,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 				return result
 			})
 		if err != nil {
-			m.logger.Error("Unable to collect metrics", err)
+			m.logger.Error("Unable to collect metrics", "err", err)
 		}
 	}()
 
@@ -244,7 +244,7 @@ func (m *manager) run() error {
 
 	go func() {
 		if err := serveHTTP(m.ctx, lis, mux); err != nil {
-			m.logger.Error("Unable to start HTTP server", err)
+			m.logger.Error("Unable to start HTTP server", "err", err)
 		}
 	}()
 
@@ -262,7 +262,7 @@ func (m *manager) run() error {
 		if err == nil {
 			break
 		}
-		m.logger.Error("Error starting status server", err, "address", lis.Addr())
+		m.logger.Error("Error starting status server", "err", err, "address", lis.Addr())
 	}
 
 	// Register the deployment.
@@ -513,7 +513,7 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	}
 	go func() {
 		if err := serveHTTP(m.ctx, lis, proxy); err != nil {
-			m.logger.Error("Proxy", err)
+			m.logger.Error("Proxy", "err", err)
 		}
 	}()
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
