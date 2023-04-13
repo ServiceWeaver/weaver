@@ -43,13 +43,20 @@ func main() {
 	fmt.Printf("hello listener available on %v\n", lis)
 
 	// Serve the /hello endpoint.
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintf(w, "Hello, %s!\n", reversed)
+	http.Handle("/hello", weaver.InstrumentHandlerFunc("hello",
+		func(w http.ResponseWriter, r *http.Request) {
+			reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			fmt.Fprintf(w, "Hello, %s!\n", reversed)
+		}))
+
+	// Serve the /healthz endpoint.
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
 	})
-	http.Serve(lis, weaver.InstrumentHandler("hello", http.DefaultServeMux))
+
+	http.Serve(lis, nil)
 }
