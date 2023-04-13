@@ -55,18 +55,25 @@ func main() {
 
 	// Serve HTTP traffic.
 	var mux http.ServeMux
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, indexHtml)
+	mux.Handle("/", weaver.InstrumentHandlerFunc("reverser",
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, indexHtml)
+		}))
+	mux.Handle("/reverse", weaver.InstrumentHandlerFunc("reverser",
+		func(w http.ResponseWriter, r *http.Request) {
+			reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("s"))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			fmt.Fprintln(w, reversed)
+		}))
+
+	// Serve the /healthz endpoint.
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "OK")
 	})
-	mux.HandleFunc("/reverse", func(w http.ResponseWriter, r *http.Request) {
-		reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("s"))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintln(w, reversed)
-	})
-	handler := weaver.InstrumentHandler("reverser", &mux)
-	handler = otelhttp.NewHandler(handler, "http")
+
+	handler := otelhttp.NewHandler(&mux, "http")
 	http.Serve(lis, handler)
 }
