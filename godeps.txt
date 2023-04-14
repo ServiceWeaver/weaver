@@ -523,6 +523,7 @@ github.com/ServiceWeaver/weaver/internal/status
 github.com/ServiceWeaver/weaver/internal/tool/generate
     bytes
     crypto/sha256
+    errors
     fmt
     github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -531,6 +532,7 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     go/parser
     go/token
     go/types
+    golang.org/x/exp/maps
     golang.org/x/tools/go/packages
     golang.org/x/tools/go/types/typeutil
     io
