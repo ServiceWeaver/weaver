@@ -24,23 +24,24 @@ import (
 )
 
 type server struct {
+	weaver.Implements[weaver.Main]
 	factorer Factorer
 }
 
-func serve(ctx context.Context, root weaver.Instance, addr string) error {
-	factorer, err := weaver.Get[Factorer](root)
+func serve(ctx context.Context, s *server) error {
+	factorer, err := weaver.Get[Factorer](s)
 	if err != nil {
 		return err
 	}
 
-	s := &server{factorer}
+	s.factorer = factorer
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
 
-	lis, err := root.Listener("factors", weaver.ListenerOptions{LocalAddress: addr})
+	lis, err := s.Listener("factors", weaver.ListenerOptions{LocalAddress: *localAddr})
 	if err != nil {
 		return err
 	}
-	root.Logger().Info("factors server running", "addr", lis)
+	s.Logger().Info("factors server running", "addr", lis)
 	return http.Serve(lis, nil)
 }
 

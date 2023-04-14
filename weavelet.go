@@ -56,7 +56,6 @@ type weavelet struct {
 	dialAddr  string               // Address this weavelet is reachable at
 	tracer    trace.Tracer         // Tracer for this weavelet
 
-	root             *component                  // The automatically created "root" component
 	componentsByName map[string]*component       // component name -> component
 	componentsByType map[reflect.Type]*component // component type -> component
 
@@ -121,11 +120,6 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		byName[info.Name] = c
 		byType[info.Iface] = c
 	}
-	main, ok := byName["main"]
-	if !ok {
-		return nil, fmt.Errorf("internal error: no main component registered")
-	}
-	main.impl = &componentImpl{component: main}
 
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
@@ -161,17 +155,18 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		},
 	}
 	w.tracer = tracer
-	main.tracer = tracer
-	w.root = main
-
 	return w, nil
 }
 
 // start starts a weavelet, executing the logic to start and manage components.
-// If Start fails, it returns a non-nil error.
-// Otherwise, if this process hosts "main", start returns the main component.
-// Otherwise, Start never returns.
-func (w *weavelet) start() (Instance, error) {
+// Creates the component passed to weaver.Run() eagerly if hosted in this process.
+// Start never returns on success.
+func (w *weavelet) start(rootType reflect.Type, rootBody func(context.Context, any) error) error {
+	root, err := w.getComponentByType(rootType)
+	if err != nil {
+		return err
+	}
+
 	// Launch status server for single process deployments.
 	if single, ok := w.env.(*singleprocessEnv); ok {
 		go func() {
@@ -198,19 +193,6 @@ func (w *weavelet) start() (Instance, error) {
 	handlers.Set("", "ready", func(context.Context, []byte) ([]byte, error) {
 		return nil, nil
 	})
-
-	if w.info.RunMain {
-		// Set appropriate logger and tracer for main.
-		w.root.logger = slog.New(&logging.LogHandler{
-			Opts: logging.Options{
-				App:        w.root.info.Name,
-				Deployment: w.info.DeploymentId,
-				Component:  w.root.info.Name,
-				Weavelet:   w.info.Id,
-			},
-			Write: w.env.CreateLogSaver(),
-		})
-	}
 
 	if w.info.SingleProcess {
 		for _, c := range w.componentsByName {
@@ -259,11 +241,20 @@ func (w *weavelet) start() (Instance, error) {
 	// Note that if a component is started locally (e.g., a component in a process
 	// calls Get("B") for a component B assigned to the same process), then the
 	// component's name is also registered with the protos.
+
 	if w.info.RunMain {
-		return w.root.impl, nil
+		// The root has no requester, so we use a special name "main"
+		// which will show up in tracing, metrics etc. as the caller.
+		_, inst, err := w.getInstance(root, "main")
+		if err != nil {
+			return err
+		}
+
+		// Invoke the user supplied function, passing it the root instance we just created.
+		return rootBody(w.ctx, inst)
 	}
 
-	// Not the main-process. Run forever.
+	// Run forever.
 	// TODO(mwhittaker): Catch and return errors.
 	select {}
 }
@@ -308,9 +299,10 @@ func (w *weavelet) logRolodexCard() {
 }
 
 // getInstance returns an instance of the provided component. If the component
-// is local, the returned instance is local. Otherwise, it's a network client.
-// requester is the name of the requesting component.
-func (w *weavelet) getInstance(c *component, requester string) (interface{}, error) {
+// is local, the results are a local stub used to invoke methods on the component
+// as well as the actual local object. Otherwise, the results are a network client
+// and nil.
+func (w *weavelet) getInstance(c *component, requester string) (any, any, error) {
 	// Register the component.
 	c.registerInit.Do(func() {
 		w.env.SystemLogger().Debug("Registering component...", "component", c.info.Name)
@@ -325,22 +317,22 @@ func (w *weavelet) getInstance(c *component, requester string) (interface{}, err
 		}
 	})
 	if c.registerErr != nil {
-		return nil, c.registerErr
+		return nil, nil, c.registerErr
 	}
 
 	if c.local.Read() {
 		impl, err := w.getImpl(c)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return c.info.LocalStubFn(impl.impl, impl.component.tracer), nil
+		return c.info.LocalStubFn(impl.impl, impl.component.tracer), impl.impl, nil
 	}
 
 	stub, err := w.getStub(c)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.info.ClientStubFn(stub.stub, requester), nil
+	return c.info.ClientStubFn(stub.stub, requester), nil, nil
 }
 
 // getListener returns a network listener with the given name.

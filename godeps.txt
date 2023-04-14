@@ -10,6 +10,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
+    github.com/ServiceWeaver/weaver/internal/private
     github.com/ServiceWeaver/weaver/internal/register
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/traceio
@@ -101,7 +102,6 @@ github.com/ServiceWeaver/weaver/examples/chat
     modernc.org/sqlite
     net/http
     net/url
-    os
     reflect
     regexp
     strconv
@@ -147,7 +147,6 @@ github.com/ServiceWeaver/weaver/examples/hello
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    log
     net/http
     reflect
     sync
@@ -248,8 +247,10 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice
     github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/google/uuid
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+    go.opentelemetry.io/otel/trace
     golang.org/x/exp/slog
     html/template
     io/fs
@@ -258,8 +259,10 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     net/http
     os
     path/filepath
+    reflect
     strconv
     strings
+    sync
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice
     context
@@ -435,6 +438,9 @@ github.com/ServiceWeaver/weaver/internal/pipe
     io
     os
     os/exec
+github.com/ServiceWeaver/weaver/internal/private
+    context
+    reflect
 github.com/ServiceWeaver/weaver/internal/proto
     encoding/base64
     google.golang.org/protobuf/proto
@@ -824,6 +830,7 @@ github.com/ServiceWeaver/weaver/weavertest
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
+    github.com/ServiceWeaver/weaver/internal/private
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -832,10 +839,11 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
+    go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
-    golang.org/x/exp/slog
     golang.org/x/sync/errgroup
     os
+    reflect
     regexp
     runtime
     strings

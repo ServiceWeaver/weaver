@@ -15,6 +15,7 @@
 package frontend
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice"
@@ -47,7 +49,17 @@ var (
 	staticFS embed.FS
 
 	validEnvs = []string{"local", "gcp"}
+
+	addrMu    sync.Mutex
+	localAddr string
 )
+
+// SetLocalAddress sets the address to use for local serving.
+func SetLocalAddress(addr string) {
+	addrMu.Lock()
+	defer addrMu.Unlock()
+	localAddr = addr
+}
 
 type platformDetails struct {
 	css      string
@@ -66,8 +78,9 @@ func (plat *platformDetails) setPlatformDetails(env string) {
 
 // Server is the application frontend.
 type Server struct {
+	weaver.Implements[weaver.Main]
+
 	handler  http.Handler
-	root     weaver.Instance
 	platform platformDetails
 	hostname string
 
@@ -80,36 +93,36 @@ type Server struct {
 	adService             adservice.T
 }
 
-// NewServer returns the new application frontend.
-func NewServer(root weaver.Instance) (*Server, error) {
+func Serve(ctx context.Context, s *Server) error {
 	// Setup the services.
-	catalogService, err := weaver.Get[productcatalogservice.T](root)
+	var err error
+	s.catalogService, err = weaver.Get[productcatalogservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	currencyService, err := weaver.Get[currencyservice.T](root)
+	s.currencyService, err = weaver.Get[currencyservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	cartService, err := weaver.Get[cartservice.T](root)
+	s.cartService, err = weaver.Get[cartservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	recommendationService, err := weaver.Get[recommendationservice.T](root)
+	s.recommendationService, err = weaver.Get[recommendationservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	checkoutService, err := weaver.Get[checkoutservice.T](root)
+	s.checkoutService, err = weaver.Get[checkoutservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	shippingService, err := weaver.Get[shippingservice.T](root)
+	s.shippingService, err = weaver.Get[shippingservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	adService, err := weaver.Get[adservice.T](root)
+	s.adService, err = weaver.Get[adservice.T](s)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Find out where we're running.
@@ -124,36 +137,22 @@ func NewServer(root weaver.Instance) (*Server, error) {
 	// Autodetect GCP
 	addrs, err := net.LookupHost("metadata.google.internal.")
 	if err == nil && len(addrs) >= 0 {
-		root.Logger().Debug("Detected Google metadata server, setting ENV_PLATFORM to GCP.", "address", addrs)
+		s.Logger().Debug("Detected Google metadata server, setting ENV_PLATFORM to GCP.", "address", addrs)
 		env = "gcp"
 	}
-	root.Logger().Debug("ENV_PLATFORM", "platform", env)
-	platform := platformDetails{}
-	platform.setPlatformDetails(strings.ToLower(env))
-	hostname, err := os.Hostname()
+	s.Logger().Debug("ENV_PLATFORM", "platform", env)
+	s.platform = platformDetails{}
+	s.platform.setPlatformDetails(strings.ToLower(env))
+	s.hostname, err = os.Hostname()
 	if err != nil {
-		root.Logger().Debug(`cannot get hostname for frontend: using "unknown"`)
-		hostname = "unknown"
-	}
-
-	// Create the server.
-	s := &Server{
-		root:                  root,
-		platform:              platform,
-		hostname:              hostname,
-		catalogService:        catalogService,
-		currencyService:       currencyService,
-		cartService:           cartService,
-		recommendationService: recommendationService,
-		checkoutService:       checkoutService,
-		shippingService:       shippingService,
-		adService:             adService,
+		s.Logger().Debug(`cannot get hostname for frontend: using "unknown"`)
+		s.hostname = "unknown"
 	}
 
 	// Setup the handler.
 	staticHTML, err := fs.Sub(fs.FS(staticFS), "static")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	r := http.NewServeMux()
 
@@ -188,23 +187,19 @@ func NewServer(root weaver.Instance) (*Server, error) {
 	r.Handle("/robots.txt", instrument("robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") }, nil))
 	r.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 
-	// Set handler and return.
+	// Set handler.
 	var handler http.Handler = r
 	// TODO(spetrovic): Use the Service Weaver per-component config to provisionaly
 	// add these stats.
 	handler = ensureSessionID(handler)             // add session ID
-	handler = newLogHandler(root, handler)         // add logging
+	handler = newLogHandler(s, handler)            // add logging
 	handler = otelhttp.NewHandler(handler, "http") // add tracing
 	s.handler = handler
 
-	return s, nil
-}
-
-func (s *Server) Run(localAddr string) error {
-	lis, err := s.root.Listener("boutique", weaver.ListenerOptions{LocalAddress: localAddr})
+	lis, err := s.Listener("boutique", weaver.ListenerOptions{LocalAddress: localAddr})
 	if err != nil {
 		return err
 	}
-	s.root.Logger().Debug("Frontend available", "addr", lis)
+	s.Logger().Debug("Frontend available", "addr", lis)
 	return http.Serve(lis, s.handler)
 }

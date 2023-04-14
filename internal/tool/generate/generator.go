@@ -388,6 +388,7 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 	// weaver.WithConfig[T] embedded fields.
 	var intf *types.Named   // The component interface type
 	var router *types.Named // Router type (if any)
+	var isMain bool         // Is intf weaver.Main?
 	var hasConfig bool      // Does impl embed weaver.WithConfig?
 	for _, f := range s.Fields.List {
 		if len(f.Names) != 0 {
@@ -414,7 +415,8 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 					"weaver.Implements argument %s is not a named type.",
 					formatType(pkg, arg))
 			}
-			if named.Obj().Pkg() != pkg.Types {
+			isMain = isWeaverMain(arg)
+			if !isMain && named.Obj().Pkg() != pkg.Types {
 				return nil, errorf(pkg.Fset, f.Pos(),
 					"weaver.Implements argument %s is a type outside the current package. A component interface and implementation must be in the same package. If you can't move them into the same package, you can add `type %s %v` to the implementation's package and embed `weaver.Implements[%s]` instead of `weaver.Implements[%s]`.",
 					formatType(pkg, named), named.Obj().Name(), formatType(pkg, named), named.Obj().Name(), formatType(pkg, named))
@@ -479,6 +481,7 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 		intf:      intf,
 		impl:      impl,
 		router:    router,
+		isMain:    isMain,
 		hasConfig: hasConfig,
 	}
 
@@ -512,6 +515,7 @@ type component struct {
 	router        *types.Named    // router, or nil if there is no router
 	routingKey    types.Type      // routing key, or nil if there is no router
 	routedMethods map[string]bool // the set of methods with a routing function
+	isMain        bool            // intf is weaver.Main
 	hasConfig     bool            // implementation embeds weaver.WithConfig?
 }
 
@@ -780,6 +784,15 @@ func (g *generator) pkgDir() string {
 	return filepath.Dir(fname)
 }
 
+// componentRef returns the string to use to refer to the interface
+// implemented by a component in generated code.
+func (g *generator) componentRef(comp *component) string {
+	if comp.isMain {
+		return g.weaver().qualify("Main")
+	}
+	return comp.intfName() // We already checked that interface is in the same package.
+}
+
 // generateImports generates code to import all the dependencies.
 func (g *generator) generateImports(p printFn) {
 	p("// go:build !ignoreWeaverGen")
@@ -814,7 +827,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//   func(impl any, caller string, tracer trace.Tracer) any {
 		//       return foo_local_stub{imple: impl.(Foo), tracer: tracer, ...}
 		//   }
-		localStubFn := fmt.Sprintf(`func(impl any, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer } }`, g.trace().qualify("Tracer"), notExported(name), name)
+		localStubFn := fmt.Sprintf(`func(impl any, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer } }`, g.trace().qualify("Tracer"), notExported(name), g.componentRef(comp))
 
 		// E.g.,
 		//   func(stub *codegen.Stub, caller string) any {
@@ -831,7 +844,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//   func(impl any, addLoad func(uint64, float64)) codegen.Server {
 		//       return foo_server_stub{impl: impl.(Foo), addLoad: addLoad}
 		//   }
-		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), name)
+		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), g.componentRef(comp))
 
 		// E.g.,
 		//	weaver.Register(weaver.Registration{
@@ -844,7 +857,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		// To get a reflect.Type for an interface, we have to first get a type
 		// of its pointer and then resolve the underlying type. See:
 		//   https://pkg.go.dev/reflect#example-TypeOf
-		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), name)
+		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), g.componentRef(comp))
 		p(`		New: func() any { return &%s{} },`, comp.implName())
 		if comp.hasConfig {
 			p(`		ConfigFn: func(i any) any { return i.(*%s).WithConfig.Config() },`, comp.implName())
@@ -871,7 +884,7 @@ func (g *generator) generateLocalStubs(p printFn) {
 		stub := notExported(comp.intfName()) + "_local_stub"
 		p(``)
 		p(`type %s struct{`, stub)
-		p(`	impl %s`, comp.intfName())
+		p(`	impl %s`, g.componentRef(comp))
 		p(`	tracer %s`, g.trace().qualify("Tracer"))
 		p(`}`)
 		for _, m := range comp.methods() {
@@ -1399,7 +1412,7 @@ func (g *generator) generateServerStubs(p printFn) {
 		stub := fmt.Sprintf("%s_server_stub", notExported(comp.intfName()))
 		p(``)
 		p(`type %s struct{`, stub)
-		p(`	impl %s`, comp.intfName())
+		p(`	impl %s`, g.componentRef(comp))
 		p(`	addLoad func(key uint64, load float64)`)
 		p(`}`)
 		p(``)

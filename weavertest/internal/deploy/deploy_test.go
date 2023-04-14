@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/deploy"
 )
@@ -32,18 +31,15 @@ func TestReplicated(t *testing.T) {
 
 	// Instruct the weavertest deployer to replicate each component. Note that each
 	// component should be replicated weavertest.DefaultReplication times.
-	root := weavertest.Init(ctx, t, weavertest.Options{})
-	dir := t.TempDir()
-	w, err := weaver.Get[deploy.Widget](root)
-	if err != nil {
-		panic(err)
-	}
-	w.Use(ctx, dir)
-	// Verify that deployed processes started.
-	want := weavertest.DefaultReplication
-	if got := numDeployed(t, dir); got != want {
-		t.Fatalf("wrong number of deployed processes: want %d, got %d", want, got)
-	}
+	weavertest.Run(t, weavertest.Options{}, func(w deploy.Widget) {
+		dir := t.TempDir()
+		w.Use(ctx, dir)
+		// Verify that deployed processes started.
+		want := weavertest.DefaultReplication
+		if got := numDeployed(t, dir); got != want {
+			t.Fatalf("wrong number of deployed processes: want %d, got %d", want, got)
+		}
+	})
 }
 
 // numDeployed returns the number of Started or ReplicatedStarted components that

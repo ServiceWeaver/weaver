@@ -16,29 +16,33 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/ServiceWeaver/weaver"
 )
 
+func main() {
+	weaver.Run(context.Background(), serve)
+}
+
 //go:generate ../../cmd/weaver/weaver generate
 
-func main() {
-	// Initialize the Service Weaver application.
-	root := weaver.Init(context.Background())
+type server struct {
+	weaver.Implements[weaver.Main]
+}
 
+func serve(ctx context.Context, s *server) error {
 	// Get a client to the Reverser component.
-	reverser, err := weaver.Get[Reverser](root)
+	reverser, err := weaver.Get[Reverser](s)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Get a network listener on address "localhost:12345".
 	opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-	lis, err := root.Listener("hello", opts)
+	lis, err := s.Listener("hello", opts)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	fmt.Printf("hello listener available on %v\n", lis)
 
@@ -52,5 +56,5 @@ func main() {
 			}
 			fmt.Fprintf(w, "Hello, %s!\n", reversed)
 		}))
-	http.Serve(lis, nil)
+	return http.Serve(lis, nil)
 }

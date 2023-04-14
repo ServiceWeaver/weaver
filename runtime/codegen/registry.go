@@ -72,8 +72,11 @@ func (r *registry) register(reg Registration) error {
 
 	r.m.Lock()
 	defer r.m.Unlock()
-	if _, ok := r.components[reg.Iface]; ok {
-		return errors.New("component already registered")
+	if old, ok := r.components[reg.Iface]; ok {
+		x := old.New()
+		y := reg.New()
+		return fmt.Errorf("component %s already registered for type %T when registering %T",
+			reg.Name, x, y)
 	}
 	if r.components == nil {
 		r.components = map[reflect.Type]*Registration{}
