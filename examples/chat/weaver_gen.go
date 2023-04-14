@@ -45,6 +45,18 @@ func init() {
 		},
 	})
 	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/Main",
+		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
+		New:   func() any { return &server{} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
+		},
+	})
+	codegen.Register(codegen.Registration{
 		Name:     "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
 		Iface:    reflect.TypeOf((*SQLStore)(nil)).Elem(),
 		New:      func() any { return &sqlStore{} },
@@ -122,6 +134,11 @@ func (s localCache_local_stub) Put(ctx context.Context, a0 string, a1 string) (e
 	}
 
 	return s.impl.Put(ctx, a0, a1)
+}
+
+type main_local_stub struct {
+	impl   weaver.Main
+	tracer trace.Tracer
 }
 
 type sQLStore_local_stub struct {
@@ -384,6 +401,10 @@ func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (
 	dec := codegen.NewDecoder(results)
 	err = dec.Error()
 	return
+}
+
+type main_client_stub struct {
+	stub codegen.Stub
 }
 
 type sQLStore_client_stub struct {
@@ -732,6 +753,19 @@ func (s localCache_server_stub) put(ctx context.Context, args []byte) (res []byt
 	enc := codegen.NewEncoder()
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+type main_server_stub struct {
+	impl    weaver.Main
+	addLoad func(key uint64, load float64)
+}
+
+// GetStubFn implements the stub.Server interface.
+func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	default:
+		return nil
+	}
 }
 
 type sQLStore_server_stub struct {

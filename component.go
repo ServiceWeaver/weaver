@@ -103,6 +103,17 @@ type component struct {
 
 var _ Instance = &componentImpl{}
 
+// Main is interface implemented by an application's main component.
+// This component is created automatically by `weaver.Run`.
+type Main interface{}
+
+// MainInstance is used to trigger a type-checking error if the user code
+// attempts to pass a non-main component to `weaver.Run`.
+type MainInstance interface {
+	Instance
+	implements(Main)
+}
+
 // Implements[T] is a type that can be embedded inside a component implementation
 // struct to indicate that the struct implements a component of type T. E.g.,
 // consider a Cache component.
@@ -130,23 +141,27 @@ type Implements[T any] struct {
 // setInstance is used during component initialization to fill Implements.component.
 func (i *Implements[T]) setInstance(c *componentImpl) { i.componentImpl = c }
 
+// implements is a method that can only be implemented inside the weaver package.
+//
+//nolint:unused
+func (i *Implements[T]) implements(T) {}
+
 // A Listener is Service Weaver's implementation of a net.Listener.
 //
 // A Listener implements the net.Listener interface, so you can use a Listener
 // wherever you use a net.Listener. For example,
 //
-//	func main() {
-//	    root := weaver.Init(context.Background())
-//	    lis, err := root.Listener("hello", weaver.ListenerOptions{})
+//	weaver.Run(..., func(..., s *server) {
+//	    lis, err := s.Listener("hello", weaver.ListenerOptions{})
 //	    if err != nil {
 //	        log.Fatal(err)
 //	    }
-//	    root.Logger().Info("Listener available at %v", lis)
+//	    s.Logger().Info("Listener available at %v", lis)
 //	    http.HandleFunc("/a", func(http.ResponseWriter, *http.Request) {...})
 //	    http.HandleFunc("/b", func(http.ResponseWriter, *http.Request) {...})
 //	    http.HandleFunc("/c", func(http.ResponseWriter, *http.Request) {...})
 //	    http.Serve(lis, nil)
-//	}
+//	})
 type Listener struct {
 	net.Listener        // underlying listener
 	proxyAddr    string // address of proxy that forwards to the listener

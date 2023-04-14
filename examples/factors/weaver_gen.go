@@ -30,6 +30,18 @@ func init() {
 			return factorer_server_stub{impl: impl.(Factorer), addLoad: addLoad}
 		},
 	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/Main",
+		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
+		New:   func() any { return &server{} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
+		},
+	})
 }
 
 // Local stub implementations.
@@ -54,6 +66,11 @@ func (s factorer_local_stub) Factors(ctx context.Context, a0 int) (r0 []int, err
 	}
 
 	return s.impl.Factors(ctx, a0)
+}
+
+type main_local_stub struct {
+	impl   weaver.Main
+	tracer trace.Tracer
 }
 
 // Client stub implementations.
@@ -123,6 +140,10 @@ func (s factorer_client_stub) Factors(ctx context.Context, a0 int) (r0 []int, er
 	return
 }
 
+type main_client_stub struct {
+	stub codegen.Stub
+}
+
 // Server stub implementations.
 
 type factorer_server_stub struct {
@@ -165,6 +186,19 @@ func (s factorer_server_stub) factors(ctx context.Context, args []byte) (res []b
 	serviceweaver_enc_slice_int_7c8c8866(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+type main_server_stub struct {
+	impl    weaver.Main
+	addLoad func(key uint64, load float64)
+}
+
+// GetStubFn implements the stub.Server interface.
+func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	default:
+		return nil
+	}
 }
 
 // Router methods.

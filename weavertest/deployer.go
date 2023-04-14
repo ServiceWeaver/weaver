@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"testing"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
@@ -32,7 +30,6 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -53,19 +50,15 @@ const DefaultReplication = 2
 //     implementation.
 //  2. This deployer handles the fact that the main component is run in the
 //     same process as the deployer. This is special to weavertests and
-//     requires special care. See Init for more details.
+//     requires special care. See start() for more details.
 type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
-	t          testing.TB           // the unit test
 	wlet       *protos.EnvelopeInfo // info for subprocesses
 	config     *protos.AppConfig    // application config
-	logger     *slog.Logger         // logger
 	colocation map[string]string    // maps component to group
-	running    errgroup.Group
-
-	logMu sync.Mutex // guards log
-	log   bool       // logging enabled?
+	running    errgroup.Group       // collects errors from goroutines
+	log        func(string)         // logs the passed in string
 
 	mu     sync.Mutex        // guards fields below
 	groups map[string]*group // groups, by group name
@@ -82,6 +75,7 @@ type group struct {
 }
 
 // handler handles a connection to a weavelet.
+// TODO(sanjay): make deployer implement EnvelopeHandler interface and delete handler.
 type handler struct {
 	*deployer
 	group      *group
@@ -109,7 +103,7 @@ type connection struct {
 var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer returns a new weavertest multiprocess deployer.
-func newDeployer(ctx context.Context, t testing.TB, wlet *protos.EnvelopeInfo, config *protos.AppConfig) *deployer {
+func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, logWriter func(string)) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
 		for _, c := range group.Components {
@@ -120,42 +114,16 @@ func newDeployer(ctx context.Context, t testing.TB, wlet *protos.EnvelopeInfo, c
 	d := &deployer{
 		ctx:        ctx,
 		ctxCancel:  cancel,
-		t:          t,
 		wlet:       wlet,
 		config:     config,
 		colocation: colocation,
 		groups:     map[string]*group{},
-		log:        true,
+		log:        logWriter,
 	}
-	d.logger = slog.New(&logging.LogHandler{
-		Opts: logging.Options{
-			App:       wlet.App,
-			Component: "deployer",
-			Weavelet:  uuid.NewString(),
-			Attrs:     []string{"serviceweaver/system", ""},
-		},
-		Write: func(e *protos.LogEntry) {
-			d.HandleLogEntry(d.ctx, e) //nolint:errcheck // TODO(mwhittaker): Propagate error.
-		},
-	})
-
-	t.Cleanup(func() {
-		if err := d.cleanup(); err != nil {
-			d.logger.Error("cleanup", "err", err)
-		}
-		maybeLogStacks()
-
-		// NOTE(mwhittaker): We cannot replace d.logMu with d.mu because we
-		// sometimes log with d.mu held. This would deadlock.
-		d.logMu.Lock()
-		d.log = false
-		d.logMu.Unlock()
-	})
 	return d
 }
 
-// Init acts like weaver.Init when called from the main component.
-func (d *deployer) Init(config string) weaver.Instance {
+func (d *deployer) start(config string) error {
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -166,11 +134,11 @@ func (d *deployer) Init(config string) weaver.Instance {
 	//                         └────┘
 	fromWeaveletReader, fromWeaveletWriter, err := os.Pipe()
 	if err != nil {
-		d.t.Fatalf("cannot create fromWeavelet pipe: %v", err)
+		return fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
 	}
 	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
 	if err != nil {
-		d.t.Fatalf("cannot create toWeavelet pipe: %v", err)
+		return fmt.Errorf("cannot create toWeavelet pipe: %v", err)
 	}
 	// Run an envelope connection to the main co-location group.
 	wlet := &protos.EnvelopeInfo{
@@ -182,52 +150,55 @@ func (d *deployer) Init(config string) weaver.Instance {
 		SingleMachine: d.wlet.SingleMachine,
 		RunMain:       true,
 	}
-	var e *conn.EnvelopeConn
-	created := make(chan struct{})
-	go func() {
-		// NOTE: We must create the envelope conn in a separate gorotuine
-		// because it initiates a blocking handshake with the weavelet
-		// (initialized below via weaver.Init).
-		var err error
-		if e, err = conn.NewEnvelopeConn(
-			d.ctx, fromWeaveletReader, toWeaveletWriter, wlet); err != nil {
-			panic(fmt.Errorf("cannot create envelope conn: %w", err))
-		}
-		created <- struct{}{}
-	}()
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
 		ToEnvelopeFile: fromWeaveletWriter,
 		TestConfig:     config,
 	}
-	ctx := context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
-	instance := weaver.Init(ctx)
-	<-created
+	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
 
-	g := d.group("main")
-	g.conns = append(g.conns, connection{conn: e})
-	handler := &handler{
-		deployer:   d,
-		group:      g,
-		subscribed: map[string]bool{},
-		conn:       connection{conn: e},
-	}
-	d.running.Go(func() error {
-		err := e.Serve(handler)
-		d.stop(err)
-		return err
-	})
-
-	if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
-		panic(fmt.Errorf(`cannot register the replica for "main"`))
-	}
-
-	return instance
+	// NOTE: NewEnvelopeConn initiates a blocking handshake with the weavelet
+	// and therefore we run the rest of the initialization in a goroutine which
+	// will wait for weaver.Run to create a weavelet.
+	go func() {
+		e, err := conn.NewEnvelopeConn(d.ctx, fromWeaveletReader, toWeaveletWriter, wlet)
+		if err != nil {
+			d.stop(err)
+			return
+		}
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		g := d.group("main")
+		g.conns = append(g.conns, connection{conn: e})
+		handler := &handler{
+			deployer:   d,
+			group:      g,
+			subscribed: map[string]bool{},
+			conn:       connection{conn: e},
+		}
+		d.running.Go(func() error {
+			err := e.Serve(handler)
+			d.stop(err)
+			return err
+		})
+		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
+			d.stopLocked(fmt.Errorf(`cannot register the replica for "main": %w`, err))
+		}
+	}()
+	return nil
 }
 
+// stop stops the deployer.
+// REQUIRES: d.mu is not held.
 func (d *deployer) stop(err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.stopLocked(err)
+}
+
+// stopLocked stops the deployer.
+// REQUIRES: d.mu is held.
+func (d *deployer) stopLocked(err error) {
 	if d.err == nil && !errors.Is(err, context.Canceled) {
 		d.err = err
 	}
@@ -245,15 +216,11 @@ func (d *deployer) cleanup() error {
 
 // HandleLogEntry implements the envelope.EnvelopeHandler interface.
 func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	d.logMu.Lock()
-	defer d.logMu.Unlock()
-	if d.log {
-		// NOTE(mwhittaker): We intentionally create a new pretty printer for
-		// every log entry. If we used a single pretty printer, it would
-		// perform dimming, but when the dimmed output is interspersed with
-		// various other test logs, it is confusing.
-		d.t.Log(logging.NewPrettyPrinter(colors.Enabled()).Format(entry))
-	}
+	// NOTE(mwhittaker): We intentionally create a new pretty printer for
+	// every log entry. If we used a single pretty printer, it would
+	// perform dimming, but when the dimmed output is interspersed with
+	// various other test logs, it is confusing.
+	d.log(logging.NewPrettyPrinter(colors.Enabled()).Format(entry))
 	return nil
 }
 
@@ -400,6 +367,10 @@ func (d *deployer) group(component string) *group {
 	name, ok := d.colocation[component]
 	if !ok {
 		name = component
+	}
+	// Force testMain into main group
+	if component == "github.com/ServiceWeaver/weaver/weavertest/testMainInterface" {
+		name = "main"
 	}
 
 	g, ok := d.groups[name]

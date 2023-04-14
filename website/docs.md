@@ -151,30 +151,42 @@ import (
 )
 
 func main() {
-    // Initialize the Service Weaver application.
-    ctx := context.Background()
-    root := weaver.Init(ctx)
-
-    // Get a client to the Reverser component.
-    reverser, err := weaver.Get[Reverser](root)
-    if err != nil {
+    if err := weaver.Run(context.Background(), serve); err != nil {
         log.Fatal(err)
+    }
+}
+
+// app is the main component of the application. weaver.Run creates
+// it and passes it to serve.
+type app struct{
+    weaver.Implements[weaver.Main]
+}
+
+func serve(ctx context.Context, app *app) error {
+    // Get the Reverser component.
+    reverser, err := weaver.Get[Reverser](app)
+    if err != nil {
+        return err
     }
 
     // Call the Reverse method.
     reversed, err := reverser.Reverse(ctx, "!dlroW ,olleH")
     if err != nil {
-        log.Fatal(err)
+        return err
     }
     fmt.Println(reversed)
+    return nil
 }
 ```
 
-`weaver.Init(...)` initializes the Service Weaver application. It also returns a
-`weaver.Instance`, which we assign to `root`. We'll explain instances in more
-detail momentarily. `weaver.Get[Reverser](root)` returns an instance of the
-`Reverser` component. We invoke methods on the component like we would any
-regular interface. In this example, we call `reverser.Reverse`.
+`weaver.Run(...)` initializes and runs the Service Weaver application.  In
+particular, `weaver.Run` finds the main component, creates it, and passes it to a
+supplied function. In this example,`app` is the main component since it contains
+a `weaver.Implements[weaver.Main]` field.
+
+The `serve` function fetches the Reverser component by calling
+`weaver.Get[Reverser](app)`.  We invoke methods on the component like we would
+any regular interface. In this example, we call `reverser.Reverse`.
 
 Before we build and run the app, we need to run Service Weaver's code generator,
 called `weaver generate`. `weaver generate` writes a `weaver_gen.go` file that
@@ -223,20 +235,26 @@ import (
 )
 
 func main() {
-    // Initialize the Service Weaver application.
-    root := weaver.Init(context.Background())
+    if err := weaver.Run(context.Background(), serve); err != nil {
+        log.Fatal(err)
+    }
+}
 
-    // Get a client to the Reverser component.
+type app struct {
+    weaver.Implements[weaver.Main]
+}
+
+func serve(ctx context.Context, app *app) error {
     reverser, err := weaver.Get[Reverser](root)
     if err != nil {
-        log.Fatal(err)
+        return err
     }
 
     // Get a network listener on address "localhost:12345".
     opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
     lis, err := root.Listener("hello", opts)
     if err != nil {
-        log.Fatal(err)
+        return err
     }
     fmt.Printf("hello listener available on %v\n", lis)
 
@@ -249,7 +267,7 @@ func main() {
         }
         fmt.Fprintf(w, "Hello, %s!\n", reversed)
     })
-    http.Serve(lis, nil)
+    return http.Serve(lis, nil)
 }
 ```
 
@@ -858,17 +876,6 @@ components are co-located in the same OS process, they are given the same node
 id. Then comes the file and line where the log was produced, followed finally by
 the contents of the log.
 
-The main component returned by `weaver.Init` has a Logger method as well (like
-all `weaver.Instances`):
-
-```go
-func main() {
-    root := weaver.Init(context.Background())
-    root.Logger().Info("Hello, World!")
-    ...
-}
-```
-
 Service Weaver also allows you to attach key-value attributes to log entries.
 These attributes can be useful when searching and filtering logs.
 
@@ -1077,12 +1084,21 @@ import (
 )
 
 func main() {
+    if err := weaver.Run(context.Background(), serve); err != nil {
+        log.Fatal(err)
+    }
+}
+
+type app struct {
+    weaver.Implements[weaver.Main]
+}
+
+func serve(ctx context.Context, app *app) error {
     // Get a network listener on address "localhost:12345".
-    root := weaver.Init(context.Background())
     opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
     lis, err := root.Listener("hello", opts)
     if err != nil {
-        log.Fatal(err)
+        return err
     }
     fmt.Printf("hello listener available on %v\n", lis)
 
@@ -1093,7 +1109,7 @@ func main() {
 
     // Create an otel handler to enable tracing.
     otelHandler := otelhttp.NewHandler(http.DefaultServeMux, "http")
-    http.Serve(lis, otelHandler)
+    return http.Serve(lis, otelHandler)
 }
 ```
 
@@ -1285,8 +1301,8 @@ environment variables.
 # Testing
 
 Service Weaver includes a `weavertest` package that you can use to test your
-Service Weaver applications. Use `weavertest.Init` as a drop-in replacement for
-`weaver.Init`. To test an `Adder` component  with an `Add` method, for example,
+Service Weaver applications. Tests use `weavertest.Run` instead of
+`weaver.Run`. To test an `Adder` component with an `Add` method, for example,
 create an `adder_test.go` file with the following contents.
 
 ```go
@@ -1301,40 +1317,50 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-    ctx := context.Background()
-    root := weavertest.Init(ctx, t, weavertest.Options{})
-    adder, err := weaver.Get[Adder](root)
-    if err != nil {
-        t.Fatal(err)
-    }
-    got, err := adder.Add(ctx, 1, 2)
-    if err != nil {
-        t.Fatal(err)
-    }
-    if want := 3; got != want {
-        t.Fatalf("got %q, want %q", got, want)
-    }
+     weavertest.Run(t, weavertest.Options{}, func(adder Adder) {
+         ctx := context.Background()
+         got, err := adder.Add(ctx, 1, 2)
+         if err != nil {
+             t.Fatal(err)
+         }
+         if want := 3; got != want {
+             t.Fatalf("got %q, want %q", got, want)
+         }
+     })
 }
 ```
 
-Run `go test` to run the test. `weavertest.Init` receives a `weavertest.Options`,
-which you can use to configure the execution of the test. By default,
-`weavertest.Init` will run every component in a different process. This is
-similar to what happens when you run `weaver multi deploy`. If you set the
-`SingleProcess` option, `weavertest.Init` will instead run every component in a
-single process, similar to what happens when you `go run` a Service Weaver application.
-You can test in both single and multiprocess mode to ensure that your components
-work whether they are co-located in the same process or distributed across
-multiple processes.
+Run `go test` to run the test. `weavertest.Run` will create an `Adder` component
+and pass it to the supplied function. Tests that want to exercise multiple
+components can pass a function with a separate argument per component. Each of
+those components will be created and passed to the function.
+
+```go
+func TestArithmetic(t *testing.T) {
+    weavertest.Run(t, weavertest.Options{}, func(adder Adder, multiplier Multiplier) {
+        // ...
+    })
+}
+```
+
+`weavertest.Run` takes a `weavertest.Options` argument, which you can use to
+configure the execution of the test. By default, `weavertest.Run` will run every
+component in a different process. This is similar to what happens when you run
+`weaver multi deploy`. If you set the `SingleProcess` option, `weavertest.Run`
+will instead run every component in the calling process, similar to what happens
+when you `go run` a Service Weaver application. Single-process tests are easier
+to debug and troubleshoot, but do not test distributed execution. You should
+test in both single and multiprocess mode to get the best of both worlds:
+
 
 ```go
 func TestAdd(t *testing.T) {
     for _, single := range []bool{true, false} {
         t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
             opts := weavertest.Options{SingleProcess: single}
-            root := weavertest.Init(context.Background(), t, opts)
-            adder, err := weaver.Get[Adder](root)
-            // ...
+            weavertest.Run(t, opts, func(adder Adder) {
+                // ...
+            })
         })
     }
 }

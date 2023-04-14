@@ -34,7 +34,7 @@ implementing a multiprocess deployer completely from scratch.
 To understand deployers, we must first understand weavelets. A Service Weaver
 application is compiled into a single executable binary. The Service Weaver
 libraries linked into the binary include a small agent called a **weavelet**,
-which is created when you call [`weaver.Init`][Init]. A weavelet's main
+which is created when you call [`weaver.Run`][Run]. A weavelet's main
 responsibility is to start and manage a set of components.
 
 When a Service Weaver application is deployed, there isn't just one weavelet. If
@@ -621,7 +621,7 @@ sending protobufs over a pair of pipes. For even more details, refer to
 [GetHealth]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetHealth
 [GetLoad]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetLoad
 [Get]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Get
-[Init]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Init
+[Run]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Run
 [ListenerOptions]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#ListenerOptions
 [Listener]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Instance
 [NewEnvelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#NewEnvelope

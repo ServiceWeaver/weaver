@@ -16,43 +16,17 @@ package weavertest
 
 import (
 	"context"
-	"fmt"
-	"os"
-	rt "runtime"
-	"testing"
-	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 )
 
-// initSingleProcess initializes a brand new single-process execution environment and
-// returns the root component for the new application.
+// initSingleProcess initializes a brand new single-process execution environment.
 //
 // config contains configuration identical to what might be found in a file passed
 // when deploying an application. It can contain application level as well as
 // component level configs. config is allowed to be empty.
-func initSingleProcess(ctx context.Context, t testing.TB, config string) weaver.Instance {
-	t.Helper()
-	ctx, cancelFunc := context.WithCancel(ctx)
-	t.Cleanup(func() {
-		cancelFunc()
-		maybeLogStacks()
-	})
-	ctx = context.WithValue(ctx, runtime.BootstrapKey{}, runtime.Bootstrap{
+func initSingleProcess(ctx context.Context, config string) context.Context {
+	return context.WithValue(ctx, runtime.BootstrapKey{}, runtime.Bootstrap{
 		TestConfig: config,
 	})
-	return weaver.Init(ctx)
-}
-
-func maybeLogStacks() {
-	// Disable early return to find background work that is not obeying cancellation.
-	if true {
-		return
-	}
-
-	time.Sleep(time.Second) // Hack to wait for goroutines to end
-	buf := make([]byte, 1<<20)
-	n := rt.Stack(buf, true)
-	fmt.Fprintf(os.Stderr, "%s\n", string(buf[:n]))
 }

@@ -37,19 +37,27 @@ var (
 func main() {
 	// Initialize the Service Weaver application.
 	flag.Parse()
-	root := weaver.Init(context.Background())
-
-	// Get a client to the Reverser component.
-	reverser, err := weaver.Get[Reverser](root)
-	if err != nil {
+	if err := weaver.Run(context.Background(), serve); err != nil {
 		log.Fatal(err)
+	}
+}
+
+type server struct {
+	weaver.Implements[weaver.Main]
+}
+
+func serve(ctx context.Context, s *server) error {
+	// Get a client to the Reverser component.
+	reverser, err := weaver.Get[Reverser](s)
+	if err != nil {
+		return err
 	}
 
 	// Get a network listener.
 	opts := weaver.ListenerOptions{LocalAddress: *address}
-	lis, err := root.Listener("reverser", opts)
+	lis, err := s.Listener("reverser", opts)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	fmt.Printf("hello listener available on %v\n", lis)
 
@@ -71,5 +79,5 @@ func main() {
 	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 
 	handler := otelhttp.NewHandler(&mux, "http")
-	http.Serve(lis, handler)
+	return http.Serve(lis, handler)
 }

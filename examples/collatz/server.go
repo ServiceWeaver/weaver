@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,33 +26,29 @@ import (
 )
 
 type server struct {
+	weaver.Implements[weaver.Main]
 	mux  http.ServeMux
-	root weaver.Instance
 	odd  Odd
 	even Even
 }
 
-func newServer(root weaver.Instance) (*server, error) {
-	odd, err := weaver.Get[Odd](root)
-	if err != nil {
-		return nil, err
-	}
-	even, err := weaver.Get[Even](root)
-	if err != nil {
-		return nil, err
-	}
-	s := &server{root: root, odd: odd, even: even}
-	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
-	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-	return s, nil
-}
-
-func (s *server) Run() error {
-	lis, err := s.root.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})
+func serve(ctx context.Context, s *server) error {
+	var err error
+	s.odd, err = weaver.Get[Odd](s)
 	if err != nil {
 		return err
 	}
-	s.root.Logger().Debug("Collatz service available", "address", lis)
+	s.even, err = weaver.Get[Even](s)
+	if err != nil {
+		return err
+	}
+	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
+	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
+	lis, err := s.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})
+	if err != nil {
+		return err
+	}
+	s.Logger().Debug("Collatz service available", "address", lis)
 	return http.Serve(lis, otelhttp.NewHandler(&s.mux, "http"))
 }
 

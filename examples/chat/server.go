@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"flag"
@@ -37,24 +38,33 @@ import (
 var flagAddress = flag.String("http", ":0", "host:port to use for when running locally (picked automatically by default)")
 
 type server struct {
+	weaver.Implements[weaver.Main]
 	httpServer http.Server
 	store      SQLStore
 	scaler     ImageScaler
 	cache      LocalCache
 }
 
-func newServer(store SQLStore, scaler ImageScaler, cache LocalCache) *server {
-	s := &server{store: store, scaler: scaler, cache: cache}
-	s.httpServer.Handler = instrument(s.label, s)
-	return s
-}
-
-func (s *server) run(root weaver.Instance) error {
-	lis, err := root.Listener("chat", weaver.ListenerOptions{LocalAddress: *flagAddress})
+func serve(ctx context.Context, s *server) error {
+	var err error
+	s.store, err = weaver.Get[SQLStore](s)
 	if err != nil {
 		return err
 	}
-	root.Logger().Debug("Chat service available", "address", lis)
+	s.scaler, err = weaver.Get[ImageScaler](s)
+	if err != nil {
+		return err
+	}
+	s.cache, err = weaver.Get[LocalCache](s)
+	if err != nil {
+		return err
+	}
+	s.httpServer.Handler = instrument(s.label, s)
+	lis, err := s.Listener("chat", weaver.ListenerOptions{LocalAddress: *flagAddress})
+	if err != nil {
+		return err
+	}
+	s.Logger().Debug("Chat service available", "address", lis)
 	return s.httpServer.Serve(lis)
 }
 
