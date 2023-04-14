@@ -66,6 +66,8 @@ var files = []file{
 	staticFile("blog/deployers/assets/overview.svg"),
 	staticFile("blog/deployers/assets/weavelets.svg"),
 
+	{dst: "blog/corba.html", markdown: "blog/corba.md", template: "blog_entry.html", title: "CORBA vs the Fallacies of Distributed Computing", license: true},
+
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
