@@ -939,29 +939,6 @@ func serviceweaver_dec_slice_Post_29a9ee83(dec *codegen.Decoder) []Post {
 
 // Encoding/decoding implementations.
 
-func serviceweaver_enc_slice_string_4af10117(enc *codegen.Encoder, arg []string) {
-	if arg == nil {
-		enc.Len(-1)
-		return
-	}
-	enc.Len(len(arg))
-	for i := 0; i < len(arg); i++ {
-		enc.String(arg[i])
-	}
-}
-
-func serviceweaver_dec_slice_string_4af10117(dec *codegen.Decoder) []string {
-	n := dec.Len()
-	if n == -1 {
-		return nil
-	}
-	res := make([]string, n)
-	for i := 0; i < n; i++ {
-		res[i] = dec.String()
-	}
-	return res
-}
-
 func serviceweaver_enc_slice_byte_87461245(enc *codegen.Encoder, arg []byte) {
 	if arg == nil {
 		enc.Len(-1)
@@ -981,6 +958,29 @@ func serviceweaver_dec_slice_byte_87461245(dec *codegen.Decoder) []byte {
 	res := make([]byte, n)
 	for i := 0; i < n; i++ {
 		res[i] = dec.Byte()
+	}
+	return res
+}
+
+func serviceweaver_enc_slice_string_4af10117(enc *codegen.Encoder, arg []string) {
+	if arg == nil {
+		enc.Len(-1)
+		return
+	}
+	enc.Len(len(arg))
+	for i := 0; i < len(arg); i++ {
+		enc.String(arg[i])
+	}
+}
+
+func serviceweaver_dec_slice_string_4af10117(dec *codegen.Decoder) []string {
+	n := dec.Len()
+	if n == -1 {
+		return nil
+	}
+	res := make([]string, n)
+	for i := 0; i < n; i++ {
+		res[i] = dec.String()
 	}
 	return res
 }

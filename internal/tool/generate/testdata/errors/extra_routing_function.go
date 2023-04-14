@@ -24,11 +24,16 @@ import (
 )
 
 type foo interface {
+	Foo(context.Context) error
 }
 
 type impl struct {
 	weaver.Implements[foo]
 	weaver.WithRouter[fooRouter]
+}
+
+func (impl) Foo(context.Context) error {
+	return nil
 }
 
 type fooRouter struct{}

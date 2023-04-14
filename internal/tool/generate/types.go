@@ -578,17 +578,6 @@ func (tset *typeSet) genTypeString(t types.Type) string {
 	return types.TypeString(t, qualifier)
 }
 
-// typeString pretty prints a type.
-func (tset *typeSet) typeString(t types.Type) string {
-	var qualifier = func(pkg *types.Package) string {
-		if pkg == tset.pkg.Types {
-			return ""
-		}
-		return pkg.Name()
-	}
-	return types.TypeString(t, qualifier)
-}
-
 // isInvalid returns true iff the given type is invalid.
 func isInvalid(t types.Type) bool {
 	return t.String() == "invalid type"
