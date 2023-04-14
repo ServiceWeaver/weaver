@@ -87,12 +87,14 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Copy the binaries to each location.
-	if err := copyBinaries(locs, dep); err != nil {
+	tmpDirs, err := copyBinaries(locs, dep)
+
+	if err != nil {
 		return err
 	}
 
 	// Run the manager.
-	stopFn, err := impl.RunManager(ctx, dep, locs, logDir)
+	stopFn, err := impl.RunManager(ctx, dep, locs, logDir, tmpDirs)
 	if err != nil {
 		return fmt.Errorf("cannot instantiate the manager: %w", err)
 	}
@@ -131,30 +133,59 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
+func getTmpDirs(locs []string, depId string) (map[string]string, error) {
+	tmpDirs := make(map[string]string, len(locs))
+
+	for _, loc := range locs {
+		cmd := exec.Command("ssh", loc, "mktemp", "-u")
+
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+
+		tmpDir, err := cmd.Output()
+
+		if err != nil {
+			return nil, err
+		}
+
+		p := filepath.Join(string(tmpDir), depId)
+
+		tmpDirs[loc] = p
+
+	}
+
+	return tmpDirs, nil
+}
+
 // copyBinaries copies the tool and the application binary to the given set
 // of locations.
-func copyBinaries(locs []string, dep *protos.Deployment) error {
+func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, error) {
 	ex, err := os.Executable()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	binary := dep.App.Binary
-	remoteDepDir := filepath.Join(os.TempDir(), dep.Id)
-	dep.App.Binary = filepath.Join(remoteDepDir, filepath.Base(dep.App.Binary))
+	tmpDirs, err := getTmpDirs(locs, dep.Id)
+
+	if err != nil {
+		return nil, err
+	}
+
 	for _, loc := range locs {
+		binary := filepath.Join(tmpDirs[loc], filepath.Base(dep.App.Binary))
 		// Make an app deployment directory at each location.
-		cmd := exec.Command("ssh", loc, "mkdir", "-p", remoteDepDir)
+		cmd := exec.Command("ssh", loc, "mkdir", "-p", tmpDirs[loc])
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("unable to create deployment directory at location %s: %w\n", loc, err)
+			return nil, fmt.Errorf("unable to create deployment directory at location %s: %w\n", loc, err)
 		}
 
-		cmd = exec.Command("scp", ex, binary, loc+":"+remoteDepDir)
+		cmd = exec.Command("scp", ex, binary, loc+":"+tmpDirs[loc])
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("unable to copy app binary at location %s: %w\n", loc, err)
+			return nil, fmt.Errorf("unable to copy app binary at location %s: %w\n", loc, err)
 		}
 	}
-	return nil
+	return tmpDirs, nil
 }
 
 // terminateDeployment terminates all the processes corresponding to the deployment
