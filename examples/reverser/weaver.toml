@@ -1,2 +1,10 @@
 [serviceweaver]
 binary = "./reverser"
+rollout = "5m"
+
+[gke]
+regions = ["us-west1"]
+public_listener = [
+  {name = "reverser", hostname = "reverser.example.com"},
+]
+
