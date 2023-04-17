@@ -29,6 +29,7 @@ import (
 var (
 	dashboardSpec = &status.DashboardSpec{
 		Tool:     "weaver single",
+		Mode:     "single",
 		Registry: defaultRegistry,
 		Commands: func(deploymentId string) []status.Command {
 			return []status.Command{
@@ -42,7 +43,7 @@ var (
 		Kill: "weaver single (dashboard|profile)",
 		Paths: []string{
 			filepath.Join(must.Must(files.DefaultDataDir()), "single_registry"),
-			must.Must(perfetto.DatabaseFilePath()),
+			must.Must(perfetto.DatabaseFilePath("single")),
 		},
 	}
 

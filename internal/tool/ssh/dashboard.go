@@ -24,6 +24,7 @@ import (
 
 var dashboardSpec = &status.DashboardSpec{
 	Tool:     "weaver ssh",
+	Mode:     "ssh",
 	Registry: impl.DefaultRegistry,
 	Commands: func(deploymentId string) []status.Command {
 		return []status.Command{

@@ -109,7 +109,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		return nil, err
 	}
 
-	traceDB, err := perfetto.Open(ctx)
+	traceDB, err := perfetto.Open(ctx, "single")
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
