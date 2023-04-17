@@ -133,7 +133,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 	})
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx)
+	traceDB, err := perfetto.Open(ctx, "multi")
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}

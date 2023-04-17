@@ -89,6 +89,7 @@ type Command struct {
 // DashboardSpec configures the command returned by DashboardCommand.
 type DashboardSpec struct {
 	Tool     string                                   // tool name (e.g., "weaver single")
+	Mode     string                                   // tool mode (e.g. "single", "multi", "ssh")
 	Registry func(context.Context) (*Registry, error) // registry of deployments
 	Commands func(deploymentId string) []Command      // commands for a deployment
 }
@@ -132,7 +133,7 @@ Flags:
 			}
 			url := "http://" + lis.Addr().String()
 
-			traceDB, err := perfetto.Open(ctx)
+			traceDB, err := perfetto.Open(ctx, spec.Mode)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
 			} else {

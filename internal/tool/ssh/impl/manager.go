@@ -156,7 +156,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	})
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx)
+	traceDB, err := perfetto.Open(ctx, "ssh")
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}

@@ -96,18 +96,18 @@ type DB struct {
 }
 
 // DatabaseFilePath returns the path of the file that stores the trace database.
-func DatabaseFilePath() (string, error) {
+func DatabaseFilePath(mode string) (string, error) {
 	dataDir, err := files.DefaultDataDir()
 	if err != nil {
 		return "", err
 	}
-	// TODO(mwhittaker): Use a different db for every deployer.
-	return filepath.Join(dataDir, "perfetto.db"), nil
+	return filepath.Join(dataDir, fmt.Sprintf("perfetto_%s.db", mode)), nil
 }
 
-// Open opens the default trace database on the local machine.
-func Open(ctx context.Context) (*DB, error) {
-	fname, err := DatabaseFilePath()
+// Open opens the default trace database on the local machine. mode specifies
+// the weaver mode (e.g. single, multi, ssh) for which the database is being open.
+func Open(ctx context.Context, mode string) (*DB, error) {
+	fname, err := DatabaseFilePath(mode)
 	if err != nil {
 		return nil, err
 	}

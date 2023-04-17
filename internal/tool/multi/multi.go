@@ -32,6 +32,7 @@ var (
 
 	dashboardSpec = &status.DashboardSpec{
 		Tool:     "weaver multi",
+		Mode:     "multi",
 		Registry: defaultRegistry,
 		Commands: func(deploymentId string) []status.Command {
 			return []status.Command{
@@ -49,7 +50,7 @@ var (
 		Paths: []string{
 			logdir,
 			must.Must(defaultRegistryDir()),
-			must.Must(perfetto.DatabaseFilePath()),
+			must.Must(perfetto.DatabaseFilePath("multi")),
 		},
 	}
 
