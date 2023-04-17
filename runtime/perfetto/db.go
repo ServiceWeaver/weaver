@@ -95,16 +95,22 @@ type DB struct {
 	replicaNumCache *lru.Cache[replicaCacheKey, int]
 }
 
+// DatabaseFilePath returns the path of the file that stores the trace database.
+func DatabaseFilePath() (string, error) {
+	dataDir, err := files.DefaultDataDir()
+	if err != nil {
+		return "", err
+	}
+	// TODO(mwhittaker): Use a different db for every deployer.
+	return filepath.Join(dataDir, "perfetto.db"), nil
+}
+
 // Open opens the default trace database on the local machine.
 func Open(ctx context.Context) (*DB, error) {
-	dataDir, err := files.DefaultDataDir()
+	fname, err := DatabaseFilePath()
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(mwhittaker): Use a different db for every deployer. Have the purge
-	// commands delete the db.
-	fname := filepath.Join(dataDir, "perfetto.db")
 	return open(ctx, fname)
 }
 

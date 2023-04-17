@@ -22,6 +22,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
@@ -36,11 +37,13 @@ var (
 			}
 		},
 	}
-
 	purgeSpec = &tool.PurgeSpec{
-		Tool:  "weaver single",
-		Kill:  "weaver single (dashboard|profile)",
-		Paths: []string{filepath.Join(must.Must(files.DefaultDataDir()), "single_registry")},
+		Tool: "weaver single",
+		Kill: "weaver single (dashboard|profile)",
+		Paths: []string{
+			filepath.Join(must.Must(files.DefaultDataDir()), "single_registry"),
+			must.Must(perfetto.DatabaseFilePath()),
+		},
 	}
 
 	Commands = map[string]*tool.Command{
