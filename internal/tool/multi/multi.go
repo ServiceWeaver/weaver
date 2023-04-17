@@ -22,6 +22,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
@@ -48,6 +49,7 @@ var (
 		Paths: []string{
 			logdir,
 			must.Must(defaultRegistryDir()),
+			must.Must(perfetto.DatabaseFilePath()),
 		},
 	}
 
