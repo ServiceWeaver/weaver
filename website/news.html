@@ -1,0 +1,79 @@
+<!--
+ Copyright 2023 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div id="news"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const items = [
+    {
+      date: new Date('2023-04-12'),
+      text: 'We will be at <a href="https://events.linuxfoundation.org/kubecon-cloudnativecon-europe">KubeCon</a> in Amsterdam next week. You can find us in the Google booth.',
+    },
+    {
+      date: new Date('2023-04-05'),
+      text: 'New blog post on <a href="https://serviceweaver.dev/blog/deployers.html">how to implement a Service Weaver deployer</a>.',
+    },
+    {
+      date: new Date('2023-04-03'),
+      text: 'Service Weaver at Container Day in Amsterdam. <a href="https://rsvp.withgoogle.com/events/google-container-day">Register</a> if you want to learn more.',
+    },
+    {
+      date: new Date('2023-03-30'),
+      text: 'We are now on Discord. Follow us <a href="https://discord.gg/p36aYaaN">here</a>.',
+    },
+    {
+      date: new Date('2023-03-29'),
+      text: '<a href="https://uk.linkedin.com/in/matthewmcgibbon1">Matthew</a> presented Service Weaver at <a href="https://twitter.com/womenwhogolndn/status/1641147116683657242">Women Who Go London</a>.',
+    },
+    {
+      date: new Date('2023-03-24'),
+      text: 'We will present Service Weaver at <a href="https://www.conf42.com/Cloud_Native_2023_Robert_Grandl_modern_development_distributed_service_weaver">Cloud Native 2023</a>.',
+    },
+    {
+      date: new Date('2023-03-11'),
+      text: '<a href="https://www.infoq.com">InfoQ</a> wrote a blog <a href="https://www.infoq.com/news/2023/03/google-weaver-framework">post</a> about Service Weaver.',
+    },
+    {
+      date: new Date('2023-03-03'),
+      text: '<a href="https://betterprogramming.pub/service-weaver-a-framework-from-google-for-balancing-monoliths-and-microservices-583e69b274dd">Article</a> on <a href="https://medium.com">Medium</a> about Service Weaver.',
+    },
+    {
+      date: new Date('2023-03-02'),
+      text: 'We had a great time <a href="https://twitter.com/kelseyhightower/status/1631352524157648896">talking</a> about Service Weaver with <a href="https://twitter.com/kelseyhightower">Kelsey Hightower</a>.',
+    },
+    {
+      date: new Date('2023-03-01'),
+      text: 'We are <a href="https://opensource.googleblog.com/2023/03/introducing-service-weaver-framework-for-writing-distributed-applications.html">live</a>! Thanks <a href="https://twitter.com/kelseyhightower">Kelsey Hightower</a> and <a href="https://twitter.com/JeffDean">Jeff Dean</a> for spreading the word <a href="https://twitter.com/kelseyhightower/status/1630995723956412420">1</a>, <a href="https://twitter.com/JeffDean/status/1631379386476953600">2</a>.',
+    },
+  ];
+
+  const news = document.getElementById('news');
+  for (const item of items) {
+    const block = document.createElement('div');
+    block.classList.add('news-block');
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    block.innerHTML = `
+      <div class="news-marker"></div>
+      <div class="news-content">
+        <div class="news-date">${item.date.toLocaleDateString(undefined, options)}</div>
+        <div class="news-text">${item.text}</div>
+      </div>
+    `
+    news.appendChild(block);
+  }
+});
+</script>
