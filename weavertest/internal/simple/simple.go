@@ -39,7 +39,7 @@ type source struct {
 }
 
 func (s *source) Init(_ context.Context) error {
-	s.Logger().Debug("simple.Init")
+	s.Logger().Debug("simple.Init") //nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
 	dst, err := weaver.Get[Destination](s)
 	s.dst = dst
 	return err

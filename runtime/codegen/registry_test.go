@@ -107,7 +107,7 @@ func init() {
 		Name:         typeWithConfig,
 		Iface:        reflect.TypeOf((*componentWithConfig)(nil)).Elem(),
 		New:          func() any { return &componentWithConfig{} },
-		ConfigFn:     func(i any) any { return i.(*componentWithConfig).Config() },
+		ConfigFn:     func(i any) any { return i.(*componentWithConfig).Config() }, //nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
 		LocalStubFn:  local,
 		ClientStubFn: client,
 		ServerStubFn: server,
