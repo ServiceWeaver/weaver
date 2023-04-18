@@ -104,10 +104,13 @@ func init() {
 		ServerStubFn: server,
 	})
 	codegen.Register(codegen.Registration{
-		Name:         typeWithConfig,
-		Iface:        reflect.TypeOf((*componentWithConfig)(nil)).Elem(),
-		New:          func() any { return &componentWithConfig{} },
-		ConfigFn:     func(i any) any { return i.(*componentWithConfig).Config() },
+		Name:  typeWithConfig,
+		Iface: reflect.TypeOf((*componentWithConfig)(nil)).Elem(),
+		New:   func() any { return &componentWithConfig{} },
+		ConfigFn: func(i any) any {
+			// TODO(mwhittaker): Remove the nolint once golangci-lint supports go 1.21.
+			return i.(*componentWithConfig).Config() //nolint:typecheck
+		},
 		LocalStubFn:  local,
 		ClientStubFn: client,
 		ServerStubFn: server,

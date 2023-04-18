@@ -39,7 +39,8 @@ type source struct {
 }
 
 func (s *source) Init(_ context.Context) error {
-	s.Logger().Debug("simple.Init")
+	// TODO(mwhittaker): Remove the nolint once golangci-lint supports go 1.21.
+	s.Logger().Debug("simple.Init") //nolint:typecheck
 	dst, err := weaver.Get[Destination](s)
 	s.dst = dst
 	return err
