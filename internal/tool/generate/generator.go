@@ -464,11 +464,9 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 
 	// Sort the component's methods deterministically.
 	intf := componentType.Underlying().(*types.Interface)
-	methods := make([]*types.Func, 0, intf.NumMethods())
+	methods := make([]*types.Func, intf.NumMethods())
 	for i := 0; i < intf.NumMethods(); i++ {
-		if intf.Method(i).Exported() {
-			methods = append(methods, intf.Method(i))
-		}
+		methods[i] = intf.Method(i)
 	}
 	loc := func(pos token.Pos) (string, int) {
 		p := pkg.Fset.Position(pos)
@@ -486,7 +484,7 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 	// Disallow interfaces without any exported methods.
 	if len(methods) == 0 {
 		return nil, errorf(pkg.Fset, spec.Pos(),
-			"Implemented component type %s has no exported methods (must export at least one method).",
+			"Implemented component type %s has no methods.",
 			formatType(pkg, componentType))
 	}
 
@@ -535,13 +533,16 @@ func validateMethods(pkg *packages.Package, tset *typeSet, component *types.Name
 	intf := component.Underlying().(*types.Interface)
 	for i := 0; i < intf.NumMethods(); i++ {
 		m := intf.Method(i)
-		if !m.Exported() {
-			// TODO(mwhittaker): Disallow unexported methods?
-			continue
-		}
 		mt, ok := m.Type().(*types.Signature)
 		if !ok || mt == nil { // Should never happen.
 			panic(errorf(pkg.Fset, m.Pos(), "method %s doesn't have a signature", m.Name()))
+		}
+
+		// Disallow unexported methods.
+		if !m.Exported() {
+			return errorf(pkg.Fset, m.Pos(),
+				"Method `%s%s %s` of Service Weaver component %q is unexported. Every method in a component interface must be exported.",
+				m.Name(), formatType(pkg, mt.Params()), formatType(pkg, mt.Results()), component.Obj().Name())
 		}
 
 		// bad is a helper function for producing helpful error messages.
