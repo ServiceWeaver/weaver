@@ -64,6 +64,14 @@ func (*pipeForTest) ExportListener(context.Context, *protos.ExportListenerReques
 	return nil, nil
 }
 
+func (*pipeForTest) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	panic("unused")
+}
+
+func (*pipeForTest) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	panic("unused")
+}
+
 func writeAndRead(in sdk.ReadOnlySpan, pipe *pipeForTest) (sdk.ReadOnlySpan, error) {
 	pipe.waitToExportSpans.Add(1)
 	writer := traceio.NewWriter(pipe.wletConn.SendTraceSpans)

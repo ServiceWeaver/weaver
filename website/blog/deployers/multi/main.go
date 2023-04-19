@@ -139,6 +139,14 @@ func (h *handler) ExportListener(_ context.Context, req *protos.ExportListenerRe
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (*handler) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	panic("unused")
+}
+
+func (*handler) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	panic("unused")
+}
+
 // Responsibility 3: Telemetry.
 func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	pp := logging.NewPrettyPrinter(colors.Enabled())

@@ -161,6 +161,14 @@ func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr stri
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (e *singleprocessEnv) VerifyClientCertificate(context.Context, [][]byte) ([]string, error) {
+	panic("unused")
+}
+
+func (e *singleprocessEnv) VerifyServerCertificate(context.Context, [][]byte, string) error {
+	panic("unused")
+}
+
 // serveStatus runs and registers the weaver-single status server.
 func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	mux := http.NewServeMux()

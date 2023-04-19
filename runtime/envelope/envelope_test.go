@@ -176,6 +176,14 @@ func (*handlerForTest) ExportListener(context.Context, *protos.ExportListenerReq
 	return nil, nil
 }
 
+func (*handlerForTest) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	panic("unused")
+}
+
+func (*handlerForTest) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	panic("unused")
+}
+
 func TestStartStop(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "file.txt")
 	if _, err := os.Create(filename); err != nil {

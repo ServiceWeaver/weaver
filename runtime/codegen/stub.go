@@ -20,8 +20,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// A Stub allows a Service Weaver component in one process to invoke methods via RPC on
-// a Service Weaver component in a different process.
+// A Stub allows a Service Weaver component in one process to invoke methods
+// via RPC on a Service Weaver component in a different process.
 type Stub interface {
 	// Tracer returns a new tracer.
 	//

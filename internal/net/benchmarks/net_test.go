@@ -15,9 +15,13 @@
 package net
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -33,14 +37,74 @@ import (
 
 var (
 	subproccess           = flag.Bool("subprocess", false, "Is this a subprocess?")
-	network               = flag.String("network", "", "Network (e.g., tcp, unix)")
+	network               = flag.String("network", "", "Network (e.g., tcp, unix, mtls)")
 	address               = flag.String("address", "", "Server address")
 	inlineHandlerDuration = flag.Duration("inline_handler_duration", 0, "ServerOptions.InlineHandlerDuration")
 	writeFlattenLimit     = flag.Int("write_flatten_limit", 0, "ServerOptions.WriteFlattenLimit")
 
-	echoKey  = call.MakeMethodKey("component", "echo")
-	handlers call.HandlerMap
+	echoKey   = call.MakeMethodKey("component", "echo")
+	handlers  call.HandlerMap
+	tlsConfig = makeTLSConfig()
 )
+
+func makeTLSConfig() *tls.Config {
+	certPem := []byte(`-----BEGIN CERTIFICATE-----
+MIIBhTCCASugAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE3MTAyMDE5NDMwNloXDTE4MTAyMDE5NDMwNlow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABD0d
+7VNhbWvZLWPuj/RtHFjvtJBEwOkhbN/BnnE8rnZR8+sbwnc/KhCk3FhnpHZnQz7B
+5aETbbIgmuvewdjvSBSjYzBhMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
+BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdEQQiMCCCDmxvY2FsaG9zdDo1
+NDUzgg4xMjcuMC4wLjE6NTQ1MzAKBggqhkjOPQQDAgNIADBFAiEA2zpJEPQyz6/l
+Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc
+6MF9+Yw1Yy0t
+-----END CERTIFICATE-----`)
+	keyPem := []byte(`-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
+AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
+EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
+-----END EC PRIVATE KEY-----`)
+	cert, err := tls.X509KeyPair(certPem, keyPem)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		ClientAuth:         tls.RequireAnyClientCert,
+		InsecureSkipVerify: true, // ok when VerifyPeerCertificate present
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			if len(rawCerts) != 1 {
+				return fmt.Errorf("expected single cert, got %d", len(rawCerts))
+			}
+			if !bytes.Equal(cert.Certificate[0], rawCerts[0]) {
+				return fmt.Errorf("invalid peer certificate")
+			}
+			return nil
+		},
+	}
+}
+
+type testListener struct {
+	net.Listener
+	tlsConfig *tls.Config
+}
+
+var _ call.Listener = &testListener{}
+
+func (l testListener) Accept() (net.Conn, *call.HandlerMap, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, nil, err
+	}
+	if l.tlsConfig != nil {
+		tlsConn := tls.Server(conn, l.tlsConfig)
+		if err := tlsConn.Handshake(); err != nil {
+			return nil, nil, fmt.Errorf("TLS handshake error: %w", err)
+		}
+		conn = tlsConn
+	}
+	return conn, &handlers, err
+}
 
 func TestMain(m *testing.M) {
 	handlers.Set("component", "echo", func(_ context.Context, args []byte) ([]byte, error) {
@@ -61,21 +125,17 @@ func TestMain(m *testing.M) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	lis, err := config.listen()
-	if err != nil {
-		panic(err)
-	}
 
 	opts := config.serverOpts()
 	opts.Logger = logging.StderrLogger(logging.Options{})
-	if err := call.Serve(ctx, lis, &handlers, opts); err != nil {
+	if err := call.Serve(ctx, config.listen(), opts); err != nil {
 		panic(err)
 	}
 }
 
 // config configures a benchmark.
 type config struct {
-	network                string        // e.g., tcp, unix
+	network                string        // e.g., tcp, unix, mtls
 	addr                   string        // e.g., localhost:12345, /tmp/socket
 	optimisticSpinDuration time.Duration // call.ClientOptions
 	inlineHandlerDuration  time.Duration // call.ServerOptions
@@ -94,13 +154,43 @@ func (c config) name() string {
 }
 
 // listen returns a net.Listener suitable for a server.
-func (c config) listen() (net.Listener, error) {
-	return net.Listen(c.network, c.addr)
+func (c config) listen() call.Listener {
+	switch c.network {
+	case "tcp":
+		l, err := net.Listen("tcp", c.addr)
+		if err != nil {
+			panic(err)
+		}
+		return testListener{Listener: l}
+	case "unix":
+		l, err := net.Listen("unix", c.addr)
+		if err != nil {
+			panic(err)
+		}
+		return testListener{Listener: l}
+	case "mtls":
+		l, err := net.Listen("tcp", c.addr)
+		if err != nil {
+			panic(err)
+		}
+		return testListener{Listener: l, tlsConfig: tlsConfig}
+	default:
+		panic(fmt.Sprintf("invalid network: %s", c.network))
+	}
 }
 
 // endpoint returns a call.Endpoint suitable for a client.
 func (c config) endpoint() call.Endpoint {
-	return call.NetEndpoint{Net: c.network, Addr: c.addr}
+	switch c.network {
+	case "tcp":
+		return call.TCP(c.addr)
+	case "unix":
+		return call.Unix(c.addr)
+	case "mtls":
+		return call.MTLS(tlsConfig, call.TCP(c.addr))
+	default:
+		panic(fmt.Sprintf("invalid network: %s", c.network))
+	}
 }
 
 // clientOpts returns the client options.
@@ -122,12 +212,12 @@ func (c config) serverOpts() call.ServerOptions {
 // configs returns a set of configs.
 func configs(b testing.TB) []config {
 	var configs []config
-	for _, network := range []string{"tcp", "unix"} {
+	for _, network := range []string{"tcp", "unix", "mtls"} {
 		for _, spin := range []time.Duration{0, 20 * time.Microsecond} {
 			for _, inline := range []time.Duration{0, 20 * time.Microsecond} {
 				for _, flatten := range []int{0, 1 << 10, 4 << 10} {
 					addr := "localhost:12345"
-					if network != "tcp" {
+					if network == "unix" {
 						addr = filepath.Join(b.TempDir(), "socket")
 					}
 					configs = append(configs, config{
@@ -149,11 +239,6 @@ func configs(b testing.TB) []config {
 // localhost:12345, /tmp/socket). The server is shut down when the provided
 // benchmark ends.
 func serve(b *testing.B, config config) {
-	lis, err := config.listen()
-	if err != nil {
-		b.Fatal(err)
-	}
-
 	// Kill the server to free up the port it's listening on.
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cleanup(cancel)
@@ -162,7 +247,7 @@ func serve(b *testing.B, config config) {
 	go func() {
 		opts := config.serverOpts()
 		opts.Logger = logging.NewTestLogger(b)
-		switch err := call.Serve(ctx, lis, &handlers, opts); err {
+		switch err := call.Serve(ctx, config.listen(), opts); err {
 		case nil, ctx.Err():
 		case err:
 			b.Log(err)

@@ -476,6 +476,18 @@ func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerR
 	return &protos.ExportListenerReply{ProxyAddress: addr}, nil
 }
 
+// VerifyClientCertificate implements the envelope.EnvelopeHandler interface.
+func (d *deployer) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	// TODO(spetrovic): Implement this functionality.
+	panic("unimplemented")
+}
+
+// VerifyServerCertificate implements the envelope.EnvelopeHandler interface.
+func (d *deployer) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	// TODO(spetrovic): Implement this functionality.
+	panic("unimplemented")
+}
+
 func (d *deployer) readMetrics() []*metrics.MetricSnapshot {
 	d.mu.Lock()
 	defer d.mu.Unlock()
