@@ -12,23 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: no exported methods
+// ERROR: has no methods
 
-// Implementation has no exported methods.
+// Implementation has no methods.
 package foo
 
 import (
-	"context"
-
 	"github.com/ServiceWeaver/weaver"
 )
 
-type foo interface {
-	bar(context.Context, int) error
-}
+type foo interface{}
 
 type impl struct{ weaver.Implements[foo] }
-
-func (l *impl) bar(context.Context, int) error {
-	return nil
-}
