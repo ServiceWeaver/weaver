@@ -481,13 +481,6 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 		return offset1 < offset2
 	})
 
-	// Disallow interfaces without any exported methods.
-	if len(methods) == 0 {
-		return nil, errorf(pkg.Fset, spec.Pos(),
-			"Implemented component type %s has no methods.",
-			formatType(pkg, componentType))
-	}
-
 	comp := &component{
 		name:      componentType.Obj().Name(),
 		pos:       spec.Pos(),
