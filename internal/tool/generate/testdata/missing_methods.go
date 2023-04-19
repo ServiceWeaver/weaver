@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: has no methods
-
 // Implementation has no methods.
 package foo
 
-import (
-	"github.com/ServiceWeaver/weaver"
-)
+import "github.com/ServiceWeaver/weaver"
 
 type foo interface{}
 
