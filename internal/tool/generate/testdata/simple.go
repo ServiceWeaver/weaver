@@ -17,15 +17,15 @@
 // func init() {
 // codegen.Register(codegen.Registration{
 // &impl{}
-// return foo_local_stub{impl: impl.(foo),
-// return foo_client_stub{stub: stub,
-// type foo_local_stub struct
-// type foo_client_stub struct
+// return impl_local_stub{impl: impl.(foo),
+// return impl_client_stub{stub: stub,
+// type impl_local_stub struct
+// type impl_client_stub struct
 // M(ctx context.Context) (err error) {
 // s.stub.Run(ctx, 0, nil, shardKey)
-// type foo_server_stub struct
-// func (s foo_server_stub) GetStubFn
-// func (s foo_server_stub) m(ctx
+// type impl_server_stub struct
+// func (s impl_server_stub) GetStubFn
+// func (s impl_server_stub) m(ctx
 
 // UNEXPECTED
 // Preallocate

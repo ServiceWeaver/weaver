@@ -149,7 +149,7 @@ func (s ping1_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping1.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -166,7 +166,7 @@ func (s ping1_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping1.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -188,7 +188,7 @@ func (s ping10_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping10.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -205,7 +205,7 @@ func (s ping10_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping10.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -227,7 +227,7 @@ func (s ping2_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping2.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -244,7 +244,7 @@ func (s ping2_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping2.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -266,7 +266,7 @@ func (s ping3_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping3.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -283,7 +283,7 @@ func (s ping3_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping3.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -305,7 +305,7 @@ func (s ping4_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping4.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -322,7 +322,7 @@ func (s ping4_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping4.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -344,7 +344,7 @@ func (s ping5_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping5.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -361,7 +361,7 @@ func (s ping5_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping5.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -383,7 +383,7 @@ func (s ping6_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping6.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -400,7 +400,7 @@ func (s ping6_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping6.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -422,7 +422,7 @@ func (s ping7_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping7.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -439,7 +439,7 @@ func (s ping7_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping7.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -461,7 +461,7 @@ func (s ping8_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping8.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -478,7 +478,7 @@ func (s ping8_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping8.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -500,7 +500,7 @@ func (s ping9_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping9.PingC", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9.PingC", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -517,7 +517,7 @@ func (s ping9_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "benchmarks.Ping9.PingS", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9.PingS", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -546,7 +546,7 @@ func (s ping1_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping1.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -605,7 +605,7 @@ func (s ping1_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping1.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -664,7 +664,7 @@ func (s ping10_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping10.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -723,7 +723,7 @@ func (s ping10_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping10.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -782,7 +782,7 @@ func (s ping2_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping2.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -841,7 +841,7 @@ func (s ping2_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping2.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -900,7 +900,7 @@ func (s ping3_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping3.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -959,7 +959,7 @@ func (s ping3_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping3.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1018,7 +1018,7 @@ func (s ping4_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping4.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1077,7 +1077,7 @@ func (s ping4_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping4.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1136,7 +1136,7 @@ func (s ping5_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping5.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1195,7 +1195,7 @@ func (s ping5_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping5.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1254,7 +1254,7 @@ func (s ping6_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping6.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1313,7 +1313,7 @@ func (s ping6_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping6.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1372,7 +1372,7 @@ func (s ping7_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping7.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1431,7 +1431,7 @@ func (s ping7_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping7.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1490,7 +1490,7 @@ func (s ping8_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping8.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1549,7 +1549,7 @@ func (s ping8_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping8.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1608,7 +1608,7 @@ func (s ping9_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping9.PingC", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9.PingC", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -1667,7 +1667,7 @@ func (s ping9_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "benchmarks.Ping9.PingS", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9.PingS", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

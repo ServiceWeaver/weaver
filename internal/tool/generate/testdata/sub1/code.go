@@ -14,4 +14,10 @@
 
 package pkg
 
+import "context"
+
 type T uint8
+
+type Adder interface {
+	Add(context.Context, int, int) (int, error)
+}

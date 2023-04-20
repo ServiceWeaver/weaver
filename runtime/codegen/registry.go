@@ -17,6 +17,7 @@ package codegen
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"sync"
 
@@ -73,7 +74,9 @@ func (r *registry) register(reg Registration) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	if _, ok := r.components[reg.Iface]; ok {
-		return errors.New("component already registered")
+		// TODO(mwhittaker): Put location information in registrations to
+		// report where the component was previously registered?
+		return fmt.Errorf("component %q already registered. You probably linked in two different implementations of the component; i.e. two components that embed weaver.Implements[%s].", reg.Name, filepath.Base(reg.Name))
 	}
 	if r.components == nil {
 		r.components = map[reflect.Type]*Registration{}

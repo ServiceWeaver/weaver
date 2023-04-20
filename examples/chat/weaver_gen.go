@@ -21,13 +21,13 @@ func init() {
 		Iface: reflect.TypeOf((*ImageScaler)(nil)).Elem(),
 		New:   func() any { return &scaler{} },
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return imageScaler_local_stub{impl: impl.(ImageScaler), tracer: tracer}
+			return scaler_local_stub{impl: impl.(ImageScaler), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return imageScaler_client_stub{stub: stub, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale"})}
+			return scaler_client_stub{stub: stub, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return imageScaler_server_stub{impl: impl.(ImageScaler), addLoad: addLoad}
+			return scaler_server_stub{impl: impl.(ImageScaler), addLoad: addLoad}
 		},
 	})
 	codegen.Register(codegen.Registration{
@@ -50,29 +50,29 @@ func init() {
 		New:      func() any { return &sqlStore{} },
 		ConfigFn: func(i any) any { return i.(*sqlStore).WithConfig.Config() },
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer}
+			return sqlStore_local_stub{impl: impl.(SQLStore), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return sQLStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost"}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread"}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed"}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage"})}
+			return sqlStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost"}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread"}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed"}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return sQLStore_server_stub{impl: impl.(SQLStore), addLoad: addLoad}
+			return sqlStore_server_stub{impl: impl.(SQLStore), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type imageScaler_local_stub struct {
+type scaler_local_stub struct {
 	impl   ImageScaler
 	tracer trace.Tracer
 }
 
-func (s imageScaler_local_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
+func (s scaler_local_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.ImageScaler.Scale", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler.Scale", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -94,7 +94,7 @@ func (s localCache_local_stub) Get(ctx context.Context, a0 string) (r0 string, e
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.LocalCache.Get", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/LocalCache.Get", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -111,7 +111,7 @@ func (s localCache_local_stub) Put(ctx context.Context, a0 string, a1 string) (e
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.LocalCache.Put", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/LocalCache.Put", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -124,16 +124,16 @@ func (s localCache_local_stub) Put(ctx context.Context, a0 string, a1 string) (e
 	return s.impl.Put(ctx, a0, a1)
 }
 
-type sQLStore_local_stub struct {
+type sqlStore_local_stub struct {
 	impl   SQLStore
 	tracer trace.Tracer
 }
 
-func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
+func (s sqlStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.SQLStore.CreatePost", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.CreatePost", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -146,11 +146,11 @@ func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.
 	return s.impl.CreatePost(ctx, a0, a1, a2, a3)
 }
 
-func (s sQLStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
+func (s sqlStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.SQLStore.CreateThread", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.CreateThread", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -163,11 +163,11 @@ func (s sQLStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 tim
 	return s.impl.CreateThread(ctx, a0, a1, a2, a3, a4)
 }
 
-func (s sQLStore_local_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
+func (s sqlStore_local_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.SQLStore.GetFeed", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.GetFeed", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -180,11 +180,11 @@ func (s sQLStore_local_stub) GetFeed(ctx context.Context, a0 string) (r0 []Threa
 	return s.impl.GetFeed(ctx, a0)
 }
 
-func (s sQLStore_local_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
+func (s sqlStore_local_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.SQLStore.GetImage", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.GetImage", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -199,12 +199,12 @@ func (s sQLStore_local_stub) GetImage(ctx context.Context, a0 string, a1 ImageID
 
 // Client stub implementations.
 
-type imageScaler_client_stub struct {
+type scaler_client_stub struct {
 	stub         codegen.Stub
 	scaleMetrics *codegen.MethodMetrics
 }
 
-func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
+func (s scaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.scaleMetrics.Count.Add(1)
@@ -212,7 +212,7 @@ func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.ImageScaler.Scale", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler.Scale", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -279,7 +279,7 @@ func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.LocalCache.Get", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/LocalCache.Get", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -336,7 +336,7 @@ func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.LocalCache.Put", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/LocalCache.Put", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -386,7 +386,7 @@ func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (
 	return
 }
 
-type sQLStore_client_stub struct {
+type sqlStore_client_stub struct {
 	stub                codegen.Stub
 	createPostMetrics   *codegen.MethodMetrics
 	createThreadMetrics *codegen.MethodMetrics
@@ -394,7 +394,7 @@ type sQLStore_client_stub struct {
 	getImageMetrics     *codegen.MethodMetrics
 }
 
-func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
+func (s sqlStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	// Update metrics.
 	start := time.Now()
 	s.createPostMetrics.Count.Add(1)
@@ -402,7 +402,7 @@ func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.SQLStore.CreatePost", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.CreatePost", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -448,7 +448,7 @@ func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time
 	return
 }
 
-func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
+func (s sqlStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.createThreadMetrics.Count.Add(1)
@@ -456,7 +456,7 @@ func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 ti
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.SQLStore.CreateThread", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.CreateThread", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -504,7 +504,7 @@ func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 ti
 	return
 }
 
-func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
+func (s sqlStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.getFeedMetrics.Count.Add(1)
@@ -512,7 +512,7 @@ func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thre
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.SQLStore.GetFeed", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.GetFeed", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -561,7 +561,7 @@ func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thre
 	return
 }
 
-func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
+func (s sqlStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.getImageMetrics.Count.Add(1)
@@ -569,7 +569,7 @@ func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageI
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.SQLStore.GetImage", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/chat/SQLStore.GetImage", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -622,13 +622,13 @@ func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageI
 
 // Server stub implementations.
 
-type imageScaler_server_stub struct {
+type scaler_server_stub struct {
 	impl    ImageScaler
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s imageScaler_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s scaler_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Scale":
 		return s.scale
@@ -637,7 +637,7 @@ func (s imageScaler_server_stub) GetStubFn(method string) func(ctx context.Conte
 	}
 }
 
-func (s imageScaler_server_stub) scale(ctx context.Context, args []byte) (res []byte, err error) {
+func (s scaler_server_stub) scale(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -734,13 +734,13 @@ func (s localCache_server_stub) put(ctx context.Context, args []byte) (res []byt
 	return enc.Data(), nil
 }
 
-type sQLStore_server_stub struct {
+type sqlStore_server_stub struct {
 	impl    SQLStore
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s sQLStore_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s sqlStore_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "CreatePost":
 		return s.createPost
@@ -755,7 +755,7 @@ func (s sQLStore_server_stub) GetStubFn(method string) func(ctx context.Context,
 	}
 }
 
-func (s sQLStore_server_stub) createPost(ctx context.Context, args []byte) (res []byte, err error) {
+func (s sqlStore_server_stub) createPost(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -785,7 +785,7 @@ func (s sQLStore_server_stub) createPost(ctx context.Context, args []byte) (res 
 	return enc.Data(), nil
 }
 
-func (s sQLStore_server_stub) createThread(ctx context.Context, args []byte) (res []byte, err error) {
+func (s sqlStore_server_stub) createThread(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -818,7 +818,7 @@ func (s sQLStore_server_stub) createThread(ctx context.Context, args []byte) (re
 	return enc.Data(), nil
 }
 
-func (s sQLStore_server_stub) getFeed(ctx context.Context, args []byte) (res []byte, err error) {
+func (s sqlStore_server_stub) getFeed(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -843,7 +843,7 @@ func (s sQLStore_server_stub) getFeed(ctx context.Context, args []byte) (res []b
 	return enc.Data(), nil
 }
 
-func (s sQLStore_server_stub) getImage(ctx context.Context, args []byte) (res []byte, err error) {
+func (s sqlStore_server_stub) getImage(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

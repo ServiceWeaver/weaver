@@ -139,6 +139,36 @@ github.com/ServiceWeaver/weaver/examples/factors
     reflect
     strconv
     time
+github.com/ServiceWeaver/weaver/examples/greet
+    context
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/greet/greeter
+    github.com/ServiceWeaver/weaver/examples/greet/mandarin
+github.com/ServiceWeaver/weaver/examples/greet/english
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/greet/greeter
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+    time
+github.com/ServiceWeaver/weaver/examples/greet/greeter
+    context
+github.com/ServiceWeaver/weaver/examples/greet/mandarin
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/greet/greeter
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+    time
 github.com/ServiceWeaver/weaver/examples/hello
     context
     errors
@@ -693,6 +723,7 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/trace
     google.golang.org/protobuf/proto
     math
+    path/filepath
     reflect
     strings
     sync

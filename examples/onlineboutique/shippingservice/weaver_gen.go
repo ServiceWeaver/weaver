@@ -22,28 +22,28 @@ func init() {
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
 		New:         func() any { return &impl{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any { return impl_local_stub{impl: impl.(T), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, getQuoteMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "GetQuote"}), shipOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "ShipOrder"})}
+			return impl_client_stub{stub: stub, getQuoteMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "GetQuote"}), shipOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "ShipOrder"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return t_server_stub{impl: impl.(T), addLoad: addLoad}
+			return impl_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type t_local_stub struct {
+type impl_local_stub struct {
 	impl   T
 	tracer trace.Tracer
 }
 
-func (s t_local_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 money.T, err error) {
+func (s impl_local_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 money.T, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "shippingservice.T.GetQuote", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T.GetQuote", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -56,11 +56,11 @@ func (s t_local_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice
 	return s.impl.GetQuote(ctx, a0, a1)
 }
 
-func (s t_local_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 string, err error) {
+func (s impl_local_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 string, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "shippingservice.T.ShipOrder", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T.ShipOrder", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -75,13 +75,13 @@ func (s t_local_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservic
 
 // Client stub implementations.
 
-type t_client_stub struct {
+type impl_client_stub struct {
 	stub             codegen.Stub
 	getQuoteMetrics  *codegen.MethodMetrics
 	shipOrderMetrics *codegen.MethodMetrics
 }
 
-func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 money.T, err error) {
+func (s impl_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 money.T, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.getQuoteMetrics.Count.Add(1)
@@ -89,7 +89,7 @@ func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservic
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "shippingservice.T.GetQuote", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T.GetQuote", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -134,7 +134,7 @@ func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservic
 	return
 }
 
-func (s t_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 string, err error) {
+func (s impl_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 string, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.shipOrderMetrics.Count.Add(1)
@@ -142,7 +142,7 @@ func (s t_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservi
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "shippingservice.T.ShipOrder", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T.ShipOrder", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -189,13 +189,13 @@ func (s t_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservi
 
 // Server stub implementations.
 
-type t_server_stub struct {
+type impl_server_stub struct {
 	impl    T
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s impl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "GetQuote":
 		return s.getQuote
@@ -206,7 +206,7 @@ func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args [
 	}
 }
 
-func (s t_server_stub) getQuote(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) getQuote(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -233,7 +233,7 @@ func (s t_server_stub) getQuote(ctx context.Context, args []byte) (res []byte, e
 	return enc.Data(), nil
 }
 
-func (s t_server_stub) shipOrder(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) shipOrder(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

@@ -21,28 +21,28 @@ func init() {
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
 		New:         func() any { return &impl{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any { return impl_local_stub{impl: impl.(T), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, placeOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T", Method: "PlaceOrder"})}
+			return impl_client_stub{stub: stub, placeOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T", Method: "PlaceOrder"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return t_server_stub{impl: impl.(T), addLoad: addLoad}
+			return impl_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type t_local_stub struct {
+type impl_local_stub struct {
 	impl   T
 	tracer trace.Tracer
 }
 
-func (s t_local_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 types.Order, err error) {
+func (s impl_local_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 types.Order, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "checkoutservice.T.PlaceOrder", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T.PlaceOrder", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -57,12 +57,12 @@ func (s t_local_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 
 
 // Client stub implementations.
 
-type t_client_stub struct {
+type impl_client_stub struct {
 	stub              codegen.Stub
 	placeOrderMetrics *codegen.MethodMetrics
 }
 
-func (s t_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 types.Order, err error) {
+func (s impl_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 types.Order, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.placeOrderMetrics.Count.Add(1)
@@ -70,7 +70,7 @@ func (s t_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "checkoutservice.T.PlaceOrder", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T.PlaceOrder", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -116,13 +116,13 @@ func (s t_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0
 
 // Server stub implementations.
 
-type t_server_stub struct {
+type impl_server_stub struct {
 	impl    T
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s impl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PlaceOrder":
 		return s.placeOrder
@@ -131,7 +131,7 @@ func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args [
 	}
 }
 
-func (s t_server_stub) placeOrder(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) placeOrder(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

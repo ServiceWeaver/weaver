@@ -17,9 +17,9 @@
 // codegen.Register(codegen.Registration{
 // Routed:
 // true,
-// _hashFoo(r.M(ctx))
-// func _hashFoo(r int) uint64
-// func _orderedCodeFoo(r int)
+// _hashImpl(r.M(ctx))
+// func _hashImpl(r int) uint64
+// func _orderedCodeImpl(r int)
 
 // UNEXPECTED
 // Preallocate

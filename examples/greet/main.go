@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: Duplicate implementation for component foo/Adder
-package foo
+package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/examples/greet/greeter"
+	_ "github.com/ServiceWeaver/weaver/examples/greet/mandarin"
+	// _ "github.com/ServiceWeaver/weaver/examples/greet/english"
 )
 
-type Adder interface {
-	Add(context.Context, int, int) (int, error)
-}
+//go:generate ../../cmd/weaver/weaver generate ./...
 
-type first struct {
-	weaver.Implements[Adder]
-}
-
-func (f *first) Add(_ context.Context, x, y int) (int, error) {
-	return x + y, nil
-}
-
-type second struct {
-	weaver.Implements[Adder]
-}
-
-func (s *second) Add(_ context.Context, x, y int) (int, error) {
-	return x + y, nil
+func main() {
+	ctx := context.Background()
+	root := weaver.Init(ctx)
+	greeter, err := weaver.Get[greeter.Greeter](root)
+	if err != nil {
+		panic(err)
+	}
+	greeting, err := greeter.Greet(ctx, "World")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(greeting)
 }

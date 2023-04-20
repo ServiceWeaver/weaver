@@ -43,7 +43,7 @@ func (s factorer_local_stub) Factors(ctx context.Context, a0 int) (r0 []int, err
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Factorer.Factors", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/factors/Factorer.Factors", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -71,7 +71,7 @@ func (s factorer_client_stub) Factors(ctx context.Context, a0 int) (r0 []int, er
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Factorer.Factors", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/factors/Factorer.Factors", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

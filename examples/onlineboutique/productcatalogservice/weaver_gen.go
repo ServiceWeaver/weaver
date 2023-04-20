@@ -20,28 +20,28 @@ func init() {
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
 		New:         func() any { return &impl{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any { return impl_local_stub{impl: impl.(T), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, getProductMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "GetProduct"}), listProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "ListProducts"}), searchProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "SearchProducts"})}
+			return impl_client_stub{stub: stub, getProductMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "GetProduct"}), listProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "ListProducts"}), searchProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "SearchProducts"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return t_server_stub{impl: impl.(T), addLoad: addLoad}
+			return impl_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type t_local_stub struct {
+type impl_local_stub struct {
 	impl   T
 	tracer trace.Tracer
 }
 
-func (s t_local_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, err error) {
+func (s impl_local_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "productcatalogservice.T.GetProduct", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T.GetProduct", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -54,11 +54,11 @@ func (s t_local_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, er
 	return s.impl.GetProduct(ctx, a0)
 }
 
-func (s t_local_stub) ListProducts(ctx context.Context) (r0 []Product, err error) {
+func (s impl_local_stub) ListProducts(ctx context.Context) (r0 []Product, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "productcatalogservice.T.ListProducts", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T.ListProducts", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -71,11 +71,11 @@ func (s t_local_stub) ListProducts(ctx context.Context) (r0 []Product, err error
 	return s.impl.ListProducts(ctx)
 }
 
-func (s t_local_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Product, err error) {
+func (s impl_local_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Product, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "productcatalogservice.T.SearchProducts", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T.SearchProducts", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -90,14 +90,14 @@ func (s t_local_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Produ
 
 // Client stub implementations.
 
-type t_client_stub struct {
+type impl_client_stub struct {
 	stub                  codegen.Stub
 	getProductMetrics     *codegen.MethodMetrics
 	listProductsMetrics   *codegen.MethodMetrics
 	searchProductsMetrics *codegen.MethodMetrics
 }
 
-func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, err error) {
+func (s impl_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.getProductMetrics.Count.Add(1)
@@ -105,7 +105,7 @@ func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, e
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "productcatalogservice.T.GetProduct", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T.GetProduct", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -154,7 +154,7 @@ func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, e
 	return
 }
 
-func (s t_client_stub) ListProducts(ctx context.Context) (r0 []Product, err error) {
+func (s impl_client_stub) ListProducts(ctx context.Context) (r0 []Product, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.listProductsMetrics.Count.Add(1)
@@ -162,7 +162,7 @@ func (s t_client_stub) ListProducts(ctx context.Context) (r0 []Product, err erro
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "productcatalogservice.T.ListProducts", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T.ListProducts", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -203,7 +203,7 @@ func (s t_client_stub) ListProducts(ctx context.Context) (r0 []Product, err erro
 	return
 }
 
-func (s t_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Product, err error) {
+func (s impl_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Product, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.searchProductsMetrics.Count.Add(1)
@@ -211,7 +211,7 @@ func (s t_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Prod
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "productcatalogservice.T.SearchProducts", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T.SearchProducts", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -262,13 +262,13 @@ func (s t_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Prod
 
 // Server stub implementations.
 
-type t_server_stub struct {
+type impl_server_stub struct {
 	impl    T
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s impl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "GetProduct":
 		return s.getProduct
@@ -281,7 +281,7 @@ func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args [
 	}
 }
 
-func (s t_server_stub) getProduct(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) getProduct(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -306,7 +306,7 @@ func (s t_server_stub) getProduct(ctx context.Context, args []byte) (res []byte,
 	return enc.Data(), nil
 }
 
-func (s t_server_stub) listProducts(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) listProducts(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -326,7 +326,7 @@ func (s t_server_stub) listProducts(ctx context.Context, args []byte) (res []byt
 	return enc.Data(), nil
 }
 
-func (s t_server_stub) searchProducts(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) searchProducts(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

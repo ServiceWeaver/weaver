@@ -54,7 +54,7 @@ func (s started_local_stub) MarkStarted(ctx context.Context, a0 string) (err err
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "deploy.Started.MarkStarted", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started.MarkStarted", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -76,7 +76,7 @@ func (s widget_local_stub) Use(ctx context.Context, a0 string) (err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "deploy.Widget.Use", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget.Use", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -104,7 +104,7 @@ func (s started_client_stub) MarkStarted(ctx context.Context, a0 string) (err er
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "deploy.Started.MarkStarted", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started.MarkStarted", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -165,7 +165,7 @@ func (s widget_client_stub) Use(ctx context.Context, a0 string) (err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "deploy.Widget.Use", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget.Use", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

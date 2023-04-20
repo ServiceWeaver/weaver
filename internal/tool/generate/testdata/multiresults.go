@@ -14,8 +14,8 @@
 
 // EXPECTED
 // package foo
-// type foo_client_stub struct
-// type foo_server_stub struct
+// type impl_client_stub struct
+// type impl_server_stub struct
 // A(ctx context.Context) (r0 string, r1 int, r2 Bar, err error)
 // results, err = s.stub.Run(ctx, 0, nil, shardKey)
 // r0 = dec.String()

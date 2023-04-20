@@ -20,29 +20,29 @@ func init() {
 		Iface: reflect.TypeOf((*PingPonger)(nil)).Elem(),
 		New:   func() any { return &impl{} },
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return pingPonger_local_stub{impl: impl.(PingPonger), tracer: tracer}
+			return impl_local_stub{impl: impl.(PingPonger), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return pingPonger_client_stub{stub: stub, pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger", Method: "Ping"})}
+			return impl_client_stub{stub: stub, pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger", Method: "Ping"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return pingPonger_server_stub{impl: impl.(PingPonger), addLoad: addLoad}
+			return impl_server_stub{impl: impl.(PingPonger), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type pingPonger_local_stub struct {
+type impl_local_stub struct {
 	impl   PingPonger
 	tracer trace.Tracer
 }
 
-func (s pingPonger_local_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
+func (s impl_local_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "protos.PingPonger.Ping", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger.Ping", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -57,12 +57,12 @@ func (s pingPonger_local_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, er
 
 // Client stub implementations.
 
-type pingPonger_client_stub struct {
+type impl_client_stub struct {
 	stub        codegen.Stub
 	pingMetrics *codegen.MethodMetrics
 }
 
-func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
+func (s impl_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.pingMetrics.Count.Add(1)
@@ -70,7 +70,7 @@ func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, e
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "protos.PingPonger.Ping", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger.Ping", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -116,13 +116,13 @@ func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, e
 
 // Server stub implementations.
 
-type pingPonger_server_stub struct {
+type impl_server_stub struct {
 	impl    PingPonger
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s pingPonger_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s impl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Ping":
 		return s.ping
@@ -131,7 +131,7 @@ func (s pingPonger_server_stub) GetStubFn(method string) func(ctx context.Contex
 	}
 }
 
-func (s pingPonger_server_stub) ping(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) ping(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

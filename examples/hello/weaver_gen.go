@@ -54,7 +54,7 @@ func (s cache_local_stub) Get(ctx context.Context, a0 string) (r0 string, err er
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Cache.Get", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/hello/Cache.Get", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -71,7 +71,7 @@ func (s cache_local_stub) Set(ctx context.Context, a0 string, a1 string) (err er
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Cache.Set", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/hello/Cache.Set", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -93,7 +93,7 @@ func (s reverser_local_stub) Reverse(ctx context.Context, a0 string) (r0 string,
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Reverser.Reverse", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/hello/Reverser.Reverse", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -122,7 +122,7 @@ func (s cache_client_stub) Get(ctx context.Context, a0 string) (r0 string, err e
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Cache.Get", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/hello/Cache.Get", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -179,7 +179,7 @@ func (s cache_client_stub) Set(ctx context.Context, a0 string, a1 string) (err e
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Cache.Set", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/hello/Cache.Set", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -242,7 +242,7 @@ func (s reverser_client_stub) Reverse(ctx context.Context, a0 string) (r0 string
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Reverser.Reverse", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/hello/Reverser.Reverse", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

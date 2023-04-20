@@ -20,28 +20,28 @@ func init() {
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
 		New:         func() any { return &impl{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any { return impl_local_stub{impl: impl.(T), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, getAdsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice/T", Method: "GetAds"})}
+			return impl_client_stub{stub: stub, getAdsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice/T", Method: "GetAds"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return t_server_stub{impl: impl.(T), addLoad: addLoad}
+			return impl_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type t_local_stub struct {
+type impl_local_stub struct {
 	impl   T
 	tracer trace.Tracer
 }
 
-func (s t_local_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err error) {
+func (s impl_local_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "adservice.T.GetAds", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice/T.GetAds", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -56,12 +56,12 @@ func (s t_local_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err err
 
 // Client stub implementations.
 
-type t_client_stub struct {
+type impl_client_stub struct {
 	stub          codegen.Stub
 	getAdsMetrics *codegen.MethodMetrics
 }
 
-func (s t_client_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err error) {
+func (s impl_client_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.getAdsMetrics.Count.Add(1)
@@ -69,7 +69,7 @@ func (s t_client_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err er
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "adservice.T.GetAds", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice/T.GetAds", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -115,13 +115,13 @@ func (s t_client_stub) GetAds(ctx context.Context, a0 []string) (r0 []Ad, err er
 
 // Server stub implementations.
 
-type t_server_stub struct {
+type impl_server_stub struct {
 	impl    T
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s impl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "GetAds":
 		return s.getAds
@@ -130,7 +130,7 @@ func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args [
 	}
 }
 
-func (s t_server_stub) getAds(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) getAds(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

@@ -52,7 +52,7 @@ func (s even_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Even.Do", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/collatz/Even.Do", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -74,7 +74,7 @@ func (s odd_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Odd.Do", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/collatz/Odd.Do", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -102,7 +102,7 @@ func (s even_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Even.Do", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/collatz/Even.Do", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -164,7 +164,7 @@ func (s odd_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Odd.Do", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/collatz/Odd.Do", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

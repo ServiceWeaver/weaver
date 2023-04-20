@@ -55,7 +55,7 @@ func (s destination_local_stub) GetAll(ctx context.Context, a0 string) (r0 []str
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "simple.Destination.GetAll", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.GetAll", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -72,7 +72,7 @@ func (s destination_local_stub) Getpid(ctx context.Context) (r0 int, err error) 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "simple.Destination.Getpid", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.Getpid", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -89,7 +89,7 @@ func (s destination_local_stub) Record(ctx context.Context, a0 string, a1 string
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "simple.Destination.Record", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.Record", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -106,7 +106,7 @@ func (s destination_local_stub) RoutedRecord(ctx context.Context, a0 string, a1 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "simple.Destination.RoutedRecord", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.RoutedRecord", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -128,7 +128,7 @@ func (s source_local_stub) Emit(ctx context.Context, a0 string, a1 string) (err 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "simple.Source.Emit", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source.Emit", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -159,7 +159,7 @@ func (s destination_client_stub) GetAll(ctx context.Context, a0 string) (r0 []st
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "simple.Destination.GetAll", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.GetAll", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -216,7 +216,7 @@ func (s destination_client_stub) Getpid(ctx context.Context) (r0 int, err error)
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "simple.Destination.Getpid", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.Getpid", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -265,7 +265,7 @@ func (s destination_client_stub) Record(ctx context.Context, a0 string, a1 strin
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "simple.Destination.Record", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.Record", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -323,7 +323,7 @@ func (s destination_client_stub) RoutedRecord(ctx context.Context, a0 string, a1
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "simple.Destination.RoutedRecord", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination.RoutedRecord", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -389,7 +389,7 @@ func (s source_client_stub) Emit(ctx context.Context, a0 string, a1 string) (err
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "simple.Source.Emit", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source.Emit", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

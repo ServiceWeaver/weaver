@@ -16,33 +16,31 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp",
-		Iface: reflect.TypeOf((*testApp)(nil)).Elem(),
-		New:   func() any { return &impl{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return testApp_local_stub{impl: impl.(testApp), tracer: tracer}
-		},
+		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp",
+		Iface:       reflect.TypeOf((*testApp)(nil)).Elem(),
+		New:         func() any { return &impl{} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any { return impl_local_stub{impl: impl.(testApp), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return testApp_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get"}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer"})}
+			return impl_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get"}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return testApp_server_stub{impl: impl.(testApp), addLoad: addLoad}
+			return impl_server_stub{impl: impl.(testApp), addLoad: addLoad}
 		},
 	})
 }
 
 // Local stub implementations.
 
-type testApp_local_stub struct {
+type impl_local_stub struct {
 	impl   testApp
 	tracer trace.Tracer
 }
 
-func (s testApp_local_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
+func (s impl_local_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "generate.testApp.Get", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp.Get", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -55,11 +53,11 @@ func (s testApp_local_stub) Get(ctx context.Context, a0 string, a1 behaviorType)
 	return s.impl.Get(ctx, a0, a1)
 }
 
-func (s testApp_local_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, err error) {
+func (s impl_local_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "generate.testApp.IncPointer", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp.IncPointer", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -74,13 +72,13 @@ func (s testApp_local_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, e
 
 // Client stub implementations.
 
-type testApp_client_stub struct {
+type impl_client_stub struct {
 	stub              codegen.Stub
 	getMetrics        *codegen.MethodMetrics
 	incPointerMetrics *codegen.MethodMetrics
 }
 
-func (s testApp_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
+func (s impl_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.getMetrics.Count.Add(1)
@@ -88,7 +86,7 @@ func (s testApp_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "generate.testApp.Get", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp.Get", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -139,7 +137,7 @@ func (s testApp_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType
 	return
 }
 
-func (s testApp_client_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, err error) {
+func (s impl_client_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, err error) {
 	// Update metrics.
 	start := time.Now()
 	s.incPointerMetrics.Count.Add(1)
@@ -147,7 +145,7 @@ func (s testApp_client_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "generate.testApp.IncPointer", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp.IncPointer", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -198,13 +196,13 @@ func (s testApp_client_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, 
 
 // Server stub implementations.
 
-type testApp_server_stub struct {
+type impl_server_stub struct {
 	impl    testApp
 	addLoad func(key uint64, load float64)
 }
 
 // GetStubFn implements the stub.Server interface.
-func (s testApp_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s impl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Get":
 		return s.get
@@ -215,7 +213,7 @@ func (s testApp_server_stub) GetStubFn(method string) func(ctx context.Context, 
 	}
 }
 
-func (s testApp_server_stub) get(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) get(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -242,7 +240,7 @@ func (s testApp_server_stub) get(ctx context.Context, args []byte) (res []byte, 
 	return enc.Data(), nil
 }
 
-func (s testApp_server_stub) incPointer(ctx context.Context, args []byte) (res []byte, err error) {
+func (s impl_server_stub) incPointer(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {

@@ -67,7 +67,7 @@ func (s errer_local_stub) Err(ctx context.Context, a0 int) (err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Errer.Err", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer.Err", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -89,7 +89,7 @@ func (s failer_local_stub) ImJustHereSoWeaverGenerateDoesntComplain(ctx context.
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Failer.ImJustHereSoWeaverGenerateDoesntComplain", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer.ImJustHereSoWeaverGenerateDoesntComplain", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -111,7 +111,7 @@ func (s pointer_local_stub) Get(ctx context.Context) (r0 Pair, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Pointer.Get", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer.Get", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -139,7 +139,7 @@ func (s errer_client_stub) Err(ctx context.Context, a0 int) (err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Errer.Err", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer.Err", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -200,7 +200,7 @@ func (s failer_client_stub) ImJustHereSoWeaverGenerateDoesntComplain(ctx context
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Failer.ImJustHereSoWeaverGenerateDoesntComplain", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer.ImJustHereSoWeaverGenerateDoesntComplain", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -253,7 +253,7 @@ func (s pointer_client_stub) Get(ctx context.Context) (r0 Pair, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Pointer.Get", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer.Get", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

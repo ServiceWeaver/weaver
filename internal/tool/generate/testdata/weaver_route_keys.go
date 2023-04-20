@@ -16,8 +16,8 @@
 // addLoad
 // Routed:
 // true,
-// func _hashFoo(r fooKey) uint64
-// func _orderedCodeFoo(r fooKey) codegen.OrderedCode
+// func _hashImpl(r fooKey) uint64
+// func _orderedCodeImpl(r fooKey) codegen.OrderedCode
 
 // Service Weaver route keys.
 package foo

@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: Duplicate implementation for component foo/Adder
-package foo
+package english
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/examples/greet/greeter"
 )
 
-type Adder interface {
-	Add(context.Context, int, int) (int, error)
+type english struct {
+	weaver.Implements[greeter.Greeter]
 }
 
-type first struct {
-	weaver.Implements[Adder]
-}
-
-func (f *first) Add(_ context.Context, x, y int) (int, error) {
-	return x + y, nil
-}
-
-type second struct {
-	weaver.Implements[Adder]
-}
-
-func (s *second) Add(_ context.Context, x, y int) (int, error) {
-	return x + y, nil
+func (e *english) Greet(_ context.Context, name string) (string, error) {
+	return fmt.Sprintf("Hello, %s!", name), nil
 }

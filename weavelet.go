@@ -502,7 +502,7 @@ func (w *weavelet) getComponent(name string) (*component, error) {
 	// within d.components are modified, d.components itself is read-only.
 	c, ok := w.componentsByName[name]
 	if !ok {
-		return nil, fmt.Errorf("component %q was not registered; maybe you forgot to run weaver generate", name)
+		return nil, fmt.Errorf("component %q was not registered. Maybe you forgot to run weaver generate? Or maybe you imported the component interface but did not link in a corresponding implementation (i.e. a struct that embeds weaver.Implements[%s])?", name, name)
 	}
 	return c, nil
 }
@@ -513,7 +513,7 @@ func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
 	// referenced by d.byType are modified, d.byType itself is read-only.
 	c, ok := w.componentsByType[t]
 	if !ok {
-		return nil, fmt.Errorf("component of type %v was not registered; maybe you forgot to run weaver generate", t)
+		return nil, fmt.Errorf("component %q was not registered. Maybe you forgot to run weaver generate? Or maybe you imported the component interface but did not link in a corresponding implementation (i.e. a struct that embeds weaver.Implements[%s])?", t, t.Name())
 	}
 	return c, nil
 }

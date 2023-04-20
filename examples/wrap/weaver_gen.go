@@ -42,7 +42,7 @@ func (s wrapper_local_stub) Wrap(ctx context.Context, a0 string, a1 int) (r0 str
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.Wrapper.Wrap", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "github.com/ServiceWeaver/weaver/examples/wrap/Wrapper.Wrap", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -70,7 +70,7 @@ func (s wrapper_client_stub) Wrap(ctx context.Context, a0 string, a1 int) (r0 st
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.Wrapper.Wrap", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "github.com/ServiceWeaver/weaver/examples/wrap/Wrapper.Wrap", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {

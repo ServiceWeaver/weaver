@@ -105,8 +105,12 @@ func newTypeSet(pkg *packages.Package, automarshals, automarshalCandidates *type
 // importPackage imports a package with the provided path and package name. The
 // package is imported with an alias if there is a package name clash.
 func (tset *typeSet) importPackage(path, pkg string) importPkg {
-	newImportPkg := func(path, pkg, alias string, local bool) importPkg {
-		i := importPkg{path: path, pkg: pkg, alias: alias, local: local}
+	if path == tset.pkg.PkgPath {
+		return importPkg{path: path, pkg: pkg, alias: "", local: true}
+	}
+
+	newImportPkg := func(path, pkg, alias string) importPkg {
+		i := importPkg{path: path, pkg: pkg, alias: alias, local: false}
 		tset.imported = append(tset.imported, i)
 		tset.importedByPath[i.path] = i
 		tset.importedByName[i.name()] = i
@@ -120,7 +124,7 @@ func (tset *typeSet) importPackage(path, pkg string) importPkg {
 
 	if _, ok := tset.importedByName[pkg]; !ok {
 		// Import the package without an alias.
-		return newImportPkg(path, pkg, "", path == tset.pkg.PkgPath)
+		return newImportPkg(path, pkg, "")
 	}
 
 	// Find an unused alias.
@@ -133,7 +137,7 @@ func (tset *typeSet) importPackage(path, pkg string) importPkg {
 		}
 		counter++
 	}
-	return newImportPkg(path, pkg, alias, path == tset.pkg.PkgPath)
+	return newImportPkg(path, pkg, alias)
 }
 
 // imports returns the list of packages to import in generated code.

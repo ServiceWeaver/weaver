@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: type outside the current package
-package foo
+package greeter
 
-import (
-	"io"
+import "context"
 
-	"github.com/ServiceWeaver/weaver"
-)
-
-type foo struct{ weaver.Implements[io.Reader] }
+type Greeter interface {
+	Greet(ctx context.Context, name string) (string, error)
+}
