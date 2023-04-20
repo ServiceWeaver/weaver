@@ -72,7 +72,7 @@ func (s *server) label(r *http.Request) string {
 	}
 
 	switch r.URL.Path {
-	case "/", "/thumbnail", "/newthread", "/newpost", "/healthz":
+	case "/", "/thumbnail", "/newthread", "/newpost", weaver.HealthzURL:
 		return r.URL.Path
 	default:
 		return "unknown"
@@ -96,7 +96,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.newThread(w, r, user)
 	case "/newpost":
 		s.newPost(w, r, user)
-	case "/healthz":
+	case weaver.HealthzURL:
 		// Returns OK status.
 	default:
 		http.Error(w, "not found", http.StatusNotFound)

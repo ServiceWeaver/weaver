@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sync"
 
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
@@ -42,27 +43,52 @@ import (
 //go:generate ./dev/protoc.sh runtime/protos/config.proto
 //go:generate ./dev/writedeps.sh
 
-// RemoteCallError indicates that a remote component method call failed to
-// execute properly. This can happen, for example, because of a failed machine
-// or a network partition. Here's an illustrative example:
-//
-//	// Call the foo.Foo method.
-//	err := foo.Foo(ctx)
-//	if errors.Is(err, weaver.RemoteCallError) {
-//	    // foo.Foo did not execute properly.
-//	} else if err != nil {
-//	    // foo.Foo executed properly, but returned an error.
-//	} else {
-//	    // foo.Foo executed properly and did not return an error.
-//	}
-//
-// Note that if a method call returns an error with an embedded
-// RemoteCallError, it does NOT mean that the method never executed. The method
-// may have executed partially or fully. Thus, you must be careful retrying
-// method calls that result in a RemoteCallError. Ensuring that all methods are
-// either read-only or idempotent is one way to ensure safe retries, for
-// example.
-var RemoteCallError = errors.New("Service Weaver remote call error")
+var (
+	// RemoteCallError indicates that a remote component method call failed to
+	// execute properly. This can happen, for example, because of a failed
+	// machine or a network partition. Here's an illustrative example:
+	//
+	//	// Call the foo.Foo method.
+	//	err := foo.Foo(ctx)
+	//	if errors.Is(err, weaver.RemoteCallError) {
+	//	    // foo.Foo did not execute properly.
+	//	} else if err != nil {
+	//	    // foo.Foo executed properly, but returned an error.
+	//	} else {
+	//	    // foo.Foo executed properly and did not return an error.
+	//	}
+	//
+	// Note that if a method call returns an error with an embedded
+	// RemoteCallError, it does NOT mean that the method never executed. The
+	// method may have executed partially or fully. Thus, you must be careful
+	// retrying method calls that result in a RemoteCallError. Ensuring that all
+	// methods are either read-only or idempotent is one way to ensure safe
+	// retries, for example.
+	RemoteCallError = errors.New("Service Weaver remote call error")
+
+	// HealthzHandler is a health-check handler that returns an OK status for
+	// all incoming HTTP requests.
+	HealthzHandler = func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintf(w, "OK")
+	}
+)
+
+const (
+	// HealthzURL is the URL path on which Service Weaver performs health
+	// checks. Every application HTTP server must register a handler for this
+	// URL path, e.g.:
+	//
+	//   mux := http.NewServeMux()
+	//   mux.HandleFunc(weaver.HealthzURL, func(http.ResponseWriter, *http.Request) {
+	//	   ...
+	//   })
+	//
+	// As a convenience, Service Weaver registers HealthzHandler under
+	// this URL path in the default ServerMux, i.e.:
+	//
+	//  http.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
+	HealthzURL = "/debug/weaver/healthz"
+)
 
 // mainIface is an empty interface "implemented" by the user main function,
 // allowing us to treat the user main as a regular Service Weaver component in the
@@ -84,23 +110,29 @@ func init() {
 		ClientStubFn: func(codegen.Stub, string) any { return nil },
 		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
 	})
-
-	// Add a trivial /healthz handler to the default mux.
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("ok")) //nolint:errcheck // response write error
-	})
 }
 
-// Init initializes the execution of a process involved in a Service Weaver application.
+var healthzInit sync.Once
+
+// Init initializes the execution of a process involved in a Service Weaver
+// application.
 //
-// Components in a Service Weaver application are executed in a set of processes, potentially
-// spread across many machines. Each process executes the same binary and must
-// call [weaver.Init]. If this process is hosting the "main" component, Init will return
-// a handle to the main component implementation for this process.
+// Components in a Service Weaver application are executed in a set of
+// processes, potentially spread across many machines. Each process executes the
+// same binary and must call [weaver.Init]. If this process is hosting the
+// "main" component, Init will return a handle to the main component
+// implementation for this process.
 //
-// If this process is not hosting the "main" component, Init will never return and will
-// just serve requests directed at the components being hosted inside the process.
+// If this process is not hosting the "main" component, Init will never return
+// and will just serve requests directed at the components being hosted inside
+// the process.
 func Init(ctx context.Context) Instance {
+	// Register HealthzHandler in the default ServerMux.
+	healthzInit.Do(func() {
+		http.HandleFunc(HealthzURL, HealthzHandler)
+	})
+
+	// Initialize execution.
 	root, err := initInternal(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, fmt.Errorf("error initializing Service Weaver: %w", err))

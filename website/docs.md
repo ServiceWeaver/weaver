@@ -1879,67 +1879,18 @@ public_listener = [
 ]
 ```
 
-The `[serviceweaver]` section of the config file specifies the compiled Service Weaver binary.
-The `[gke]` section configures the regions where the application is deployed
-(`us-west1` in this example). It also declares which listeners should be
-**public**, i.e., which listeners should be accessible from the public internet.
-By default, all listeners are **private**, i.e., accessible only from the cloud
-project's internal network. In our example, we declare that the `hello` listener
-is public.
+The `[serviceweaver]` section of the config file specifies the compiled Service
+Weaver binary. The `[gke]` section configures the regions where the application
+is deployed (`us-west1` in this example). It also declares which listeners
+should be **public**, i.e., which listeners should be accessible from the public
+internet. By default, all listeners are **private**, i.e., accessible only from
+the cloud project's internal network. In our example, we declare that the
+`hello` listener is public.
 
 All listeners deployed to GKE are configured to be health-checked by GKE
-load-balancers on the `/healthz` HTTP path. To make the `hello` application
-compatible with these health checks, augment the application code to have
-the HTTP server return status `200` on the `/healthz` endpoint:
-
-```
-package main
-
-import (
-    "context"
-    "fmt"
-    "log"
-    "net/http"
-
-    "github.com/ServiceWeaver/weaver"
-)
-
-func main() {
-    // Initialize the Service Weaver application.
-    root := weaver.Init(context.Background())
-
-    // Get a client to the Reverser component.
-    reverser, err := weaver.Get[Reverser](root)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Get a network listener on address "localhost:12345".
-    opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-    lis, err := root.Listener("hello", opts)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Printf("hello listener available on %v\n", lis)
-
-    // Serve the /hello endpoint.
-    http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-        reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-        fmt.Fprintf(w, "Hello, %s!\n", reversed)
-    })
-
-    // Serve Health Check endpoint.
-    http.HandleFunc("/healthz", func(writer http.ResponseWriter, request *http.Request) {
-        fmt.Fprintf(writer, "OK")
-    })
-
-    http.Serve(lis, nil)
-}
-```
+load-balancers on the `/debug/weaver/healthz` URL path. ServiceWeaver
+automatically registers a health-check handler under this URL path in the
+default ServerMux, so the `hello` application requires no changes.
 
 Deploy the application using `weaver gke deploy`:
 

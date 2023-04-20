@@ -68,11 +68,7 @@ func main() {
 			}
 			fmt.Fprintln(w, reversed)
 		}))
-
-	// Serve the /healthz endpoint.
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "OK")
-	})
+	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 
 	handler := otelhttp.NewHandler(&mux, "http")
 	http.Serve(lis, handler)
