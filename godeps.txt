@@ -346,26 +346,6 @@ github.com/ServiceWeaver/weaver/examples/reverser
     net/http
     reflect
     time
-github.com/ServiceWeaver/weaver/examples/wrap
-    bufio
-    context
-    embed
-    errors
-    flag
-    fmt
-    github.com/ServiceWeaver/weaver
-    github.com/ServiceWeaver/weaver/metrics
-    github.com/ServiceWeaver/weaver/runtime/codegen
-    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
-    go.opentelemetry.io/otel/codes
-    go.opentelemetry.io/otel/trace
-    log
-    net/http
-    reflect
-    strconv
-    strings
-    time
-    unicode
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
     errors
