@@ -24,7 +24,7 @@ func init() {
 			return destination_local_stub{impl: impl.(Destination), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return destination_client_stub{stub: stub, getpidMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Getpid"}), recordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Record"}), getAllMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "GetAll"}), routedRecordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "RoutedRecord"})}
+			return destination_client_stub{stub: stub, getAllMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "GetAll"}), getpidMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Getpid"}), recordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Record"}), routedRecordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "RoutedRecord"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return destination_server_stub{impl: impl.(Destination), addLoad: addLoad}
@@ -49,6 +49,23 @@ func init() {
 type destination_local_stub struct {
 	impl   Destination
 	tracer trace.Tracer
+}
+
+func (s destination_local_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "simple.Destination.GetAll", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.GetAll(ctx, a0)
 }
 
 func (s destination_local_stub) Getpid(ctx context.Context) (r0 int, err error) {
@@ -83,23 +100,6 @@ func (s destination_local_stub) Record(ctx context.Context, a0 string, a1 string
 	}
 
 	return s.impl.Record(ctx, a0, a1)
-}
-
-func (s destination_local_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "simple.Destination.GetAll", trace.WithSpanKind(trace.SpanKindInternal))
-		defer func() {
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-			}
-			span.End()
-		}()
-	}
-
-	return s.impl.GetAll(ctx, a0)
 }
 
 func (s destination_local_stub) RoutedRecord(ctx context.Context, a0 string, a1 string) (err error) {
@@ -145,10 +145,67 @@ func (s source_local_stub) Emit(ctx context.Context, a0 string, a1 string) (err 
 
 type destination_client_stub struct {
 	stub                codegen.Stub
+	getAllMetrics       *codegen.MethodMetrics
 	getpidMetrics       *codegen.MethodMetrics
 	recordMetrics       *codegen.MethodMetrics
-	getAllMetrics       *codegen.MethodMetrics
 	routedRecordMetrics *codegen.MethodMetrics
+}
+
+func (s destination_client_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
+	// Update metrics.
+	start := time.Now()
+	s.getAllMetrics.Count.Add(1)
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "simple.Destination.GetAll", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			s.getAllMetrics.ErrorCount.Add(1)
+		}
+		span.End()
+
+		s.getAllMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
+	}()
+
+	// Preallocate a buffer of the right size.
+	size := 0
+	size += (4 + len(a0))
+	enc := codegen.NewEncoder()
+	enc.Reset(size)
+
+	// Encode arguments.
+	enc.String(a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	s.getAllMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+	s.getAllMetrics.BytesReply.Put(float64(len(results)))
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_slice_string_4af10117(dec)
+	err = dec.Error()
+	return
 }
 
 func (s destination_client_stub) Getpid(ctx context.Context) (r0 int, err error) {
@@ -254,63 +311,6 @@ func (s destination_client_stub) Record(ctx context.Context, a0 string, a1 strin
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
-	err = dec.Error()
-	return
-}
-
-func (s destination_client_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
-	// Update metrics.
-	start := time.Now()
-	s.getAllMetrics.Count.Add(1)
-
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "simple.Destination.GetAll", trace.WithSpanKind(trace.SpanKindClient))
-	}
-
-	defer func() {
-		// Catch and return any panics detected during encoding/decoding/rpc.
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-			if err != nil {
-				err = errors.Join(weaver.RemoteCallError, err)
-			}
-		}
-
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			s.getAllMetrics.ErrorCount.Add(1)
-		}
-		span.End()
-
-		s.getAllMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
-	}()
-
-	// Preallocate a buffer of the right size.
-	size := 0
-	size += (4 + len(a0))
-	enc := codegen.NewEncoder()
-	enc.Reset(size)
-
-	// Encode arguments.
-	enc.String(a0)
-	var shardKey uint64
-
-	// Call the remote method.
-	s.getAllMetrics.BytesRequest.Put(float64(len(enc.Data())))
-	var results []byte
-	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
-	if err != nil {
-		err = errors.Join(weaver.RemoteCallError, err)
-		return
-	}
-	s.getAllMetrics.BytesReply.Put(float64(len(results)))
-
-	// Decode the results.
-	dec := codegen.NewDecoder(results)
-	r0 = serviceweaver_dec_slice_string_4af10117(dec)
 	err = dec.Error()
 	return
 }
@@ -449,17 +449,42 @@ type destination_server_stub struct {
 // GetStubFn implements the stub.Server interface.
 func (s destination_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
+	case "GetAll":
+		return s.getAll
 	case "Getpid":
 		return s.getpid
 	case "Record":
 		return s.record
-	case "GetAll":
-		return s.getAll
 	case "RoutedRecord":
 		return s.routedRecord
 	default:
 		return nil
 	}
+}
+
+func (s destination_server_stub) getAll(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 string
+	a0 = dec.String()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.GetAll(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_slice_string_4af10117(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
 }
 
 func (s destination_server_stub) getpid(ctx context.Context, args []byte) (res []byte, err error) {
@@ -504,31 +529,6 @@ func (s destination_server_stub) record(ctx context.Context, args []byte) (res [
 
 	// Encode the results.
 	enc := codegen.NewEncoder()
-	enc.Error(appErr)
-	return enc.Data(), nil
-}
-
-func (s destination_server_stub) getAll(ctx context.Context, args []byte) (res []byte, err error) {
-	// Catch and return any panics detected during encoding/decoding/rpc.
-	defer func() {
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-		}
-	}()
-
-	// Decode arguments.
-	dec := codegen.NewDecoder(args)
-	var a0 string
-	a0 = dec.String()
-
-	// TODO(rgrandl): The deferred function above will recover from panics in the
-	// user code: fix this.
-	// Call the local method.
-	r0, appErr := s.impl.GetAll(ctx, a0)
-
-	// Encode the results.
-	enc := codegen.NewEncoder()
-	serviceweaver_enc_slice_string_4af10117(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
