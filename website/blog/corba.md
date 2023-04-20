@@ -162,10 +162,13 @@ the distributed object paradigm. [Michi Henning][michi], co-author of the book
 [*Advanced CORBA Programming with C++*][corba_book], wrote an article for ACM
 Queue in 2006 titled [*The Rise and Fall of CORBA*][corba_queue] that documents
 why CORBA failed. Henning explains that CORBA failed because it was plagued with
-technical and bureaucratic issues. It was these issues that sank CORBA, not the
-distributed object paradigm.  In fact, projects like [TensorFlow][tensorflow],
-[Pathways][pathways], [Ray][ray], [Microsoft Orelans][orleans], and [Akka][akka]
-show that similar paradigms can be implemented with incredible success.
+technical and bureaucratic issues. For example, CORBA had unnecessarily complex
+APIs, subtle language portability issues, a bloated wire protocol, unsecure and
+unencrypted network traffic, no versioning support, etc. It was these issues
+that sank CORBA, not the distributed object paradigm. In fact, projects like
+[TensorFlow][tensorflow], [Pathways][pathways], [Ray][ray], [Microsoft
+Orelans][orleans], and [Akka][akka] prove that similar paradigms can be
+implemented with incredible success.
 
 [a_note_on_dc]: https://scholar.harvard.edu/files/waldo/files/waldo-94.pdf
 [akka]: https://akka.io/
