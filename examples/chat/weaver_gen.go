@@ -53,7 +53,7 @@ func init() {
 			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return sQLStore_client_stub{stub: stub, createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread"}), createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost"}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed"}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage"})}
+			return sQLStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost"}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread"}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed"}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage"})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return sQLStore_server_stub{impl: impl.(SQLStore), addLoad: addLoad}
@@ -129,23 +129,6 @@ type sQLStore_local_stub struct {
 	tracer trace.Tracer
 }
 
-func (s sQLStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "main.SQLStore.CreateThread", trace.WithSpanKind(trace.SpanKindInternal))
-		defer func() {
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-			}
-			span.End()
-		}()
-	}
-
-	return s.impl.CreateThread(ctx, a0, a1, a2, a3, a4)
-}
-
 func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -161,6 +144,23 @@ func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.
 	}
 
 	return s.impl.CreatePost(ctx, a0, a1, a2, a3)
+}
+
+func (s sQLStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "main.SQLStore.CreateThread", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.CreateThread(ctx, a0, a1, a2, a3, a4)
 }
 
 func (s sQLStore_local_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
@@ -388,10 +388,64 @@ func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (
 
 type sQLStore_client_stub struct {
 	stub                codegen.Stub
-	createThreadMetrics *codegen.MethodMetrics
 	createPostMetrics   *codegen.MethodMetrics
+	createThreadMetrics *codegen.MethodMetrics
 	getFeedMetrics      *codegen.MethodMetrics
 	getImageMetrics     *codegen.MethodMetrics
+}
+
+func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
+	// Update metrics.
+	start := time.Now()
+	s.createPostMetrics.Count.Add(1)
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "main.SQLStore.CreatePost", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			s.createPostMetrics.ErrorCount.Add(1)
+		}
+		span.End()
+
+		s.createPostMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	enc.String(a0)
+	enc.EncodeBinaryMarshaler(&a1)
+	enc.Int64((int64)(a2))
+	enc.String(a3)
+	var shardKey uint64
+
+	// Call the remote method.
+	s.createPostMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+	s.createPostMetrics.BytesReply.Put(float64(len(results)))
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	err = dec.Error()
+	return
 }
 
 func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
@@ -446,60 +500,6 @@ func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 ti
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
 	*(*int64)(&r0) = dec.Int64()
-	err = dec.Error()
-	return
-}
-
-func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
-	// Update metrics.
-	start := time.Now()
-	s.createPostMetrics.Count.Add(1)
-
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "main.SQLStore.CreatePost", trace.WithSpanKind(trace.SpanKindClient))
-	}
-
-	defer func() {
-		// Catch and return any panics detected during encoding/decoding/rpc.
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-			if err != nil {
-				err = errors.Join(weaver.RemoteCallError, err)
-			}
-		}
-
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			s.createPostMetrics.ErrorCount.Add(1)
-		}
-		span.End()
-
-		s.createPostMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
-	}()
-
-	// Encode arguments.
-	enc := codegen.NewEncoder()
-	enc.String(a0)
-	enc.EncodeBinaryMarshaler(&a1)
-	enc.Int64((int64)(a2))
-	enc.String(a3)
-	var shardKey uint64
-
-	// Call the remote method.
-	s.createPostMetrics.BytesRequest.Put(float64(len(enc.Data())))
-	var results []byte
-	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
-	if err != nil {
-		err = errors.Join(weaver.RemoteCallError, err)
-		return
-	}
-	s.createPostMetrics.BytesReply.Put(float64(len(results)))
-
-	// Decode the results.
-	dec := codegen.NewDecoder(results)
 	err = dec.Error()
 	return
 }
@@ -742,10 +742,10 @@ type sQLStore_server_stub struct {
 // GetStubFn implements the stub.Server interface.
 func (s sQLStore_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
-	case "CreateThread":
-		return s.createThread
 	case "CreatePost":
 		return s.createPost
+	case "CreateThread":
+		return s.createThread
 	case "GetFeed":
 		return s.getFeed
 	case "GetImage":
@@ -753,6 +753,36 @@ func (s sQLStore_server_stub) GetStubFn(method string) func(ctx context.Context,
 	default:
 		return nil
 	}
+}
+
+func (s sQLStore_server_stub) createPost(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 string
+	a0 = dec.String()
+	var a1 time.Time
+	dec.DecodeBinaryUnmarshaler(&a1)
+	var a2 ThreadID
+	*(*int64)(&a2) = dec.Int64()
+	var a3 string
+	a3 = dec.String()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	appErr := s.impl.CreatePost(ctx, a0, a1, a2, a3)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Error(appErr)
+	return enc.Data(), nil
 }
 
 func (s sQLStore_server_stub) createThread(ctx context.Context, args []byte) (res []byte, err error) {
@@ -784,36 +814,6 @@ func (s sQLStore_server_stub) createThread(ctx context.Context, args []byte) (re
 	// Encode the results.
 	enc := codegen.NewEncoder()
 	enc.Int64((int64)(r0))
-	enc.Error(appErr)
-	return enc.Data(), nil
-}
-
-func (s sQLStore_server_stub) createPost(ctx context.Context, args []byte) (res []byte, err error) {
-	// Catch and return any panics detected during encoding/decoding/rpc.
-	defer func() {
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-		}
-	}()
-
-	// Decode arguments.
-	dec := codegen.NewDecoder(args)
-	var a0 string
-	a0 = dec.String()
-	var a1 time.Time
-	dec.DecodeBinaryUnmarshaler(&a1)
-	var a2 ThreadID
-	*(*int64)(&a2) = dec.Int64()
-	var a3 string
-	a3 = dec.String()
-
-	// TODO(rgrandl): The deferred function above will recover from panics in the
-	// user code: fix this.
-	// Call the local method.
-	appErr := s.impl.CreatePost(ctx, a0, a1, a2, a3)
-
-	// Encode the results.
-	enc := codegen.NewEncoder()
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
