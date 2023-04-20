@@ -16,27 +16,62 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:   "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
-		Iface:  reflect.TypeOf((*Destination)(nil)).Elem(),
-		New:    func() any { return &destination{} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+		Iface: reflect.TypeOf((*Destination)(nil)).Elem(),
+		New: func() any {
+			return &destination{}
+		},
 		Routed: true,
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return destination_local_stub{impl: impl.(Destination), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return destination_client_stub{stub: stub, getAllMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "GetAll"}), getpidMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Getpid"}), recordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Record"}), routedRecordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "RoutedRecord"})}
+			return destination_client_stub{
+				stub: stub,
+				getAllMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+					Method:    "GetAll",
+				}),
+				getpidMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+					Method:    "Getpid",
+				}),
+				recordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+					Method:    "Record",
+				}),
+				routedRecordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+					Method:    "RoutedRecord",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return destination_server_stub{impl: impl.(Destination), addLoad: addLoad}
 		},
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
-		Iface:       reflect.TypeOf((*Source)(nil)).Elem(),
-		New:         func() any { return &source{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return source_local_stub{impl: impl.(Source), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
+		Iface: reflect.TypeOf((*Source)(nil)).Elem(),
+		New: func() any {
+			return &source{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return source_local_stub{impl: impl.(Source), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return source_client_stub{stub: stub, emitMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source", Method: "Emit"})}
+			return source_client_stub{
+				stub: stub,
+				emitMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
+					Method:    "Emit",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return source_server_stub{impl: impl.(Source), addLoad: addLoad}

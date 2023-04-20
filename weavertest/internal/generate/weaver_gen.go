@@ -18,12 +18,26 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp",
 		Iface: reflect.TypeOf((*testApp)(nil)).Elem(),
-		New:   func() any { return &impl{} },
+		New: func() any {
+			return &impl{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return testApp_local_stub{impl: impl.(testApp), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return testApp_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get"}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer"})}
+			return testApp_client_stub{
+				stub: stub,
+				getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp",
+					Method:    "Get",
+				}),
+				incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp",
+					Method:    "IncPointer",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return testApp_server_stub{impl: impl.(testApp), addLoad: addLoad}

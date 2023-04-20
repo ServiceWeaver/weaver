@@ -18,7 +18,7 @@
 // codegen.Register(codegen.Registration{
 // &impl{}
 // return foo_local_stub{impl: impl.(foo),
-// return foo_client_stub{stub: stub,
+// return foo_client_stub{
 // type foo_local_stub struct
 // type foo_client_stub struct
 // M(ctx context.Context) (err error) {

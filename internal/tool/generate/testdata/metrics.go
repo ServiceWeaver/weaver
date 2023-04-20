@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // EXPECTED
-// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method"})
+// codegen.MethodMetricsFor(
+// codegen.MethodLabels{
 // methodMetrics *codegen.MethodMetrics
 // start := time.Now()
 // s.methodMetrics.Count.Add(1)

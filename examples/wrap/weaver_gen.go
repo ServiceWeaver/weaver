@@ -18,12 +18,21 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/wrap/Wrapper",
 		Iface: reflect.TypeOf((*Wrapper)(nil)).Elem(),
-		New:   func() any { return &wrapper{} },
+		New: func() any {
+			return &wrapper{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return wrapper_local_stub{impl: impl.(Wrapper), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return wrapper_client_stub{stub: stub, wrapMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/wrap/Wrapper", Method: "Wrap"})}
+			return wrapper_client_stub{
+				stub: stub,
+				wrapMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/wrap/Wrapper",
+					Method:    "Wrap",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return wrapper_server_stub{impl: impl.(Wrapper), addLoad: addLoad}

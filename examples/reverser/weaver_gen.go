@@ -18,12 +18,21 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/reverser/Reverser",
 		Iface: reflect.TypeOf((*Reverser)(nil)).Elem(),
-		New:   func() any { return &reverser{} },
+		New: func() any {
+			return &reverser{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return reverser_local_stub{impl: impl.(Reverser), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return reverser_client_stub{stub: stub, reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/reverser/Reverser", Method: "Reverse"})}
+			return reverser_client_stub{
+				stub: stub,
+				reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/reverser/Reverser",
+					Method:    "Reverse",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return reverser_server_stub{impl: impl.(Reverser), addLoad: addLoad}

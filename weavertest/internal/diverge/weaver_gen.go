@@ -17,24 +17,46 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer",
-		Iface:       reflect.TypeOf((*Errer)(nil)).Elem(),
-		New:         func() any { return &errer{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return errer_local_stub{impl: impl.(Errer), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer",
+		Iface: reflect.TypeOf((*Errer)(nil)).Elem(),
+		New: func() any {
+			return &errer{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return errer_local_stub{impl: impl.(Errer), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return errer_client_stub{stub: stub, errMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer", Method: "Err"})}
+			return errer_client_stub{
+				stub: stub,
+				errMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer",
+					Method:    "Err",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return errer_server_stub{impl: impl.(Errer), addLoad: addLoad}
 		},
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer",
-		Iface:       reflect.TypeOf((*Failer)(nil)).Elem(),
-		New:         func() any { return &failer{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return failer_local_stub{impl: impl.(Failer), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer",
+		Iface: reflect.TypeOf((*Failer)(nil)).Elem(),
+		New: func() any {
+			return &failer{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return failer_local_stub{impl: impl.(Failer), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return failer_client_stub{stub: stub, imJustHereSoWeaverGenerateDoesntComplainMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer", Method: "ImJustHereSoWeaverGenerateDoesntComplain"})}
+			return failer_client_stub{
+				stub: stub,
+				imJustHereSoWeaverGenerateDoesntComplainMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer",
+					Method:    "ImJustHereSoWeaverGenerateDoesntComplain",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return failer_server_stub{impl: impl.(Failer), addLoad: addLoad}
@@ -43,12 +65,21 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer",
 		Iface: reflect.TypeOf((*Pointer)(nil)).Elem(),
-		New:   func() any { return &pointer{} },
+		New: func() any {
+			return &pointer{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return pointer_local_stub{impl: impl.(Pointer), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return pointer_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer", Method: "Get"})}
+			return pointer_client_stub{
+				stub: stub,
+				getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer",
+					Method:    "Get",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pointer_server_stub{impl: impl.(Pointer), addLoad: addLoad}

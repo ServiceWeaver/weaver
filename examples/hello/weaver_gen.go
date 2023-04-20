@@ -16,12 +16,28 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/hello/Cache",
-		Iface:       reflect.TypeOf((*Cache)(nil)).Elem(),
-		New:         func() any { return &cache{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return cache_local_stub{impl: impl.(Cache), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/hello/Cache",
+		Iface: reflect.TypeOf((*Cache)(nil)).Elem(),
+		New: func() any {
+			return &cache{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return cache_local_stub{impl: impl.(Cache), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return cache_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/hello/Cache", Method: "Get"}), setMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/hello/Cache", Method: "Set"})}
+			return cache_client_stub{
+				stub: stub,
+				getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/hello/Cache",
+					Method:    "Get",
+				}),
+				setMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/hello/Cache",
+					Method:    "Set",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return cache_server_stub{impl: impl.(Cache), addLoad: addLoad}
@@ -30,12 +46,21 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/hello/Reverser",
 		Iface: reflect.TypeOf((*Reverser)(nil)).Elem(),
-		New:   func() any { return &reverser{} },
+		New: func() any {
+			return &reverser{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return reverser_local_stub{impl: impl.(Reverser), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return reverser_client_stub{stub: stub, reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/hello/Reverser", Method: "Reverse"})}
+			return reverser_client_stub{
+				stub: stub,
+				reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/hello/Reverser",
+					Method:    "Reverse",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return reverser_server_stub{impl: impl.(Reverser), addLoad: addLoad}

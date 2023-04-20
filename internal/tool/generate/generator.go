@@ -29,6 +29,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
@@ -224,13 +225,13 @@ func newGenerator(pkg *packages.Package, fset *token.FileSet, automarshals *type
 			// TODO(mwhittaker): This code relies on the fact that a component
 			// interface and component implementation have to be in the same
 			// package. If we lift this requirement, then this code will break.
-			if existing, ok := components[c.fullIntfName()]; ok {
+			if existing, ok := components[c.FullIntfName()]; ok {
 				errs = append(errs, errorf(pkg.Fset, c.impl.Obj().Pos(),
 					"Duplicate implementation for component %s, other declaration: %v",
-					c.fullIntfName(), fset.Position(existing.impl.Obj().Pos())))
+					c.FullIntfName(), fset.Position(existing.impl.Obj().Pos())))
 				continue
 			}
-			components[c.fullIntfName()] = c
+			components[c.FullIntfName()] = c
 		}
 	}
 	if err := errors.Join(errs...); err != nil {
@@ -515,23 +516,23 @@ type component struct {
 	hasConfig     bool            // implementation embeds weaver.WithConfig?
 }
 
-// intfName returns the component interface name.
-func (c *component) intfName() string {
+// IntfName returns the component interface name.
+func (c *component) IntfName() string {
 	return c.intf.Obj().Name()
 }
 
-// implName returns the component implementation name.
-func (c *component) implName() string {
+// ImplName returns the component implementation name.
+func (c *component) ImplName() string {
 	return c.impl.Obj().Name()
 }
 
-// fullIntfName returns the full package-prefixed component interface name.
-func (c *component) fullIntfName() string {
-	return filepath.Join(c.intf.Obj().Pkg().Path(), c.intfName())
+// FullIntfName returns the full package-prefixed component interface name.
+func (c *component) FullIntfName() string {
+	return filepath.Join(c.intf.Obj().Pkg().Path(), c.IntfName())
 }
 
-// methods returns the component interface's methods.
-func (c *component) methods() []*types.Func {
+// Methods returns the component interface's Methods.
+func (c *component) Methods() []*types.Func {
 	underlying := c.intf.Underlying().(*types.Interface)
 	methods := make([]*types.Func, underlying.NumMethods())
 	for i := 0; i < underlying.NumMethods(); i++ {
@@ -544,6 +545,16 @@ func (c *component) methods() []*types.Func {
 		return methods[i].Name() < methods[j].Name()
 	})
 	return methods
+}
+
+// HasConfig returns whether the component embeds weaver.WithConfig.
+func (c *component) HasConfig() bool {
+	return c.hasConfig
+}
+
+// HasRouter returns whether the component embeds weaver.WithRouter.
+func (c *component) HasRouter() bool {
+	return c.router != nil
 }
 
 // validateMethods validates that the provided component's methods are all
@@ -700,7 +711,7 @@ func (g *generator) generate() error {
 
 	// Process components in deterministic order.
 	sort.Slice(g.components, func(i, j int) bool {
-		return g.components[i].intfName() < g.components[j].intfName()
+		return g.components[i].IntfName() < g.components[j].IntfName()
 	})
 
 	// Generate the file body.
@@ -803,61 +814,67 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 	if len(g.components) == 0 {
 		return
 	}
-
 	g.tset.importPackage("context", "context")
-	p(``)
-	p(`func init() {`)
-	for _, comp := range g.components {
-		name := comp.intfName()
 
-		// E.g.,
-		//   func(impl any, caller string, tracer trace.Tracer) any {
-		//       return foo_local_stub{imple: impl.(Foo), tracer: tracer, ...}
-		//   }
-		localStubFn := fmt.Sprintf(`func(impl any, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer } }`, g.trace().qualify("Tracer"), notExported(name), name)
-
-		// E.g.,
-		//   func(stub *codegen.Stub, caller string) any {
-		//       return Foo_stub{stub: stub, ...}
-		//   }
-		var b strings.Builder
-		for _, m := range comp.methods() {
-			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q})", notExported(m.Name()), g.codegen().qualify("MethodMetricsFor"), g.codegen().qualify("MethodLabels"), comp.fullIntfName(), m.Name())
-		}
-		clientStubFn := fmt.Sprintf(`func(stub %s, caller string) any { return %s_client_stub{stub: stub %s } }`,
-			g.codegen().qualify("Stub"), notExported(name), b.String())
-
-		// E.g.,
-		//   func(impl any, addLoad func(uint64, float64)) codegen.Server {
-		//       return foo_server_stub{impl: impl.(Foo), addLoad: addLoad}
-		//   }
-		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), name)
-
-		// E.g.,
-		//	weaver.Register(weaver.Registration{
-		//	    Props: codegen.ComponentProperties{},
-		//	    ...,
-		//	})
-		reflect := g.tset.importPackage("reflect", "reflect")
-		p(`	%s(%s{`, g.codegen().qualify("Register"), g.codegen().qualify("Registration"))
-		p(`		Name: %q,`, comp.fullIntfName())
-		// To get a reflect.Type for an interface, we have to first get a type
-		// of its pointer and then resolve the underlying type. See:
-		//   https://pkg.go.dev/reflect#example-TypeOf
-		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), name)
-		p(`		New: func() any { return &%s{} },`, comp.implName())
-		if comp.hasConfig {
-			p(`		ConfigFn: func(i any) any { return i.(*%s).WithConfig.Config() },`, comp.implName())
-		}
-		if comp.router != nil {
-			p(`		Routed: true,`)
-		}
-		p(`		LocalStubFn: %s,`, localStubFn)
-		p(`		ClientStubFn: %s,`, clientStubFn)
-		p(`		ServerStubFn: %s,`, serverStubFn)
-		p(`	})`)
+	type content struct {
+		Codegen    string
+		Reflect    string
+		Trace      string
+		Components []*component
 	}
-	p(`}`)
+
+	t := template.Must(template.
+		New("generateRegisteredComponents").
+		Funcs(map[string]any{"notExported": notExported}).
+		Parse(`
+func init() {
+	{{- range $c := .Components}}
+	{{$.Codegen}}.Register({{$.Codegen}}.Registration{
+		Name: "{{.FullIntfName}}",
+		Iface: {{$.Reflect}}.TypeOf((*{{.IntfName}})(nil)).Elem(),
+		New: func() any {
+			return &{{.ImplName}}{}
+		},
+		{{- if .HasConfig}}
+		ConfigFn: func(i any) any { return i.(*{{.ImplName}}).WithConfig.Config() },
+		{{- end}}
+		{{- if .HasRouter}}
+		Routed: true,
+		{{- end}}
+		LocalStubFn: func(impl any, tracer {{$.Trace}}.Tracer) any {
+			return {{notExported .IntfName}}_local_stub{impl: impl.({{.IntfName}}), tracer: tracer}
+		},
+		ClientStubFn: func(stub {{$.Codegen}}.Stub, caller string) any {
+			return {{notExported .IntfName}}_client_stub{
+				stub: stub,
+				{{- range $m := .Methods}}
+				{{notExported $m.Name}}Metrics: {{$.Codegen}}.MethodMetricsFor({{$.Codegen}}.MethodLabels{
+					Caller: caller,
+					Component: "{{$c.FullIntfName}}",
+					Method: "{{$m.Name}}",
+				}),
+				{{- end}}
+			}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) {{$.Codegen}}.Server {
+			return {{notExported .IntfName}}_server_stub{impl: impl.({{.IntfName}}), addLoad: addLoad}
+		},
+	})
+	{{- end}}
+}`))
+
+	var b bytes.Buffer
+	c := content{
+		Codegen:    g.codegen().name(),
+		Reflect:    g.tset.importPackage("reflect", "reflect").name(),
+		Trace:      g.trace().name(),
+		Components: g.components,
+	}
+	if err := t.Execute(&b, c); err != nil {
+		// TODO(mwhittaker): Propagate error.
+		panic(err)
+	}
+	p(b.String())
 }
 
 // generateLocalStubs generates code that creates stubs for the local components.
@@ -868,13 +885,13 @@ func (g *generator) generateLocalStubs(p printFn) {
 
 	var b strings.Builder
 	for _, comp := range g.components {
-		stub := notExported(comp.intfName()) + "_local_stub"
+		stub := notExported(comp.IntfName()) + "_local_stub"
 		p(``)
 		p(`type %s struct{`, stub)
-		p(`	impl %s`, comp.intfName())
+		p(`	impl %s`, comp.IntfName())
 		p(`	tracer %s`, g.trace().qualify("Tracer"))
 		p(`}`)
-		for _, m := range comp.methods() {
+		for _, m := range comp.Methods() {
 			mt := m.Type().(*types.Signature)
 			p(``)
 			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
@@ -883,7 +900,7 @@ func (g *generator) generateLocalStubs(p printFn) {
 			p(`	span := %s(ctx)`, g.trace().qualify("SpanFromContext"))
 			p(`	if span.SpanContext().IsValid() {`)
 			p(`		// Create a child span for this method.`)
-			p(`		ctx, span = s.tracer.Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindInternal))`, g.pkg.Name, comp.intfName(), m.Name())
+			p(`		ctx, span = s.tracer.Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindInternal))`, g.pkg.Name, comp.IntfName(), m.Name())
 			p(`		defer func() {`)
 			p(`			if err != nil {`)
 			p(`				span.RecordError(err)`)
@@ -919,18 +936,18 @@ func (g *generator) generateClientStubs(p printFn) {
 
 	var b strings.Builder
 	for _, comp := range g.components {
-		stub := notExported(comp.intfName()) + "_client_stub"
+		stub := notExported(comp.IntfName()) + "_client_stub"
 		p(``)
 		p(`type %s struct{`, stub)
 		p(`	stub %s`, g.codegen().qualify("Stub"))
-		for _, m := range comp.methods() {
+		for _, m := range comp.Methods() {
 			p(`	%sMetrics *%s`, notExported(m.Name()), g.codegen().qualify("MethodMetrics"))
 		}
 		p(`}`)
 
 		// Assign method indices in sorted order.
-		mlist := make([]string, len(comp.methods()))
-		for i, m := range comp.methods() {
+		mlist := make([]string, len(comp.Methods()))
+		for i, m := range comp.Methods() {
 			mlist[i] = m.Name()
 		}
 		sort.Strings(mlist)
@@ -939,7 +956,7 @@ func (g *generator) generateClientStubs(p printFn) {
 			methodIndex[m] = i
 		}
 
-		for _, m := range comp.methods() {
+		for _, m := range comp.Methods() {
 			mt := m.Type().(*types.Signature)
 			p(``)
 			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
@@ -954,7 +971,7 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`	span := %s(ctx)`, g.trace().qualify("SpanFromContext"))
 			p(`	if span.SpanContext().IsValid() {`)
 			p(`		// Create a child span for this method.`)
-			p(`		ctx, span = s.stub.Tracer().Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindClient))`, g.pkg.Name, comp.intfName(), m.Name())
+			p(`		ctx, span = s.stub.Tracer().Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindClient))`, g.pkg.Name, comp.IntfName(), m.Name())
 			p(`	}`)
 
 			// Handle cleanup.
@@ -1029,7 +1046,7 @@ func (g *generator) generateClientStubs(p printFn) {
 				for i := 1; i < n; i++ {
 					args[i] = fmt.Sprintf("a%d", i-1)
 				}
-				p(`	shardKey := _hash%s(r.%s(%s))`, exported(comp.intfName()), m.Name(), strings.Join(args, ", "))
+				p(`	shardKey := _hash%s(r.%s(%s))`, exported(comp.IntfName()), m.Name(), strings.Join(args, ", "))
 			} else {
 				p(`	var shardKey uint64`)
 			}
@@ -1396,17 +1413,17 @@ func (g *generator) generateServerStubs(p printFn) {
 	var b strings.Builder
 
 	for _, comp := range g.components {
-		stub := fmt.Sprintf("%s_server_stub", notExported(comp.intfName()))
+		stub := fmt.Sprintf("%s_server_stub", notExported(comp.IntfName()))
 		p(``)
 		p(`type %s struct{`, stub)
-		p(`	impl %s`, comp.intfName())
+		p(`	impl %s`, comp.IntfName())
 		p(`	addLoad func(key uint64, load float64)`)
 		p(`}`)
 		p(``)
 		p(`// GetStubFn implements the stub.Server interface.`)
 		p(`func (s %s) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {`, stub)
 		p(`	switch method {`)
-		for _, m := range comp.methods() {
+		for _, m := range comp.Methods() {
 			p(`	case "%s":`, m.Name())
 			p(`		return s.%s`, notExported(m.Name()))
 		}
@@ -1416,7 +1433,7 @@ func (g *generator) generateServerStubs(p printFn) {
 		p(`}`)
 
 		// Generate server stub implementation for the methods exported by the component.
-		for _, m := range comp.methods() {
+		for _, m := range comp.Methods() {
 			mt := m.Type().(*types.Signature)
 
 			p(``)
@@ -1469,7 +1486,7 @@ func (g *generator) generateServerStubs(p printFn) {
 			// Add load, if needed.
 			if comp.routedMethods[m.Name()] {
 				p(`     var r %s`, g.tset.genTypeString(comp.router))
-				p(`	s.addLoad(_hash%s(r.%s(%s)), 1.0)`, exported(comp.intfName()), m.Name(), argList)
+				p(`	s.addLoad(_hash%s(r.%s(%s)), 1.0)`, exported(comp.IntfName()), m.Name(), argList)
 			}
 
 			b.Reset()
@@ -1589,8 +1606,8 @@ func (g *generator) generateRouterMethods(p printFn) {
 
 // generateRouterMethodsFor generates router methods for the provided router type.
 func (g *generator) generateRouterMethodsFor(p printFn, comp *component, t types.Type) {
-	p(`// _hash%s returns a 64 bit hash of the provided value.`, exported(comp.intfName()))
-	p(`func _hash%s(r %s) uint64 {`, exported(comp.intfName()), g.tset.genTypeString(t))
+	p(`// _hash%s returns a 64 bit hash of the provided value.`, exported(comp.IntfName()))
+	p(`func _hash%s(r %s) uint64 {`, exported(comp.IntfName()), g.tset.genTypeString(t))
 	p(`	var h %s`, g.codegen().qualify("Hasher"))
 	if isPrimitiveRouter(t.Underlying()) {
 		tname := t.Underlying().String()
@@ -1607,8 +1624,8 @@ func (g *generator) generateRouterMethodsFor(p printFn, comp *component, t types
 	p(`}`)
 	p(``)
 
-	p(`// _orderedCode%s returns an order-preserving serialization of the provided value.`, exported(comp.intfName()))
-	p(`func _orderedCode%s(r %s) %s {`, exported(comp.intfName()), g.tset.genTypeString(t), g.codegen().qualify("OrderedCode"))
+	p(`// _orderedCode%s returns an order-preserving serialization of the provided value.`, exported(comp.IntfName()))
+	p(`func _orderedCode%s(r %s) %s {`, exported(comp.IntfName()), g.tset.genTypeString(t), g.codegen().qualify("OrderedCode"))
 	p(`	var enc %s`, g.codegen().qualify("OrderedEncoder"))
 	if isPrimitiveRouter(t.Underlying()) {
 		p(`	enc.Write%s(%s(r))`, exported(t.Underlying().String()), t.Underlying().String())
@@ -1803,7 +1820,7 @@ func (g *generator) generateEncDecMethods(p printFn) {
 		p(format, args...)
 	}
 	for _, component := range g.components {
-		for _, method := range component.methods() {
+		for _, method := range component.Methods() {
 			sig := method.Type().(*types.Signature)
 
 			// Generate for argument types, skipping the context.Context.

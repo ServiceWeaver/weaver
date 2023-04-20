@@ -17,27 +17,67 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
-		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		New:         func() any { return &impl{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
+		Iface: reflect.TypeOf((*T)(nil)).Elem(),
+		New: func() any {
+			return &impl{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return t_local_stub{impl: impl.(T), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, addItemMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "AddItem"}), emptyCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "EmptyCart"}), getCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "GetCart"})}
+			return t_client_stub{
+				stub: stub,
+				addItemMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
+					Method:    "AddItem",
+				}),
+				emptyCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
+					Method:    "EmptyCart",
+				}),
+				getCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
+					Method:    "GetCart",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
 	})
 	codegen.Register(codegen.Registration{
-		Name:   "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache",
-		Iface:  reflect.TypeOf((*cartCache)(nil)).Elem(),
-		New:    func() any { return &cartCacheImpl{} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache",
+		Iface: reflect.TypeOf((*cartCache)(nil)).Elem(),
+		New: func() any {
+			return &cartCacheImpl{}
+		},
 		Routed: true,
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return cartCache_local_stub{impl: impl.(cartCache), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return cartCache_client_stub{stub: stub, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Add"}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Get"}), removeMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Remove"})}
+			return cartCache_client_stub{
+				stub: stub,
+				addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache",
+					Method:    "Add",
+				}),
+				getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache",
+					Method:    "Get",
+				}),
+				removeMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache",
+					Method:    "Remove",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return cartCache_server_stub{impl: impl.(cartCache), addLoad: addLoad}

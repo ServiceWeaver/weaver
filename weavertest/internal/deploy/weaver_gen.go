@@ -18,24 +18,44 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started",
 		Iface: reflect.TypeOf((*Started)(nil)).Elem(),
-		New:   func() any { return &started{} },
+		New: func() any {
+			return &started{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return started_local_stub{impl: impl.(Started), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return started_client_stub{stub: stub, markStartedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started", Method: "MarkStarted"})}
+			return started_client_stub{
+				stub: stub,
+				markStartedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started",
+					Method:    "MarkStarted",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return started_server_stub{impl: impl.(Started), addLoad: addLoad}
 		},
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
-		Iface:       reflect.TypeOf((*Widget)(nil)).Elem(),
-		New:         func() any { return &widget{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return widget_local_stub{impl: impl.(Widget), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
+		Iface: reflect.TypeOf((*Widget)(nil)).Elem(),
+		New: func() any {
+			return &widget{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return widget_local_stub{impl: impl.(Widget), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return widget_client_stub{stub: stub, useMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget", Method: "Use"})}
+			return widget_client_stub{
+				stub: stub,
+				useMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
+					Method:    "Use",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return widget_server_stub{impl: impl.(Widget), addLoad: addLoad}

@@ -16,15 +16,24 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:   "github.com/ServiceWeaver/weaver/examples/factors/Factorer",
-		Iface:  reflect.TypeOf((*Factorer)(nil)).Elem(),
-		New:    func() any { return &factorer{} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/factors/Factorer",
+		Iface: reflect.TypeOf((*Factorer)(nil)).Elem(),
+		New: func() any {
+			return &factorer{}
+		},
 		Routed: true,
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return factorer_local_stub{impl: impl.(Factorer), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return factorer_client_stub{stub: stub, factorsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/factors/Factorer", Method: "Factors"})}
+			return factorer_client_stub{
+				stub: stub,
+				factorsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/factors/Factorer",
+					Method:    "Factors",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return factorer_server_stub{impl: impl.(Factorer), addLoad: addLoad}

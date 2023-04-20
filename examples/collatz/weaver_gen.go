@@ -16,24 +16,46 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Even",
-		Iface:       reflect.TypeOf((*Even)(nil)).Elem(),
-		New:         func() any { return &even{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return even_local_stub{impl: impl.(Even), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/collatz/Even",
+		Iface: reflect.TypeOf((*Even)(nil)).Elem(),
+		New: func() any {
+			return &even{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return even_local_stub{impl: impl.(Even), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return even_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even", Method: "Do"})}
+			return even_client_stub{
+				stub: stub,
+				doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even",
+					Method:    "Do",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return even_server_stub{impl: impl.(Even), addLoad: addLoad}
 		},
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
-		Iface:       reflect.TypeOf((*Odd)(nil)).Elem(),
-		New:         func() any { return &odd{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return odd_local_stub{impl: impl.(Odd), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
+		Iface: reflect.TypeOf((*Odd)(nil)).Elem(),
+		New: func() any {
+			return &odd{}
+		},
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return odd_local_stub{impl: impl.(Odd), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return odd_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Odd", Method: "Do"})}
+			return odd_client_stub{
+				stub: stub,
+				doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
+					Method:    "Do",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return odd_server_stub{impl: impl.(Odd), addLoad: addLoad}

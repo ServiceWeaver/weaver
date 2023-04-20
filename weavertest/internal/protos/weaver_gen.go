@@ -18,12 +18,21 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger",
 		Iface: reflect.TypeOf((*PingPonger)(nil)).Elem(),
-		New:   func() any { return &impl{} },
+		New: func() any {
+			return &impl{}
+		},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return pingPonger_local_stub{impl: impl.(PingPonger), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return pingPonger_client_stub{stub: stub, pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger", Method: "Ping"})}
+			return pingPonger_client_stub{
+				stub: stub,
+				pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{
+					Caller:    caller,
+					Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger",
+					Method:    "Ping",
+				}),
+			}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pingPonger_server_stub{impl: impl.(PingPonger), addLoad: addLoad}
