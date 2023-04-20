@@ -52,11 +52,5 @@ func main() {
 			}
 			fmt.Fprintf(w, "Hello, %s!\n", reversed)
 		}))
-
-	// Serve the /healthz endpoint.
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "OK")
-	})
-
 	http.Serve(lis, nil)
 }
