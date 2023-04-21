@@ -37,7 +37,8 @@ import (
 // running applications.
 type Registry struct {
 	// A Registry stores registrations as files in a directory. Every
-	// registration r is stored in a JSON file called {r.DeploymentId}.json.
+	// registration r is stored in a JSON file called
+	// {r.DeploymentId}.registration.json.
 	//
 	// TODO(mwhittaker): Store as protos instead of JSON?
 	dir string
@@ -105,59 +106,65 @@ func (r Registration) Rolodex() string {
 func NewRegistry(_ context.Context, dir string) (*Registry, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("registry: filepath.Abs(%q): %w", dir, err)
 	}
-	err = os.MkdirAll(dir, 0750)
+	if err = os.MkdirAll(dir, 0750); err != nil {
+		return nil, fmt.Errorf("registry: make dir %q: %w", dir, err)
+	}
 	newClient := func(addr string) Server { return NewClient(addr) }
-	return &Registry{dir, newClient}, err
+	return &Registry{dir, newClient}, nil
 }
 
 // Register adds a registration to the registry.
 func (r *Registry) Register(ctx context.Context, reg Registration) error {
 	bytes, err := json.Marshal(reg)
 	if err != nil {
-		return err
+		return fmt.Errorf("registry: encode %v: %w", reg, err)
 	}
-	filename := fmt.Sprintf("%s.json", reg.DeploymentId)
-	w := files.NewWriter(filepath.Join(r.dir, filename))
+	filename := fmt.Sprintf("%s.registration.json", reg.DeploymentId)
+	filename = filepath.Join(r.dir, filename)
+	w := files.NewWriter(filename)
 	defer w.Cleanup()
 	if _, err := w.Write(bytes); err != nil {
-		return err
+		return fmt.Errorf("registry: write %q: %w", filename, err)
 	}
 	return w.Close()
 }
 
 // Unregister removes a registration from the registry.
 func (r *Registry) Unregister(_ context.Context, deploymentId string) error {
-	filename := fmt.Sprintf("%s.json", deploymentId)
-	return os.Remove(filepath.Join(r.dir, filename))
+	filename := fmt.Sprintf("%s.registration.json", deploymentId)
+	filename = filepath.Join(r.dir, filename)
+	if err := os.Remove(filename); err != nil {
+		return fmt.Errorf("registry: remove %q: %w", filename, err)
+	}
+	return nil
 }
 
 // Get returns the Registration for the provided deployment. If the deployment
 // doesn't exist or is not active, a non-nil error is returned.
 func (r *Registry) Get(ctx context.Context, deploymentId string) (Registration, error) {
-	entries, err := os.ReadDir(r.dir)
+	// TODO(mwhittaker): r.list() reads and parses every registration file.
+	// This is inefficient, as we could instead stop reading and parsing as
+	// soon as we find the corresponding registration file. Even more
+	// efficient, we could match the deploymentId to the filenames instead of
+	// reading and parsing the files. Since the number of registrations is
+	// small, and the size of every registration file is small, I don't think
+	// these optimizations are urgently needed.
+	regs, err := r.list()
 	if err != nil {
 		return Registration{}, err
 	}
-	for _, entry := range entries {
-		bytes, err := os.ReadFile(filepath.Join(r.dir, entry.Name()))
-		if err != nil {
-			return Registration{}, err
-		}
-		var reg Registration
-		if err := json.Unmarshal(bytes, &reg); err != nil {
-			return Registration{}, err
-		}
+	for _, reg := range regs {
 		if reg.DeploymentId != deploymentId {
 			continue
 		}
 		if r.dead(ctx, reg) {
-			return Registration{}, fmt.Errorf("deployment %q not found", deploymentId)
+			return Registration{}, fmt.Errorf("registry: deployment %q not found", deploymentId)
 		}
 		return reg, nil
 	}
-	return Registration{}, fmt.Errorf("deployment %q not found", deploymentId)
+	return Registration{}, fmt.Errorf("registry: deployment %q not found", deploymentId)
 }
 
 // List returns all active Registrations.
@@ -168,12 +175,11 @@ func (r *Registry) List(ctx context.Context) ([]Registration, error) {
 	}
 	var alive []Registration
 	for _, reg := range regs {
-		// When a Service Weaver application is deployed, it registers itself with a
-		// registry. Ideally, the deployment would also unregister itself when
-		// it terminates, but this is hard to guarantee. If a deployment is
-		// killed abruptly, via `kill -9` for example, then the deployment may
-		// not unregister itself. Single process deployments (deployed via `go
-		// run .`) also do not unregister themselves.
+		// When a Service Weaver application is deployed, it registers itself
+		// with a registry. Ideally, the deployment would also unregister
+		// itself when it terminates, but this is hard to guarantee. If a
+		// deployment is killed abruptly, via `kill -9` for example, then the
+		// deployment may not unregister itself.
 		//
 		// Thus, we need a way to detect stale registrations (i.e.
 		// registrations for deployments that have terminated) and garbage
@@ -182,7 +188,7 @@ func (r *Registry) List(ctx context.Context) ([]Registration, error) {
 		// collect its registration.
 		if r.dead(ctx, reg) {
 			if err := r.Unregister(ctx, reg.DeploymentId); err != nil {
-				fmt.Fprintf(os.Stderr, "failed to unregister deployment: %v", err)
+				return nil, err
 			}
 			continue
 		}
@@ -195,18 +201,23 @@ func (r *Registry) List(ctx context.Context) ([]Registration, error) {
 func (r *Registry) list() ([]Registration, error) {
 	entries, err := os.ReadDir(r.dir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("registry: read dir %q: %w", r.dir, err)
 	}
 
 	var regs []Registration
 	for _, entry := range entries {
-		bytes, err := os.ReadFile(filepath.Join(r.dir, entry.Name()))
+		if !strings.HasSuffix(entry.Name(), ".registration.json") {
+			// Ignore non-registration files in the registry directory.
+			continue
+		}
+		filename := filepath.Join(r.dir, entry.Name())
+		bytes, err := os.ReadFile(filename)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("registry: read file %q: %w", filename, err)
 		}
 		var reg Registration
 		if err := json.Unmarshal(bytes, &reg); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("registry: decode file %q: %w", filename, err)
 		}
 		regs = append(regs, reg)
 	}
@@ -223,8 +234,9 @@ func (r *Registry) dead(ctx context.Context, reg Registration) bool {
 		// the deployment dead.
 		return true
 	case errors.Is(err, syscall.Errno(10061)):
-		// The syscall.ECONNREFUSED doesn't work on Windows. Windows will return
-		// WSAECONNREFUSED(syscall.Errno = 10061) when the connection is refused.
+		// The syscall.ECONNREFUSED doesn't work on Windows. Windows will
+		// return WSAECONNREFUSED(syscall.Errno = 10061) when the connection is
+		// refused.
 		return true
 	case err != nil:
 		// Something went wrong. The deployment may be dead, but we're not 100%
