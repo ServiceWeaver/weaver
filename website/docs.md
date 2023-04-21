@@ -545,11 +545,8 @@ Cloud Tracing][cloud_trace], etc.
   demonstrate what Service Weaver has to offer.
 - Check out [Service Weaver's source code on GitHub][weaver_github].
 - Read [our blog](/blog).
-
-<div hidden class="todo">
-    TODO(mwhittaker): Link to API docs.
-    TODO(mwhittaker): Link to slack.
-</div>
+- Chat with us on [Discord](https://discord.gg/FzbQ3SM8R5) or send us an
+  [email](serviceweaver@google.com).
 
 # Components
 

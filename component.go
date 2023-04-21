@@ -57,10 +57,6 @@ type Instance interface {
 	// If different processes in an application call Listener() multiple times
 	// with the same listener name but different options, the options value from
 	// one of those calls will be used when constructing the listener.
-	//
-	// TODO(mwhittaker): Return the address of the proxy somehow. Right now, if a
-	// user specifies a LocalAddress like ":0", they don't have a way to know what
-	// address the proxy is listening on.
 	Listener(name string, options ListenerOptions) (*Listener, error)
 
 	// rep is for internal use.
