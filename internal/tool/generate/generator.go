@@ -416,8 +416,8 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 			}
 			if named.Obj().Pkg() != pkg.Types {
 				return nil, errorf(pkg.Fset, f.Pos(),
-					"weaver.Implements argument %s is a type outside the current package.",
-					formatType(pkg, named))
+					"weaver.Implements argument %s is a type outside the current package. A component interface and implementation must be in the same package. If you can't move them into the same package, you can add `type %s %v` to the implementation's package and embed `weaver.Implements[%s]` instead of `weaver.Implements[%s]`.",
+					formatType(pkg, named), named.Obj().Name(), formatType(pkg, named), named.Obj().Name(), formatType(pkg, named))
 			}
 			if _, ok := named.Underlying().(*types.Interface); !ok {
 				return nil, errorf(pkg.Fset, f.Pos(),
