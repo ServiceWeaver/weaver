@@ -15,18 +15,27 @@ import (
 )
 
 func init() {
-	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Even",
-		Iface:       reflect.TypeOf((*Even)(nil)).Elem(),
-		New:         func() any { return &even{} },
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return even_local_stub{impl: impl.(Even), tracer: tracer} },
-		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return even_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even", Method: "Do"})}
+	codegen.RegisterTyped(codegen.TypedRegistration[Even, even]{
+		LocalStubFn: func(impl *even, tracer trace.Tracer) Even {
+			return even_local_stub{impl: impl, tracer: tracer}
 		},
-		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return even_server_stub{impl: impl.(Even), addLoad: addLoad}
+		ClientStubFn: func(stub codegen.Stub, caller string) Even {
+			return even_client_stub{
+				stub: stub,
+				doMetrics: codegen.MethodMetricsFor(
+					codegen.MethodLabels{
+						Caller:    caller,
+						Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even",
+						Method:    "Do",
+					},
+				),
+			}
+		},
+		ServerStubFn: func(impl *even, addLoad func(uint64, float64)) codegen.Server {
+			return even_server_stub{impl: impl, addLoad: addLoad}
 		},
 	})
+
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
 		Iface:       reflect.TypeOf((*Odd)(nil)).Elem(),

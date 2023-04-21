@@ -35,6 +35,41 @@ func Register(reg Registration) {
 	}
 }
 
+// DO_NOT_SUBMIT(mwhittaker): Document.
+func RegisterTyped[Intf, Impl any](reg TypedRegistration[Intf, Impl]) {
+	Register(erase(reg))
+}
+
+// DO_NOT_SUBMIT(mwhittaker): Document.
+func erase[Intf, Impl any](typed TypedRegistration[Intf, Impl]) Registration {
+	intf := reflect.TypeOf((*Intf)(nil)).Elem()
+	impl := reflect.TypeOf((*Impl)(nil)).Elem()
+	reg := Registration{
+		Name:  fmt.Sprintf("%s/%s", intf.PkgPath(), intf.Name()),
+		Iface: intf,
+		New: func() any {
+			x := reflect.Zero(impl).Interface().(Impl)
+			return &x
+		},
+		Routed: typed.Routed,
+		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+			return typed.LocalStubFn(impl.(*Impl), tracer)
+		},
+		ClientStubFn: func(stub Stub, caller string) any {
+			return typed.ClientStubFn(stub, caller)
+		},
+		ServerStubFn: func(impl any, load func(key uint64, load float64)) Server {
+			return typed.ServerStubFn(impl.(*Impl), load)
+		},
+	}
+	if typed.ConfigFn != nil {
+		reg.ConfigFn = func(impl any) any {
+			return typed.ConfigFn(impl.(*Impl))
+		}
+	}
+	return reg
+}
+
 // Registered returns the components registered with Register.
 func Registered() []*Registration {
 	return globalRegistry.allComponents()
@@ -61,6 +96,15 @@ type Registration struct {
 	LocalStubFn  func(impl any, tracer trace.Tracer) any
 	ClientStubFn func(stub Stub, caller string) any
 	ServerStubFn func(impl any, load func(key uint64, load float64)) Server
+}
+
+// DO_NOT_SUBMIT(mwhittaker): Document.
+type TypedRegistration[Intf, Impl any] struct {
+	LocalStubFn  func(impl *Impl, tracer trace.Tracer) Intf
+	ClientStubFn func(stub Stub, caller string) Intf
+	ServerStubFn func(impl *Impl, load func(key uint64, load float64)) Server
+	ConfigFn     func(impl *Impl) any
+	Routed       bool
 }
 
 // register registers a Service Weaver component. If the registry's close method was
