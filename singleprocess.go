@@ -179,6 +179,10 @@ func (e *singleprocessEnv) VerifyServerCertificate(context.Context, [][]byte, st
 
 // serveStatus runs and registers the weaver-single status server.
 func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
+	// Start the signal handler before the listener
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+
 	mux := http.NewServeMux()
 	mux.Handle("/debug/pprof/", http.DefaultServeMux)
 	status.RegisterServer(mux, e, e.SystemLogger())
@@ -219,14 +223,14 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	}
 
 	// Unregister the deployment if this application is killed.
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-done
+		code := 0
 		if err := registry.Unregister(ctx, reg.DeploymentId); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
+			code = 1
 		}
-		os.Exit(1)
+		os.Exit(code)
 	}()
 
 	return <-errs
