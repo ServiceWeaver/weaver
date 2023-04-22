@@ -36,13 +36,14 @@ func TestTestLogger(t *testing.T) {
 		go func() {
 			for {
 				logger.Debug("Ping")
+				time.Sleep(200 * time.Microsecond)
 			}
 		}()
 		// Give the logger a chance to log something.
 		time.Sleep(1 * time.Millisecond)
 	})
 	// Allow the goroutine to keep running, even though the test has finished.
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 }
 
 func TestWithAttribute(t *testing.T) {

@@ -106,6 +106,10 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("create deployer: %w", err)
 	}
 
+	// Start signal handler before listener
+	userDone := make(chan os.Signal, 1)
+	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
+
 	// Run a status server.
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
@@ -149,25 +153,26 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("register deployment: %w", err)
 	}
 
-	userDone := make(chan os.Signal, 1)
 	deployerDone := make(chan error, 1)
 	go func() {
 		err := d.wait()
 		deployerDone <- err
 	}()
-	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
+		var code = 1
 		// Wait for the user to kill the app or the app to return an error.
 		select {
-		case <-userDone:
+		case sig := <-userDone:
 			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", appConfig.Name)
+			code = 128 + int(sig.(syscall.Signal))
 		case err := <-deployerDone:
 			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", appConfig.Name, err)
 		}
 		if err := registry.Unregister(ctx, deploymentId); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
+			code = 1
 		}
-		os.Exit(1)
+		os.Exit(code)
 	}()
 
 	// Follow the logs.

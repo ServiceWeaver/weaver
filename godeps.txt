@@ -83,6 +83,7 @@ github.com/ServiceWeaver/weaver/dev/docgen
     path/filepath
     regexp
     strings
+github.com/ServiceWeaver/weaver/examples
 github.com/ServiceWeaver/weaver/examples/chat
     bytes
     context
