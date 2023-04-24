@@ -28,7 +28,7 @@ import (
 //go:generate ../../cmd/weaver/weaver generate
 
 var (
-	address = flag.String("address", "localhost:9000", "Reverser server local address")
+	address = flag.String("address", ":9000", "Reverser server local address")
 
 	//go:embed index.html
 	indexHtml string // index.html served on "/"
