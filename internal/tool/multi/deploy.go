@@ -80,6 +80,10 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("create deployer: %w", err)
 	}
 
+	// Start signal handler before listener
+	userDone := make(chan os.Signal, 1)
+	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
+
 	// Run a status server.
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
@@ -123,13 +127,11 @@ func deploy(ctx context.Context, args []string) error {
 		return fmt.Errorf("register deployment: %w", err)
 	}
 
-	userDone := make(chan os.Signal, 1)
 	deployerDone := make(chan error, 1)
 	go func() {
 		err := d.wait()
 		deployerDone <- err
 	}()
-	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		var code = 1
 		// Wait for the user to kill the app or the app to return an error.

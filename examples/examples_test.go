@@ -147,19 +147,11 @@ func startCmd(ctx context.Context, t *testing.T, c string) *exec.Cmd {
 }
 
 func terminateCmdAndWait(t *testing.T, cmd *exec.Cmd) func() {
-	errCh := make(chan error)
-	// start waiting on exit in the background before the test case runs to avoid
-	// a race with sending SIGTERM. That race can cause the test to fail with
-	// exitError.ExitCode of -1.
-	go func() {
-		errCh <- cmd.Wait()
-	}()
-
 	return func() {
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			t.Fatalf("failed to terminate process: %v", err)
 		}
-		if err := <-errCh; err != nil {
+		if err := cmd.Wait(); err != nil {
 			t.Fatalf("unexpected exit error: %v", err)
 		}
 	}

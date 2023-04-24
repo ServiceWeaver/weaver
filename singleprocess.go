@@ -163,6 +163,10 @@ func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr stri
 
 // serveStatus runs and registers the weaver-single status server.
 func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
+	// Start the signal handler before the listener
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+
 	mux := http.NewServeMux()
 	mux.Handle("/debug/pprof/", http.DefaultServeMux)
 	status.RegisterServer(mux, e, e.SystemLogger())
@@ -206,8 +210,6 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	}
 
 	// Unregister the deployment if this application is killed.
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-done
 		code := 0
