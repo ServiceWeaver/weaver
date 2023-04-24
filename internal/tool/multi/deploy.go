@@ -134,14 +134,15 @@ func deploy(ctx context.Context, args []string) error {
 		var code = 1
 		// Wait for the user to kill the app or the app to return an error.
 		select {
-		case sig := <-userDone:
+		case <-userDone:
 			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", config.Name)
-			code = 128 + int(sig.(syscall.Signal))
+			code = 0
 		case err := <-deployerDone:
 			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", config.Name, err)
 		}
 		if err := registry.Unregister(ctx, deploymentId); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
+			code = 1
 		}
 		os.Exit(code)
 	}()

@@ -16,7 +16,6 @@ package examples
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -160,14 +159,8 @@ func terminateCmdAndWait(t *testing.T, cmd *exec.Cmd) func() {
 		if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
 			t.Fatalf("failed to terminate process: %v", err)
 		}
-
-		err := <-errCh
-		exitError := &exec.ExitError{}
-		if !errors.As(err, &exitError) {
-			t.Fatalf("unexpected error %v (%T)", err, err)
-		}
-		if exitError.ExitCode() != 128+int(syscall.SIGTERM) {
-			t.Fatalf("unexpected error %v", err)
+		if err := <-errCh; err != nil {
+			t.Fatalf("unexpected exit error: %v", err)
 		}
 	}
 }

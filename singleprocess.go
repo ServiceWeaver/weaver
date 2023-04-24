@@ -209,11 +209,13 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		sig := <-done
+		<-done
+		code := 0
 		if err := registry.Unregister(ctx, reg.DeploymentId); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
+			code = 1
 		}
-		os.Exit(128 + int(sig.(syscall.Signal)))
+		os.Exit(code)
 	}()
 
 	return <-errs
