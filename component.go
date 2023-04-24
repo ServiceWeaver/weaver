@@ -46,13 +46,13 @@ type Instance interface {
 	// Listener returns a network listener with the given name that is suitable
 	// for hosting an HTTP server.
 	//
-	// Name may be used by the Service Weaver framework to route client traffic to the
-	// corresponding network listener. As such, listener names should follow the
-	// DNS format for names.
+	// Name may be used by the Service Weaver framework to route client traffic
+	// to the corresponding network listener. As such, listener names should
+	// follow the DNS format for names.
 	//
-	// HTTP servers constructed using this listener are expected to perform health
-	// checks on the reserved "/healthz" URL prefix. (Note that this URL prefix
-	// is configured to never receive any user traffic.)
+	// HTTP servers constructed using this listener are expected to perform
+	// health checks on the reserved HealthzURL path. (Note that this
+	// URL path is configured to never receive any user traffic.)
 	//
 	// If different processes in an application call Listener() multiple times
 	// with the same listener name but different options, the options value from

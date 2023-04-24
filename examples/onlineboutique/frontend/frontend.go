@@ -186,9 +186,7 @@ func NewServer(root weaver.Instance) (*Server, error) {
 	r.Handle("/cart/checkout", instrument("cart_checkout", s.placeOrderHandler, []string{post}))
 	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static/", http.FileServer(http.FS(staticHTML)))))
 	r.Handle("/robots.txt", instrument("robots", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") }, nil))
-
-	// No instrumentation of /healthz
-	r.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
+	r.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 
 	// Set handler and return.
 	var handler http.Handler = r
