@@ -148,6 +148,7 @@ func startCmd(ctx context.Context, t *testing.T, c string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "sh", "-c", c)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.WaitDelay = 2 * time.Second
 	isNilError(t, cmd.Start())
 	return cmd
 }
