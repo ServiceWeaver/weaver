@@ -94,10 +94,15 @@ func (tc httpRequestTestCase) run(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	t.Cleanup(cancel)
 
+	client := http.DefaultClient
+
 	var resp *http.Response
 	var err error
 	for r := retry.Begin(); r.Continue(ctx); {
-		resp, err = http.Get(tc.url)
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, tc.url, nil)
+		isNilError(t, reqErr)
+
+		resp, err = client.Do(req)
 		if err == nil {
 			break
 		}
