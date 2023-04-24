@@ -49,6 +49,10 @@ jobs:
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
         if: ${{ matrix.command == 'lint' }}
 
+      - name: Build the weaver binary
+        run: cd cmd/weaver; go build .
+        if: ${{ matrix.command == 'test' || matrix.command == 'testrace' }}
+
       - name: ${{ matrix.command }}
         run: ./dev/build_and_test ${{ matrix.command }}
 
