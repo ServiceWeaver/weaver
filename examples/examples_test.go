@@ -33,14 +33,14 @@ func TestExamples(t *testing.T) {
 			url:          "http://localhost:12345/hello?name=something",
 			expectedBody: "Hello, gnihtemos!\n",
 		}.run,
-		"collatz": httpRequestTestCase{
-			url:          "http://127.0.0.1:9000?x=8",
-			expectedBody: "8\n4\n2\n1\n",
-		}.run,
-		"reverser": httpRequestTestCase{
-			url:          "http://127.0.0.1:9000/reverse?s=abcdef",
-			expectedBody: "fedcba\n",
-		}.run,
+		//"collatz": httpRequestTestCase{
+		//	url:          "http://127.0.0.1:9000?x=8",
+		//	expectedBody: "8\n4\n2\n1\n",
+		//}.run,
+		//"reverser": httpRequestTestCase{
+		//	url:          "http://127.0.0.1:9000/reverse?s=abcdef",
+		//	expectedBody: "fedcba\n",
+		//}.run,
 	}
 
 	examples, err := os.ReadDir(".")

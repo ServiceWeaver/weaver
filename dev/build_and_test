@@ -66,7 +66,7 @@ function cmd_lint() {
 }
 
 function cmd_test() {
-  go test ./...
+  go test -v ./...
 }
 
 function cmd_testrace() {
