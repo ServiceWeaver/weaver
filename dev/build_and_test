@@ -66,11 +66,11 @@ function cmd_lint() {
 }
 
 function cmd_test() {
-  go test -v -p=1 ./...
+  go test -v -p=1 -timeout=120s ./...
 }
 
 function cmd_testrace() {
-  go test -v -p=1 -race ./...
+  go test -v -p=1 -timeout=120s -race ./...
 }
 
 function main() {
