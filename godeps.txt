@@ -898,10 +898,12 @@ github.com/ServiceWeaver/weaver/weavertest/internal/protos
 github.com/ServiceWeaver/weaver/weavertest/internal/simple
     context
     errors
+    fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    net/http
     os
     reflect
     strings

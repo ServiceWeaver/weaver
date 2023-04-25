@@ -31,6 +31,18 @@ func init() {
 		},
 	})
 	codegen.Register(codegen.Registration{
+		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server",
+		Iface:       reflect.TypeOf((*Server)(nil)).Elem(),
+		New:         func() any { return &server{} },
+		LocalStubFn: func(impl any, tracer trace.Tracer) any { return server_local_stub{impl: impl.(Server), tracer: tracer} },
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return server_client_stub{stub: stub, addressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server", Method: "Address"}), proxyAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server", Method: "ProxyAddress"}), shutdownMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server", Method: "Shutdown"})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return server_server_stub{impl: impl.(Server), addLoad: addLoad}
+		},
+	})
+	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
 		Iface:       reflect.TypeOf((*Source)(nil)).Elem(),
 		New:         func() any { return &source{} },
@@ -117,6 +129,62 @@ func (s destination_local_stub) RoutedRecord(ctx context.Context, a0 string, a1 
 	}
 
 	return s.impl.RoutedRecord(ctx, a0, a1)
+}
+
+type server_local_stub struct {
+	impl   Server
+	tracer trace.Tracer
+}
+
+func (s server_local_stub) Address(ctx context.Context) (r0 string, err error) {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "simple.Server.Address", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.Address(ctx)
+}
+
+func (s server_local_stub) ProxyAddress(ctx context.Context) (r0 string, err error) {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "simple.Server.ProxyAddress", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.ProxyAddress(ctx)
+}
+
+func (s server_local_stub) Shutdown(ctx context.Context) (err error) {
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "simple.Server.Shutdown", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.Shutdown(ctx)
 }
 
 type source_local_stub struct {
@@ -376,6 +444,159 @@ func (s destination_client_stub) RoutedRecord(ctx context.Context, a0 string, a1
 	return
 }
 
+type server_client_stub struct {
+	stub                codegen.Stub
+	addressMetrics      *codegen.MethodMetrics
+	proxyAddressMetrics *codegen.MethodMetrics
+	shutdownMetrics     *codegen.MethodMetrics
+}
+
+func (s server_client_stub) Address(ctx context.Context) (r0 string, err error) {
+	// Update metrics.
+	start := time.Now()
+	s.addressMetrics.Count.Add(1)
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "simple.Server.Address", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			s.addressMetrics.ErrorCount.Add(1)
+		}
+		span.End()
+
+		s.addressMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
+	}()
+
+	var shardKey uint64
+
+	// Call the remote method.
+	s.addressMetrics.BytesRequest.Put(0)
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, nil, shardKey)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+	s.addressMetrics.BytesReply.Put(float64(len(results)))
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.String()
+	err = dec.Error()
+	return
+}
+
+func (s server_client_stub) ProxyAddress(ctx context.Context) (r0 string, err error) {
+	// Update metrics.
+	start := time.Now()
+	s.proxyAddressMetrics.Count.Add(1)
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "simple.Server.ProxyAddress", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			s.proxyAddressMetrics.ErrorCount.Add(1)
+		}
+		span.End()
+
+		s.proxyAddressMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
+	}()
+
+	var shardKey uint64
+
+	// Call the remote method.
+	s.proxyAddressMetrics.BytesRequest.Put(0)
+	var results []byte
+	results, err = s.stub.Run(ctx, 1, nil, shardKey)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+	s.proxyAddressMetrics.BytesReply.Put(float64(len(results)))
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.String()
+	err = dec.Error()
+	return
+}
+
+func (s server_client_stub) Shutdown(ctx context.Context) (err error) {
+	// Update metrics.
+	start := time.Now()
+	s.shutdownMetrics.Count.Add(1)
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "simple.Server.Shutdown", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			s.shutdownMetrics.ErrorCount.Add(1)
+		}
+		span.End()
+
+		s.shutdownMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
+	}()
+
+	var shardKey uint64
+
+	// Call the remote method.
+	s.shutdownMetrics.BytesRequest.Put(0)
+	var results []byte
+	results, err = s.stub.Run(ctx, 2, nil, shardKey)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+	s.shutdownMetrics.BytesReply.Put(float64(len(results)))
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	err = dec.Error()
+	return
+}
+
 type source_client_stub struct {
 	stub        codegen.Stub
 	emitMetrics *codegen.MethodMetrics
@@ -554,6 +775,84 @@ func (s destination_server_stub) routedRecord(ctx context.Context, args []byte) 
 	// user code: fix this.
 	// Call the local method.
 	appErr := s.impl.RoutedRecord(ctx, a0, a1)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+type server_server_stub struct {
+	impl    Server
+	addLoad func(key uint64, load float64)
+}
+
+// GetStubFn implements the stub.Server interface.
+func (s server_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "Address":
+		return s.address
+	case "ProxyAddress":
+		return s.proxyAddress
+	case "Shutdown":
+		return s.shutdown
+	default:
+		return nil
+	}
+}
+
+func (s server_server_stub) address(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.Address(ctx)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.String(r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s server_server_stub) proxyAddress(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.ProxyAddress(ctx)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.String(r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s server_server_stub) shutdown(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	appErr := s.impl.Shutdown(ctx)
 
 	// Encode the results.
 	enc := codegen.NewEncoder()

@@ -17,10 +17,14 @@ package simple_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/simple"
@@ -96,58 +100,54 @@ func TestTwoComponents(t *testing.T) {
 	}
 }
 
-/* TODO(sanjay): Figure out how to get a handle to an implementation so we can
-   get a listener and test it.
-func TestListener(t *testing.T) {
+func TestServer(t *testing.T) {
 	for _, single := range []bool{true, false} {
-		// Get a listener, serve on it, and make an HTTP request to the server.
 		t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
-			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
-			defer cancelFunc()
-			root := weavertest.Init(ctx, t, weavertest.Options{SingleProcess: single})
+			weavertest.Run(t, weavertest.Options{SingleProcess: single}, func(srv simple.Server) {
+				ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancelFunc()
+				defer func() {
+					err := srv.Shutdown(ctx)
+					if err != nil {
+						t.Fatalf("Shutdown failed: %v", err)
+					}
+				}()
 
-			lis, err := root.Listener("hello", weaver.ListenerOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
+				// Check listener properties.
+				addr, err := srv.Address(ctx)
+				if err != nil {
+					t.Fatalf("Could not fetch server address: %v", err)
+				}
+				if !strings.Contains(addr, ":") {
+					t.Fatalf("Bad address %q", addr)
+				}
+				proxy, err := srv.ProxyAddress(ctx)
+				if err != nil {
+					t.Fatalf("Could not fetch proxy address: %v", err)
+				}
+				if single && proxy != "" {
+					t.Fatalf("Unexpected proxy %q", proxy)
+				}
 
-			// Check listener properties.
-			if str := lis.String(); !strings.Contains(str, ":") {
-				t.Fatalf("Bad Listener.String() %q", str)
-			}
-			proxy := lis.ProxyAddr()
-			if single && proxy != "" {
-				t.Fatalf("Bad Listener.ProxyAddr() %q", proxy)
-			}
-
-			// Run server on listener.
-			const response = "hello world"
-			srv := &http.Server{
-				Handler: weaver.InstrumentHandlerFunc("test", func(w http.ResponseWriter, r *http.Request) {
-					fmt.Fprint(w, response)
-				}),
-			}
-			go srv.Serve(lis)
-			defer srv.Shutdown(ctx)
-
-			url := fmt.Sprintf("http://%s/test", lis.String())
-			t.Logf("Calling %s", url)
-			resp, err := http.Get(url)
-			if err != nil {
-				t.Fatalf("Calling listener: %v", err)
-			}
-			defer resp.Body.Close()
-			data, err := io.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("Reading listener response: %v", err)
-			}
-			if string(data) != response {
-				t.Fatalf("Wrong response %q, expecting %q", string(data), response)
-			}
+				// Check server handler.
+				url := fmt.Sprintf("http://%s/test", addr)
+				t.Logf("Calling %s", url)
+				resp, err := http.Get(url)
+				if err != nil {
+					t.Fatalf("Calling server: %v", err)
+				}
+				defer resp.Body.Close()
+				data, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("Reading server response: %v", err)
+				}
+				if want, got := simple.ServerTestResponse, string(data); got != want {
+					t.Fatalf("Wrong response %q, expecting %q", got, want)
+				}
+			})
 		})
 	}
 }
-*/
 
 func TestRoutedCall(t *testing.T) {
 	// Make a call to a routed method.
