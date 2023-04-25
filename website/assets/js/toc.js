@@ -59,6 +59,13 @@ function init_toc() {
     }
     h.id = id;
 
+    // Append an inline header link.
+    const hlink = document.createElement('a');
+    hlink.classList.add('heading-link');
+    hlink.href = '#' + h.id;
+    hlink.innerHTML = '🔗';  // TODO(mwhittaker): Use an icon?
+    h.appendChild(hlink);
+
     // Generate TOC entry.
     const item = document.createElement('li');
     const link = link_to(h.innerText, '#' + id);
