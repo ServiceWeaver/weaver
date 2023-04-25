@@ -25,6 +25,7 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -477,6 +478,15 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 		return nil, err
 	}
 
+	// Warn the user if the component has a mistyped Init method. Init methods
+	// are supposed to have type "func(context.Context) error", but it's easy
+	// to forget to add a context.Context argument or error return. Without
+	// this warning, the component's Init method will be silently ignored. This
+	// can be very frustrating to debug.
+	if err := checkMistypedInit(pkg, tset, impl); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
 	comp := &component{
 		intf:      intf,
 		impl:      impl,
@@ -614,6 +624,35 @@ func validateMethods(pkg *packages.Package, tset *typeSet, intf *types.Named) er
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// checkMistypedInit returns an error if the provided component implementation
+// has an Init method that does not have type "func(context.Context) error".
+func checkMistypedInit(pkg *packages.Package, tset *typeSet, impl *types.Named) error {
+	for i := 0; i < impl.NumMethods(); i++ {
+		m := impl.Method(i)
+		if m.Name() != "Init" {
+			continue
+		}
+
+		// TODO(mwhittaker): Highlight the warning yellow instead of red.
+		sig := m.Type().(*types.Signature)
+		err := errorf(pkg.Fset, m.Pos(),
+			`WARNING: Component %v's Init method has type "%v", not type "func(context.Context) error". It will be ignored. See https://serviceweaver.dev/docs.html#components-implementation for more information.`,
+			impl.Obj().Name(), sig)
+
+		// Check Init's parameters.
+		if sig.Params().Len() != 1 || !isContext(sig.Params().At(0).Type()) {
+			return err
+		}
+
+		// Check Init's returns.
+		if sig.Results().Len() != 1 || sig.Results().At(0).Type().String() != "error" {
+			return err
+		}
+		return nil
+	}
+	return nil
 }
 
 // routerMethods returns the routing key and the set of routed methods for comp.

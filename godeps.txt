@@ -526,6 +526,7 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     golang.org/x/tools/go/packages
     golang.org/x/tools/go/types/typeutil
     io
+    os
     path
     path/filepath
     sort
