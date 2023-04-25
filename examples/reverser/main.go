@@ -17,12 +17,9 @@ import (
 	"context"
 	_ "embed"
 	"flag"
-	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/ServiceWeaver/weaver"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //go:generate ../../cmd/weaver/weaver generate
@@ -40,44 +37,4 @@ func main() {
 	if err := weaver.Run(context.Background(), serve); err != nil {
 		log.Fatal(err)
 	}
-}
-
-type server struct {
-	weaver.Implements[weaver.Main]
-}
-
-func serve(ctx context.Context, s *server) error {
-	// Get a client to the Reverser component.
-	reverser, err := weaver.Get[Reverser](s)
-	if err != nil {
-		return err
-	}
-
-	// Get a network listener.
-	opts := weaver.ListenerOptions{LocalAddress: *address}
-	lis, err := s.Listener("reverser", opts)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("hello listener available on %v\n", lis)
-
-	// Serve HTTP traffic.
-	var mux http.ServeMux
-	mux.Handle("/", weaver.InstrumentHandlerFunc("reverser",
-		func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, indexHtml)
-		}))
-	mux.Handle("/reverse", weaver.InstrumentHandlerFunc("reverser",
-		func(w http.ResponseWriter, r *http.Request) {
-			reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("s"))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			fmt.Fprintln(w, reversed)
-		}))
-	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-
-	handler := otelhttp.NewHandler(&mux, "http")
-	return http.Serve(lis, handler)
 }
