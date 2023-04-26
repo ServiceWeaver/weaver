@@ -266,7 +266,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 			Sections:      d.config.Sections,
 			SingleProcess: false,
 			SingleMachine: true,
-			RunMain:       g.components["main"],
+			RunMain:       g.components["github.com/ServiceWeaver/weaver/Main"],
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config)
 		if err != nil {
@@ -322,7 +322,9 @@ func checkVersion(appVersion *protos.SemVer) error {
 }
 
 func (d *deployer) startMain() error {
-	return d.activateComponent(&protos.ActivateComponentRequest{Component: "main"})
+	return d.activateComponent(&protos.ActivateComponentRequest{
+		Component: "github.com/ServiceWeaver/weaver/Main",
+	})
 }
 
 // ActivateComponent implements the envelope.EnvelopeHandler interface.

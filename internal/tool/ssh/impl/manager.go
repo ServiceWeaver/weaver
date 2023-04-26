@@ -250,7 +250,7 @@ func (m *manager) run() error {
 
 	// Start the main process.
 	if err := m.startComponent(m.ctx, &protos.ActivateComponentRequest{
-		Component: "main",
+		Component: "github.com/ServiceWeaver/weaver/Main",
 	}); err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ActivateCompon
 	update()
 
 	// Start the colocation group, if it hasn't already started.
-	return m.startColocationGroup(g, req.Component == "main")
+	return m.startColocationGroup(g, req.Component == "github.com/ServiceWeaver/weaver/Main")
 }
 
 // REQUIRES: g.mu is NOT held.
