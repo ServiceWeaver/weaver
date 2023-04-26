@@ -532,7 +532,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		c.tracer = w.tracer
 
 		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
-		if err := createComponent(w.ctx, c); err != nil {
+		if err := w.createComponent(w.ctx, c); err != nil {
 			w.env.SystemLogger().Error("Constructing component failed", "err", err, "component", c.info.Name)
 			return err
 		}
@@ -551,10 +551,11 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 	return c.impl, c.implErr
 }
 
-func createComponent(ctx context.Context, c *component) error {
+func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	// Create the implementation object.
 	obj := c.info.New()
 
+	// Fill config if necessary.
 	if c.info.ConfigFn != nil {
 		cfg := c.info.ConfigFn(obj)
 		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.info.Sections, cfg); err != nil {
@@ -567,6 +568,19 @@ func createComponent(ctx context.Context, c *component) error {
 		return fmt.Errorf("component %q: type %T is not a component implementation", c.info.Name, obj)
 	} else {
 		i.setInstance(c.impl)
+	}
+
+	// Fill ref fields.
+	err := fillRefs(obj, func(refType reflect.Type) (any, error) {
+		sub, err := w.getComponentByType(refType)
+		if err != nil {
+			return nil, err
+		}
+		r, _, err := w.getInstance(sub, c.info.Name)
+		return r, err
+	})
+	if err != nil {
+		return err
 	}
 
 	// Call Init if available.
