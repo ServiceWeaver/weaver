@@ -266,7 +266,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 			Sections:      d.config.Sections,
 			SingleProcess: false,
 			SingleMachine: true,
-			RunMain:       g.components["github.com/ServiceWeaver/weaver/Main"],
+			RunMain:       g.components[runtime.Main],
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config)
 		if err != nil {
@@ -323,7 +323,7 @@ func checkVersion(appVersion *protos.SemVer) error {
 
 func (d *deployer) startMain() error {
 	return d.activateComponent(&protos.ActivateComponentRequest{
-		Component: "github.com/ServiceWeaver/weaver/Main",
+		Component: runtime.Main,
 	})
 }
 
