@@ -432,12 +432,12 @@ func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*proto
 			c, err := w.getComponent(component)
 			if err != nil {
 				// TODO(mwhittaker): Propagate errors.
-				w.env.SystemLogger().Error("getComponent", err, "component", component)
+				w.env.SystemLogger().Error("getComponent", "err", err, "component", component)
 				return
 			}
 			if _, err = w.getImpl(c); err != nil {
 				// TODO(mwhittaker): Propagate errors.
-				w.env.SystemLogger().Error("getImpl", err, "component", component)
+				w.env.SystemLogger().Error("getImpl", "err", err, "component", component)
 				return
 			}
 		}
