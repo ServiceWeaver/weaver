@@ -15,6 +15,7 @@
 package weaver
 
 import (
+	"crypto/tls"
 	"net"
 	"sync"
 
@@ -72,17 +73,11 @@ type componentImpl struct {
 	serverStub codegen.Server // handles calls from other processes
 }
 
-// componentStub is a stub to a component running remotely on a different process.
-// A componentStub is not a component implementation. Rather, it's a stub that
-// proxies method calls over the network to a remote process.
-type componentStub struct {
-	stub *stub // stub used to create clients
-}
-
 // component represents a Service Weaver component and all corresponding metadata.
 type component struct {
-	wlet *weavelet             // read-only, once initialized
-	info *codegen.Registration // read-only, once initialized
+	wlet      *weavelet             // read-only, once initialized
+	info      *codegen.Registration // read-only, once initialized
+	clientTLS *tls.Config           // read-only, once initialized
 
 	registerInit sync.Once // used to register the component
 	registerErr  error     // non-nil if registration fails
@@ -93,9 +88,19 @@ type component struct {
 	logger   *slog.Logger   // read-only after implInit.Do()
 	tracer   trace.Tracer   // read-only after implInit.Do()
 
-	stubInit sync.Once      // used to initialize stub
-	stubErr  error          // non-nil if stub creation fails
-	stub     *componentStub // only ever non-nil if this component is remote or routed
+	// TODO(mwhittaker): We have one client for every component. Every client
+	// independently maintains network connections to every weavelet hosting
+	// the component. Thus, there may be many redundant network connections to
+	// the same weavelet. Given n weavelets hosting m components, there's at
+	// worst n^2m connections rather than a more optimal n^2 (a single
+	// connection between every pair of weavelets). We should rewrite things to
+	// avoid the redundancy.
+	clientInit sync.Once // used to initialize client
+	client     *client   // only evern non-nil if this component is remote or routed
+
+	stubInit sync.Once // used to initialize stub
+	stubErr  error     // non-nil if stub creation fails
+	stub     *stub     // only ever non-nil if this component is remote or routed
 
 	local register.WriteOnce[bool] // routed locally?
 	load  *loadCollector           // non-nil for routed components

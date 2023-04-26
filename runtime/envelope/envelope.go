@@ -51,6 +51,25 @@ type EnvelopeHandler interface {
 	// traffic to the provided address.
 	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
+	// VerifyClientCertificate verifies the certificate chain presented by
+	// a network client attempting to connect to the weavelet. It returns an
+	// error if the network connection should not be established with the
+	// client. Otherwise, it returns the list of weavelet components that the
+	// client is authorized to invoke methods on.
+	//
+	// NOTE: this method is only called if weavelet security was enabled, by
+	// passing non-nil SelfKey and SelfCertChain fields in the EnvelopeInfo.
+	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
+
+	// VerifyServerCertificate verifies the certificate chain presented by
+	// the server the weavelet is attempting to connect to. It returns an
+	// error iff the server identity doesn't match the identity of the specified
+	// component.
+	//
+	// NOTE: this method is only called if weavelet security was enabled, i.e.,
+	// if EnvelopeInfo had non-nil SelfKey and SelfCert fields.
+	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
+
 	// HandleLogEntry handles a log entry.
 	HandleLogEntry(context.Context, *protos.LogEntry) error
 

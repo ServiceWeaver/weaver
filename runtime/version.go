@@ -38,6 +38,6 @@ const (
 	// TODO(mwhittaker): Write a doc explaining versioning in detail. Include
 	// Srdjan's comments in PR #219.
 	Major = 0
-	Minor = 2
+	Minor = 6
 	Patch = 0
 )

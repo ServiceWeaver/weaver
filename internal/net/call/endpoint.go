@@ -16,6 +16,7 @@ package call
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
@@ -58,6 +59,17 @@ func Unix(filename string) NetEndpoint {
 	return NetEndpoint{"unix", filename}
 }
 
+// MTLS returns an endpoint that performs MTLS authentication over the
+// underlying endpoint. For example:
+//
+//	MTLS(&tls.Config{...}, TCP("golang.org:http"))
+//	MTLS(&tls.Config{...}, Unix("unix.sock"))
+//
+// REQUIRES: config is not nil
+func MTLS(config *tls.Config, ep Endpoint) Endpoint {
+	return &tlsEndpoint{config: config, ep: ep}
+}
+
 // NetEndpoint is an Endpoint that implements Dial using net.Dial.
 type NetEndpoint struct {
 	Net  string // e.g., "tcp", "udp", "unix"
@@ -93,4 +105,33 @@ func ParseNetEndpoint(endpoint string) (NetEndpoint, error) {
 		return NetEndpoint{}, fmt.Errorf("%q does not have format <network>://<address>", endpoint)
 	}
 	return NetEndpoint{Net: net, Addr: addr}, nil
+}
+
+type tlsEndpoint struct {
+	config *tls.Config
+	ep     Endpoint
+}
+
+var _ Endpoint = &tlsEndpoint{}
+
+// Dial implements the Endpoint interface.
+func (t *tlsEndpoint) Dial(ctx context.Context) (net.Conn, error) {
+	conn, err := t.ep.Dial(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tlsConn := tls.Client(conn, t.config)
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		return nil, fmt.Errorf("TLS handshake failed: %w", err)
+	}
+	return tlsConn, nil
+}
+
+// Address implements the Endpoint interface.
+func (t *tlsEndpoint) Address() string {
+	return fmt.Sprintf("mtls://%s", t.ep.Address())
+}
+
+func (t *tlsEndpoint) String() string {
+	return t.Address()
 }

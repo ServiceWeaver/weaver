@@ -240,6 +240,14 @@ func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerR
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (*deployer) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	panic("unused")
+}
+
+func (*deployer) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	panic("unused")
+}
+
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
 func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
