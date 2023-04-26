@@ -151,6 +151,20 @@ func (i *Implements[T]) setInstance(c *componentImpl) { i.componentImpl = c }
 //nolint:unused
 func (i *Implements[T]) implements(T) {}
 
+// Ref[T] is a field that can be placed inside a component implementation
+// struct. T must be a component type. Service Weaver will automatically
+// fill such a field with a handle to the corresponding component.
+type Ref[T any] struct {
+	value T
+}
+
+// Get returns a handle to the component of type T.
+func (r Ref[T]) Get() T { return r.value }
+
+// isRef is an internal interface that is only implemented by Ref[T] and is
+// used by the implementation to check that a value is of type Ref[T].
+func (r Ref[T]) isRef() {}
+
 // A Listener is Service Weaver's implementation of a net.Listener.
 //
 // A Listener implements the net.Listener interface, so you can use a Listener

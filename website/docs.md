@@ -14,12 +14,13 @@ $ go run .                      # Run locally.
 $ weaver gke deploy weaver.toml # Run in the cloud.
 ```
 
-A Service Weaver application is composed of a number **components**. A component is
-represented as a regular Go [interface][go_interfaces], and components interact
-with each other by calling the methods defined by these interfaces. This makes
-writing Service Weaver applications easy. You don't have to write any networking or
-serialization code; you just write Go. Service Weaver also provides libraries for
-logging, metrics, tracing, routing, testing, and more.
+A Service Weaver application is composed of a number of **components**. A
+component is represented as a regular Go [interface][go_interfaces], and
+components interact with each other by calling the methods defined by these
+interfaces. This makes writing Service Weaver applications easy. You don't have
+to write any networking or serialization code; you just write Go. Service Weaver
+also provides libraries for logging, metrics, tracing, routing, testing, and
+more.
 
 You can deploy a Service Weaver application as easily as running a single command. Under
 the covers, Service Weaver will dissect your binary along component boundaries, allowing
@@ -92,6 +93,9 @@ components. Concretely, a component is represented with a regular Go
 [interface][go_interfaces], and components interact with each other by calling
 the methods defined by these interfaces.
 
+TODO(sanjay): We should make the first example have just a single component and
+delay the necessity to use `weaver.Ref` until the "Multiple Components" section.
+
 In this section, we'll define a simple `Reverser` component that reverses
 strings. First, run `go mod init hello` to create a go module.
 
@@ -160,17 +164,12 @@ func main() {
 // it and passes it to serve.
 type app struct{
     weaver.Implements[weaver.Main]
+    reverser weaver.Ref[Reverser]
 }
 
 func serve(ctx context.Context, app *app) error {
-    // Get the Reverser component.
-    reverser, err := weaver.Get[Reverser](app)
-    if err != nil {
-        return err
-    }
-
     // Call the Reverse method.
-    reversed, err := reverser.Reverse(ctx, "!dlroW ,olleH")
+    reversed, err := app.reverser.Get().Reverse(ctx, "!dlroW ,olleH")
     if err != nil {
         return err
     }
@@ -184,9 +183,9 @@ particular, `weaver.Run` finds the main component, creates it, and passes it to 
 supplied function. In this example,`app` is the main component since it contains
 a `weaver.Implements[weaver.Main]` field.
 
-The `serve` function fetches the Reverser component by calling
-`weaver.Get[Reverser](app)`.  We invoke methods on the component like we would
-any regular interface. In this example, we call `reverser.Reverse`.
+The `app` struct has a special field of type `weaver.Ref[Reverser]`. The `Get()`
+method on this field returns the `Reverser` component. The application can call
+methods on this component like on any regular interface.
 
 Before we build and run the app, we need to run Service Weaver's code generator,
 called `weaver generate`. `weaver generate` writes a `weaver_gen.go` file that
@@ -215,6 +214,16 @@ When we `go run` a Service Weaver application, all components run together in a
 single process, and method calls between components are executed as regular Go
 method calls. In a moment, we'll describe how to run each component in a
 separate process with method calls between components executed as RPCs.
+
+## References
+
+If component X uses component Y, the implementation struct for X should contain
+a field of type `weaver.Ref[Y]`. When an X component instance is created,
+Service Weaver will automatically create the Y component as well and will fill
+the `weaver.Ref[Y]` field with a handle to the Y component.
+
+The implementation of X can call `Get()` on the `weaver.Ref[Y]` field to get the
+Y component.
 
 ## Listeners
 
@@ -245,11 +254,6 @@ type app struct {
 }
 
 func serve(ctx context.Context, app *app) error {
-    reverser, err := weaver.Get[Reverser](root)
-    if err != nil {
-        return err
-    }
-
     // Get a network listener on address "localhost:12345".
     opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
     lis, err := root.Listener("hello", opts)
@@ -260,12 +264,11 @@ func serve(ctx context.Context, app *app) error {
 
     // Serve the /hello endpoint.
     http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-        reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
         if err != nil {
             http.Error(w, err.Error(), http.StatusInternalServerError)
             return
         }
-        fmt.Fprintf(w, "Hello, %s!\n", reversed)
+        fmt.Fprintf(w, "Hello, %s!\n", r.URL.Query().Get("name"))
     })
     return http.Serve(lis, nil)
 }
@@ -488,17 +491,11 @@ type Reverser interface {
 // Implementation of the Reverser component.
 type reverser struct {
     weaver.Implements[Reverser]
-    cache Cache
-}
-
-func (r *reverser) Init(context.Context) error {
-    var err error
-    r.cache, err = weaver.Get[Cache](r)
-    return err
+    cache weaver.Ref[Cache]
 }
 
 func (r reverser) Reverse(ctx context.Context, s string) (string, error) {
-    if reversed, err := r.cache.Get(ctx, s); err == nil {
+    if reversed, err := r.cache.Get().Get(ctx, s); err == nil {
         return reversed, nil
     }
 
@@ -513,13 +510,9 @@ func (r reverser) Reverse(ctx context.Context, s string) (string, error) {
 }
 ```
 
-The `reverser` struct now includes a field `cache` of type `Cache`. The `Init`
-method initializes this field by calling `weaver.Get[Cache](r)`. `weaver.Get[T]`
-takes a component instance as an argument; specifically the instance that is
-requesting a client to component `T`. In this example, the reverser `r` is the
-component instance. Concretely, `weaver.Get[T]` takes a `weaver.Instance` as an
-argument. By embedding `weaver.Implements`, a struct becomes an instance of the
-`weaver.Instance` interface.
+The `reverser` struct now includes a field `cache` of type `weaver.Ref[Cache]`.
+Service Weaver automatically fills this field with a handle to the Cache
+component when the reverser is created.
 
 ## Deploying to the Cloud
 
@@ -590,11 +583,11 @@ func (*adder) Add(_ context.Context, x, y int) (int, error) {
 
 `Adder` defines the component's interface, and `adder` defines the component's
 implementation. The two are linked with the embedded `weaver.Implements[Adder]`
-field. You can call the `weaver.Get[Adder]` function to get a client to the
-`Adder` component. The returned client implements the component's interface, so
-you can invoke the component's methods as you would any regular Go method. When
-you invoke a component's method, the method call is performed by one of the
-possibly many component replicas.
+field. You can call `weaver.Ref[Adder].Get()` to get a client to the `Adder`
+component. The returned client implements the component's interface, so you can
+invoke the component's methods as you would any regular Go method. When you
+invoke a component's method, the method call is performed by one of the possibly
+many component replicas.
 
 Components are generally long-lived, but the Service Weaver runtime may scale up
 or scale down the number of replicas of a component over time based on load.
@@ -732,17 +725,6 @@ method may have executed partially or fully. Thus, you must be careful retrying
 method calls that result in a `weaver.RemoteCallError`. Ensuring that all
 methods are either read-only or idempotent is one way to ensure safe retries,
 for example. Service Weaver does not automatically retry method calls that fail.
-
-## Lifetime
-
-The `weaver.Get` function returns a client to a component; `weaver.Get[Foo]`
-returns a client to the `Foo` component, for example. Components are constructed
-the first time you call `weaver.Get`. Constructing a component can sometimes be
-expensive. When deploying a Service Weaver application on the cloud, for example,
-constructing a component may involve launching a container. For this reason, we
-recommend you call `weaver.Get` proactively to incur this overhead at
-initialization time rather than on the critical path of serving a client
-request.
 
 ## Config
 

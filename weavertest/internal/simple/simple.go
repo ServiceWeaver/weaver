@@ -38,18 +38,11 @@ type Source interface {
 
 type source struct {
 	weaver.Implements[Source]
-	dst Destination
-}
-
-func (s *source) Init(_ context.Context) error {
-	s.Logger().Debug("simple.Init") //nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
-	dst, err := weaver.Get[Destination](s)
-	s.dst = dst
-	return err
+	dst weaver.Ref[Destination]
 }
 
 func (s *source) Emit(ctx context.Context, file, msg string) error {
-	return s.dst.Record(ctx, file, msg)
+	return s.dst.Get().Record(ctx, file, msg)
 }
 
 type Destination interface {
