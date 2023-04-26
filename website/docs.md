@@ -93,11 +93,8 @@ components. Concretely, a component is represented with a regular Go
 [interface][go_interfaces], and components interact with each other by calling
 the methods defined by these interfaces.
 
-TODO(sanjay): We should make the first example have just a single component and
-delay the necessity to use `weaver.Ref` until the "Multiple Components" section.
-
-In this section, we'll define a simple `Reverser` component that reverses
-strings. First, run `go mod init hello` to create a go module.
+In this section, we'll define a simple `hello` component that just prints
+a string and returns. First, run `go mod init hello` to create a go module.
 
 ```console
 $ mkdir hello/
@@ -105,7 +102,75 @@ $ cd hello/
 $ go mod init hello
 ```
 
-Then, create a file called `reverser.go` with the following contents:
+Then, create a file called `hello.go` with the following contents:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/ServiceWeaver/weaver"
+)
+
+func main() {
+    if err := weaver.Run(context.Background(), serve); err != nil {
+        log.Fatal(err)
+    }
+}
+
+// app is the main component of the application. weaver.Run creates
+// it and passes it to serve.
+type app struct{
+    weaver.Implements[weaver.Main]
+}
+
+// serve is called by weaver.Run and contains the body of the application.
+func serve(context.Context, *app) error {
+    fmt.Println("Hello")
+    return nil
+}
+```
+
+`weaver.Run(...)` initializes and runs the Service Weaver application.  In
+particular, `weaver.Run` finds the main component, creates it, and passes it to
+a supplied function. In this example,`app` is the main component since it
+contains a `weaver.Implements[weaver.Main]` field.
+
+Before we build and run the app, we need to run Service Weaver's code generator,
+called `weaver generate`. `weaver generate` writes a `weaver_gen.go` file that
+contains code needed by the Service Weaver runtime. We'll elaborate on what
+exactly `weaver generate` does and why we need to run it later. Finally, run the
+app!
+
+```console
+$ go mod tidy
+$ weaver generate .
+$ go run .
+Hello
+```
+
+Components are the core abstraction of Service Weaver. All code in a Service
+Weaver application runs as part of some component. The main advantage of
+components is that they decouple how you *write* your code from how you *run*
+your code. They let you write your application as a monolith, but when you go to
+run your code, you can run components in a separate process or on a different
+machine entirely. Here's a diagram illustrating this concept:
+
+![A diagram showing off various types of Service Weaver deployments](assets/images/components.svg)
+
+When we `go run` a Service Weaver application, all components run together in a
+single process, and method calls between components are executed as regular Go
+method calls. In a moment, we'll describe how to run each component in a
+separate process with method calls between components executed as RPCs.
+
+## Multiple Components
+
+In a Service Weaver application, any component can call any other component. To
+demonstrate this, we introduce a second `Reverser` component. Create a file
+`reverser.go` with the following contents:
 
 ```go
 package main
@@ -136,12 +201,12 @@ func (r *reverser) Reverse(_ context.Context, s string) (string, error) {
 }
 ```
 
-The `Reverser` component is represented as a `Reverser` interface with,
+The `Reverser` component is represented by a `Reverser` interface with,
 unsurprisingly, a `Reverse` method that reverses strings. The `reverser` struct
 is our implementation of the `Reverser` component (as indicated by the
 `weaver.Implements[Reverser]` field it contains).
 
-Next, create a `main.go` file with the following contents:
+Next, edit the app component in `main.go` to use the `Reverser` component:
 
 ```go
 package main
@@ -160,8 +225,6 @@ func main() {
     }
 }
 
-// app is the main component of the application. weaver.Run creates
-// it and passes it to serve.
 type app struct{
     weaver.Implements[weaver.Main]
     reverser weaver.Ref[Reverser]
@@ -169,7 +232,8 @@ type app struct{
 
 func serve(ctx context.Context, app *app) error {
     // Call the Reverse method.
-    reversed, err := app.reverser.Get().Reverse(ctx, "!dlroW ,olleH")
+    var r Reverser = app.reverser.Get()
+    reversed, err := r.Reverse(ctx, "!dlroW ,olleH")
     if err != nil {
         return err
     }
@@ -178,52 +242,20 @@ func serve(ctx context.Context, app *app) error {
 }
 ```
 
-`weaver.Run(...)` initializes and runs the Service Weaver application.  In
-particular, `weaver.Run` finds the main component, creates it, and passes it to a
-supplied function. In this example,`app` is the main component since it contains
-a `weaver.Implements[weaver.Main]` field.
+The `app` struct has a new field of type `weaver.Ref[Reverser]` that provides
+access to the `Reverser` component.
 
-The `app` struct has a special field of type `weaver.Ref[Reverser]`. The `Get()`
-method on this field returns the `Reverser` component. The application can call
-methods on this component like on any regular interface.
+In general, if component X uses component Y, the implementation struct for X
+should contain a field of type `weaver.Ref[Y]`. When an X component instance is
+created, Service Weaver will automatically create the Y component as well and
+will fill the `weaver.Ref[Y]` field with a handle to the Y component.  The
+implementation of X can call `Get()` on the `weaver.Ref[Y]` field to get the Y
+component, as demonstrated by the following lines in the preceding examples:
 
-Before we build and run the app, we need to run Service Weaver's code generator,
-called `weaver generate`. `weaver generate` writes a `weaver_gen.go` file that
-contains code needed by the Service Weaver runtime. We'll elaborate on what
-exactly `weaver generate` does and why we need to run it later. Finally, run the
-app!
-
-```console
-$ go mod tidy
-$ weaver generate .
-$ go run .
-Hello, World!
+```go
+    var r Reverser = app.reverser.Get()
+    reversed, err := r.Reverse(ctx, "!dlroW ,olleH")
 ```
-
-Components are the core abstraction of Service Weaver. All code in a Service
-Weaver application runs as part of some component. Even the code inside of the
-`main` function runs as part of an implicitly created `main` component. The main
-advantage of components is that they decouple how you *write* your code from how
-you *run* your code. They let you write your application as a monolith, but when
-you go to run your code, you can run components in a separate process or on a
-different machine entirely. Here's a diagram illustrating this concept:
-
-![A diagram showing off various types of Service Weaver deployments](assets/images/components.svg)
-
-When we `go run` a Service Weaver application, all components run together in a
-single process, and method calls between components are executed as regular Go
-method calls. In a moment, we'll describe how to run each component in a
-separate process with method calls between components executed as RPCs.
-
-## References
-
-If component X uses component Y, the implementation struct for X should contain
-a field of type `weaver.Ref[Y]`. When an X component instance is created,
-Service Weaver will automatically create the Y component as well and will fill
-the `weaver.Ref[Y]` field with a handle to the Y component.
-
-The implementation of X can call `Get()` on the `weaver.Ref[Y]` field to get the
-Y component.
 
 ## Listeners
 
@@ -251,12 +283,13 @@ func main() {
 
 type app struct {
     weaver.Implements[weaver.Main]
+    reverser weaver.Ref[Reverser]
 }
 
 func serve(ctx context.Context, app *app) error {
     // Get a network listener on address "localhost:12345".
     opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-    lis, err := root.Listener("hello", opts)
+    lis, err := app.Listener("hello", opts)
     if err != nil {
         return err
     }
@@ -264,11 +297,12 @@ func serve(ctx context.Context, app *app) error {
 
     // Serve the /hello endpoint.
     http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+        reversed, err := app.reverser.Get().Reverse(ctx, "!dlroW ,olleH")
         if err != nil {
             http.Error(w, err.Error(), http.StatusInternalServerError)
             return
         }
-        fmt.Fprintf(w, "Hello, %s!\n", r.URL.Query().Get("name"))
+        fmt.Fprintf(w, "Hello, %s!\n", reversed)
     })
     return http.Serve(lis, nil)
 }
@@ -276,13 +310,13 @@ func serve(ctx context.Context, app *app) error {
 
 Here's an explanation of the code:
 
-- `root.Listener(...)` returns a network listener, similar to
+- `app.Listener(...)` returns a network listener, similar to
   [`net.Listen`][net_listen]. With Service Weaver, listeners are named. In this
   case, we name the listener `"hello"`. A `weaver.ListenerOptions` configures
   the listener. Here, we specify that the listener should listen on address
   `localhost:12345`.
 - `http.HandleFunc(...)` registers an HTTP handler for the `/hello?name=<name>`
-  endpoint that returns a reversed greeting by calling the `reverser.Reverse`
+  endpoint that returns a reversed greeting by calling the `Reverser.Reverse`
   method.
 - `http.Serve(lis, nil)` runs the HTTP server on the provided listener.
 
@@ -414,105 +448,6 @@ $ weaver multi status
 ```
 
 You can also run `weaver multi dashboard` to open a dashboard in a web browser.
-
-## Multiple Components
-
-In a Service Weaver application, any component can call any other component. To
-demonstrate this, we introduce a second `Cache` component. Create a file
-`cache.go` with the following contents:
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-
-    "github.com/ServiceWeaver/weaver"
-)
-
-// Cache component.
-type Cache interface {
-    Set(ctx context.Context, key, value string) error
-    Get(ctx context.Context, key string) (string, error)
-}
-
-// Implementation of the Cache component.
-type cache struct {
-    weaver.Implements[Cache]
-	mu   sync.Mutex
-    data map[string]string
-}
-
-func (c *cache) Init(context.Context) error {
-    c.data = map[string]string{}
-    return nil
-}
-
-func (c *cache) Set(_ context.Context, key, value string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-    c.data[key] = value
-    return nil
-}
-
-func (c *cache) Get(_ context.Context, key string) (string, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-    value, ok := c.data[key]
-    if !ok {
-        return "", fmt.Errorf("key %q not found", key)
-    }
-    return value, nil
-}
-```
-
-The `Cache` component implements a simple key-value cache. Note that a component
-may implement an `Init(context.Context) error` method. The Service Weaver
-runtime executes a component's `Init` method when the component is constructed.
-
-Next, edit `reverser.go` so that the `Reverser` component uses a `Cache`
-component:
-
-```go
-package main
-
-import (
-    "context"
-
-    "github.com/ServiceWeaver/weaver"
-)
-
-// Reverser component.
-type Reverser interface {
-    Reverse(context.Context, string) (string, error)
-}
-
-// Implementation of the Reverser component.
-type reverser struct {
-    weaver.Implements[Reverser]
-    cache weaver.Ref[Cache]
-}
-
-func (r reverser) Reverse(ctx context.Context, s string) (string, error) {
-    if reversed, err := r.cache.Get().Get(ctx, s); err == nil {
-        return reversed, nil
-    }
-
-    runes := []rune(s)
-    n := len(runes)
-    for i := 0; i < n/2; i++ {
-        runes[i], runes[n-i-1] = runes[n-i-1], runes[i]
-    }
-    reversed := string(runes)
-    r.cache.Set(ctx, s, reversed)
-    return reversed, nil
-}
-```
-
-The `reverser` struct now includes a field `cache` of type `weaver.Ref[Cache]`.
-Service Weaver automatically fills this field with a handle to the Cache
-component when the reverser is created.
 
 ## Deploying to the Cloud
 
@@ -1078,7 +1013,7 @@ type app struct {
 func serve(ctx context.Context, app *app) error {
     // Get a network listener on address "localhost:12345".
     opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-    lis, err := root.Listener("hello", opts)
+    lis, err := app.Listener("hello", opts)
     if err != nil {
         return err
     }
@@ -1455,7 +1390,7 @@ context).
 
 ```go
 opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-lis, err := root.Listener("hello", opts)
+lis, err := app.Listener("hello", opts)
 ```
 
 When you deploy an application using `go run`, the `Listener` method returns a
@@ -1642,7 +1577,7 @@ context).
 
 ```go
 opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-lis, err := root.Listener("hello", opts)
+lis, err := app.Listener("hello", opts)
 ```
 
 When you deploy an application using `weaver multi deploy`, the `Listener`
