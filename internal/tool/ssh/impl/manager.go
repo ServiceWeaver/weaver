@@ -30,6 +30,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/files"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/routing"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -250,7 +251,7 @@ func (m *manager) run() error {
 
 	// Start the main process.
 	if err := m.startComponent(m.ctx, &protos.ActivateComponentRequest{
-		Component: "github.com/ServiceWeaver/weaver/Main",
+		Component: runtime.Main,
 	}); err != nil {
 		return err
 	}
@@ -552,7 +553,7 @@ func (m *manager) startComponent(ctx context.Context, req *protos.ActivateCompon
 	update()
 
 	// Start the colocation group, if it hasn't already started.
-	return m.startColocationGroup(g, req.Component == "github.com/ServiceWeaver/weaver/Main")
+	return m.startColocationGroup(g, req.Component == runtime.Main)
 }
 
 // REQUIRES: g.mu is NOT held.
