@@ -78,6 +78,7 @@ var files = []file{
 	staticFile("assets/images/cloud_metrics_2.png"),
 	staticFile("assets/images/cloud_metrics_3.png"),
 	staticFile("assets/images/components.svg"),
+	staticFile("assets/images/discord_icon.svg"),
 	staticFile("assets/images/twitter_icon.svg"),
 	staticFile("assets/images/github_icon.svg"),
 	staticFile("assets/images/logs_explorer.png"),
