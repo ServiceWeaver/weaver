@@ -16,31 +16,29 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/ServiceWeaver/weaver"
 )
 
 func main() {
-	weaver.Run(context.Background(), serve)
+	if err := weaver.Run(context.Background(), serve); err != nil {
+		log.Fatal(err)
+	}
 }
 
 //go:generate ../../cmd/weaver/weaver generate
 
-type server struct {
+type app struct {
 	weaver.Implements[weaver.Main]
+	reverser weaver.Ref[Reverser]
 }
 
-func serve(ctx context.Context, s *server) error {
-	// Get a client to the Reverser component.
-	reverser, err := weaver.Get[Reverser](s)
-	if err != nil {
-		return err
-	}
-
+func serve(ctx context.Context, app *app) error {
 	// Get a network listener on address "localhost:12345".
 	opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-	lis, err := s.Listener("hello", opts)
+	lis, err := app.Listener("hello", opts)
 	if err != nil {
 		return err
 	}
@@ -49,7 +47,7 @@ func serve(ctx context.Context, s *server) error {
 	// Serve the /hello endpoint.
 	http.Handle("/hello", weaver.InstrumentHandlerFunc("hello",
 		func(w http.ResponseWriter, r *http.Request) {
-			reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("name"))
+			reversed, err := app.reverser.Get().Reverse(ctx, "!dlroW ,olleH")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

@@ -28,18 +28,12 @@ type T interface {
 
 type impl struct {
 	weaver.Implements[T]
-	catalogService productcatalogservice.T
-}
-
-func (s *impl) Init(context.Context) error {
-	catalogService, err := weaver.Get[productcatalogservice.T](s)
-	s.catalogService = catalogService
-	return err
+	catalogService weaver.Ref[productcatalogservice.T]
 }
 
 func (s *impl) ListRecommendations(ctx context.Context, userID string, userProductIDs []string) ([]string, error) {
 	// Fetch a list of products from the product catalog.
-	catalogProducts, err := s.catalogService.ListProducts(ctx)
+	catalogProducts, err := s.catalogService.Get().ListProducts(ctx)
 	if err != nil {
 		return nil, err
 	}

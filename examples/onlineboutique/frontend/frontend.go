@@ -84,47 +84,16 @@ type Server struct {
 	platform platformDetails
 	hostname string
 
-	catalogService        productcatalogservice.T
-	currencyService       currencyservice.T
-	cartService           cartservice.T
-	recommendationService recommendationservice.T
-	checkoutService       checkoutservice.T
-	shippingService       shippingservice.T
-	adService             adservice.T
+	catalogService        weaver.Ref[productcatalogservice.T]
+	currencyService       weaver.Ref[currencyservice.T]
+	cartService           weaver.Ref[cartservice.T]
+	recommendationService weaver.Ref[recommendationservice.T]
+	checkoutService       weaver.Ref[checkoutservice.T]
+	shippingService       weaver.Ref[shippingservice.T]
+	adService             weaver.Ref[adservice.T]
 }
 
 func Serve(ctx context.Context, s *Server) error {
-	// Setup the services.
-	var err error
-	s.catalogService, err = weaver.Get[productcatalogservice.T](s)
-	if err != nil {
-		return err
-	}
-	s.currencyService, err = weaver.Get[currencyservice.T](s)
-	if err != nil {
-		return err
-	}
-	s.cartService, err = weaver.Get[cartservice.T](s)
-	if err != nil {
-		return err
-	}
-	s.recommendationService, err = weaver.Get[recommendationservice.T](s)
-	if err != nil {
-		return err
-	}
-	s.checkoutService, err = weaver.Get[checkoutservice.T](s)
-	if err != nil {
-		return err
-	}
-	s.shippingService, err = weaver.Get[shippingservice.T](s)
-	if err != nil {
-		return err
-	}
-	s.adService, err = weaver.Get[adservice.T](s)
-	if err != nil {
-		return err
-	}
-
 	// Find out where we're running.
 	// Set ENV_PLATFORM (default to local if not set; use env var if set;
 	// otherwise detect GCP, which overrides env).

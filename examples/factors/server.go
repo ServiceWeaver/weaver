@@ -25,16 +25,10 @@ import (
 
 type server struct {
 	weaver.Implements[weaver.Main]
-	factorer Factorer
+	factorer weaver.Ref[Factorer]
 }
 
 func serve(ctx context.Context, s *server) error {
-	factorer, err := weaver.Get[Factorer](s)
-	if err != nil {
-		return err
-	}
-
-	s.factorer = factorer
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
 
 	lis, err := s.Listener("factors", weaver.ListenerOptions{LocalAddress: *localAddr})
@@ -58,7 +52,7 @@ func (s *server) handleFactors(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg.Error(), http.StatusBadRequest)
 		return
 	}
-	factors, err := s.factorer.Factors(r.Context(), x)
+	factors, err := s.factorer.Get().Factors(r.Context(), x)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

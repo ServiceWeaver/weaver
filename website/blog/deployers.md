@@ -232,11 +232,10 @@ For each <code>EnvelopeHandler</code> method, we also summarize how <a href="htt
 
 ### Components
 
-First, we implement `ActivateComponent`. When a component hosted by a weavelet
-calls [`weaver.Get[T]`][Get] for some component `T`, the weavelet calls the
-`ActivateComponent` method to activate `T`. `ActivateComponent` should start the
-component&mdash;potentially with multiple replicas&mdash;if it hasn't already
-been started.
+First, we implement `ActivateComponent`. When some component `T` is needed, the
+weavelet calls the `ActivateComponent` method to activate
+`T`. `ActivateComponent` should start the component&mdash;potentially with
+multiple replicas&mdash;if it hasn't already been started.
 
 Our handler calls `deployer.spawn` to spawn a new weavelet to host the
 component. The handler then calls `UpdateRoutingInfo` to inform the requesting
@@ -620,7 +619,6 @@ sending protobufs over a pair of pipes. For even more details, refer to
 [Envelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope
 [GetHealth]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetHealth
 [GetLoad]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetLoad
-[Get]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Get
 [Run]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Run
 [ListenerOptions]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#ListenerOptions
 [Listener]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Instance

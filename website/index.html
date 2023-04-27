@@ -67,10 +67,7 @@ func (adder) Add(_ context.Context, x, y int) (int, error) {
   <div class="intro-col">
 <markdown>
 ```go
-adder, err := weaver.Get[Adder](root)
-if err != nil {
-    panic(err)
-}
+var adder Adder = ... // See documentation
 sum, err := adder.Add(ctx, 1, 2)
 </markdown>
   </div>

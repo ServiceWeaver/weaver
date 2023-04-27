@@ -44,15 +44,10 @@ func main() {
 
 type server struct {
 	weaver.Implements[weaver.Main]
+	reverser weaver.Ref[Reverser]
 }
 
 func serve(ctx context.Context, s *server) error {
-	// Get a client to the Reverser component.
-	reverser, err := weaver.Get[Reverser](s)
-	if err != nil {
-		return err
-	}
-
 	// Get a network listener.
 	opts := weaver.ListenerOptions{LocalAddress: *address}
 	lis, err := s.Listener("reverser", opts)
@@ -69,7 +64,7 @@ func serve(ctx context.Context, s *server) error {
 		}))
 	mux.Handle("/reverse", weaver.InstrumentHandlerFunc("reverser",
 		func(w http.ResponseWriter, r *http.Request) {
-			reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("s"))
+			reversed, err := s.reverser.Get().Reverse(r.Context(), r.URL.Query().Get("s"))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
