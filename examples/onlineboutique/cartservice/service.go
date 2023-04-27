@@ -34,11 +34,12 @@ type T interface {
 
 type impl struct {
 	weaver.Implements[T]
+	cache weaver.Ref[cartCache]
 	store *cartStore
 }
 
 func (s *impl) Init(context.Context) error {
-	store, err := newCartStore(s)
+	store, err := newCartStore(s, s.cache.Get())
 	s.store = store
 	return err
 }

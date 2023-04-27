@@ -144,35 +144,6 @@ func internalRun(ctx context.Context, rootType reflect.Type, rootBody func(conte
 	return wlet.start(rootType, rootBody)
 }
 
-// Get returns the distributed component of type T, creating it if necessary.
-// The actual implementation may be local, or in another process, or perhaps
-// even replicated across many processes.
-//
-// requester identifies the already existing component that is fetching the
-// potentially new component. For example, the storage component in the
-// following code requests the component of type Cache:
-//
-//	func (s *storage) Init(context.Context) error {
-//	    bar := weaver.Get[Cache](s)
-//	    // ...
-//	}
-//
-// Components are constructed the first time you call Get. Constructing a
-// component can sometimes be expensive. When deploying a Service Weaver application on
-// the cloud, for example, constructing a component may involve launching a
-// container. For this reason, we recommend you call Get proactively to incur
-// this overhead at initialization time rather than on the critical path of
-// serving a client request.
-func Get[T any](requester Instance) (T, error) {
-	var zero T
-	iface := reflect.TypeOf(&zero).Elem()
-	comp, err := internalGet(requester, iface)
-	if err != nil {
-		return zero, err
-	}
-	return comp.(T), err
-}
-
 func internalGet(requester any, compType reflect.Type) (any, error) {
 	rep := requester.(Instance).rep()
 	component, err := rep.wlet.getComponentByType(compType)

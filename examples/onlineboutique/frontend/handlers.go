@@ -73,12 +73,12 @@ func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve currencies: %w", err), http.StatusInternalServerError)
 		return
 	}
-	products, err := fe.catalogService.ListProducts(r.Context())
+	products, err := fe.catalogService.Get().ListProducts(r.Context())
 	if err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve products: %w", err), http.StatusInternalServerError)
 		return
 	}
-	cart, err := fe.cartService.GetCart(r.Context(), sessionID(r))
+	cart, err := fe.cartService.Get().GetCart(r.Context(), sessionID(r))
 	if err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve cart: %w", err), http.StatusInternalServerError)
 		return
@@ -90,7 +90,7 @@ func (fe *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ps := make([]productView, len(products))
 	for i, p := range products {
-		price, err := fe.currencyService.Convert(r.Context(), p.PriceUSD, currentCurrency(r))
+		price, err := fe.currencyService.Get().Convert(r.Context(), p.PriceUSD, currentCurrency(r))
 		if err != nil {
 			fe.renderHTTPError(r, w, fmt.Errorf("failed to do currency conversion for product %s: %w", p.ID, err), http.StatusInternalServerError)
 			return
@@ -126,7 +126,7 @@ func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Debug("serving product page", "id", id, "currency", currentCurrency(r))
 
-	p, err := fe.catalogService.GetProduct(r.Context(), id)
+	p, err := fe.catalogService.Get().GetProduct(r.Context(), id)
 	if err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve product: %w", err), http.StatusInternalServerError)
 		return
@@ -137,7 +137,7 @@ func (fe *Server) productHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cart, err := fe.cartService.GetCart(r.Context(), sessionID(r))
+	cart, err := fe.cartService.Get().GetCart(r.Context(), sessionID(r))
 	if err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve cart: %w", err), http.StatusInternalServerError)
 		return
@@ -202,13 +202,13 @@ func (fe *Server) addToCartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Debug("adding to cart", "product", productID, "quantity", quantity)
 
-	p, err := fe.catalogService.GetProduct(r.Context(), productID)
+	p, err := fe.catalogService.Get().GetProduct(r.Context(), productID)
 	if err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve product: %w", err), http.StatusInternalServerError)
 		return
 	}
 
-	if err := fe.cartService.AddItem(r.Context(), sessionID(r), cartservice.CartItem{
+	if err := fe.cartService.Get().AddItem(r.Context(), sessionID(r), cartservice.CartItem{
 		ProductID: p.ID,
 		Quantity:  int32(quantity),
 	}); err != nil {
@@ -223,7 +223,7 @@ func (fe *Server) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
 	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
 	logger.Debug("emptying cart")
 
-	if err := fe.cartService.EmptyCart(r.Context(), sessionID(r)); err != nil {
+	if err := fe.cartService.Get().EmptyCart(r.Context(), sessionID(r)); err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("failed to empty cart: %w", err), http.StatusInternalServerError)
 		return
 	}
@@ -239,7 +239,7 @@ func (fe *Server) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve currencies: %w", err), http.StatusInternalServerError)
 		return
 	}
-	cart, err := fe.cartService.GetCart(r.Context(), sessionID(r))
+	cart, err := fe.cartService.Get().GetCart(r.Context(), sessionID(r))
 	if err != nil {
 		fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve cart: %w", err), http.StatusInternalServerError)
 		return
@@ -265,7 +265,7 @@ func (fe *Server) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	items := make([]cartItemView, len(cart))
 	totalPrice := money.T{CurrencyCode: currentCurrency(r)}
 	for i, item := range cart {
-		p, err := fe.catalogService.GetProduct(r.Context(), item.ProductID)
+		p, err := fe.catalogService.Get().GetProduct(r.Context(), item.ProductID)
 		if err != nil {
 			fe.renderHTTPError(r, w, fmt.Errorf("could not retrieve product #%s: %w", item.ProductID, err), http.StatusInternalServerError)
 			return
@@ -324,7 +324,7 @@ func (fe *Server) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 		ccCVV, _      = strconv.ParseInt(r.FormValue("credit_card_cvv"), 10, 32)
 	)
 
-	order, err := fe.checkoutService.PlaceOrder(r.Context(), checkoutservice.PlaceOrderRequest{
+	order, err := fe.checkoutService.Get().PlaceOrder(r.Context(), checkoutservice.PlaceOrderRequest{
 		Email: email,
 		CreditCard: paymentservice.CreditCardInfo{
 			Number:          ccNumber,
@@ -415,7 +415,7 @@ func (fe *Server) setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 func (fe *Server) chooseAd(ctx context.Context, ctxKeys []string, logger *slog.Logger) *adservice.Ad {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
-	ads, err := fe.adService.GetAds(ctx, ctxKeys)
+	ads, err := fe.adService.Get().GetAds(ctx, ctxKeys)
 	if err != nil {
 		logger.Error("failed to retrieve ads", "err", err)
 		return nil
@@ -424,7 +424,7 @@ func (fe *Server) chooseAd(ctx context.Context, ctxKeys []string, logger *slog.L
 }
 
 func (fe *Server) getCurrencies(ctx context.Context) ([]string, error) {
-	codes, err := fe.currencyService.GetSupportedCurrencies(ctx)
+	codes, err := fe.currencyService.Get().GetSupportedCurrencies(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -441,11 +441,11 @@ func (fe *Server) convertCurrency(ctx context.Context, money money.T, currency s
 	if avoidNoopCurrencyConversionRPC && money.CurrencyCode == currency {
 		return money, nil
 	}
-	return fe.currencyService.Convert(ctx, money, currency)
+	return fe.currencyService.Get().Convert(ctx, money, currency)
 }
 
 func (fe *Server) getShippingQuote(ctx context.Context, items []cartservice.CartItem, currency string) (money.T, error) {
-	quote, err := fe.shippingService.GetQuote(ctx, shippingservice.Address{}, items)
+	quote, err := fe.shippingService.Get().GetQuote(ctx, shippingservice.Address{}, items)
 	if err != nil {
 		return money.T{}, err
 	}
@@ -453,13 +453,13 @@ func (fe *Server) getShippingQuote(ctx context.Context, items []cartservice.Cart
 }
 
 func (fe *Server) getRecommendations(ctx context.Context, userID string, productIDs []string) ([]productcatalogservice.Product, error) {
-	recommendationIDs, err := fe.recommendationService.ListRecommendations(ctx, userID, productIDs)
+	recommendationIDs, err := fe.recommendationService.Get().ListRecommendations(ctx, userID, productIDs)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]productcatalogservice.Product, len(recommendationIDs))
 	for i, id := range recommendationIDs {
-		p, err := fe.catalogService.GetProduct(ctx, id)
+		p, err := fe.catalogService.Get().GetProduct(ctx, id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get recommended product info (#%s): %w", id, err)
 		}

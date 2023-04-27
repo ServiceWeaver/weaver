@@ -28,20 +28,11 @@ import (
 type server struct {
 	weaver.Implements[weaver.Main]
 	mux  http.ServeMux
-	odd  Odd
-	even Even
+	odd  weaver.Ref[Odd]
+	even weaver.Ref[Even]
 }
 
 func serve(ctx context.Context, s *server) error {
-	var err error
-	s.odd, err = weaver.Get[Odd](s)
-	if err != nil {
-		return err
-	}
-	s.even, err = weaver.Get[Even](s)
-	if err != nil {
-		return err
-	}
 	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
 	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 	lis, err := s.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})
@@ -68,9 +59,9 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	for x != 1 {
 		fmt.Fprintf(&builder, "%d\n", x)
 		if x%2 == 0 {
-			x, err = s.even.Do(r.Context(), x)
+			x, err = s.even.Get().Do(r.Context(), x)
 		} else {
-			x, err = s.odd.Do(r.Context(), x)
+			x, err = s.odd.Get().Do(r.Context(), x)
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
