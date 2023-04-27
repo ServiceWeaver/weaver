@@ -304,15 +304,15 @@ func (w *weavelet) logRolodexCard() {
 func (w *weavelet) getInstance(c *component, requester string) (any, any, error) {
 	// Register the component.
 	c.registerInit.Do(func() {
-		w.env.SystemLogger().Debug("Registering component...", "component", c.info.Name)
-		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
+		w.env.SystemLogger().Debug("Activating component...", "component", c.info.Name)
+		errMsg := fmt.Sprintf("cannot activate component %q", c.info.Name)
 		c.registerErr = w.repeatedly(errMsg, func() error {
 			return w.env.ActivateComponent(w.ctx, c.info.Name, c.info.Routed)
 		})
 		if c.registerErr != nil {
-			w.env.SystemLogger().Error("Registering component failed", "err", c.registerErr, "component", c.info.Name)
+			w.env.SystemLogger().Error("Activating component failed", "err", c.registerErr, "component", c.info.Name)
 		} else {
-			w.env.SystemLogger().Debug("Registering component succeeded", "component", c.info.Name)
+			w.env.SystemLogger().Debug("Activating component succeeded", "component", c.info.Name)
 		}
 	})
 	if c.registerErr != nil {
