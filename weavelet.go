@@ -242,15 +242,13 @@ func (w *weavelet) start(rootType reflect.Type, rootBody func(context.Context, a
 	// component's name is also registered with the protos.
 
 	if w.info.RunMain {
-		// The root has no requester, so we use a special name "main"
-		// which will show up in tracing, metrics etc. as the caller.
-		_, inst, err := w.getInstance(root, "main")
+		impl, err := w.getImpl(root)
 		if err != nil {
 			return err
 		}
 
 		// Invoke the user supplied function, passing it the root instance we just created.
-		return rootBody(w.ctx, inst)
+		return rootBody(w.ctx, impl.impl)
 	}
 
 	// Run forever.
