@@ -24,12 +24,12 @@ import (
 )
 
 var (
-	msg_1 = &protos.EnvelopeInfo{
+	msg1 = &protos.EnvelopeInfo{
 		App:          "foo",
 		DeploymentId: "5678",
 		Id:           "id",
 	}
-	msg_2 = &protos.MetricUpdate{
+	msg2 = &protos.MetricUpdate{
 		Defs: []*protos.MetricDef{
 			{
 				Id:   1,
@@ -55,7 +55,7 @@ var (
 // TestEnv tests that ToEnv() followed by FromEnv() is an identity function,
 // i.e., it results in the original protocol message.
 func TestEnv(t *testing.T) {
-	for _, msg := range []proto.Message{msg_1, msg_2} {
+	for _, msg := range []proto.Message{msg1, msg2} {
 		data, err := ToEnv(msg)
 		if err != nil {
 			t.Error(err)

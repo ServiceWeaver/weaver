@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package queue provides a thread-safe queue.
 package queue
 
 import (

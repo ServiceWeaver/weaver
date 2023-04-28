@@ -49,8 +49,16 @@ jobs:
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
         if: ${{ matrix.command == 'lint' }}
 
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
+        if: ${{ matrix.command == 'lint' }}
+
       - name: ${{ matrix.command }}
         run: ./dev/build_and_test ${{ matrix.command }}
+
+      - name: Run staticcheck
+        run: staticcheck ./...
+        if: ${{ matrix.command == 'lint' }}
 
   generate:
     runs-on: ubuntu-latest

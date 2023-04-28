@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package generate implements "weaver generate", Service Weaver's code
+// generator.
 package generate
 
 import (

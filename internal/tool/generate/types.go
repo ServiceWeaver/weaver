@@ -309,7 +309,7 @@ func (tset *typeSet) checkSerializable(t types.Type) []error {
 			if tset.automarshalCandidates.At(t) == nil {
 				// TODO(mwhittaker): Print out a link to documentation on
 				// weaver.AutoMarshal.
-				addError(fmt.Errorf("named structs are not serializable by default. Consider using weaver.AutoMarshal."))
+				addError(fmt.Errorf("named structs are not serializable by default. Consider using weaver.AutoMarshal"))
 				tset.checked.Set(t, false)
 				break
 			}
@@ -350,7 +350,7 @@ func (tset *typeSet) checkSerializable(t types.Type) []error {
 				tset.checked.Set(t, true)
 			default:
 				if isInvalid(t) {
-					addError(fmt.Errorf("Maybe you forgot to run `go mod tidy`? Also try running `go build` to diagnose further."))
+					addError(fmt.Errorf("maybe you forgot to run `go mod tidy`? Also try running `go build` to diagnose further"))
 				} else {
 					addError(fmt.Errorf("unsupported basic type"))
 				}

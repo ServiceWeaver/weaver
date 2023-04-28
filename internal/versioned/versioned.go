@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package versioned provides a linearizable generic register.
 package versioned
 
 import (
@@ -20,10 +21,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// Versioned[T] is a linearizable register storing a value of type T.
-// Each update to the value changes its unique (but not necessarily ordered)
-// version. Spurious version changes are possible, i.e., the version may change
-// even if the value hasn't.
+// Versioned is a linearizable register storing a value of type T.  Each update
+// to the value changes its unique (but not necessarily ordered) version.
+// Spurious version changes are possible, i.e., the version may change even if
+// the value hasn't.
 //
 // Like a sync.Mutex, Versioned should not be copied.
 type Versioned[T any] struct {
