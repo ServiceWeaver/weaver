@@ -27,8 +27,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/files"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
+	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -67,6 +67,16 @@ const (
 	babysitterInfoKey = "SERVICEWEAVER_BABYSITTER_INFO"
 )
 
+var (
+	// The directories and files where "weaver ssh" stores data.
+	//
+	// TODO(mwhittaker): Take these as arguments and move them to ssh.go.
+	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "ssh")
+	LogDir       = filepath.Join(dataDir, "logs")
+	registryDir  = filepath.Join(dataDir, "registry")
+	PerfettoFile = filepath.Join(dataDir, "perfetto.db")
+)
+
 // manager manages an application version deployment across a set of locations,
 // where a location can be a physical or a virtual machine.
 //
@@ -77,7 +87,6 @@ type manager struct {
 	ctx        context.Context
 	dep        *protos.Deployment
 	logger     *slog.Logger
-	logDir     string
 	locations  []string // addresses of the locations
 	mgrAddress string   // manager address
 	registry   *status.Registry
@@ -138,9 +147,9 @@ type groupReplicaInfo struct {
 var _ status.Server = &manager{}
 
 // RunManager creates and runs a new manager.
-func RunManager(ctx context.Context, dep *protos.Deployment, locations []string, logDir string) (func() error, error) {
+func RunManager(ctx context.Context, dep *protos.Deployment, locations []string) (func() error, error) {
 	// Create log saver.
-	fs, err := logging.NewFileStore(logDir)
+	fs, err := logging.NewFileStore(LogDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
@@ -157,7 +166,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 	})
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx, "ssh")
+	traceDB, err := perfetto.Open(ctx, PerfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
@@ -183,7 +192,6 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations []string,
 		dep:            dep,
 		locations:      locations,
 		logger:         logger,
-		logDir:         logDir,
 		logSaver:       logSaver,
 		traceSaver:     traceSaver,
 		statsProcessor: imetrics.NewStatsProcessor(),
@@ -577,7 +585,7 @@ func (m *manager) startColocationGroup(g *group, runMain bool) error {
 			Deployment:  m.dep,
 			Group:       g.name,
 			ReplicaId:   int32(replicaId),
-			LogDir:      m.logDir,
+			LogDir:      LogDir,
 			RunMain:     runMain,
 		}
 		if err := m.startBabysitter(loc, info); err != nil {
@@ -664,12 +672,8 @@ func serveHTTP(ctx context.Context, lis net.Listener, handler http.Handler) erro
 }
 
 // DefaultRegistry returns the default registry in
-// $XDG_DATA_HOME/serviceweaver/ssh_registry, or
-// ~/.local/share/serviceweaver/ssh_registry if XDG_DATA_HOME is not set.
+// $XDG_DATA_HOME/serviceweaver/ssh/registry, or
+// ~/.local/share/serviceweaver/ssh/registry if XDG_DATA_HOME is not set.
 func DefaultRegistry(ctx context.Context) (*status.Registry, error) {
-	dir, err := files.DefaultDataDir()
-	if err != nil {
-		return nil, err
-	}
-	return status.NewRegistry(ctx, filepath.Join(dir, "ssh_registry"))
+	return status.NewRegistry(ctx, registryDir)
 }

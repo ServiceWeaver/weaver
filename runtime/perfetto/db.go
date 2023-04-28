@@ -33,7 +33,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -95,26 +94,13 @@ type DB struct {
 	replicaNumCache *lru.Cache[replicaCacheKey, int]
 }
 
-// DatabaseFilePath returns the path of the file that stores the trace database.
-func DatabaseFilePath(mode string) (string, error) {
-	dataDir, err := files.DefaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, fmt.Sprintf("perfetto_%s.db", mode)), nil
-}
-
-// Open opens the default trace database on the local machine. mode specifies
-// the weaver mode (e.g. single, multi, ssh) for which the database is being open.
-func Open(ctx context.Context, mode string) (*DB, error) {
-	fname, err := DatabaseFilePath(mode)
-	if err != nil {
+// Open opens the default trace database on the local machine, which is
+// persisted in the provided file.
+func Open(ctx context.Context, fname string) (*DB, error) {
+	if err := os.MkdirAll(filepath.Dir(fname), 0700); err != nil {
 		return nil, err
 	}
-	return open(ctx, fname)
-}
 
-func open(ctx context.Context, fname string) (*DB, error) {
 	// The DB may be opened by multiple writers. Turn on appropriate
 	// concurrency control options. See:
 	//   https://www.sqlite.org/pragma.html#pragma_locking_mode

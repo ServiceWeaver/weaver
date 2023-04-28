@@ -63,7 +63,7 @@ func TestStoreFetch(t *testing.T) {
 	// those application versions and validate they are as expected.
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
-	db, err := open(ctx, fname)
+	db, err := Open(ctx, fname)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestReplicaNum(t *testing.T) {
 	// get assigned sequential replica numbers, starting with zero.
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
-	db, err := open(ctx, fname)
+	db, err := Open(ctx, fname)
 	if err != nil {
 		t.Fatal(err)
 	}

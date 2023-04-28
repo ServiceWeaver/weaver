@@ -21,19 +21,22 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
-	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
 var (
-	// logdir is where weaver multi deployed applications store their logs.
-	logdir = filepath.Join(logging.DefaultLogDir, "weaver-multi")
+	// The directories and files where "weaver multi" stores data.
+	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "multi")
+	logDir       = filepath.Join(dataDir, "logs")
+	registryDir  = filepath.Join(dataDir, "registry")
+	perfettoFile = filepath.Join(dataDir, "perfetto.db")
 
 	dashboardSpec = &status.DashboardSpec{
-		Tool:     "weaver multi",
-		Mode:     "multi",
-		Registry: defaultRegistry,
+		Tool:         "weaver multi",
+		PerfettoFile: perfettoFile,
+		Registry:     defaultRegistry,
 		Commands: func(deploymentId string) []status.Command {
 			return []status.Command{
 				{Label: "status", Command: "weaver multi status"},
@@ -45,13 +48,9 @@ var (
 	}
 
 	purgeSpec = &tool.PurgeSpec{
-		Tool: "weaver multi",
-		Kill: "weaver multi (dashboard|deploy|logs|profile)",
-		Paths: []string{
-			logdir,
-			must.Must(defaultRegistryDir()),
-			must.Must(perfetto.DatabaseFilePath("multi")),
-		},
+		Tool:  "weaver multi",
+		Kill:  "weaver multi (dashboard|deploy|logs|profile)",
+		Paths: []string{dataDir},
 	}
 
 	Commands = map[string]*tool.Command{
@@ -59,7 +58,7 @@ var (
 		"logs": tool.LogsCmd(&tool.LogsSpec{
 			Tool: "weaver multi",
 			Source: func(context.Context) (logging.Source, error) {
-				return logging.FileSource(logdir), nil
+				return logging.FileSource(logDir), nil
 			},
 		}),
 		"dashboard": status.DashboardCommand(dashboardSpec),
