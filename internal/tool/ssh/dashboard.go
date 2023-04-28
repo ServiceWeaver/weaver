@@ -23,9 +23,9 @@ import (
 )
 
 var dashboardSpec = &status.DashboardSpec{
-	Tool:     "weaver ssh",
-	Mode:     "ssh",
-	Registry: impl.DefaultRegistry,
+	Tool:         "weaver ssh",
+	PerfettoFile: impl.PerfettoFile,
+	Registry:     impl.DefaultRegistry,
 	Commands: func(deploymentId string) []status.Command {
 		return []status.Command{
 			{Label: "cat logs", Command: fmt.Sprintf("weaver ssh logs 'version==%q'", logging.Shorten(deploymentId))},

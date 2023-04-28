@@ -24,10 +24,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
-	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -145,7 +143,7 @@ func deploy(ctx context.Context, args []string) error {
 	}()
 
 	// Follow the logs.
-	source := logging.FileSource(logdir)
+	source := logging.FileSource(logDir)
 	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, deploymentId)
 	r, err := source.Query(ctx, query, true)
 	if err != nil {
@@ -163,21 +161,7 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
-// defaultRegistryDir() returns $XDG_DATA_HOME/serviceweaver/multi_registry, or
-// ~/.local/share/serviceweaver/multi_registry if XDG_DATA_HOME is not set.
-func defaultRegistryDir() (string, error) {
-	dir, err := files.DefaultDataDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "multi_registry"), nil
-}
-
 // defaultRegistry returns a registry in defaultRegistryDir().
 func defaultRegistry(ctx context.Context) (*status.Registry, error) {
-	dir, err := defaultRegistryDir()
-	if err != nil {
-		return nil, err
-	}
-	return status.NewRegistry(ctx, dir)
+	return status.NewRegistry(ctx, registryDir)
 }

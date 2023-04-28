@@ -9,12 +9,12 @@ github.com/ServiceWeaver/weaver
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/envelope/conn
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/private
     github.com/ServiceWeaver/weaver/internal/register
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime
@@ -553,7 +553,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     errors
     flag
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proxy
@@ -590,10 +589,9 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/status
-    github.com/ServiceWeaver/weaver/runtime/perfetto
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/tool
     path/filepath
 github.com/ServiceWeaver/weaver/internal/tool/ssh
@@ -622,8 +620,8 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     context
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
+    github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proto
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/routing
@@ -778,7 +776,6 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     encoding/json
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/hashicorp/golang-lru/v2

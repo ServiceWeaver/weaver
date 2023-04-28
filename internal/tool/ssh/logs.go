@@ -17,6 +17,7 @@ package ssh
 import (
 	"context"
 
+	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
@@ -24,6 +25,6 @@ import (
 var logsSpec = tool.LogsSpec{
 	Tool: "weaver ssh",
 	Source: func(context.Context) (logging.Source, error) {
-		return logging.FileSource(logDir), nil
+		return logging.FileSource(impl.LogDir), nil
 	},
 }

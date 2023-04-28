@@ -123,7 +123,7 @@ var _ envelope.EnvelopeHandler = &handler{}
 // time by canceling the passed-in context.
 func newDeployer(ctx context.Context, deploymentId string, config *protos.AppConfig) (*deployer, error) {
 	// Create the log saver.
-	logsDB, err := logging.NewFileStore(logdir)
+	logsDB, err := logging.NewFileStore(logDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
@@ -142,7 +142,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 	}
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx, "multi")
+	traceDB, err := perfetto.Open(ctx, perfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
