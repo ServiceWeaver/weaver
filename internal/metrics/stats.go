@@ -183,7 +183,7 @@ func (s *StatsProcessor) getSnapshot(snapshot []*metrics.MetricSnapshot) {
 		case codegen.MethodBytesRequest.Name():
 			bucket.kbRecvd += m.Value / 1024 // B to KB
 		case codegen.MethodLatencies.Name():
-			bucket.latencyMs += m.Value / 1024 // us to ms
+			bucket.latencyMs += m.Value / 1000 // µs to ms
 
 			var count uint64
 			for idx := range m.Bounds {
