@@ -99,7 +99,10 @@ func runGenerator(t *testing.T, directory, filename, contents string, subdirs []
 	}
 
 	// Run "weaver generate".
-	if err := Generate(tmp, []string{tmp}); err != nil {
+	opt := Options{
+		Warn: func(err error) { t.Log(err) },
+	}
+	if err := Generate(tmp, []string{tmp}, opt); err != nil {
 		return "", err
 	}
 	output, err := os.ReadFile(filepath.Join(tmp, generatedCodeFile))

@@ -84,10 +84,19 @@ Examples:
   weaver generate ./...`
 )
 
+// Options controls the operation of Generate.
+type Options struct {
+	// If non-nil, use the specified function to report warnings.
+	Warn func(error)
+}
+
 // Generate generates Service Weaver code for the specified packages.
 // The list of supplied packages are treated similarly to the arguments
 // passed to "go build" (see "go help packages" for details).
-func Generate(dir string, pkgs []string) error {
+func Generate(dir string, pkgs []string, opt Options) error {
+	if opt.Warn == nil {
+		opt.Warn = func(err error) { fmt.Fprintln(os.Stderr, err) }
+	}
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
 		Mode:       packages.NeedName | packages.NeedSyntax | packages.NeedImports | packages.NeedTypes | packages.NeedTypesInfo,
@@ -104,7 +113,7 @@ func Generate(dir string, pkgs []string) error {
 	var automarshals typeutil.Map
 	var errs []error
 	for _, pkg := range pkgList {
-		g, err := newGenerator(pkg, fset, &automarshals)
+		g, err := newGenerator(opt, pkg, fset, &automarshals)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -155,7 +164,7 @@ func errorf(fset *token.FileSet, pos token.Pos, format string, args ...interface
 	return fmt.Errorf("%s: %w", prefix, fmt.Errorf(format, args...))
 }
 
-func newGenerator(pkg *packages.Package, fset *token.FileSet, automarshals *typeutil.Map) (*generator, error) {
+func newGenerator(opt Options, pkg *packages.Package, fset *token.FileSet, automarshals *typeutil.Map) (*generator, error) {
 	// Abort if there were any errors loading the package.
 	var errs []error
 	for _, err := range pkg.Errors {
@@ -212,7 +221,7 @@ func newGenerator(pkg *packages.Package, fset *token.FileSet, automarshals *type
 			continue
 		}
 
-		fileComponents, err := findComponents(pkg, file, tset)
+		fileComponents, err := findComponents(opt, pkg, file, tset)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -253,7 +262,7 @@ func newGenerator(pkg *packages.Package, fset *token.FileSet, automarshals *type
 //	    weaver.Implements[SomeComponentType]
 //	    ...
 //	}
-func findComponents(pkg *packages.Package, f *ast.File, tset *typeSet) ([]*component, error) {
+func findComponents(opt Options, pkg *packages.Package, f *ast.File, tset *typeSet) ([]*component, error) {
 	var components []*component
 	var errs []error
 	for _, d := range f.Decls {
@@ -266,7 +275,7 @@ func findComponents(pkg *packages.Package, f *ast.File, tset *typeSet) ([]*compo
 			if !ok {
 				continue
 			}
-			component, err := extractComponent(pkg, f, tset, ts)
+			component, err := extractComponent(opt, pkg, f, tset, ts)
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -365,7 +374,7 @@ func findAutoMarshals(pkg *packages.Package, f *ast.File) ([]*types.Named, error
 
 // extractComponent attempts to extract a component from the provided TypeSpec.
 // It returns a nil component if the TypeSpec doesn't define a component.
-func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec *ast.TypeSpec) (*component, error) {
+func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *typeSet, spec *ast.TypeSpec) (*component, error) {
 	// Check that the type spec is of the form `type t struct {...}`.
 	s, ok := spec.Type.(*ast.StructType)
 	if !ok {
@@ -484,7 +493,7 @@ func extractComponent(pkg *packages.Package, file *ast.File, tset *typeSet, spec
 	// this warning, the component's Init method will be silently ignored. This
 	// can be very frustrating to debug.
 	if err := checkMistypedInit(pkg, tset, impl); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		opt.Warn(err)
 	}
 
 	comp := &component{

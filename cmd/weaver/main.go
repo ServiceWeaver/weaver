@@ -73,7 +73,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, generate.Usage)
 		}
 		generateFlags.Parse(flag.Args()[1:]) //nolint:errcheck // does os.Exit on error
-		if err := generate.Generate(".", flag.Args()[1:]); err != nil {
+		if err := generate.Generate(".", flag.Args()[1:], generate.Options{}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
