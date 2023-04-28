@@ -551,7 +551,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 
 func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	// Create the implementation object.
-	obj := c.info.New()
+	obj := reflect.New(c.info.Impl).Interface()
 
 	// Fill config if necessary.
 	if c.info.ConfigFn != nil {

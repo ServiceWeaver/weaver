@@ -54,7 +54,7 @@ type registry struct {
 type Registration struct {
 	Name     string             // full package-prefixed component name
 	Iface    reflect.Type       // interface type for the component
-	New      func() any         // returns a new instance of the implementation type
+	Impl     reflect.Type       // implementation type (struct)
 	ConfigFn func(impl any) any // returns pointer to config field in local impl if non-nil
 	Routed   bool               // True if calls to this component should be routed
 
@@ -74,10 +74,8 @@ func (r *registry) register(reg Registration) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	if old, ok := r.components[reg.Iface]; ok {
-		x := old.New()
-		y := reg.New()
-		return fmt.Errorf("component %s already registered for type %T when registering %T",
-			reg.Name, x, y)
+		return fmt.Errorf("component %s already registered for type %v when registering %v",
+			reg.Name, old.Impl, reg.Impl)
 	}
 	if r.components == nil {
 		r.components = map[reflect.Type]*Registration{}
@@ -92,8 +90,17 @@ func (r *registry) register(reg Registration) error {
 }
 
 func verifyRegistration(reg Registration) error {
-	if reg.New == nil {
-		return errors.New("nil New")
+	if reg.Iface == nil {
+		return errors.New("missing component type")
+	}
+	if reg.Iface.Kind() != reflect.Interface {
+		return errors.New("component type is not an interface")
+	}
+	if reg.Impl == nil {
+		return errors.New("missing implementation type")
+	}
+	if reg.Impl.Kind() != reflect.Struct {
+		return errors.New("implementation type is not a struct")
 	}
 	if reg.LocalStubFn == nil {
 		return errors.New("nil LocalStubFn")
@@ -140,7 +147,7 @@ func ComponentConfigValidator(path, cfg string) error {
 			"weaver.WithConfig[configType] embedded field to %v and run weaver generate again)",
 			info.Name, info.Iface)
 	}
-	objConfig := info.ConfigFn(info.New())
+	objConfig := info.ConfigFn(reflect.New(info.Impl).Interface())
 	config := &protos.AppConfig{Sections: map[string]string{path: cfg}}
 	if err := runtime.ParseConfigSection(path, "", config.Sections, objConfig); err != nil {
 		return fmt.Errorf("%v: bad config: %w", info.Iface, err)
@@ -160,11 +167,7 @@ type CallEdge struct {
 func CallGraph() []CallEdge {
 	var result []CallEdge
 	for _, reg := range Registered() {
-		impl := reflect.TypeOf(reg.New())
-		if impl.Kind() != reflect.Pointer || impl.Elem().Kind() != reflect.Struct {
-			continue // Should Register() complain about this?
-		}
-		impl = impl.Elem()
+		impl := reg.Impl
 		for i, n := 0, impl.NumField(); i < n; i++ {
 			// Handle field with type weaver.Ref[T].
 			ref := impl.Field(i).Type

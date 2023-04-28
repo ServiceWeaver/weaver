@@ -18,7 +18,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp",
 		Iface: reflect.TypeOf((*testApp)(nil)).Elem(),
-		New:   func() any { return &impl{} },
+		Impl:  reflect.TypeOf(impl{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return testApp_local_stub{impl: impl.(testApp), tracer: tracer}
 		},

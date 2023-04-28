@@ -18,7 +18,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/Main",
 		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
-		New:   func() any { return &server{} },
+		Impl:  reflect.TypeOf(server{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
@@ -30,7 +30,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/reverser/Reverser",
 		Iface: reflect.TypeOf((*Reverser)(nil)).Elem(),
-		New:   func() any { return &reverser{} },
+		Impl:  reflect.TypeOf(reverser{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return reverser_local_stub{impl: impl.(Reverser), tracer: tracer}
 		},
