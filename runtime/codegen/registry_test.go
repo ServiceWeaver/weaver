@@ -117,10 +117,11 @@ type bimpl struct {
 }
 
 func register[Intf, Impl any](name string, configFn func(any) any) {
+	var zero Impl
 	codegen.Register(codegen.Registration{
 		Name:         name,
 		Iface:        reflect.TypeOf((*Intf)(nil)).Elem(),
-		New:          func() any { var zero Impl; return &zero },
+		Impl:         reflect.TypeOf(zero),
 		ConfigFn:     configFn,
 		LocalStubFn:  func(any, trace.Tracer) any { return nil },
 		ClientStubFn: func(codegen.Stub, string) any { return nil },

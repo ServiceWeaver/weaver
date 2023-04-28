@@ -19,7 +19,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1",
 		Iface:       reflect.TypeOf((*Ping1)(nil)).Elem(),
-		New:         func() any { return &ping1{} },
+		Impl:        reflect.TypeOf(ping1{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping1_local_stub{impl: impl.(Ping1), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping1_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingS"})}
@@ -31,7 +31,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10",
 		Iface:       reflect.TypeOf((*Ping10)(nil)).Elem(),
-		New:         func() any { return &ping10{} },
+		Impl:        reflect.TypeOf(ping10{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping10_local_stub{impl: impl.(Ping10), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping10_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingS"})}
@@ -43,7 +43,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2",
 		Iface:       reflect.TypeOf((*Ping2)(nil)).Elem(),
-		New:         func() any { return &ping2{} },
+		Impl:        reflect.TypeOf(ping2{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping2_local_stub{impl: impl.(Ping2), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping2_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingS"})}
@@ -55,7 +55,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3",
 		Iface:       reflect.TypeOf((*Ping3)(nil)).Elem(),
-		New:         func() any { return &ping3{} },
+		Impl:        reflect.TypeOf(ping3{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping3_local_stub{impl: impl.(Ping3), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping3_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingS"})}
@@ -67,7 +67,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4",
 		Iface:       reflect.TypeOf((*Ping4)(nil)).Elem(),
-		New:         func() any { return &ping4{} },
+		Impl:        reflect.TypeOf(ping4{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping4_local_stub{impl: impl.(Ping4), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping4_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingS"})}
@@ -79,7 +79,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5",
 		Iface:       reflect.TypeOf((*Ping5)(nil)).Elem(),
-		New:         func() any { return &ping5{} },
+		Impl:        reflect.TypeOf(ping5{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping5_local_stub{impl: impl.(Ping5), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping5_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingS"})}
@@ -91,7 +91,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6",
 		Iface:       reflect.TypeOf((*Ping6)(nil)).Elem(),
-		New:         func() any { return &ping6{} },
+		Impl:        reflect.TypeOf(ping6{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping6_local_stub{impl: impl.(Ping6), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping6_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingS"})}
@@ -103,7 +103,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7",
 		Iface:       reflect.TypeOf((*Ping7)(nil)).Elem(),
-		New:         func() any { return &ping7{} },
+		Impl:        reflect.TypeOf(ping7{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping7_local_stub{impl: impl.(Ping7), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping7_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingS"})}
@@ -115,7 +115,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8",
 		Iface:       reflect.TypeOf((*Ping8)(nil)).Elem(),
-		New:         func() any { return &ping8{} },
+		Impl:        reflect.TypeOf(ping8{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping8_local_stub{impl: impl.(Ping8), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping8_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingS"})}
@@ -127,7 +127,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9",
 		Iface:       reflect.TypeOf((*Ping9)(nil)).Elem(),
-		New:         func() any { return &ping9{} },
+		Impl:        reflect.TypeOf(ping9{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping9_local_stub{impl: impl.(Ping9), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return ping9_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingS"})}

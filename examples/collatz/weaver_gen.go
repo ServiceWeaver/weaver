@@ -18,7 +18,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Even",
 		Iface:       reflect.TypeOf((*Even)(nil)).Elem(),
-		New:         func() any { return &even{} },
+		Impl:        reflect.TypeOf(even{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return even_local_stub{impl: impl.(Even), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return even_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even", Method: "Do"})}
@@ -30,7 +30,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/Main",
 		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
-		New:   func() any { return &server{} },
+		Impl:  reflect.TypeOf(server{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
@@ -42,7 +42,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
 		Iface:       reflect.TypeOf((*Odd)(nil)).Elem(),
-		New:         func() any { return &odd{} },
+		Impl:        reflect.TypeOf(odd{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return odd_local_stub{impl: impl.(Odd), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return odd_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Odd", Method: "Do"})}

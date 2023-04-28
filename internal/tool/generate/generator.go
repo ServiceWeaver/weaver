@@ -906,7 +906,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		// of its pointer and then resolve the underlying type. See:
 		//   https://pkg.go.dev/reflect#example-TypeOf
 		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), g.componentRef(comp))
-		p(`		New: func() any { return &%s{} },`, comp.implName())
+		p(`		Impl: %s(%s{}),`, reflect.qualify("TypeOf"), comp.implName())
 		if comp.hasConfig {
 			p(`		ConfigFn: func(i any) any { return i.(*%s).WithConfig.Config() },`, comp.implName())
 		}

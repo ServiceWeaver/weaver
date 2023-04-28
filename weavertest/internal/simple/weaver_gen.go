@@ -18,7 +18,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:   "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
 		Iface:  reflect.TypeOf((*Destination)(nil)).Elem(),
-		New:    func() any { return &destination{} },
+		Impl:   reflect.TypeOf(destination{}),
 		Routed: true,
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return destination_local_stub{impl: impl.(Destination), tracer: tracer}
@@ -33,7 +33,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server",
 		Iface:       reflect.TypeOf((*Server)(nil)).Elem(),
-		New:         func() any { return &server{} },
+		Impl:        reflect.TypeOf(server{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return server_local_stub{impl: impl.(Server), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return server_client_stub{stub: stub, addressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server", Method: "Address"}), proxyAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server", Method: "ProxyAddress"}), shutdownMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server", Method: "Shutdown"})}
@@ -45,7 +45,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
 		Iface:       reflect.TypeOf((*Source)(nil)).Elem(),
-		New:         func() any { return &source{} },
+		Impl:        reflect.TypeOf(source{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return source_local_stub{impl: impl.(Source), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return source_client_stub{stub: stub, emitMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source", Method: "Emit"})}

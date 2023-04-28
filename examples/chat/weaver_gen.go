@@ -19,7 +19,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler",
 		Iface: reflect.TypeOf((*ImageScaler)(nil)).Elem(),
-		New:   func() any { return &scaler{} },
+		Impl:  reflect.TypeOf(scaler{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return imageScaler_local_stub{impl: impl.(ImageScaler), tracer: tracer}
 		},
@@ -33,7 +33,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/chat/LocalCache",
 		Iface: reflect.TypeOf((*LocalCache)(nil)).Elem(),
-		New:   func() any { return &localCache{} },
+		Impl:  reflect.TypeOf(localCache{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return localCache_local_stub{impl: impl.(LocalCache), tracer: tracer}
 		},
@@ -47,7 +47,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/Main",
 		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
-		New:   func() any { return &server{} },
+		Impl:  reflect.TypeOf(server{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
@@ -59,7 +59,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:     "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
 		Iface:    reflect.TypeOf((*SQLStore)(nil)).Elem(),
-		New:      func() any { return &sqlStore{} },
+		Impl:     reflect.TypeOf(sqlStore{}),
 		ConfigFn: func(i any) any { return i.(*sqlStore).WithConfig.Config() },
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer}

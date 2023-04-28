@@ -18,7 +18,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started",
 		Iface: reflect.TypeOf((*Started)(nil)).Elem(),
-		New:   func() any { return &started{} },
+		Impl:  reflect.TypeOf(started{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return started_local_stub{impl: impl.(Started), tracer: tracer}
 		},
@@ -32,7 +32,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
 		Iface:       reflect.TypeOf((*Widget)(nil)).Elem(),
-		New:         func() any { return &widget{} },
+		Impl:        reflect.TypeOf(widget{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return widget_local_stub{impl: impl.(Widget), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return widget_client_stub{stub: stub, useMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget", Method: "Use"})}

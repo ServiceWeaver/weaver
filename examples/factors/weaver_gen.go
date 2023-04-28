@@ -18,7 +18,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:   "github.com/ServiceWeaver/weaver/examples/factors/Factorer",
 		Iface:  reflect.TypeOf((*Factorer)(nil)).Elem(),
-		New:    func() any { return &factorer{} },
+		Impl:   reflect.TypeOf(factorer{}),
 		Routed: true,
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return factorer_local_stub{impl: impl.(Factorer), tracer: tracer}
@@ -33,7 +33,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/Main",
 		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
-		New:   func() any { return &server{} },
+		Impl:  reflect.TypeOf(server{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},

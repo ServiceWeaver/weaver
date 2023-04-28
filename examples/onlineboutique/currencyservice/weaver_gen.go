@@ -19,7 +19,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		New:         func() any { return &impl{} },
+		Impl:        reflect.TypeOf(impl{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return t_client_stub{stub: stub, convertMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice/T", Method: "Convert"}), getSupportedCurrenciesMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice/T", Method: "GetSupportedCurrencies"})}

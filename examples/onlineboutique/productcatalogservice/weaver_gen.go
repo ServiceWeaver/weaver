@@ -19,7 +19,7 @@ func init() {
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		New:         func() any { return &impl{} },
+		Impl:        reflect.TypeOf(impl{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
 			return t_client_stub{stub: stub, getProductMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "GetProduct"}), listProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "ListProducts"}), searchProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "SearchProducts"})}
