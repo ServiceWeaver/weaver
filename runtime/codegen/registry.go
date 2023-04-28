@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -145,4 +146,36 @@ func ComponentConfigValidator(path, cfg string) error {
 		return fmt.Errorf("%v: bad config: %w", info.Iface, err)
 	}
 	return nil
+}
+
+// CallEdge records that fact that the Caller component uses the
+// Callee component. Both types are types of the corresponding
+// component interfaces.
+type CallEdge struct {
+	Caller reflect.Type
+	Callee reflect.Type
+}
+
+// CallGraph returns the component call graph (as a list of CallEdge values).
+func CallGraph() []CallEdge {
+	var result []CallEdge
+	for _, reg := range Registered() {
+		impl := reflect.TypeOf(reg.New())
+		if impl.Kind() != reflect.Pointer || impl.Elem().Kind() != reflect.Struct {
+			continue // Should Register() complain about this?
+		}
+		impl = impl.Elem()
+		for i, n := 0, impl.NumField(); i < n; i++ {
+			// Handle field with type weaver.Ref[T].
+			ref := impl.Field(i).Type
+			if ref.PkgPath() == "github.com/ServiceWeaver/weaver" &&
+				strings.HasPrefix(ref.Name(), "Ref[") &&
+				ref.Kind() == reflect.Struct &&
+				ref.NumField() == 1 &&
+				ref.Field(0).Name == "value" {
+				result = append(result, CallEdge{reg.Iface, ref.Field(0).Type})
+			}
+		}
+	}
+	return result
 }
