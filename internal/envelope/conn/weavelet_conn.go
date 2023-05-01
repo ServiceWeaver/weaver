@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/runtime"
-	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -99,11 +98,6 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 	if wc.einfo.SelfKey != nil {
 		dialAddr = fmt.Sprintf("mtls://%s", dialAddr)
 	}
-	registered := codegen.Registered()
-	components := make([]string, len(registered))
-	for i, r := range registered {
-		components[i] = r.Name
-	}
 	wc.winfo = &protos.WeaveletInfo{
 		DialAddr: dialAddr,
 		Pid:      int64(os.Getpid()),
@@ -112,7 +106,6 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 			Minor: version.Minor,
 			Patch: version.Patch,
 		},
-		Components: components,
 	}
 	if err := wc.conn.send(&protos.WeaveletMsg{WeaveletInfo: wc.winfo}); err != nil {
 		return nil, err

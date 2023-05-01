@@ -177,11 +177,6 @@ message WeaveletInfo {
 
   // The deployer API version of the weavelet.
   SemVer version = 3;
-
-  // The set of all components known to weavelet.
-  repeated string components = 4;
-
-  // TODO(spetrovic): Add call edges between components.
 }
 
 // SemVer represents a [semantic version][1] of the form

@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,17 +30,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // The result of running os.Executable(). Populated by TestMain.
@@ -144,7 +147,7 @@ type handlerForTest struct {
 
 var _ EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
+func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans []sdktrace.ReadOnlySpan) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, span := range spans {
@@ -530,4 +533,28 @@ func TestConcurrentProfiles(t *testing.T) {
 	if profErr == nil || !strings.Contains(profErr.Error(), expect) {
 		t.Fatalf("unexpected profiler error, want %s got %v", expect, profErr)
 	}
+}
+
+type A interface{}
+
+type aimpl struct {
+	weaver.Implements[A]
+}
+
+func register[Intf, Impl any](name string, configFn func(any) any) {
+	var zero Impl
+	codegen.Register(codegen.Registration{
+		Name:         name,
+		Iface:        reflect.TypeOf((*Intf)(nil)).Elem(),
+		Impl:         reflect.TypeOf(zero),
+		ConfigFn:     configFn,
+		LocalStubFn:  func(any, trace.Tracer) any { return nil },
+		ClientStubFn: func(codegen.Stub, string) any { return nil },
+		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
+	})
+}
+
+// Register a dummy component for test.
+func init() {
+	register[A, aimpl]("envelope_test/A", nil)
 }

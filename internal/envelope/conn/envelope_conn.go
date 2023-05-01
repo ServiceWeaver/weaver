@@ -24,6 +24,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
 )
@@ -82,9 +83,7 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, inf
 		e.conn.cleanup(err)
 		return nil, err
 	}
-	if reply.WeaveletInfo == nil {
-		err := fmt.Errorf(
-			"the first message from the weavelet must contain weavelet info")
+	if err := verifyWeaveletInfo(reply.WeaveletInfo); err != nil {
 		e.conn.cleanup(err)
 		return nil, err
 	}
@@ -354,4 +353,38 @@ func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, er
 		return nil, fmt.Errorf(msg.Error)
 	}
 	return msg, nil
+}
+
+// verifyWeaveletInfo verifies the information sent by the weavelet.
+func verifyWeaveletInfo(wlet *protos.WeaveletInfo) error {
+	if wlet == nil {
+		return fmt.Errorf(
+			"the first message from the weavelet must contain weavelet info")
+	}
+	if wlet.DialAddr == "" {
+		return fmt.Errorf("empty dial address for the weavelet")
+	}
+	if err := checkVersion(wlet.Version); err != nil {
+		return err
+	}
+	return nil
+}
+
+// checkVersion checks that the deployer API version the deployer was built
+// with is compatible with the deployer API version the app was built with,
+// erroring out if they are not compatible.
+func checkVersion(appVersion *protos.SemVer) error {
+	if appVersion == nil {
+		return fmt.Errorf("version mismatch: nil app version")
+	}
+	if appVersion.Major != version.Major ||
+		appVersion.Minor != version.Minor ||
+		appVersion.Patch != version.Patch {
+		return fmt.Errorf(
+			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d.",
+			version.Major, version.Minor, version.Patch,
+			appVersion.Major, appVersion.Minor, appVersion.Patch,
+		)
+	}
+	return nil
 }

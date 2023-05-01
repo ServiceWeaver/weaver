@@ -32,13 +32,13 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/certs"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
@@ -69,26 +69,9 @@ type deployer struct {
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
 
-	// The deployer places components into co-location groups based on the
-	// colocate stanza in a config. For example, consider the following config.
-	//
-	//     colocate = [
-	//         ["A", "B", "C"],
-	//         ["D", "E"],
-	//     ]
-	//
-	// The deployer creates a co-location group with components "A", "B", and
-	// "C" and a co-location group with components "D" and "E". All other
-	// components are placed in their own co-location group. We use the first
-	// listed component as the co-location group name.
-	//
-	// colocation maps components listed in the colocate stanza to the name of
-	// their group.
-	colocation map[string]string
-
 	mu      sync.Mutex            // guards the following
 	err     error                 // error that stopped the babysitter
-	groups  map[string]*group     // groups, by group name
+	groups  map[string]*group     // groups, by component name
 	proxies map[string]*proxyInfo // proxies, by listener name
 
 }
@@ -98,10 +81,11 @@ type group struct {
 	name        string                          // group name
 	envelopes   []*envelope.Envelope            // envelopes, one per weavelet
 	pids        []int64                         // weavelet pids
-	components  map[string]bool                 // started components
+	started     map[string]bool                 // started components
 	addresses   map[string]bool                 // weavelet addresses
 	assignments map[string]*protos.Assignment   // assignment, by component
 	subscribers map[string][]*envelope.Envelope // routing info subscribers, by component
+	callable    []string                        // callable components for group
 }
 
 // A proxyInfo contains information about a proxy.
@@ -153,12 +137,10 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 
-	// Form co-location.
-	colocation := map[string]string{}
-	for _, group := range config.Colocate {
-		for _, c := range group.Components {
-			colocation[c] = group.Components[0]
-		}
+	// Form co-location groups.
+	groups, err := computeGroups(config)
+	if err != nil {
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -175,8 +157,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		config:         config,
 		multiConfig:    multiConfig,
 		started:        time.Now(),
-		colocation:     colocation,
-		groups:         map[string]*group{},
+		groups:         groups,
 		proxies:        map[string]*proxyInfo{},
 	}
 
@@ -196,6 +177,70 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 	})
 
 	return d, nil
+}
+
+// computeGroups computes the colocation group information for the given
+// application.
+//
+// computeGroups places components into co-location groups based on the
+// colocate stanza in a config. For example, consider the following config.
+//
+//	colocate = [
+//	    ["A", "B", "C"],
+//	    ["D", "E"],
+//	]
+//
+// computeGroups creates a co-location group with components "A", "B", and
+// "C" and a co-location group with components "D" and "E". All other
+// components are placed in their own co-location group. We use the first
+// listed component as the co-location group name.
+func computeGroups(config *protos.AppConfig) (map[string]*group, error) {
+	groups := map[string]*group{}
+	ensureGroup := func(component string) *group {
+		if g, ok := groups[component]; ok {
+			return g
+		}
+		g := &group{
+			// TODO(spetrovic): ensure a consistent name is picked for
+			// colocation groups across versions.
+			name:        component,
+			started:     map[string]bool{},
+			addresses:   map[string]bool{},
+			assignments: map[string]*protos.Assignment{},
+			subscribers: map[string][]*envelope.Envelope{},
+		}
+		groups[component] = g
+		return g
+	}
+
+	// Use the colocation information to place multiple components
+	// in the same group.
+	for _, grp := range config.Colocate {
+		if len(grp.Components) == 0 {
+			continue
+		}
+		g := ensureGroup(grp.Components[0])
+		for i := 1; i < len(grp.Components); i++ {
+			groups[grp.Components[i]] = g
+		}
+	}
+
+	// Use the call graph information to (1) identify all components in the
+	// application binary and create groups for them, and (2) compute the
+	// set of components a given group is allowed to invoke methods on.
+	callGraph, err := bin.ReadComponentGraph(config.Binary)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the call graph from the application binary: %w", err)
+	}
+	for _, edge := range callGraph {
+		src := edge[0]
+		dst := edge[1]
+		ensureGroup(dst)
+		srcGroup := ensureGroup(src)
+		srcGroup.callable = append(srcGroup.callable, dst)
+	}
+
+	return groups, nil
 }
 
 // wait waits for the deployer to terminate. It returns an error that
@@ -222,29 +267,6 @@ func (d *deployer) stop(err error) {
 
 	// Cancel the context.
 	d.ctxCancel()
-}
-
-// group returns the co-location group containing the provided component.
-//
-// REQUIRES: d.mu is held.
-func (d *deployer) group(component string) *group {
-	name, ok := d.colocation[component]
-	if !ok {
-		name = component
-	}
-
-	g, ok := d.groups[name]
-	if !ok {
-		g = &group{
-			name:        name,
-			components:  map[string]bool{},
-			addresses:   map[string]bool{},
-			assignments: map[string]*protos.Assignment{},
-			subscribers: map[string][]*envelope.Envelope{},
-		}
-		d.groups[name] = g
-	}
-	return g
 }
 
 // routing returns the RoutingInfo for the provided component.
@@ -274,7 +296,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 		return nil
 	}
 
-	components := maps.Keys(g.components)
+	components := maps.Keys(g.started)
 	for r := 0; r < defaultReplication; r++ {
 		// Generate a signed certificate that encodes the group name.
 		//
@@ -301,7 +323,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 			Sections:      d.config.Sections,
 			SingleProcess: false,
 			SingleMachine: true,
-			RunMain:       g.components[runtime.Main],
+			RunMain:       g.started[runtime.Main],
 			SelfCertChain: certPEM,
 			SelfKey:       keyPEM,
 		}
@@ -313,9 +335,6 @@ func (d *deployer) startColocationGroup(g *group) error {
 		// Make sure the version of the deployer matches the version of the
 		// compiled binary.
 		wlet := e.WeaveletInfo()
-		if err := checkVersion(wlet.Version); err != nil {
-			return err
-		}
 
 		d.running.Go(func() error {
 			h := &handler{
@@ -335,25 +354,6 @@ func (d *deployer) startColocationGroup(g *group) error {
 			return err
 		}
 		g.envelopes = append(g.envelopes, e)
-	}
-	return nil
-}
-
-// checkVersion checks that the deployer API version the deployer was built
-// with is compatible with the deployer API version the app was built with,
-// erroring out if they are not compatible.
-func checkVersion(appVersion *protos.SemVer) error {
-	if appVersion == nil {
-		return fmt.Errorf("version mismatch: nil app version")
-	}
-	if appVersion.Major != version.Major ||
-		appVersion.Minor != version.Minor ||
-		appVersion.Patch != version.Patch {
-		return fmt.Errorf(
-			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d.",
-			version.Major, version.Minor, version.Patch,
-			appVersion.Major, appVersion.Minor, appVersion.Patch,
-		)
 	}
 	return nil
 }
@@ -381,7 +381,11 @@ func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 	}
 	h.subscribed[req.Component] = true
 
-	target := h.group(req.Component)
+	target, ok := h.groups[req.Component]
+	if !ok {
+		return fmt.Errorf("unknown component %q", req.Component)
+	}
+
 	if !req.Routed && h.g.name == target.name {
 		// Route locally.
 		routing := &protos.RoutingInfo{Component: req.Component, Local: true}
@@ -395,17 +399,17 @@ func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 
 // VerifyClientCertificate implements the envelope.EnvelopeHandler interface.
 func (h *handler) VerifyClientCertificate(_ context.Context, req *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
-	_, err := h.verifyCertificate(req.CertChain)
+	groupName, err := h.verifyCertificate(req.CertChain)
 	if err != nil {
 		return nil, err
 	}
 
-	// For now, return all components.
-	// TODO(spetrovic): Use the call graph to return the set of components
-	// that the client group is allowed to invoke methods on.
-	return &protos.VerifyClientCertificateReply{
-		Components: h.envelope.WeaveletInfo().Components,
-	}, nil
+	// Find which weavelet components the client is allowed to call.
+	g, ok := h.groups[groupName]
+	if !ok {
+		return nil, fmt.Errorf("unknown client group %q", groupName)
+	}
+	return &protos.VerifyClientCertificateReply{Components: g.callable}, nil
 }
 
 // VerifyServerCertificate implements the envelope.EnvelopeHandler interface.
@@ -416,16 +420,18 @@ func (h *handler) VerifyServerCertificate(_ context.Context, req *protos.VerifyS
 	}
 
 	// Find the expected group name for the target component.
-	expected, ok := h.colocation[req.TargetComponent]
+	g, ok := h.groups[req.TargetComponent]
 	if !ok {
-		expected = req.TargetComponent
+		return nil, fmt.Errorf("unknown group for component %q", req.TargetComponent)
 	}
-	if expected != actual {
-		return nil, fmt.Errorf("invalid server identity for target component %s: want %q, got %q", req.TargetComponent, expected, actual)
+	if g.name != actual {
+		return nil, fmt.Errorf("invalid server identity for target component %s: want %q, got %q", req.TargetComponent, g.name, actual)
 	}
 	return &protos.VerifyServerCertificateReply{}, nil
 }
 
+// verifyCertificate verifies and returns the group name stored in the given
+// certificate chain.
 func (h *handler) verifyCertificate(certChain [][]byte) (string, error) {
 	if n := len(certChain); n != 1 {
 		return "", fmt.Errorf("invalid cert chain length: want 1, got %d", n)
@@ -437,11 +443,9 @@ func (h *handler) verifyCertificate(certChain [][]byte) (string, error) {
 	if len(names) != 1 {
 		return "", fmt.Errorf("invalid cert: expected a single name, got %v", names)
 	}
-
 	name := names[0]
-	_, ok := h.groups[name]
-	if !ok {
-		return "", fmt.Errorf("invalid cert: expected a group name, got %v", name)
+	if name == "" {
+		return "", fmt.Errorf("empty group name %q in cert", name)
 	}
 	return name, nil
 }
@@ -450,13 +454,17 @@ func (d *deployer) activateComponent(req *protos.ActivateComponentRequest) error
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	target, ok := d.groups[req.Component]
+	if !ok {
+		return fmt.Errorf("unknown component %q", req.Component)
+	}
+
 	// Update the set of components in the target co-location group.
-	target := d.group(req.Component)
-	if !target.components[req.Component] {
-		target.components[req.Component] = true
+	if !target.started[req.Component] {
+		target.started[req.Component] = true
 
 		// Notify the weavelets.
-		components := maps.Keys(target.components)
+		components := maps.Keys(target.started)
 		for _, envelope := range target.envelopes {
 			if err := envelope.UpdateComponents(components); err != nil {
 				return err
@@ -504,7 +512,7 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 	}
 
 	// Notify subscribers.
-	for component := range g.components {
+	for component := range g.started {
 		routing := g.routing(component)
 		for _, sub := range g.subscribers[component] {
 			if err := sub.UpdateRoutingInfo(routing); err != nil {
@@ -611,7 +619,7 @@ func (d *deployer) Status(context.Context) (*status.Status, error) {
 	stats := d.statsProcessor.GetStatsStatusz()
 	var components []*status.Component
 	for _, group := range d.groups {
-		for component := range group.components {
+		for component := range group.started {
 			c := &status.Component{
 				Name:  component,
 				Group: group.name,
