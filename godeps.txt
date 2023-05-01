@@ -378,6 +378,7 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/queue
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -510,6 +511,18 @@ github.com/ServiceWeaver/weaver/internal/status
     syscall
     text/template
     time
+github.com/ServiceWeaver/weaver/internal/tool/certs
+    bytes
+    crypto
+    crypto/rand
+    crypto/rsa
+    crypto/x509
+    crypto/x509/pkix
+    encoding/pem
+    errors
+    fmt
+    math/big
+    time
 github.com/ServiceWeaver/weaver/internal/tool/generate
     bytes
     crypto/sha256
@@ -535,6 +548,8 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     unicode
 github.com/ServiceWeaver/weaver/internal/tool/multi
     context
+    crypto
+    crypto/x509
     errors
     flag
     fmt
@@ -544,6 +559,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/certs
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
