@@ -55,6 +55,7 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 		info: info,
 		conn: conn,
 	}
+
 	env.sysLogger = slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        info.App,

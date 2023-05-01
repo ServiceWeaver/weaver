@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/google/uuid"
@@ -87,14 +88,13 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Copy the binaries to each location.
-	tmpDirs, err := copyBinaries(locs, dep)
-
+	locations, err := copyBinaries(locs, dep)
 	if err != nil {
 		return err
 	}
 
 	// Run the manager.
-	stopFn, err := impl.RunManager(ctx, dep, locs, logDir, tmpDirs)
+	stopFn, err := impl.RunManager(ctx, dep, locations, logDir)
 	if err != nil {
 		return fmt.Errorf("cannot instantiate the manager: %w", err)
 	}
@@ -133,33 +133,10 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
-func getTmpDirs(locs []string, depId string) (map[string]string, error) {
-	tmpDirs := make(map[string]string, len(locs))
-
-	for _, loc := range locs {
-		cmd := exec.Command("ssh", loc, "mktemp", "-u")
-
-		if err := cmd.Run(); err != nil {
-			return nil, err
-		}
-
-		tmpDir, err := cmd.Output()
-
-		if err != nil {
-			return nil, err
-		}
-
-		p := filepath.Join(string(tmpDir), depId)
-
-		tmpDirs[loc] = p
-
-	}
-
-	return tmpDirs, nil
-}
-
-// copyBinaries copies the tool and the application binary to the given set
-// of locations.
+// copyBinaries copies the tool and the application binary
+// to the given set of locations. It produces a map which
+// contains the location as a key and the tmpDir in which
+// the binary was copied as a value.
 func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, error) {
 	ex, err := os.Executable()
 	if err != nil {
@@ -167,24 +144,26 @@ func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, err
 	}
 
 	tmpDirs, err := getTmpDirs(locs, dep.Id)
-
 	if err != nil {
 		return nil, err
 	}
 
-	for _, loc := range locs {
-		binary := filepath.Join(tmpDirs[loc], filepath.Base(dep.App.Binary))
-		// Make an app deployment directory at each location.
-		cmd := exec.Command("ssh", loc, "mkdir", "-p", tmpDirs[loc])
+	binary := dep.App.Binary
+
+	for loc, tmpDir := range tmpDirs {
+		remotePath := filepath.Join(tmpDir, filepath.Base(binary))
+
+		cmd := exec.Command("ssh", loc, "mkdir", "-p", tmpDir)
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("unable to create deployment directory at location %s: %w\n", loc, err)
 		}
 
-		cmd = exec.Command("scp", ex, binary, loc+":"+tmpDirs[loc])
+		cmd = exec.Command("scp", ex, remotePath, loc+":"+tmpDir)
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("unable to copy app binary at location %s: %w\n", loc, err)
 		}
 	}
+
 	return tmpDirs, nil
 }
 
@@ -258,4 +237,23 @@ func getAbsoluteFilePath(file string) (string, error) {
 		return "", fmt.Errorf("unable to find file %s: %w", file, err)
 	}
 	return abs, nil
+}
+
+// getTmpDirs prints the tmp directory in which the weaver binary will
+// be stored on the remote machine. The tmp directories are produced using
+// a dry-run and are therefore unsafe. See: https://linux.die.net/man/1/mktemp
+func getTmpDirs(locs []string, depId string) (map[string]string, error) {
+	tmpDirs := make(map[string]string, len(locs))
+	for _, loc := range locs {
+		cmd := exec.Command("ssh", loc, "mktemp", "-u")
+
+		tmpDir, err := cmd.Output()
+		if err != nil {
+			return nil, err
+		}
+
+		tmpDirs[loc] = filepath.Join(strings.TrimSpace(string(tmpDir)), depId)
+	}
+
+	return tmpDirs, nil
 }
