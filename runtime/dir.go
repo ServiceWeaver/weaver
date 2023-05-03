@@ -19,6 +19,16 @@ import (
 	"path/filepath"
 )
 
+// LogsDir returns the default directory for Service Weaver logs,
+// $DIR/tmp/serviceweaver/logs where $DIR is the default directory used for
+// temporary files (see [os.TempDir] for details). We recommend that deployers
+// store their logs in a directory within this default directory. For example,
+// on Unix systems, the "weaver multi" deployer stores its data in
+// /tmp/serviceweaver/logs/multi.
+func LogsDir() string {
+	return filepath.Join(os.TempDir(), "serviceweaver", "logs")
+}
+
 // DataDir returns the default directory for Service Weaver deployer data. The
 // returned directory is $XDG_DATA_HOME/serviceweaver, or
 // ~/.local/share/serviceweaver if XDG_DATA_HOME is not set.
