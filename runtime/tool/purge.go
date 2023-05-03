@@ -163,11 +163,10 @@ func pgrep(regex string) (string, error) {
 	}
 }
 
-// pkill returns the output of 'pkill -e -f <regex>'.
+// pkill returns the output of 'pkill -f <regex>'.
 func pkill(regex string) (string, error) {
-	// "-a" causes pkill to echo the pid and command of killed processes.
 	// "-f" causes the regex to match the full command line.
-	cmd := exec.Command("pkill", "-e", "-f", regex)
+	cmd := exec.Command("pkill", "-f", regex)
 	out, err := cmd.Output()
 
 	var exit *exec.ExitError
