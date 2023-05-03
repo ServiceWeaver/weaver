@@ -845,6 +845,10 @@ func isWeaverImplements(t types.Type) bool {
 	return isWeaverType(t, "Implements", 1)
 }
 
+func isWeaverRef(t types.Type) bool {
+	return isWeaverType(t, "Ref", 1)
+}
+
 func isWeaverMain(t types.Type) bool {
 	return isWeaverType(t, "Main", 0)
 }

@@ -28,6 +28,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
+		RefData: "⟦4c9a54a7:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T⟧\n⟦74479326:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T⟧\n⟦7395fba7:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice/T⟧\n⟦ae088216:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T⟧\n⟦43860cf2:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/emailservice/T⟧\n⟦54f6b59f:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice/T⟧\n",
 	})
 }
 

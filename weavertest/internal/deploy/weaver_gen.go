@@ -28,6 +28,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return started_server_stub{impl: impl.(Started), addLoad: addLoad}
 		},
+		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
@@ -40,6 +41,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return widget_server_stub{impl: impl.(Widget), addLoad: addLoad}
 		},
+		RefData: "⟦f3fa3c18:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget→github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started⟧\n",
 	})
 }
 

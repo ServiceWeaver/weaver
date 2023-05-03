@@ -27,6 +27,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
+		RefData: "⟦e78910e9:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache⟧\n",
 	})
 	codegen.Register(codegen.Registration{
 		Name:   "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache",
@@ -42,6 +43,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return cartCache_server_stub{impl: impl.(cartCache), addLoad: addLoad}
 		},
+		RefData: "",
 	})
 }
 

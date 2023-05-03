@@ -27,6 +27,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return errer_server_stub{impl: impl.(Errer), addLoad: addLoad}
 		},
+		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer",
@@ -39,6 +40,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return failer_server_stub{impl: impl.(Failer), addLoad: addLoad}
 		},
+		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer",
@@ -53,6 +55,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pointer_server_stub{impl: impl.(Pointer), addLoad: addLoad}
 		},
+		RefData: "",
 	})
 }
 

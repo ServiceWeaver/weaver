@@ -2126,12 +2126,17 @@ func (*ActivateComponentReply) Descriptor() ([]byte, []int) {
 // are some examples of how different deployers may handle a
 // GetListenerAddressRequest.
 //
-//   - The singleprocess deployer may instruct the weavelet to listen directly
-//     on localhost:9000.
-//   - The multiprocess deployer may instruct the weavelet to listen on
-//     localhost:0. It will separately start a proxy on localhost:9000.
-//   - The SSH deployer may instruct the weavelet to listen on
-//     $HOSTNAME:0. It will separately start a proxy on localhost:9000.
+// - The singleprocess deployer may instruct the weavelet to listen directly
+//
+//	on localhost:9000.
+//
+// - The multiprocess deployer may instruct the weavelet to listen on
+//
+//	localhost:0. It will separately start a proxy on localhost:9000.
+//
+// - The SSH deployer may instruct the weavelet to listen on
+//
+//	$HOSTNAME:0. It will separately start a proxy on localhost:9000.
 type GetListenerAddressRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
