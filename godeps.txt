@@ -529,6 +529,7 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     go/ast
     go/format
@@ -684,6 +685,21 @@ github.com/ServiceWeaver/weaver/runtime
     strconv
     strings
     time
+github.com/ServiceWeaver/weaver/runtime/bin
+    bytes
+    debug/elf
+    debug/macho
+    debug/pe
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    io
+    os
+github.com/ServiceWeaver/weaver/runtime/bin/testprogram
+    context
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/trace
+    reflect
 github.com/ServiceWeaver/weaver/runtime/codegen
     bytes
     context
@@ -699,6 +715,8 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     google.golang.org/protobuf/proto
     math
     reflect
+    regexp
+    sort
     strings
     sync
 github.com/ServiceWeaver/weaver/runtime/colors

@@ -22,6 +22,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return testMainInterface_server_stub{impl: impl.(testMainInterface), addLoad: addLoad}
 		},
+		RefData: "",
 	})
 }
 

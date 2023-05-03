@@ -26,6 +26,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
 		},
+		RefData: "⟦d212c866:wEaVeReDgE:github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice/T→github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T⟧\n",
 	})
 }
 

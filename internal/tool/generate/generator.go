@@ -33,6 +33,7 @@ import (
 	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"golang.org/x/exp/maps"
 	"golang.org/x/tools/go/packages"
@@ -400,7 +401,26 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 	var router *types.Named // Router type (if any)
 	var isMain bool         // Is intf weaver.Main?
 	var hasConfig bool      // Does impl embed weaver.WithConfig?
+	var refs []*types.Named // T for which weaver.Ref[T] exists in struct
 	for _, f := range s.Fields.List {
+		typeAndValue, ok := pkg.TypesInfo.Types[f.Type]
+		if !ok {
+			panic(errorf(pkg.Fset, f.Pos(), "type %v not found", f.Type))
+		}
+		t := typeAndValue.Type
+
+		if isWeaverRef(t) {
+			// The field f has type weaver.Ref[T].
+			arg := t.(*types.Named).TypeArgs().At(0)
+			named, ok := arg.(*types.Named)
+			if !ok {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.Ref argument %s is not a named type.",
+					formatType(pkg, arg))
+			}
+			refs = append(refs, named)
+		}
+
 		if len(f.Names) != 0 {
 			// Ignore unembedded fields.
 			//
@@ -408,11 +428,6 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 			// weaver.Implements, weaver.WithConfig, or weaver.WithRouter?
 			continue
 		}
-		typeAndValue, ok := pkg.TypesInfo.Types[f.Type]
-		if !ok {
-			panic(errorf(pkg.Fset, f.Pos(), "type %v not found", f.Type))
-		}
-		t := typeAndValue.Type
 
 		switch {
 		// The field f is an embedded weaver.Implements[T].
@@ -502,6 +517,7 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 		router:    router,
 		isMain:    isMain,
 		hasConfig: hasConfig,
+		refs:      refs,
 	}
 
 	// Find routing information if needed.
@@ -536,6 +552,11 @@ type component struct {
 	routedMethods map[string]bool // the set of methods with a routing function
 	isMain        bool            // intf is weaver.Main
 	hasConfig     bool            // implementation embeds weaver.WithConfig?
+	refs          []*types.Named  // List of T where a weaver.Ref[T] field is in impl struct
+}
+
+func fullName(t *types.Named) string {
+	return filepath.Join(t.Obj().Pkg().Path(), t.Obj().Name())
 }
 
 // intfName returns the component interface name.
@@ -550,7 +571,7 @@ func (c *component) implName() string {
 
 // fullIntfName returns the full package-prefixed component interface name.
 func (c *component) fullIntfName() string {
-	return filepath.Join(c.intf.Obj().Pkg().Path(), c.intfName())
+	return fullName(c.intf)
 }
 
 // methods returns the component interface's methods.
@@ -894,6 +915,12 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//   }
 		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), g.componentRef(comp))
 
+		var refData strings.Builder
+		myName := comp.fullIntfName()
+		for _, ref := range comp.refs {
+			refData.WriteString(codegen.MakeEdgeString(myName, fullName(ref)))
+		}
+
 		// E.g.,
 		//	weaver.Register(weaver.Registration{
 		//	    Props: codegen.ComponentProperties{},
@@ -901,7 +928,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//	})
 		reflect := g.tset.importPackage("reflect", "reflect")
 		p(`	%s(%s{`, g.codegen().qualify("Register"), g.codegen().qualify("Registration"))
-		p(`		Name: %q,`, comp.fullIntfName())
+		p(`		Name: %q,`, myName)
 		// To get a reflect.Type for an interface, we have to first get a type
 		// of its pointer and then resolve the underlying type. See:
 		//   https://pkg.go.dev/reflect#example-TypeOf
@@ -916,6 +943,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		p(`		LocalStubFn: %s,`, localStubFn)
 		p(`		ClientStubFn: %s,`, clientStubFn)
 		p(`		ServerStubFn: %s,`, serverStubFn)
+		p(`		RefData: %s,`, strconv.Quote(refData.String()))
 		p(`	})`)
 	}
 	p(`}`)
