@@ -167,7 +167,7 @@ APIs, subtle language portability issues, a bloated wire protocol, unsecure and
 unencrypted network traffic, no versioning support, etc. It was these issues
 that sank CORBA, not the distributed object paradigm. In fact, projects like
 [TensorFlow][tensorflow], [Pathways][pathways], [Ray][ray], [Microsoft
-Orelans][orleans], and [Akka][akka] prove that similar paradigms can be
+Orleans][orleans], and [Akka][akka] prove that similar paradigms can be
 implemented with incredible success.
 
 [a_note_on_dc]: https://scholar.harvard.edu/files/waldo/files/waldo-94.pdf
