@@ -24,10 +24,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/runtime/colors"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
+
+	"github.com/ServiceWeaver/weaver/runtime/colors"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 // Options configures the log entries produced by a logger.
@@ -91,8 +92,9 @@ func (h *LogHandler) makeEntry(rec slog.Record) *protos.LogEntry {
 	// TODO(sanjay): Is it necessary to copy opts.Attrs even if no new attrs
 	// are being added?
 	var attrs []slog.Attr
-	rec.Attrs(func(a slog.Attr) {
+	rec.Attrs(func(a slog.Attr) bool {
 		attrs = append(attrs, a)
+		return true
 	})
 
 	entry := protos.LogEntry{
