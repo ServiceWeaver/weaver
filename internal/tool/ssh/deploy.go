@@ -88,13 +88,13 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Copy the binaries to each location.
-	locs, err := copyBinaries(locs, dep)
+	locations, err := copyBinaries(locs, dep)
 	if err != nil {
 		return err
 	}
 
 	// Run the manager.
-	stopFn, err := impl.RunManager(ctx, dep, locs)
+	stopFn, err := impl.RunManager(ctx, dep, locations)
 	if err != nil {
 		return fmt.Errorf("cannot instantiate the manager: %w", err)
 	}
