@@ -150,7 +150,11 @@ type groupReplicaInfo struct {
 var _ status.Server = &manager{}
 
 // RunManager creates and runs a new manager.
+<<<<<<< HEAD
 func RunManager(ctx context.Context, dep *protos.Deployment, locations map[string]string) (func() error, error) {
+=======
+func RunManager(ctx context.Context, dep *protos.Deployment, locations []string) (func() error, error) {
+>>>>>>> 19098c86a531aeefec1a1e27932372b4c8516bd5
 	// Create log saver.
 	fs, err := logging.NewFileStore(LogDir)
 	if err != nil {
