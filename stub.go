@@ -24,10 +24,11 @@ import (
 
 // stub holds information about a client stub to the remote component.
 type stub struct {
-	client   call.Connection  // client to talk to the remote component, created lazily.
-	methods  []call.MethodKey // Keys for the remote component methods.
-	balancer call.Balancer    // if not nil, component load balancer
-	tracer   trace.Tracer     // component tracer
+	component string           // name of the remote component
+	conn      call.Connection  // connection to talk to the remote component
+	methods   []call.MethodKey // keys for the remote component methods
+	balancer  call.Balancer    // if not nil, component load balancer
+	tracer    trace.Tracer     // component tracer
 }
 
 var _ codegen.Stub = &stub{}
@@ -43,5 +44,5 @@ func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64
 		ShardKey: shardKey,
 		Balancer: s.balancer,
 	}
-	return s.client.Call(ctx, s.methods[method], args, opts)
+	return s.conn.Call(ctx, s.methods[method], args, opts)
 }

@@ -28,7 +28,7 @@ import (
 //go:generate ../../cmd/weaver/weaver generate
 
 var (
-	address = flag.String("address", "localhost:9000", "Reverser server local address")
+	address = flag.String("address", ":9000", "Reverser server local address")
 
 	//go:embed index.html
 	indexHtml string // index.html served on "/"
@@ -37,19 +37,22 @@ var (
 func main() {
 	// Initialize the Service Weaver application.
 	flag.Parse()
-	root := weaver.Init(context.Background())
-
-	// Get a client to the Reverser component.
-	reverser, err := weaver.Get[Reverser](root)
-	if err != nil {
+	if err := weaver.Run(context.Background(), serve); err != nil {
 		log.Fatal(err)
 	}
+}
 
+type server struct {
+	weaver.Implements[weaver.Main]
+	reverser weaver.Ref[Reverser]
+}
+
+func serve(ctx context.Context, s *server) error {
 	// Get a network listener.
 	opts := weaver.ListenerOptions{LocalAddress: *address}
-	lis, err := root.Listener("reverser", opts)
+	lis, err := s.Listener("reverser", opts)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	fmt.Printf("hello listener available on %v\n", lis)
 
@@ -61,19 +64,15 @@ func main() {
 		}))
 	mux.Handle("/reverse", weaver.InstrumentHandlerFunc("reverser",
 		func(w http.ResponseWriter, r *http.Request) {
-			reversed, err := reverser.Reverse(r.Context(), r.URL.Query().Get("s"))
+			reversed, err := s.reverser.Get().Reverse(r.Context(), r.URL.Query().Get("s"))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			fmt.Fprintln(w, reversed)
 		}))
-
-	// Serve the /healthz endpoint.
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "OK")
-	})
+	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 
 	handler := otelhttp.NewHandler(&mux, "http")
-	http.Serve(lis, handler)
+	return http.Serve(lis, handler)
 }

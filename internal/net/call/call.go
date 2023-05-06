@@ -115,6 +115,13 @@ type Connection interface {
 	Close()
 }
 
+// Listener allows the server to accept RPCs.
+type Listener interface {
+	Accept() (net.Conn, *HandlerMap, error)
+	Close() error
+	Addr() net.Addr
+}
+
 // reconnectingConnection is the concrete client-side Connection implementation.
 // It automatically reconnects to the servers on first call or the first call
 // after a shutdown.
@@ -185,15 +192,12 @@ type serverState struct {
 	conns map[*serverConnection]struct{} // Live connections
 }
 
-// Serve starts listening for connections and requests on l. Handlers to handle
-// incoming requests are found in hmap.
-//
-// Serve always returns a non-nil error and closes l.
-func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOptions) error {
+// Serve starts listening for connections and requests on l. It always returns a
+// non-nil error and closes l.
+func Serve(ctx context.Context, l Listener, opts ServerOptions) error {
 	opts = opts.withDefaults()
 	ss := &serverState{opts: opts}
 	defer ss.stop()
-
 	l = &onceCloseListener{Listener: l}
 
 	// Arrange to close the listener when the context is canceled.
@@ -203,7 +207,7 @@ func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOpt
 	}()
 
 	for {
-		conn, err := l.Accept()
+		conn, hmap, err := l.Accept()
 		switch {
 		case ctx.Err() != nil:
 			return ctx.Err()
@@ -215,10 +219,10 @@ func Serve(ctx context.Context, l net.Listener, hmap *HandlerMap, opts ServerOpt
 	}
 }
 
-// onceCloseListener wraps a net.Listener, protecting it from multiple Close calls.
+// onceCloseListener wraps a Listener, protecting it from multiple Close calls.
 // TODO: replace with sync.OnceValues which should be available in go1.21
 type onceCloseListener struct {
-	net.Listener
+	Listener
 	once     sync.Once
 	closeErr error
 }

@@ -15,10 +15,14 @@
 package call_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -47,6 +51,7 @@ var (
 	sleepKey      = call.MakeMethodKey("", "sleep")
 	traceKey      = call.MakeMethodKey("", "trace")
 	handlers      = makeHandlerMap()
+	tlsConfig     = makeTLSConfig()
 
 	resolverMakers = map[string]resolverMaker{
 		"Constant": func(addrs ...call.Endpoint) call.Resolver {
@@ -67,19 +72,89 @@ func makeHandlerMap() *call.HandlerMap {
 	return m
 }
 
+func makeTLSConfig() *tls.Config {
+	certPem := []byte(`-----BEGIN CERTIFICATE-----
+MIIBhTCCASugAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE3MTAyMDE5NDMwNloXDTE4MTAyMDE5NDMwNlow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABD0d
+7VNhbWvZLWPuj/RtHFjvtJBEwOkhbN/BnnE8rnZR8+sbwnc/KhCk3FhnpHZnQz7B
+5aETbbIgmuvewdjvSBSjYzBhMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
+BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdEQQiMCCCDmxvY2FsaG9zdDo1
+NDUzgg4xMjcuMC4wLjE6NTQ1MzAKBggqhkjOPQQDAgNIADBFAiEA2zpJEPQyz6/l
+Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc
+6MF9+Yw1Yy0t
+-----END CERTIFICATE-----`)
+	keyPem := []byte(`-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
+AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
+EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
+-----END EC PRIVATE KEY-----`)
+	cert, err := tls.X509KeyPair(certPem, keyPem)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		ClientAuth:         tls.RequireAnyClientCert,
+		InsecureSkipVerify: true, // ok when VerifyPeerCertificate present
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			if len(rawCerts) != 1 {
+				return fmt.Errorf("expected single cert, got %d", len(rawCerts))
+			}
+			if !bytes.Equal(cert.Certificate[0], rawCerts[0]) {
+				return fmt.Errorf("invalid peer certificate")
+			}
+			return nil
+		},
+	}
+}
+
+type testListener struct {
+	net.Listener
+	tlsConfig *tls.Config
+}
+
+var _ call.Listener = &testListener{}
+
+func (l testListener) Accept() (net.Conn, *call.HandlerMap, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, nil, err
+	}
+	if l.tlsConfig != nil {
+		tlsConn := tls.Server(conn, l.tlsConfig)
+		if err := tlsConn.Handshake(); err != nil {
+			return nil, nil, fmt.Errorf("TLS handshake error: %w", err)
+		}
+		conn = tlsConn
+	}
+	return conn, handlers, err
+}
+
 // startServers starts a new long-running server for each tested network
 // protocol (e.g., "tcp"), returning the endpoints for those servers.
 func startServers(ctx context.Context, opts call.ServerOptions) map[string]call.Endpoint {
+	serve := func(lis call.Listener) {
+		call.Serve(ctx, lis, opts)
+	}
+
 	// Start the server that uses the TCP protocol.
 	tcpListener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(err)
 	}
-	// TODO(mwhittaker): Use test logger.
-	go call.Serve(ctx, tcpListener, handlers, opts)
+	go serve(testListener{Listener: tcpListener})
+
+	// Start the server that uses the MTLS protocol over TCP.
+	mtlsListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
+	}
+	go serve(testListener{Listener: mtlsListener, tlsConfig: tlsConfig})
 
 	return map[string]call.Endpoint{
-		"tcp": call.TCP(tcpListener.Addr().String()),
+		"tcp":  call.TCP(tcpListener.Addr().String()),
+		"mtls": call.MTLS(tlsConfig, call.TCP(mtlsListener.Addr().String())),
 	}
 }
 
@@ -90,7 +165,7 @@ const (
 
 	// shortDelay is used in some tests to delay some action. It should be
 	// much smaller than testTimeout.
-	shortDelay = time.Millisecond * 10
+	shortDelay = time.Millisecond * 100
 
 	// delaySlop is extra delay added to account for usual jitter in execution
 	// times (e.g., scheduling delays). It should be much smaller than testTimeout.
@@ -322,8 +397,6 @@ func waitUntil(t testing.TB, f func() bool) {
 // checkQuickCancel calls the cancellation handler on c and fails unless it ends quickly.
 // It returns the error returned by the
 func checkQuickCancel(ctx context.Context, t *testing.T, c call.Connection) error {
-	t.Helper()
-
 	atomic.StoreInt64(&cancelCount, 0)
 	start := time.Now()
 	_, err := c.Call(ctx, cancelWaitKey, []byte("hello"), call.CallOptions{})
@@ -475,7 +548,8 @@ func TestSingleTCPServer(t *testing.T) {
 		{"TestClose", testClose},
 	}
 
-	protocols := []string{"tcp"}
+	protocols := []string{"tcp", "mtls"}
+
 	ctx := context.Background()
 	opts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
 	endpoints := startServers(ctx, opts)
@@ -1342,7 +1416,7 @@ func TestCancelServe(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		opts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
-		err := call.Serve(ctx, lis, handlers, opts)
+		err := call.Serve(ctx, testListener{Listener: lis}, opts)
 		if err != ctx.Err() {
 			t.Errorf("unexpected error from Serve: %v", err)
 		}

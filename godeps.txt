@@ -1,17 +1,20 @@
 // Automatically generated; DO NOT EDIT
 github.com/ServiceWeaver/weaver
     context
+    crypto/tls
+    crypto/x509
     embed
     errors
     fmt
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/envelope/conn
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
+    github.com/ServiceWeaver/weaver/internal/private
     github.com/ServiceWeaver/weaver/internal/register
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime
@@ -30,6 +33,7 @@ github.com/ServiceWeaver/weaver
     go.opentelemetry.io/otel/sdk/trace
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
+    golang.org/x/exp/maps
     golang.org/x/exp/slices
     golang.org/x/exp/slog
     google.golang.org/protobuf/types/known/timestamppb
@@ -101,7 +105,6 @@ github.com/ServiceWeaver/weaver/examples/chat
     modernc.org/sqlite
     net/http
     net/url
-    os
     reflect
     regexp
     strconv
@@ -150,7 +153,6 @@ github.com/ServiceWeaver/weaver/examples/hello
     log
     net/http
     reflect
-    sync
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique
     context
@@ -248,8 +250,10 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice
     github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/google/uuid
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+    go.opentelemetry.io/otel/trace
     golang.org/x/exp/slog
     html/template
     io/fs
@@ -258,8 +262,10 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     net/http
     os
     path/filepath
+    reflect
     strconv
     strings
+    sync
     time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice
     context
@@ -346,26 +352,6 @@ github.com/ServiceWeaver/weaver/examples/reverser
     net/http
     reflect
     time
-github.com/ServiceWeaver/weaver/examples/wrap
-    bufio
-    context
-    embed
-    errors
-    flag
-    fmt
-    github.com/ServiceWeaver/weaver
-    github.com/ServiceWeaver/weaver/metrics
-    github.com/ServiceWeaver/weaver/runtime/codegen
-    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
-    go.opentelemetry.io/otel/codes
-    go.opentelemetry.io/otel/trace
-    log
-    net/http
-    reflect
-    strconv
-    strings
-    time
-    unicode
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
     errors
@@ -392,6 +378,7 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/queue
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -431,6 +418,7 @@ github.com/ServiceWeaver/weaver/internal/net/call
     bufio
     context
     crypto/sha256
+    crypto/tls
     encoding/binary
     errors
     fmt
@@ -455,6 +443,9 @@ github.com/ServiceWeaver/weaver/internal/pipe
     io
     os
     os/exec
+github.com/ServiceWeaver/weaver/internal/private
+    context
+    reflect
 github.com/ServiceWeaver/weaver/internal/proto
     encoding/base64
     google.golang.org/protobuf/proto
@@ -520,20 +511,36 @@ github.com/ServiceWeaver/weaver/internal/status
     syscall
     text/template
     time
+github.com/ServiceWeaver/weaver/internal/tool/certs
+    bytes
+    crypto
+    crypto/rand
+    crypto/rsa
+    crypto/x509
+    crypto/x509/pkix
+    encoding/pem
+    errors
+    fmt
+    math/big
+    time
 github.com/ServiceWeaver/weaver/internal/tool/generate
     bytes
     crypto/sha256
+    errors
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     go/ast
     go/format
     go/parser
     go/token
     go/types
+    golang.org/x/exp/maps
     golang.org/x/tools/go/packages
     golang.org/x/tools/go/types/typeutil
     io
+    os
     path
     path/filepath
     sort
@@ -542,15 +549,17 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     unicode
 github.com/ServiceWeaver/weaver/internal/tool/multi
     context
+    crypto
+    crypto/x509
     errors
     flag
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/certs
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -581,9 +590,9 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/tool
     path/filepath
 github.com/ServiceWeaver/weaver/internal/tool/ssh
@@ -612,8 +621,8 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     context
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
+    github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proto
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/routing
@@ -676,6 +685,21 @@ github.com/ServiceWeaver/weaver/runtime
     strconv
     strings
     time
+github.com/ServiceWeaver/weaver/runtime/bin
+    bytes
+    debug/elf
+    debug/macho
+    debug/pe
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    io
+    os
+github.com/ServiceWeaver/weaver/runtime/bin/testprogram
+    context
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/trace
+    reflect
 github.com/ServiceWeaver/weaver/runtime/codegen
     bytes
     context
@@ -691,6 +715,8 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     google.golang.org/protobuf/proto
     math
     reflect
+    regexp
+    sort
     strings
     sync
 github.com/ServiceWeaver/weaver/runtime/colors
@@ -768,7 +794,6 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     encoding/json
     errors
     fmt
-    github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/hashicorp/golang-lru/v2
@@ -841,6 +866,7 @@ github.com/ServiceWeaver/weaver/weavertest
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
+    github.com/ServiceWeaver/weaver/internal/private
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -849,10 +875,11 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
+    go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
-    golang.org/x/exp/slog
     golang.org/x/sync/errgroup
     os
+    reflect
     regexp
     runtime
     strings
@@ -907,10 +934,12 @@ github.com/ServiceWeaver/weaver/weavertest/internal/protos
 github.com/ServiceWeaver/weaver/weavertest/internal/simple
     context
     errors
+    fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    net/http
     os
     reflect
     strings

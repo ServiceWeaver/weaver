@@ -30,11 +30,10 @@ type pingCommon struct {
 	next Ping
 }
 
-// setNext initializes p.next to point to the component of type Next.
-func setNext[Next Ping](p *pingCommon, requestor weaver.Instance) error {
-	next, err := weaver.Get[Next](requestor)
+// setNext initializes p.next to point to next.
+func (p *pingCommon) setNext(next Ping) error {
 	p.next = next
-	return err
+	return nil
 }
 
 func (p *pingCommon) PingC(ctx context.Context, req payloadC, depth int) (payloadC, error) {
@@ -70,46 +69,55 @@ type Ping10 interface{ Ping }
 
 type ping1 struct {
 	weaver.Implements[Ping1]
+	next weaver.Ref[Ping2]
 	pingCommon
 }
 
 type ping2 struct {
 	weaver.Implements[Ping2]
+	next weaver.Ref[Ping3]
 	pingCommon
 }
 
 type ping3 struct {
 	weaver.Implements[Ping3]
+	next weaver.Ref[Ping4]
 	pingCommon
 }
 
 type ping4 struct {
 	weaver.Implements[Ping4]
+	next weaver.Ref[Ping5]
 	pingCommon
 }
 
 type ping5 struct {
 	weaver.Implements[Ping5]
+	next weaver.Ref[Ping6]
 	pingCommon
 }
 
 type ping6 struct {
 	weaver.Implements[Ping6]
+	next weaver.Ref[Ping7]
 	pingCommon
 }
 
 type ping7 struct {
 	weaver.Implements[Ping7]
+	next weaver.Ref[Ping8]
 	pingCommon
 }
 
 type ping8 struct {
 	weaver.Implements[Ping8]
+	next weaver.Ref[Ping9]
 	pingCommon
 }
 
 type ping9 struct {
 	weaver.Implements[Ping9]
+	next weaver.Ref[Ping10]
 	pingCommon
 }
 
@@ -118,15 +126,15 @@ type ping10 struct {
 	pingCommon
 }
 
-func (p *ping1) Init(context.Context) error { return setNext[Ping2](&p.pingCommon, p) }
-func (p *ping2) Init(context.Context) error { return setNext[Ping3](&p.pingCommon, p) }
-func (p *ping3) Init(context.Context) error { return setNext[Ping4](&p.pingCommon, p) }
-func (p *ping4) Init(context.Context) error { return setNext[Ping5](&p.pingCommon, p) }
-func (p *ping5) Init(context.Context) error { return setNext[Ping6](&p.pingCommon, p) }
-func (p *ping6) Init(context.Context) error { return setNext[Ping7](&p.pingCommon, p) }
-func (p *ping7) Init(context.Context) error { return setNext[Ping8](&p.pingCommon, p) }
-func (p *ping8) Init(context.Context) error { return setNext[Ping9](&p.pingCommon, p) }
-func (p *ping9) Init(context.Context) error { return setNext[Ping10](&p.pingCommon, p) }
+func (p *ping1) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping2) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping3) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping4) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping5) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping6) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping7) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping8) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
+func (p *ping9) Init(context.Context) error { return p.pingCommon.setNext(p.next.Get()) }
 
 // ping10 has no next component.
 

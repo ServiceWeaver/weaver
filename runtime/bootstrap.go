@@ -45,7 +45,7 @@ type Bootstrap struct {
 	TestConfig     string   // Config file contents (weavertest only).
 }
 
-// BootstrapKey is the Context key used by weavertest to pass Bootstrap to [weaver.Init].
+// BootstrapKey is the Context key used by weavertest to pass Bootstrap to [weaver.Run].
 type BootstrapKey struct{}
 
 // GetBootstrap returns information needed to configure process

@@ -28,7 +28,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/google/go-cmp/cmp"
@@ -340,28 +339,25 @@ func BenchmarkPing(b *testing.B) {
 		}
 		name := fmt.Sprintf("chain=%02d,size=%s", bm.numChainedComponents, size)
 		b.Run(name, func(b *testing.B) {
-			root := weavertest.Init(ctx, b, weavertest.Options{SingleProcess: true})
-			pObj, err := weaver.Get[Ping1](root)
-			if err != nil {
-				b.Fatal(err)
-			}
-			if bm.componentSize == complex {
-				payload := genWorkload(1)[0]
-				for i := 0; i < b.N; i++ {
-					_, err := pObj.PingC(ctx, *payload, bm.numChainedComponents)
-					if err != nil {
-						b.Fatal(err)
+			weavertest.Run(b, weavertest.Options{SingleProcess: true}, func(pObj Ping1) {
+				if bm.componentSize == complex {
+					payload := genWorkload(1)[0]
+					for i := 0; i < b.N; i++ {
+						_, err := pObj.PingC(ctx, *payload, bm.numChainedComponents)
+						if err != nil {
+							b.Fatal(err)
+						}
+					}
+				} else {
+					payload := buildPayloadS(bm.componentSize)
+					for i := 0; i < b.N; i++ {
+						_, err := pObj.PingS(ctx, payload, bm.numChainedComponents)
+						if err != nil {
+							b.Fatal(err)
+						}
 					}
 				}
-			} else {
-				payload := buildPayloadS(bm.componentSize)
-				for i := 0; i < b.N; i++ {
-					_, err := pObj.PingS(ctx, payload, bm.numChainedComponents)
-					if err != nil {
-						b.Fatal(err)
-					}
-				}
-			}
+			})
 		})
 	}
 }
@@ -374,33 +370,30 @@ func init() {
 func TestBenchmark(t *testing.T) {
 	// Test plan: Send a ping request from Component1 to Component10. Verify that
 	// the response is the same as the request when we send both simple and complex payloads.
-	ctx := context.Background()
-	root := weavertest.Init(ctx, t, weavertest.Options{SingleProcess: true})
-	ping, err := weaver.Get[Ping1](root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	depth := 10
+	weavertest.Run(t, weavertest.Options{SingleProcess: true}, func(ping Ping1) {
+		ctx := context.Background()
+		depth := 10
 
-	// Test 1
-	reqPayload := buildPayloadS(100)
-	respPayload, err := ping.(Ping).PingS(ctx, reqPayload, depth)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := cmp.Diff(respPayload.Values, reqPayload.Values); diff != "" {
-		t.Fatalf("list: (-want,+got):\n%s\n", diff)
-	}
+		// Test 1
+		reqPayload := buildPayloadS(100)
+		respPayload, err := ping.(Ping).PingS(ctx, reqPayload, depth)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diff := cmp.Diff(respPayload.Values, reqPayload.Values); diff != "" {
+			t.Fatalf("list: (-want,+got):\n%s\n", diff)
+		}
 
-	// Test 2
-	reqPayloadC := genWorkload(1)[0]
-	respPayloadC, errC := ping.(Ping).PingC(ctx, *reqPayloadC, depth)
-	if errC != nil {
-		t.Fatal(errC)
-	}
-	if diff := cmp.Diff(respPayloadC.E, reqPayloadC.E); diff != "" {
-		t.Fatalf("list: (-want,+got):\n%s\n", diff)
-	}
+		// Test 2
+		reqPayloadC := genWorkload(1)[0]
+		respPayloadC, errC := ping.(Ping).PingC(ctx, *reqPayloadC, depth)
+		if errC != nil {
+			t.Fatal(errC)
+		}
+		if diff := cmp.Diff(respPayloadC.E, reqPayloadC.E); diff != "" {
+			t.Fatalf("list: (-want,+got):\n%s\n", diff)
+		}
+	})
 }
 
 // genWorkload generates a slice of length n of payloadC components that emulates

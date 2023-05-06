@@ -38,9 +38,6 @@ import (
 
 // This file contains code to read and write log entries to and from files.
 
-// DefaultLogDir is the default directory where Service Weaver log files are stored.
-var DefaultLogDir = filepath.Join(os.TempDir(), "serviceweaver", "logs")
-
 // FileStore stores log entries in files.
 type FileStore struct {
 	dir string

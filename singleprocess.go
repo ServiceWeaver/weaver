@@ -29,9 +29,9 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
-	"github.com/ServiceWeaver/weaver/internal/files"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/internal/tool/single"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -109,7 +109,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		return nil, err
 	}
 
-	traceDB, err := perfetto.Open(ctx)
+	traceDB, err := perfetto.Open(ctx, single.PerfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
@@ -161,6 +161,14 @@ func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr stri
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (e *singleprocessEnv) VerifyClientCertificate(context.Context, [][]byte) ([]string, error) {
+	panic("unused")
+}
+
+func (e *singleprocessEnv) VerifyServerCertificate(context.Context, [][]byte, string) error {
+	panic("unused")
+}
+
 // serveStatus runs and registers the weaver-single status server.
 func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	mux := http.NewServeMux()
@@ -186,12 +194,7 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 	}
 
 	// Register the deployment.
-	dir, err := files.DefaultDataDir()
-	if err != nil {
-		return err
-	}
-	dir = filepath.Join(dir, "single_registry")
-	registry, err := status.NewRegistry(ctx, dir)
+	registry, err := status.NewRegistry(ctx, single.RegistryDir)
 	if err != nil {
 		return nil
 	}

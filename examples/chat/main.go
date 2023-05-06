@@ -17,8 +17,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
 
 	"github.com/ServiceWeaver/weaver"
 )
@@ -27,26 +25,5 @@ import (
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	root := weaver.Init(ctx)
-	store, err := weaver.Get[SQLStore](root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
-	scaler, err := weaver.Get[ImageScaler](root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
-	cache, err := weaver.Get[LocalCache](root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
-	srv := newServer(store, scaler, cache)
-	if err := srv.run(root); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
+	weaver.Run(context.Background(), serve)
 }

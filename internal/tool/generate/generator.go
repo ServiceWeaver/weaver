@@ -17,6 +17,7 @@ package generate
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -24,6 +25,7 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -31,7 +33,9 @@ import (
 	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
+	"golang.org/x/exp/maps"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -49,11 +53,11 @@ Usage:
   weaver generate [packages]
 
 Description:
-  "weaver generate" generates code for the Service Weaver applications in the provided
-  packages. For example, "weaver generate . ./foo" will generate code for the
-  Service Weaver applications in the current directory and in the ./foo directory. For
-  every package, the generated code is placed in a weaver_gen.go file in the
-  package's directory.  For example, running "weaver generate . ./foo" will
+  "weaver generate" generates code for the Service Weaver applications in the
+  provided packages. For example, "weaver generate . ./foo" will generate code
+  for the Service Weaver applications in the current directory and in the ./foo
+  directory. For every package, the generated code is placed in a weaver_gen.go
+  file in the package's directory. For example, "weaver generate . ./foo" will
   create ./weaver_gen.go and ./foo/weaver_gen.go.
 
   You specify packages for "weaver generate" in the same way you specify
@@ -81,27 +85,26 @@ Examples:
   weaver generate ./...`
 )
 
-// ErrorList holds a list of errors.
-type ErrorList []error
-
-func (list ErrorList) Error() string {
-	var b strings.Builder
-	for _, err := range list {
-		fmt.Fprintln(&b, err.Error())
-	}
-	return b.String()
+// Options controls the operation of Generate.
+type Options struct {
+	// If non-nil, use the specified function to report warnings.
+	Warn func(error)
 }
 
 // Generate generates Service Weaver code for the specified packages.
 // The list of supplied packages are treated similarly to the arguments
 // passed to "go build" (see "go help packages" for details).
-func Generate(dir string, pkgs []string) error {
+func Generate(dir string, pkgs []string, opt Options) error {
+	if opt.Warn == nil {
+		opt.Warn = func(err error) { fmt.Fprintln(os.Stderr, err) }
+	}
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
-		Mode:      packages.NeedName | packages.NeedSyntax | packages.NeedImports | packages.NeedTypes | packages.NeedTypesInfo,
-		Dir:       dir,
-		Fset:      fset,
-		ParseFile: parseNonWeaverGenFile,
+		Mode:       packages.NeedName | packages.NeedSyntax | packages.NeedImports | packages.NeedTypes | packages.NeedTypesInfo,
+		Dir:        dir,
+		Fset:       fset,
+		ParseFile:  parseNonWeaverGenFile,
+		BuildFlags: []string{"--tags=ignoreWeaverGen"},
 	}
 	pkgList, err := packages.Load(cfg, pkgs...)
 	if err != nil {
@@ -110,20 +113,17 @@ func Generate(dir string, pkgs []string) error {
 
 	var automarshals typeutil.Map
 	var errs []error
-	for _, p := range pkgList {
-		g := &generator{
-			pkg:            p,
-			tset:           newTypeSet(p, &automarshals, &typeutil.Map{}),
-			fileset:        fset,
-			componentImpls: map[string]token.Pos{},
+	for _, pkg := range pkgList {
+		g, err := newGenerator(opt, pkg, fset, &automarshals)
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
-		g.processPackage(p)
-		errs = append(errs, g.errors...)
+		if err := g.generate(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	if len(errs) != 0 {
-		return ErrorList(errs)
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // parseNonWeaverGenFile parses a Go file, except for weaver_gen.go files whose
@@ -140,99 +140,160 @@ type generator struct {
 	pkg            *packages.Package
 	tset           *typeSet
 	fileset        *token.FileSet
-	errors         []error
 	components     []*component
-	componentImpls map[string]token.Pos
-	types          []types.Type // all types that need to be serialized
 	sizeFuncNeeded typeutil.Map // types that need a serviceweaver_size_* function
 	generated      typeutil.Map // memo cache for generateEncDecMethodsFor
 }
 
-func (g *generator) addError(pos token.Pos, err error) {
-	position := g.fileset.Position(pos)
+// errorf is like fmt.Errorf but prefixes the error with the provided position.
+func errorf(fset *token.FileSet, pos token.Pos, format string, args ...interface{}) error {
+	// Rewrite the position's filename relative to the current directory. This
+	// replaces long filenames like "/home/foo/ServiceWeaver/weaver/weaver.go"
+	// with much shorter filenames like "./weaver.go".
+	position := fset.Position(pos)
 	if cwd, err := filepath.Abs("."); err == nil {
 		if filename, err := filepath.Rel(cwd, position.Filename); err == nil {
 			position.Filename = filename
 		}
 	}
+
 	prefix := position.String()
 	if colors.Enabled() {
+		// Color the filename red when colors are enabled.
 		prefix = fmt.Sprintf("%s%v%s", colors.Color256(160), position, colors.Reset)
 	}
-	g.errors = append(g.errors, fmt.Errorf("%s: %w", prefix, err))
+	return fmt.Errorf("%s: %w", prefix, fmt.Errorf(format, args...))
 }
 
-func (g *generator) errorf(pos token.Pos, format string, args ...interface{}) {
-	g.addError(pos, fmt.Errorf(format, args...))
-}
-
-func (g *generator) processPackage(pkg *packages.Package) {
-	// Abort if there are any errors loading the package.
+func newGenerator(opt Options, pkg *packages.Package, fset *token.FileSet, automarshals *typeutil.Map) (*generator, error) {
+	// Abort if there were any errors loading the package.
+	var errs []error
 	for _, err := range pkg.Errors {
-		g.errors = append(g.errors, err)
+		errs = append(errs, err)
 	}
-	if len(g.errors) > 0 {
-		return
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
 	}
 
-	// Find all weaver.AutoMarshal annotations.
-	for _, f := range pkg.Syntax {
-		fname := g.fileset.Position(f.Package).Filename
-		if filepath.Base(fname) == generatedCodeFile {
+	// Search every file in the package for types that embed the
+	// weaver.AutoMarshal struct.
+	tset := newTypeSet(pkg, automarshals, &typeutil.Map{})
+	for _, file := range pkg.Syntax {
+		filename := fset.Position(file.Package).Filename
+		if filepath.Base(filename) == generatedCodeFile {
+			// Ignore weaver_gen.go files.
 			continue
 		}
-		for _, t := range g.findAutoMarshals(f) {
-			g.tset.automarshalCandidates.Set(t, struct{}{})
+		ts, err := findAutoMarshals(pkg, file)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		for _, t := range ts {
+			tset.automarshalCandidates.Set(t, struct{}{})
 		}
 	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
 
-	for _, t := range g.tset.automarshalCandidates.Keys() {
+	// Just because a type embeds weaver.AutoMarshal doesn't mean we can
+	// automatically marshal it. Some types, like `struct { x chan int }`, are
+	// just not serializable. Here, we check that every type that embeds
+	// weaver.AutoMarshal is actually serializable.
+	for _, t := range tset.automarshalCandidates.Keys() {
 		n := t.(*types.Named)
-		if errs := g.tset.checkSerializable(n); len(errs) > 0 {
-			g.errorf(n.Obj().Pos(), "type %v is not serializable", t)
-			for _, err := range errs {
-				g.addError(n.Obj().Pos(), err)
-			}
-		} else {
-			g.tset.automarshals.Set(t, struct{}{})
+		if err := errors.Join(tset.checkSerializable(n)...); err != nil {
+			errs = append(errs, errorf(fset, n.Obj().Pos(), "type %v is not serializable\n%w", t, err))
+			continue
 		}
+		tset.automarshals.Set(t, struct{}{})
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
 	}
 
 	// Find and process all components.
-	for _, f := range pkg.Syntax {
-		fname := g.fileset.Position(f.Package).Filename
-		if filepath.Base(fname) == generatedCodeFile {
+	components := map[string]*component{}
+	for _, file := range pkg.Syntax {
+		filename := fset.Position(file.Package).Filename
+		if filepath.Base(filename) == generatedCodeFile {
+			// Ignore weaver_gen.go files.
 			continue
 		}
-		g.findComponents(f)
+
+		fileComponents, err := findComponents(opt, pkg, file, tset)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		for _, c := range fileComponents {
+			// Check for component duplicates, two components that embed the
+			// same weaver.Implements[T].
+			//
+			// TODO(mwhittaker): This code relies on the fact that a component
+			// interface and component implementation have to be in the same
+			// package. If we lift this requirement, then this code will break.
+			if existing, ok := components[c.fullIntfName()]; ok {
+				errs = append(errs, errorf(pkg.Fset, c.impl.Obj().Pos(),
+					"Duplicate implementation for component %s, other declaration: %v",
+					c.fullIntfName(), fset.Position(existing.impl.Obj().Pos())))
+				continue
+			}
+			components[c.fullIntfName()] = c
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
 	}
 
-	if len(g.errors) == 0 && len(g.components)+g.tset.automarshalCandidates.Len() > 0 {
-		g.generate()
-	}
+	return &generator{
+		pkg:        pkg,
+		tset:       tset,
+		fileset:    fset,
+		components: maps.Values(components),
+	}, nil
 }
 
-func (g *generator) findComponents(f *ast.File) {
-	// Find types that implement components. E.g., something that looks like:
-	//	type something struct {
-	//		weaver.Implements[SomeComponentType]
-	//		...
-	//	}
+// findComponents returns the components in the provided file. For example,
+// findComponents will find and return the following component.
+//
+//	type something struct {
+//	    weaver.Implements[SomeComponentType]
+//	    ...
+//	}
+func findComponents(opt Options, pkg *packages.Package, f *ast.File, tset *typeSet) ([]*component, error) {
+	var components []*component
+	var errs []error
 	for _, d := range f.Decls {
 		gendecl, ok := d.(*ast.GenDecl)
 		if !ok || gendecl.Tok != token.TYPE {
 			continue
 		}
 		for _, spec := range gendecl.Specs {
-			g.processComponentImplementation(f, spec)
+			ts, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+			component, err := extractComponent(opt, pkg, f, tset, ts)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			if component != nil {
+				components = append(components, component)
+			}
 		}
 	}
+	return components, errors.Join(errs...)
 }
 
 // findAutoMarshals returns the types in the provided file which embed the
 // weaver.AutoMarshal struct.
-func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
+func findAutoMarshals(pkg *packages.Package, f *ast.File) ([]*types.Named, error) {
 	var automarshals []*types.Named
+	var errs []error
 	for _, decl := range f.Decls {
 		gendecl, ok := decl.(*ast.GenDecl)
 		if !ok || gendecl.Tok != token.TYPE {
@@ -248,31 +309,30 @@ func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
 		//         b struct{} // Spec 2
 		//     )
 		for _, spec := range gendecl.Specs {
-			pos := spec.Pos()
-			position := g.fileset.Position(pos)
 			typespec, ok := spec.(*ast.TypeSpec)
 			if !ok {
-				panic(fmt.Errorf("%v: type declaration has non-TypeSpec spec: %v", position, spec))
+				panic(errorf(pkg.Fset, spec.Pos(), "type declaration has non-TypeSpec spec: %v", spec))
 			}
 
 			// Extract the type's name.
-			def, ok := g.pkg.TypesInfo.Defs[typespec.Name]
+			def, ok := pkg.TypesInfo.Defs[typespec.Name]
 			if !ok {
-				panic(fmt.Errorf("%v: name %v not found", position, typespec.Name))
+				panic(errorf(pkg.Fset, spec.Pos(), "name %v not found", typespec.Name))
 			}
-
-			// Check for an embedded AutoMarshal.
 			n, ok := def.Type().(*types.Named)
 			if !ok {
 				// For type aliases like `type Int = int`, Int has type int and
 				// not type Named. We ignore these.
 				continue
 			}
+
 			// Check if the type of the expression is struct.
-			t, ok := g.pkg.TypesInfo.Types[typespec.Type].Type.(*types.Struct)
+			t, ok := pkg.TypesInfo.Types[typespec.Type].Type.(*types.Struct)
 			if !ok {
 				continue
 			}
+
+			// Check for an embedded weaver.AutoMarshal field.
 			automarshal := false
 			for i := 0; i < t.NumFields(); i++ {
 				f := t.Field(i)
@@ -301,223 +361,328 @@ func (g *generator) findAutoMarshals(f *ast.File) []*types.Named {
 			//
 			// TODO(mwhittaker): Handle generics somehow?
 			if n.TypeParams() != nil { // generics have non-nil TypeParams()
-				name := g.tset.typeString(n)
-				g.addError(pos, fmt.Errorf("generic struct %v cannot embed weaver.AutoMarshal. See serviceweaver.dev/docs.html#serializable-types for more information.", name))
+				errs = append(errs, errorf(pkg.Fset, spec.Pos(),
+					"generic struct %v cannot embed weaver.AutoMarshal. See serviceweaver.dev/docs.html#serializable-types for more information.",
+					formatType(pkg, n)))
 				continue
 			}
 
 			automarshals = append(automarshals, n)
 		}
 	}
-	return automarshals
+	return automarshals, errors.Join(errs...)
 }
 
-func (g *generator) processComponentImplementation(file *ast.File, spec ast.Spec) {
-	ts, ok := spec.(*ast.TypeSpec)
+// extractComponent attempts to extract a component from the provided TypeSpec.
+// It returns a nil component if the TypeSpec doesn't define a component.
+func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *typeSet, spec *ast.TypeSpec) (*component, error) {
+	// Check that the type spec is of the form `type t struct {...}`.
+	s, ok := spec.Type.(*ast.StructType)
 	if !ok {
-		return
+		// This type declaration does not involve a struct. For example, it
+		// might look like `type t int`. These non-struct type declarations
+		// cannot be components.
+		return nil, nil
 	}
-	implName := ts.Name.Name
-	s, ok := ts.Type.(*ast.StructType)
+	def, ok := pkg.TypesInfo.Defs[spec.Name]
 	if !ok {
-		return
+		panic(errorf(pkg.Fset, spec.Pos(), "name %v not found", spec.Name))
+	}
+	impl, ok := def.Type().(*types.Named)
+	if !ok {
+		// For type aliases like `type t = struct{}`, t has type *types.Struct
+		// and not type *types.Named. We ignore these.
+		return nil, nil
 	}
 
-	var componentType *types.Named // The component interface type
-	var routerType *types.Named    // Router implementation (if any)
-	var hasConfig bool             // Does struct contain weaver.WithConfig[] field?
-
+	// Find any weaver.Implements[T], weaver.WithRouter[T], and
+	// weaver.WithConfig[T] embedded fields.
+	var intf *types.Named   // The component interface type
+	var router *types.Named // Router type (if any)
+	var isMain bool         // Is intf weaver.Main?
+	var hasConfig bool      // Does impl embed weaver.WithConfig?
+	var refs []*types.Named // T for which weaver.Ref[T] exists in struct
 	for _, f := range s.Fields.List {
-		if len(f.Names) != 0 {
-			continue // Only an embedded field counts
-		}
-		typeAndValue, ok := g.tset.pkg.TypesInfo.Types[f.Type]
+		typeAndValue, ok := pkg.TypesInfo.Types[f.Type]
 		if !ok {
-			continue
+			panic(errorf(pkg.Fset, f.Pos(), "type %v not found", f.Type))
 		}
 		t := typeAndValue.Type
 
-		switch {
-		case isWeaverImplements(t):
+		if isWeaverRef(t) {
+			// The field f has type weaver.Ref[T].
 			arg := t.(*types.Named).TypeArgs().At(0)
-			cn, ok := arg.(*types.Named)
+			named, ok := arg.(*types.Named)
 			if !ok {
-				g.errorf(spec.Pos(), "weaver.Implements argument is not a named type.")
-				return
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.Ref argument %s is not a named type.",
+					formatType(pkg, arg))
 			}
-			if cn.Obj().Pkg() != g.tset.pkg.Types {
-				g.errorf(spec.Pos(), "weaver.Implements argument %s is a type outside the current package.", g.tset.typeString(cn))
-				return
-			}
-			intf, ok := cn.Underlying().(*types.Interface)
-			if !ok {
-				g.errorf(f.Pos(), "weaver.Implements argument %s is not an interface.", g.tset.typeString(cn))
-				return
-			}
+			refs = append(refs, named)
+		}
 
-			def, ok := g.pkg.TypesInfo.Defs[ts.Name]
-			if !ok {
-				loc := g.fileset.Position(ts.Pos())
-				panic(fmt.Errorf("%v: name %v not found", loc, ts.Name))
-			}
-			n, ok := def.Type().(*types.Named)
-			if !ok {
-				// For type aliases like `type Int = int`, Int has type int and
-				// not type Named. We ignore these.
-				break
-			}
-			if !types.Implements(types.NewPointer(n), intf) {
-				g.errorf(f.Pos(), "type %s embeds %s but does not implement interface %v.", g.tset.typeString(n), g.tset.typeString(t), g.tset.typeString(cn))
-				return
-			}
-			componentType = cn
-		case isWeaverWithConfig(t):
-			hasConfig = true
-		case isWeaverWithRouter(t):
-			arg := t.(*types.Named).TypeArgs().At(0)
-			rt, ok := arg.(*types.Named)
-			if !ok {
-				g.errorf(f.Pos(), "weaver.WithRouter argument %s must be a type with routing methods", arg)
-				return
-			}
-			routerType = rt
+		if len(f.Names) != 0 {
+			// Ignore unembedded fields.
+			//
+			// TODO(mwhittaker): Warn the user about unembedded
+			// weaver.Implements, weaver.WithConfig, or weaver.WithRouter?
 			continue
 		}
-	}
-	if componentType == nil {
-		return
+
+		switch {
+		// The field f is an embedded weaver.Implements[T].
+		case isWeaverImplements(t):
+			// Check that T is a named interface type inside the package.
+			arg := t.(*types.Named).TypeArgs().At(0)
+			named, ok := arg.(*types.Named)
+			if !ok {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.Implements argument %s is not a named type.",
+					formatType(pkg, arg))
+			}
+			isMain = isWeaverMain(arg)
+			if !isMain && named.Obj().Pkg() != pkg.Types {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.Implements argument %s is a type outside the current package. A component interface and implementation must be in the same package. If you can't move them into the same package, you can add `type %s %v` to the implementation's package and embed `weaver.Implements[%s]` instead of `weaver.Implements[%s]`.",
+					formatType(pkg, named), named.Obj().Name(), formatType(pkg, named), named.Obj().Name(), formatType(pkg, named))
+			}
+			if _, ok := named.Underlying().(*types.Interface); !ok {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.Implements argument %s is not an interface.",
+					formatType(pkg, named))
+			}
+			intf = named
+
+		// The field f is an embedded weaver.WithConfig[T].
+		case isWeaverWithConfig(t):
+			hasConfig = true
+
+		// The field f is an embedded weaver.WithRouter[T].
+		case isWeaverWithRouter(t):
+			// Check that T is a named type inside the package.
+			arg := t.(*types.Named).TypeArgs().At(0)
+			named, ok := arg.(*types.Named)
+			if !ok {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.WithRouter argument %s is not a named type.",
+					formatType(pkg, arg))
+			}
+			if named.Obj().Pkg() != pkg.Types {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"weaver.WithRouter argument %s is a type outside the current package.",
+					formatType(pkg, named))
+			}
+			router = named
+		}
 	}
 
-	fullName := filepath.Join(componentType.Obj().Pkg().Path(), componentType.Obj().Name())
-	if pos, exists := g.componentImpls[fullName]; exists {
-		g.errorf(spec.Pos(), "Duplicate implementation for component %v, other declaration: %v", fullName, g.fileset.Position(pos))
-		return
+	if intf == nil {
+		// TODO(mwhittaker): Warn the user if they embed weaver.WithRouter or
+		// weaver.WithConfig but don't embed weaver.Implements.
+		return nil, nil
 	}
-	g.componentImpls[fullName] = spec.Pos()
 
-	if ts.TypeParams != nil && ts.TypeParams.NumFields() != 0 {
-		g.errorf(spec.Pos(), "component implementation cannot be generic")
-		return
+	// Check that that the component implementation implements the component
+	// interface.
+	if !types.Implements(types.NewPointer(impl), intf.Underlying().(*types.Interface)) {
+		return nil, errorf(pkg.Fset, spec.Pos(),
+			"type %s embeds weaver.Implements[%s] but does not implement interface %s.",
+			formatType(pkg, impl), formatType(pkg, intf), formatType(pkg, intf))
+	}
+
+	// Disallow generic component implementations.
+	if spec.TypeParams != nil && spec.TypeParams.NumFields() != 0 {
+		return nil, errorf(pkg.Fset, spec.Pos(),
+			"component implementation %s is generic. Component implements cannot be generic.",
+			formatType(pkg, impl))
+	}
+
+	// Validate the component's methods.
+	if err := validateMethods(pkg, tset, intf); err != nil {
+		return nil, err
+	}
+
+	// Warn the user if the component has a mistyped Init method. Init methods
+	// are supposed to have type "func(context.Context) error", but it's easy
+	// to forget to add a context.Context argument or error return. Without
+	// this warning, the component's Init method will be silently ignored. This
+	// can be very frustrating to debug.
+	if err := checkMistypedInit(pkg, tset, impl); err != nil {
+		opt.Warn(err)
 	}
 
 	comp := &component{
-		name:      componentType.Obj().Name(),
-		pos:       spec.Pos(),
-		fullName:  fullName,
-		implName:  implName,
-		intf:      componentType.Underlying().(*types.Interface),
-		file:      file,
-		router:    routerType,
+		intf:      intf,
+		impl:      impl,
+		router:    router,
+		isMain:    isMain,
 		hasConfig: hasConfig,
-	}
-	g.processMethods(comp)
-	if len(g.errors) > 0 {
-		return
-	}
-	if len(comp.methods) == 0 {
-		g.errorf(spec.Pos(), "Implemented component type %s has no exported methods (must export at least one method).", g.tset.typeString(componentType))
-		return
-	}
-	g.components = append(g.components, comp)
-}
-
-type component struct {
-	name          string           // component interface name
-	pos           token.Pos        // Location of component implementation
-	fullName      string           // package-prefixed component interface name
-	implName      string           // name of the component implementation type
-	intf          *types.Interface // component's interface type
-	file          *ast.File        // file that contains component's implementation
-	methods       []*types.Func
-	router        *types.Named    // router type for the component, or nil if there is no router.
-	hasConfig     bool            // True iff implementation contains a weaver.WithConfig field.
-	routingKey    types.Type      // routing key, or nil if there is no router.
-	routedMethods map[string]bool // the set of methods with a routing function
-}
-
-// processMethods fills in the method information for the given component.
-func (g *generator) processMethods(comp *component) {
-	pretty := g.tset.typeString
-	for i := 0; i < comp.intf.NumMethods(); i++ {
-		m := comp.intf.Method(i)
-		if !m.Exported() {
-			continue
-		}
-		mt, ok := m.Type().(*types.Signature)
-		if !ok || mt == nil { // Should never happen.
-			g.errorf(m.Pos(), "method %s doesn't have a signature", m.Name())
-			continue
-		}
-
-		// First argument must be context.Context.
-		bad := func(bad, format string, arg ...any) string {
-			msg := fmt.Sprintf(format, arg...)
-			return fmt.Sprintf(
-				"Method `%s%s %s` of Service Weaver component %q has incorrect %s types. %s",
-				m.Name(), pretty(mt.Params()), pretty(mt.Results()), comp.name, bad, msg)
-		}
-		if mt.Params().Len() < 1 || !isContext(mt.Params().At(0).Type()) {
-			g.errorf(m.Pos(), bad("argument", "The first argument must have type context.Context."))
-			continue
-		}
-
-		// All arguments but context.Context must be serializable.
-		for i := 1; i < mt.Params().Len(); i++ {
-			arg := mt.Params().At(i)
-			errs := g.tset.checkSerializable(arg.Type())
-			for _, err := range errs {
-				g.addError(arg.Pos(), err)
-			}
-			if len(errs) > 0 {
-				// TODO(mwhittaker): Print a link to documentation on which types are serializable.
-				g.errorf(m.Pos(), bad("argument",
-					"Argument %d has type %v, which is not serializable. All arguments, besides the initial context.Context, must be serializable.",
-					i, pretty(arg.Type())))
-			}
-			g.types = append(g.types, arg.Type())
-		}
-
-		// Last result must be error.
-		if mt.Results().Len() < 1 || mt.Results().At(mt.Results().Len()-1).Type().String() != "error" {
-			// TODO(mwhittaker): If the function doesn't return anything, don't
-			// print mt.Results.
-			g.errorf(m.Pos(), bad("return", "The last return must have type error."))
-			continue
-		}
-
-		// All results but error must be serializable.
-		for i := 0; i < mt.Results().Len()-1; i++ {
-			res := mt.Results().At(i)
-			for _, err := range g.tset.checkSerializable(res.Type()) {
-				g.addError(res.Pos(), err)
-			}
-			g.types = append(g.types, res.Type())
-		}
-
-		comp.methods = append(comp.methods, m)
+		refs:      refs,
 	}
 
 	// Find routing information if needed.
-	routingKey, routedMethods, err := g.routerMethods(comp)
-	if err != nil {
-		g.errorf(comp.pos, err.Error())
-	}
-	comp.routingKey = routingKey
-	comp.routedMethods = routedMethods
-
-	// Sort into deterministic order.
-	loc := func(pos token.Pos) (string, int) {
-		p := g.fileset.Position(pos)
-		return p.Filename, p.Offset
-	}
-	sort.Slice(comp.methods, func(i, j int) bool {
-		file1, offset1 := loc(comp.methods[i].Pos())
-		file2, offset2 := loc(comp.methods[j].Pos())
-		if file1 != file2 {
-			return file1 < file2
+	if comp.router != nil {
+		var err error
+		comp.routingKey, comp.routedMethods, err = routerMethods(pkg, intf, router)
+		if err != nil {
+			return nil, errorf(pkg.Fset, spec.Pos(), "%w", err)
 		}
-		return offset1 < offset2
+	}
+
+	return comp, nil
+}
+
+// component represents a Service Weaver component.
+//
+// A component is divided into an interface and implementation. For example, in
+// the following code, Adder is the component interface, and adder is the
+// component implementation. router is the router type.
+//
+//	type Adder interface{}
+//	type adder struct {
+//	    weaver.Implements[Adder]
+//	    weaver.WithRouter[router]
+//	}
+//	type router struct{}
+type component struct {
+	intf          *types.Named    // component interface
+	impl          *types.Named    // component implementation
+	router        *types.Named    // router, or nil if there is no router
+	routingKey    types.Type      // routing key, or nil if there is no router
+	routedMethods map[string]bool // the set of methods with a routing function
+	isMain        bool            // intf is weaver.Main
+	hasConfig     bool            // implementation embeds weaver.WithConfig?
+	refs          []*types.Named  // List of T where a weaver.Ref[T] field is in impl struct
+}
+
+func fullName(t *types.Named) string {
+	return filepath.Join(t.Obj().Pkg().Path(), t.Obj().Name())
+}
+
+// intfName returns the component interface name.
+func (c *component) intfName() string {
+	return c.intf.Obj().Name()
+}
+
+// implName returns the component implementation name.
+func (c *component) implName() string {
+	return c.impl.Obj().Name()
+}
+
+// fullIntfName returns the full package-prefixed component interface name.
+func (c *component) fullIntfName() string {
+	return fullName(c.intf)
+}
+
+// methods returns the component interface's methods.
+func (c *component) methods() []*types.Func {
+	underlying := c.intf.Underlying().(*types.Interface)
+	methods := make([]*types.Func, underlying.NumMethods())
+	for i := 0; i < underlying.NumMethods(); i++ {
+		methods[i] = underlying.Method(i)
+	}
+
+	// Sort the component's methods deterministically. This allows a developer
+	// to re-order the interface methods without the generated code changing.
+	sort.Slice(methods, func(i, j int) bool {
+		return methods[i].Name() < methods[j].Name()
 	})
+	return methods
+}
+
+// validateMethods validates that the provided component's methods are all
+// valid component methods.
+func validateMethods(pkg *packages.Package, tset *typeSet, intf *types.Named) error {
+	var errs []error
+	underlying := intf.Underlying().(*types.Interface)
+	for i := 0; i < underlying.NumMethods(); i++ {
+		m := underlying.Method(i)
+		t, ok := m.Type().(*types.Signature)
+		if !ok {
+			panic(errorf(pkg.Fset, m.Pos(), "method %s doesn't have a signature", m.Name()))
+		}
+
+		// Disallow unexported methods.
+		if !m.Exported() {
+			errs = append(errs, errorf(pkg.Fset, m.Pos(),
+				"Method `%s%s %s` of Service Weaver component %q is unexported. Every method in a component interface must be exported.",
+				m.Name(), formatType(pkg, t.Params()), formatType(pkg, t.Results()), intf.Obj().Name()))
+			continue
+		}
+
+		// bad is a helper function for producing helpful error messages.
+		bad := func(bad, format string, arg ...any) error {
+			err := fmt.Errorf(format, arg...)
+			return errorf(
+				pkg.Fset, m.Pos(),
+				"Method `%s%s %s` of Service Weaver component %q has incorrect %s types. %w",
+				m.Name(), formatType(pkg, t.Params()), formatType(pkg, t.Results()), intf.Obj().Name(), bad, err)
+		}
+
+		// First argument must be context.Context.
+		if t.Params().Len() < 1 || !isContext(t.Params().At(0).Type()) {
+			errs = append(errs, bad("argument", "The first argument must have type context.Context."))
+		}
+
+		// All arguments but context.Context must be serializable.
+		for i := 1; i < t.Params().Len(); i++ {
+			arg := t.Params().At(i)
+			if err := errors.Join(tset.checkSerializable(arg.Type())...); err != nil {
+				// TODO(mwhittaker): Print a link to documentation on which types are serializable.
+				errs = append(errs, bad("argument",
+					"Argument %d has type %s, which is not serializable. All arguments, besides the initial context.Context, must be serializable.\n%w",
+					i, formatType(pkg, arg.Type()), err))
+			}
+		}
+
+		// Last result must be error.
+		if t.Results().Len() < 1 || t.Results().At(t.Results().Len()-1).Type().String() != "error" {
+			// TODO(mwhittaker): If the function doesn't return anything, don't
+			// print t.Results.
+			errs = append(errs, bad("return", "The last return must have type error."))
+		}
+
+		// All results but error must be serializable.
+		for i := 0; i < t.Results().Len()-1; i++ {
+			res := t.Results().At(i)
+			if err := errors.Join(tset.checkSerializable(res.Type())...); err != nil {
+				// TODO(mwhittaker): Print a link to documentation on which types are serializable.
+				errs = append(errs, bad("return",
+					"Return %d has type %v, which is not serializable. All returns, besides the final error, must be serializable.\n%w",
+					i, formatType(pkg, res.Type()), err))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// checkMistypedInit returns an error if the provided component implementation
+// has an Init method that does not have type "func(context.Context) error".
+func checkMistypedInit(pkg *packages.Package, tset *typeSet, impl *types.Named) error {
+	for i := 0; i < impl.NumMethods(); i++ {
+		m := impl.Method(i)
+		if m.Name() != "Init" {
+			continue
+		}
+
+		// TODO(mwhittaker): Highlight the warning yellow instead of red.
+		sig := m.Type().(*types.Signature)
+		err := errorf(pkg.Fset, m.Pos(),
+			`WARNING: Component %v's Init method has type "%v", not type "func(context.Context) error". It will be ignored. See https://serviceweaver.dev/docs.html#components-implementation for more information.`,
+			impl.Obj().Name(), sig)
+
+		// Check Init's parameters.
+		if sig.Params().Len() != 1 || !isContext(sig.Params().At(0).Type()) {
+			return err
+		}
+
+		// Check Init's returns.
+		if sig.Results().Len() != 1 || sig.Results().At(0).Type().String() != "error" {
+			return err
+		}
+		return nil
+	}
+	return nil
 }
 
 // routerMethods returns the routing key and the set of routed methods for comp.
@@ -536,74 +701,79 @@ func (g *generator) processMethods(comp *component) {
 //	type fooRouter struct{}
 //	func (fooRouter) A(context.Context) int {...}
 //	func (fooRouter) B(context.Context, int) int {...}
-func (g *generator) routerMethods(comp *component) (types.Type, map[string]bool, error) {
-	pretty := g.tset.typeString
-	// XXX Use g.errorf() so we print the correct position in error messages.
-	router := comp.router
-	if router == nil {
-		return nil, nil, nil
-	}
-
-	// Get all component methods.
+func routerMethods(pkg *packages.Package, intf, router *types.Named) (types.Type, map[string]bool, error) {
+	underlying := intf.Underlying().(*types.Interface)
 	componentMethods := map[string]*types.Signature{}
-	for _, m := range comp.methods {
+	for i := 0; i < underlying.NumMethods(); i++ {
+		m := underlying.Method(i)
 		componentMethods[m.Name()] = m.Type().(*types.Signature)
 	}
 
-	// Verify that every router method corresponds to a component method
-	// (this is so we avoid errors where one has been renamed but not the other).
-	// Also check that they all have the return type.
+	// Verify that every router method corresponds to a component method. This
+	// is so we avoid errors where one has been renamed but not the other.
+	// Also check that they all have the same return type.
 	var routingKey types.Type
 	routedMethods := map[string]bool{}
 	for i, n := 0, router.NumMethods(); i < n; i++ {
 		m := router.Method(i)
-		name := m.Name()
-		componentMethod, ok := componentMethods[name]
+		pos := m.Origin().Pos()
+		componentMethod, ok := componentMethods[m.Name()]
 		if !ok {
-			return nil, nil, fmt.Errorf("Routing function %q does not match any method of %q.",
-				name, comp.name)
+			return nil, nil, errorf(pkg.Fset, pos,
+				"Routing function %q does not match any method of %q.",
+				m.Name(), intf.Obj().Name())
 		}
 		mt := m.Type().(*types.Signature)
 
 		// Router method args must match component method args.
 		if !types.Identical(mt.Params(), componentMethod.Params()) {
-			return nil, nil, fmt.Errorf("Component %q method arguments %s do not match router method arguments %s",
-				name, pretty(componentMethod.Params()), pretty(mt.Params()))
+			return nil, nil, errorf(pkg.Fset, pos,
+				"Component %q method arguments %s do not match router method arguments %s",
+				intf.Obj().Name(), formatType(pkg, componentMethod.Params()), formatType(pkg, mt.Params()))
 		}
 
 		// All router methods must have the same routable return type.
 		if mt.Results().Len() != 1 {
-			return nil, nil, fmt.Errorf("Routing function %q must return exactly one value (it returns %d)", m.Name(), mt.Results().Len())
+			return nil, nil, errorf(pkg.Fset, pos,
+				"Routing function %q must return exactly one value (it returns %d)",
+				m.Name(), mt.Results().Len())
 		}
 		ret := mt.Results().At(0).Type()
 		if i == 0 {
 			if !isValidRouterType(ret) {
-				return nil, nil, fmt.Errorf("Router method %q has invalid routing key type %q. A routing key type should be an integer, float, string, or a struct with every field being an integer, float, or string.",
-					name, pretty(ret))
+				return nil, nil, errorf(pkg.Fset, pos,
+					"Router method %q has invalid routing key type %q. A routing key type should be an integer, float, string, or a struct with every field being an integer, float, or string.",
+					m.Name(), formatType(pkg, ret))
 			}
 			routingKey = ret
 		} else if !types.Identical(ret, routingKey) {
-			return nil, nil, fmt.Errorf("Return type of %q (%s) does not match previously seen routing key type (%s)",
-				m.Name(), pretty(ret), pretty(routingKey))
+			return nil, nil, errorf(pkg.Fset, pos,
+				"Return type of %q (%s) does not match previously seen routing key type (%s)",
+				m.Name(), formatType(pkg, ret), formatType(pkg, routingKey))
 		}
-
-		routedMethods[name] = true
+		routedMethods[m.Name()] = true
 	}
 
 	if routingKey == nil {
-		return nil, nil, fmt.Errorf("No routing methods found on declarated router type (%s) for component %q",
-			router.Obj().Name(), comp.name)
+		return nil, nil, errorf(pkg.Fset, router.Obj().Pos(),
+			"No routing methods found on declarated router type (%s) for component %q",
+			router.Obj().Name(), intf.Obj().Name())
 	}
-
 	return routingKey, routedMethods, nil
 }
 
 type printFn func(format string, args ...interface{})
 
-func (g *generator) generate() {
+// TODO(mwhittaker): Have generate return an error.
+func (g *generator) generate() error {
+	if len(g.components)+g.tset.automarshalCandidates.Len() == 0 {
+		// There's nothing to generate.
+		return nil
+	}
+
 	// Process components in deterministic order.
 	sort.Slice(g.components, func(i, j int) bool {
-		return g.components[i].name < g.components[j].name
+		return g.components[i].intfName() < g.components[j].intfName()
 	})
 
 	// Generate the file body.
@@ -650,29 +820,27 @@ func (g *generator) generate() {
 	dst := files.NewWriter(filename)
 	defer dst.Cleanup()
 
-	fmtAndWrite := func(buf bytes.Buffer) {
+	fmtAndWrite := func(buf bytes.Buffer) error {
 		// Format the code.
 		b := buf.Bytes()
-		if formatted, err := format.Source(b); err != nil {
-			// If format.Source fails, we write out the unformatted code. If it
-			// succeeds, we write out the formatted code.
-			g.errors = append(g.errors, err)
-		} else {
-			b = formatted
+		formatted, err := format.Source(b)
+		if err != nil {
+			return fmt.Errorf("format.Source: %w", err)
 		}
+		b = formatted
 
 		// Write to dst.
-		if _, err := io.Copy(dst, bytes.NewReader(b)); err != nil {
-			g.errors = append(g.errors, err)
-		}
+		_, err = io.Copy(dst, bytes.NewReader(b))
+		return err
 	}
 
-	fmtAndWrite(header)
-	fmtAndWrite(body)
-
-	if err := dst.Close(); err != nil {
-		g.errors = append(g.errors, err)
+	if err := fmtAndWrite(header); err != nil {
+		return err
 	}
+	if err := fmtAndWrite(body); err != nil {
+		return err
+	}
+	return dst.Close()
 }
 
 // pkgDir returns the directory of the package.
@@ -685,8 +853,19 @@ func (g *generator) pkgDir() string {
 	return filepath.Dir(fname)
 }
 
+// componentRef returns the string to use to refer to the interface
+// implemented by a component in generated code.
+func (g *generator) componentRef(comp *component) string {
+	if comp.isMain {
+		return g.weaver().qualify("Main")
+	}
+	return comp.intfName() // We already checked that interface is in the same package.
+}
+
 // generateImports generates code to import all the dependencies.
 func (g *generator) generateImports(p printFn) {
+	p("// go:build !ignoreWeaverGen")
+	p("")
 	p("package %s", g.pkg.Name)
 	p("")
 	p(`// Code generated by "weaver generate". DO NOT EDIT.`)
@@ -711,21 +890,21 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 	p(``)
 	p(`func init() {`)
 	for _, comp := range g.components {
-		name := comp.name
+		name := comp.intfName()
 
 		// E.g.,
 		//   func(impl any, caller string, tracer trace.Tracer) any {
 		//       return foo_local_stub{imple: impl.(Foo), tracer: tracer, ...}
 		//   }
-		localStubFn := fmt.Sprintf(`func(impl any, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer } }`, g.trace().qualify("Tracer"), notExported(name), name)
+		localStubFn := fmt.Sprintf(`func(impl any, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer } }`, g.trace().qualify("Tracer"), notExported(name), g.componentRef(comp))
 
 		// E.g.,
 		//   func(stub *codegen.Stub, caller string) any {
 		//       return Foo_stub{stub: stub, ...}
 		//   }
 		var b strings.Builder
-		for _, m := range comp.methods {
-			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q})", notExported(m.Name()), g.codegen().qualify("MethodMetricsFor"), g.codegen().qualify("MethodLabels"), comp.fullName, m.Name())
+		for _, m := range comp.methods() {
+			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q})", notExported(m.Name()), g.codegen().qualify("MethodMetricsFor"), g.codegen().qualify("MethodLabels"), comp.fullIntfName(), m.Name())
 		}
 		clientStubFn := fmt.Sprintf(`func(stub %s, caller string) any { return %s_client_stub{stub: stub %s } }`,
 			g.codegen().qualify("Stub"), notExported(name), b.String())
@@ -734,7 +913,13 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//   func(impl any, addLoad func(uint64, float64)) codegen.Server {
 		//       return foo_server_stub{impl: impl.(Foo), addLoad: addLoad}
 		//   }
-		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), name)
+		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), g.componentRef(comp))
+
+		var refData strings.Builder
+		myName := comp.fullIntfName()
+		for _, ref := range comp.refs {
+			refData.WriteString(codegen.MakeEdgeString(myName, fullName(ref)))
+		}
 
 		// E.g.,
 		//	weaver.Register(weaver.Registration{
@@ -743,14 +928,14 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//	})
 		reflect := g.tset.importPackage("reflect", "reflect")
 		p(`	%s(%s{`, g.codegen().qualify("Register"), g.codegen().qualify("Registration"))
-		p(`		Name: %q,`, comp.fullName)
+		p(`		Name: %q,`, myName)
 		// To get a reflect.Type for an interface, we have to first get a type
 		// of its pointer and then resolve the underlying type. See:
 		//   https://pkg.go.dev/reflect#example-TypeOf
-		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), name)
-		p(`		New: func() any { return &%s{} },`, comp.implName)
+		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), g.componentRef(comp))
+		p(`		Impl: %s(%s{}),`, reflect.qualify("TypeOf"), comp.implName())
 		if comp.hasConfig {
-			p(`		ConfigFn: func(i any) any { return i.(*%s).WithConfig.Config() },`, comp.implName)
+			p(`		ConfigFn: func(i any) any { return i.(*%s).WithConfig.Config() },`, comp.implName())
 		}
 		if comp.router != nil {
 			p(`		Routed: true,`)
@@ -758,6 +943,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		p(`		LocalStubFn: %s,`, localStubFn)
 		p(`		ClientStubFn: %s,`, clientStubFn)
 		p(`		ServerStubFn: %s,`, serverStubFn)
+		p(`		RefData: %s,`, strconv.Quote(refData.String()))
 		p(`	})`)
 	}
 	p(`}`)
@@ -771,13 +957,13 @@ func (g *generator) generateLocalStubs(p printFn) {
 
 	var b strings.Builder
 	for _, comp := range g.components {
-		stub := notExported(comp.name) + "_local_stub"
+		stub := notExported(comp.intfName()) + "_local_stub"
 		p(``)
 		p(`type %s struct{`, stub)
-		p(`	impl %s`, comp.name)
+		p(`	impl %s`, g.componentRef(comp))
 		p(`	tracer %s`, g.trace().qualify("Tracer"))
 		p(`}`)
-		for _, m := range comp.methods {
+		for _, m := range comp.methods() {
 			mt := m.Type().(*types.Signature)
 			p(``)
 			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
@@ -786,7 +972,7 @@ func (g *generator) generateLocalStubs(p printFn) {
 			p(`	span := %s(ctx)`, g.trace().qualify("SpanFromContext"))
 			p(`	if span.SpanContext().IsValid() {`)
 			p(`		// Create a child span for this method.`)
-			p(`		ctx, span = s.tracer.Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindInternal))`, g.pkg.Name, comp.name, m.Name())
+			p(`		ctx, span = s.tracer.Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindInternal))`, g.pkg.Name, comp.intfName(), m.Name())
 			p(`		defer func() {`)
 			p(`			if err != nil {`)
 			p(`				span.RecordError(err)`)
@@ -822,18 +1008,18 @@ func (g *generator) generateClientStubs(p printFn) {
 
 	var b strings.Builder
 	for _, comp := range g.components {
-		stub := notExported(comp.name) + "_client_stub"
+		stub := notExported(comp.intfName()) + "_client_stub"
 		p(``)
 		p(`type %s struct{`, stub)
 		p(`	stub %s`, g.codegen().qualify("Stub"))
-		for _, m := range comp.methods {
+		for _, m := range comp.methods() {
 			p(`	%sMetrics *%s`, notExported(m.Name()), g.codegen().qualify("MethodMetrics"))
 		}
 		p(`}`)
 
 		// Assign method indices in sorted order.
-		mlist := make([]string, len(comp.methods))
-		for i, m := range comp.methods {
+		mlist := make([]string, len(comp.methods()))
+		for i, m := range comp.methods() {
 			mlist[i] = m.Name()
 		}
 		sort.Strings(mlist)
@@ -842,7 +1028,7 @@ func (g *generator) generateClientStubs(p printFn) {
 			methodIndex[m] = i
 		}
 
-		for _, m := range comp.methods {
+		for _, m := range comp.methods() {
 			mt := m.Type().(*types.Signature)
 			p(``)
 			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
@@ -857,7 +1043,7 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`	span := %s(ctx)`, g.trace().qualify("SpanFromContext"))
 			p(`	if span.SpanContext().IsValid() {`)
 			p(`		// Create a child span for this method.`)
-			p(`		ctx, span = s.stub.Tracer().Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindClient))`, g.pkg.Name, comp.name, m.Name())
+			p(`		ctx, span = s.stub.Tracer().Start(ctx, "%s.%s.%s", trace.WithSpanKind(trace.SpanKindClient))`, g.pkg.Name, comp.intfName(), m.Name())
 			p(`	}`)
 
 			// Handle cleanup.
@@ -932,7 +1118,7 @@ func (g *generator) generateClientStubs(p printFn) {
 				for i := 1; i < n; i++ {
 					args[i] = fmt.Sprintf("a%d", i-1)
 				}
-				p(`	shardKey := _hash%s(r.%s(%s))`, exported(comp.name), m.Name(), strings.Join(args, ", "))
+				p(`	shardKey := _hash%s(r.%s(%s))`, exported(comp.intfName()), m.Name(), strings.Join(args, ", "))
 			} else {
 				p(`	var shardKey uint64`)
 			}
@@ -1299,17 +1485,17 @@ func (g *generator) generateServerStubs(p printFn) {
 	var b strings.Builder
 
 	for _, comp := range g.components {
-		stub := fmt.Sprintf("%s_server_stub", notExported(comp.name))
+		stub := fmt.Sprintf("%s_server_stub", notExported(comp.intfName()))
 		p(``)
 		p(`type %s struct{`, stub)
-		p(`	impl %s`, comp.name)
+		p(`	impl %s`, g.componentRef(comp))
 		p(`	addLoad func(key uint64, load float64)`)
 		p(`}`)
 		p(``)
 		p(`// GetStubFn implements the stub.Server interface.`)
 		p(`func (s %s) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {`, stub)
 		p(`	switch method {`)
-		for _, m := range comp.methods {
+		for _, m := range comp.methods() {
 			p(`	case "%s":`, m.Name())
 			p(`		return s.%s`, notExported(m.Name()))
 		}
@@ -1319,7 +1505,7 @@ func (g *generator) generateServerStubs(p printFn) {
 		p(`}`)
 
 		// Generate server stub implementation for the methods exported by the component.
-		for _, m := range comp.methods {
+		for _, m := range comp.methods() {
 			mt := m.Type().(*types.Signature)
 
 			p(``)
@@ -1372,7 +1558,7 @@ func (g *generator) generateServerStubs(p printFn) {
 			// Add load, if needed.
 			if comp.routedMethods[m.Name()] {
 				p(`     var r %s`, g.tset.genTypeString(comp.router))
-				p(`	s.addLoad(_hash%s(r.%s(%s)), 1.0)`, exported(comp.name), m.Name(), argList)
+				p(`	s.addLoad(_hash%s(r.%s(%s)), 1.0)`, exported(comp.intfName()), m.Name(), argList)
 			}
 
 			b.Reset()
@@ -1492,8 +1678,8 @@ func (g *generator) generateRouterMethods(p printFn) {
 
 // generateRouterMethodsFor generates router methods for the provided router type.
 func (g *generator) generateRouterMethodsFor(p printFn, comp *component, t types.Type) {
-	p(`// _hash%s returns a 64 bit hash of the provided value.`, exported(comp.name))
-	p(`func _hash%s(r %s) uint64 {`, exported(comp.name), g.tset.genTypeString(t))
+	p(`// _hash%s returns a 64 bit hash of the provided value.`, exported(comp.intfName()))
+	p(`func _hash%s(r %s) uint64 {`, exported(comp.intfName()), g.tset.genTypeString(t))
 	p(`	var h %s`, g.codegen().qualify("Hasher"))
 	if isPrimitiveRouter(t.Underlying()) {
 		tname := t.Underlying().String()
@@ -1510,8 +1696,8 @@ func (g *generator) generateRouterMethodsFor(p printFn, comp *component, t types
 	p(`}`)
 	p(``)
 
-	p(`// _orderedCode%s returns an order-preserving serialization of the provided value.`, exported(comp.name))
-	p(`func _orderedCode%s(r %s) %s {`, exported(comp.name), g.tset.genTypeString(t), g.codegen().qualify("OrderedCode"))
+	p(`// _orderedCode%s returns an order-preserving serialization of the provided value.`, exported(comp.intfName()))
+	p(`func _orderedCode%s(r %s) %s {`, exported(comp.intfName()), g.tset.genTypeString(t), g.codegen().qualify("OrderedCode"))
 	p(`	var enc %s`, g.codegen().qualify("OrderedEncoder"))
 	if isPrimitiveRouter(t.Underlying()) {
 		p(`	enc.Write%s(%s(r))`, exported(t.Underlying().String()), t.Underlying().String())
@@ -1705,8 +1891,20 @@ func (g *generator) generateEncDecMethods(p printFn) {
 		}
 		p(format, args...)
 	}
-	for _, t := range g.types {
-		g.generateEncDecMethodsFor(printer, t)
+	for _, component := range g.components {
+		for _, method := range component.methods() {
+			sig := method.Type().(*types.Signature)
+
+			// Generate for argument types, skipping the context.Context.
+			for j := 1; j < sig.Params().Len(); j++ {
+				g.generateEncDecMethodsFor(printer, sig.Params().At(j).Type())
+			}
+
+			// Generate for result types, skipping the error.
+			for j := 0; j < sig.Results().Len()-1; j++ {
+				g.generateEncDecMethodsFor(printer, sig.Results().At(j).Type())
+			}
+		}
 	}
 }
 
@@ -1892,6 +2090,18 @@ func (g *generator) codes() importPkg {
 // errors imports and returns the errors package.
 func (g *generator) errorsPackage() importPkg {
 	return g.tset.importPackage("errors", "errors")
+}
+
+// formatType pretty prints the provided type, encountered in the provided
+// currentPackage.
+func formatType(currentPackage *packages.Package, t types.Type) string {
+	qualifier := func(pkg *types.Package) string {
+		if pkg == currentPackage.Types {
+			return ""
+		}
+		return pkg.Name()
+	}
+	return types.TypeString(t, qualifier)
 }
 
 // sanitize generates a (somewhat pretty printed) name for the provided type

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ERROR: must be a type with routing methods
+// ERROR: int is not a named type
 
-// Router not a type.
+// weaver.WithRouter[int] is invalid because int is not a named type.
 package foo
 
 import (

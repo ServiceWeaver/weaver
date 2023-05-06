@@ -115,3 +115,13 @@ func (d *deployer) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
 	// This simplified deployer drops traces on the floor.
 	return nil
 }
+
+func (*deployer) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	// This deployer doesn't enable network-level security.
+	panic("unused")
+}
+
+func (*deployer) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	// This deployer doesn't enable network-level security.
+	panic("unused")
+}

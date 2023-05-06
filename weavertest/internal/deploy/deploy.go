@@ -56,26 +56,20 @@ type Widget interface {
 // widget is a Service Weaver component that deploys started Service Weaver components.
 type widget struct {
 	weaver.Implements[Widget]
+	started weaver.Ref[Started]
 }
 
-// Use deploys a started component and calls MarkStarted on every replica.
+// Use calls MarkStarted on every replica.
 func (w *widget) Use(ctx context.Context, dir string) error {
 	// Print to stderr. This tests that weavertest output is captured correctly.
 	fmt.Fprintf(os.Stderr, "widget.Use(%q)\n", dir)
-
-	var started Started
-	var err error
-	started, err = weaver.Get[Started](w)
-	if err != nil {
-		return err
-	}
 
 	// There are n started replicas, and we want to call MarkStarted on all
 	// of them. We don't have a way to call MarkStarted on a specific replica,
 	// so we call MarkStarted a bunch of times. This makes it very likely that
 	// every replica receives at least one call to MarkStarted.
 	for i := 0; i < 1000; i++ {
-		if err := started.MarkStarted(ctx, dir); err != nil {
+		if err := w.started.Get().MarkStarted(ctx, dir); err != nil {
 			return err
 		}
 	}

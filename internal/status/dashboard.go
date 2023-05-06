@@ -88,9 +88,10 @@ type Command struct {
 
 // DashboardSpec configures the command returned by DashboardCommand.
 type DashboardSpec struct {
-	Tool     string                                   // tool name (e.g., "weaver single")
-	Registry func(context.Context) (*Registry, error) // registry of deployments
-	Commands func(deploymentId string) []Command      // commands for a deployment
+	Tool         string                                   // tool name (e.g., "weaver single")
+	PerfettoFile string                                   // perfetto database file
+	Registry     func(context.Context) (*Registry, error) // registry of deployments
+	Commands     func(deploymentId string) []Command      // commands for a deployment
 }
 
 // DashboardCommand returns a "dashboard" subcommand that serves a dashboard
@@ -132,7 +133,7 @@ Flags:
 			}
 			url := "http://" + lis.Addr().String()
 
-			traceDB, err := perfetto.Open(ctx)
+			traceDB, err := perfetto.Open(ctx, spec.PerfettoFile)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
 			} else {

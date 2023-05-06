@@ -16,6 +16,7 @@ package weaver
 
 import (
 	"context"
+	"crypto/tls"
 	"math/rand"
 	"sync"
 
@@ -27,7 +28,8 @@ import (
 
 // routingBalancer balances requests according to a routing assignment.
 type routingBalancer struct {
-	balancer call.Balancer // default balancer
+	balancer  call.Balancer // default balancer
+	tlsConfig *tls.Config   // tls config to use; may be nil.
 
 	mu         sync.RWMutex
 	assignment *protos.Assignment
@@ -35,8 +37,8 @@ type routingBalancer struct {
 }
 
 // newRoutingBalancer returns a new routingBalancer.
-func newRoutingBalancer() *routingBalancer {
-	return &routingBalancer{balancer: call.RoundRobin()}
+func newRoutingBalancer(tlsConfig *tls.Config) *routingBalancer {
+	return &routingBalancer{balancer: call.RoundRobin(), tlsConfig: tlsConfig}
 }
 
 // Update implements the call.Balancer interface.
@@ -92,7 +94,7 @@ func (rb *routingBalancer) Pick(opts call.CallOptions) (call.Endpoint, error) {
 	// TODO(mwhittaker): Parse the endpoints when an assignment is received,
 	// rather than once per call.
 	addr := slice.replicas[rand.Intn(len(slice.replicas))]
-	endpoints, err := parseEndpoints([]string{addr})
+	endpoints, err := parseEndpoints([]string{addr}, rb.tlsConfig)
 	if err != nil {
 		return nil, err
 	}

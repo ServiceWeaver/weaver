@@ -7,4 +7,3 @@ regions = ["us-west1"]
 public_listener = [
   {name = "reverser", hostname = "reverser.example.com"},
 ]
-

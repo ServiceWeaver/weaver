@@ -16,7 +16,9 @@ package weaver
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -31,7 +33,6 @@ import (
 
 // remoteEnv implements the env used for non-single-process Service Weaver applications.
 type remoteEnv struct {
-	info      *protos.EnvelopeInfo
 	sysLogger *slog.Logger
 	conn      *conn.WeaveletConn
 	logmu     sync.Mutex
@@ -52,7 +53,6 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 	info := conn.EnvelopeInfo()
 
 	env := &remoteEnv{
-		info: info,
 		conn: conn,
 	}
 
@@ -71,7 +71,7 @@ func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn
 
 // EnvelopeInfo implements the Env interface.
 func (e *remoteEnv) EnvelopeInfo() *protos.EnvelopeInfo {
-	return e.info
+	return e.conn.EnvelopeInfo()
 }
 
 // ServeWeaveletConn implements the Env interface.
@@ -107,6 +107,25 @@ func (e *remoteEnv) ExportListener(_ context.Context, listener, addr string, opt
 	return e.conn.ExportListenerRPC(request)
 }
 
+// VerifyClientCertificate implements the Env interface.
+func (e *remoteEnv) VerifyClientCertificate(ctx context.Context, certChain [][]byte) ([]string, error) {
+	request := &protos.VerifyClientCertificateRequest{CertChain: certChain}
+	reply, err := e.conn.VerifyClientCertificateRPC(request)
+	if err != nil {
+		return nil, err
+	}
+	return reply.Components, nil
+}
+
+// VerifyServerCertificate implements the Env interface.
+func (e *remoteEnv) VerifyServerCertificate(ctx context.Context, certChain [][]byte, targetComponent string) error {
+	request := &protos.VerifyServerCertificateRequest{
+		CertChain:       certChain,
+		TargetComponent: targetComponent,
+	}
+	return e.conn.VerifyServerCertificateRPC(request)
+}
+
 // CreateLogSaver implements the Env interface.
 func (e *remoteEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 	return func(entry *protos.LogEntry) {
@@ -131,14 +150,22 @@ func (e *remoteEnv) CreateTraceExporter() sdktrace.SpanExporter {
 
 // parseEndpoints parses a list of endpoint addresses into a list of
 // call.Endpoints.
-func parseEndpoints(addrs []string) ([]call.Endpoint, error) {
+func parseEndpoints(addrs []string, config *tls.Config) ([]call.Endpoint, error) {
 	var endpoints []call.Endpoint
+	var err error
+	var ep call.Endpoint
 	for _, addr := range addrs {
-		endpoint, err := call.ParseNetEndpoint(addr)
-		if err != nil {
+		const mtlsPrefix = "mtls://"
+		if ep, err = call.ParseNetEndpoint(strings.TrimPrefix(addr, mtlsPrefix)); err != nil {
 			return nil, err
 		}
-		endpoints = append(endpoints, endpoint)
+		if strings.HasPrefix(addr, mtlsPrefix) {
+			if config == nil {
+				return nil, fmt.Errorf("mtls protocol requires a non-nil TLS config")
+			}
+			ep = call.MTLS(config, ep)
+		}
+		endpoints = append(endpoints, ep)
 	}
 	return endpoints, nil
 }
