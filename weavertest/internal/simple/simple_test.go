@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/simple"
 	"github.com/google/uuid"
@@ -34,26 +33,22 @@ import (
 
 func TestOneComponent(t *testing.T) {
 	for _, single := range []bool{true, false} {
+		opt := weavertest.Options{SingleProcess: single}
 		t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
-			ctx := context.Background()
-			root := weavertest.Init(ctx, t, weavertest.Options{SingleProcess: single})
-			dst, err := weaver.Get[simple.Destination](root)
-			if err != nil {
-				t.Fatal(err)
-			}
+			weavertest.Run(t, opt, func(dst simple.Destination) {
+				// Get the PID of the dst component. Check whether root and dst are running
+				// in the same process.
+				cPid := os.Getpid()
+				dstPid, _ := dst.Getpid(context.Background())
+				sameProcess := cPid == dstPid
 
-			// Get the PID of the dst component. Check whether root and dst are running
-			// in the same process.
-			cPid := os.Getpid()
-			dstPid, _ := dst.Getpid(ctx)
-			sameProcess := cPid == dstPid
-
-			if single && !sameProcess {
-				t.Fatal("the root and the dst components should run in the same process")
-			}
-			if !single && sameProcess {
-				t.Fatal("the root and the dst components should run in different processes")
-			}
+				if single && !sameProcess {
+					t.Fatal("the root and the dst components should run in the same process")
+				}
+				if !single && sameProcess {
+					t.Fatal("the root and the dst components should run in different processes")
+				}
+			})
 		})
 	}
 }
@@ -80,85 +75,76 @@ func TestTwoComponents(t *testing.T) {
 		]`},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			file := filepath.Join(t.TempDir(), fmt.Sprintf("simple_%s", uuid.New().String()))
-
-			root := weavertest.Init(ctx, t, weavertest.Options{
+			opts := weavertest.Options{
 				SingleProcess: c.single,
 				Config:        c.config,
-			})
-			src, err := weaver.Get[simple.Source](root)
-			if err != nil {
-				t.Fatal(err)
 			}
-			dst, err := weaver.Get[simple.Destination](root)
-			if err != nil {
-				t.Fatal(err)
-			}
+			weavertest.Run(t, opts, func(src simple.Source, dst simple.Destination) {
+				file := filepath.Join(t.TempDir(), fmt.Sprintf("simple_%s", uuid.New().String()))
+				want := []string{"a", "b", "c", "d", "e"}
+				for _, in := range want {
+					if err := src.Emit(ctx, file, in); err != nil {
+						t.Fatal(err)
+					}
+				}
 
-			want := []string{"a", "b", "c", "d", "e"}
-			for _, in := range want {
-				if err := src.Emit(ctx, file, in); err != nil {
+				got, err := dst.GetAll(ctx, file)
+				if err != nil {
 					t.Fatal(err)
 				}
-			}
-
-			got, err := dst.GetAll(ctx, file)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(want, got) {
-				t.Fatalf("GetAll() = %v; expecting %v", got, want)
-			}
+				if !reflect.DeepEqual(want, got) {
+					t.Fatalf("GetAll() = %v; expecting %v", got, want)
+				}
+			})
 		})
 	}
 }
 
-func TestListener(t *testing.T) {
+func TestServer(t *testing.T) {
 	for _, single := range []bool{true, false} {
-		// Get a listener, serve on it, and make an HTTP request to the server.
 		t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
-			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
-			defer cancelFunc()
-			root := weavertest.Init(ctx, t, weavertest.Options{SingleProcess: single})
+			weavertest.Run(t, weavertest.Options{SingleProcess: single}, func(srv simple.Server) {
+				ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancelFunc()
+				defer func() {
+					err := srv.Shutdown(ctx)
+					if err != nil {
+						t.Fatalf("Shutdown failed: %v", err)
+					}
+				}()
 
-			lis, err := root.Listener("hello", weaver.ListenerOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
+				// Check listener properties.
+				addr, err := srv.Address(ctx)
+				if err != nil {
+					t.Fatalf("Could not fetch server address: %v", err)
+				}
+				if !strings.Contains(addr, ":") {
+					t.Fatalf("Bad address %q", addr)
+				}
+				proxy, err := srv.ProxyAddress(ctx)
+				if err != nil {
+					t.Fatalf("Could not fetch proxy address: %v", err)
+				}
+				if single && proxy != "" {
+					t.Fatalf("Unexpected proxy %q", proxy)
+				}
 
-			// Check listener properties.
-			if str := lis.String(); !strings.Contains(str, ":") {
-				t.Fatalf("Bad Listener.String() %q", str)
-			}
-			proxy := lis.ProxyAddr()
-			if single && proxy != "" {
-				t.Fatalf("Bad Listener.ProxyAddr() %q", proxy)
-			}
-
-			// Run server on listener.
-			const response = "hello world"
-			srv := &http.Server{
-				Handler: weaver.InstrumentHandlerFunc("test", func(w http.ResponseWriter, r *http.Request) {
-					fmt.Fprint(w, response)
-				}),
-			}
-			go srv.Serve(lis)
-			defer srv.Shutdown(ctx)
-
-			url := fmt.Sprintf("http://%s/test", lis.String())
-			t.Logf("Calling %s", url)
-			resp, err := http.Get(url)
-			if err != nil {
-				t.Fatalf("Calling listener: %v", err)
-			}
-			defer resp.Body.Close()
-			data, err := io.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("Reading listener response: %v", err)
-			}
-			if string(data) != response {
-				t.Fatalf("Wrong response %q, expecting %q", string(data), response)
-			}
+				// Check server handler.
+				url := fmt.Sprintf("http://%s/test", addr)
+				t.Logf("Calling %s", url)
+				resp, err := http.Get(url)
+				if err != nil {
+					t.Fatalf("Calling server: %v", err)
+				}
+				defer resp.Body.Close()
+				data, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("Reading server response: %v", err)
+				}
+				if want, got := simple.ServerTestResponse, string(data); got != want {
+					t.Fatalf("Wrong response %q, expecting %q", got, want)
+				}
+			})
 		})
 	}
 }
@@ -176,27 +162,21 @@ func TestRoutedCall(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), fmt.Sprintf("simple_%s", uuid.New().String()))
+			weavertest.Run(t, weavertest.Options{SingleProcess: c.single}, func(dst simple.Destination) {
+				if err := dst.RoutedRecord(ctx, file, "hello"); err != nil {
+					t.Fatal(err)
+				}
 
-			root := weavertest.Init(ctx, t, weavertest.Options{
-				SingleProcess: c.single,
+				want := []string{"routed: hello"}
+
+				got, err := dst.GetAll(ctx, file)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(want, got) {
+					t.Fatalf("GetAll() = %v; expecting %v", got, want)
+				}
 			})
-			dst, err := weaver.Get[simple.Destination](root)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := dst.RoutedRecord(ctx, file, "hello"); err != nil {
-				t.Fatal(err)
-			}
-
-			want := []string{"routed: hello"}
-
-			got, err := dst.GetAll(ctx, file)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(want, got) {
-				t.Fatalf("GetAll() = %v; expecting %v", got, want)
-			}
 		})
 	}
 }

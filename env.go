@@ -24,8 +24,9 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-// env provides the API by which a Service Weaver application process communicates with
-// its execution environment, e.g., to do thing like starting processes etc.
+// env provides the API by which a Service Weaver application process
+// communicates with its execution environment, e.g., to do thing like starting
+// processes etc.
 type env interface {
 	// EnvelopeInfo returns the EnvelopeInfo sent by the envelope.
 	EnvelopeInfo() *protos.EnvelopeInfo
@@ -38,6 +39,25 @@ type env interface {
 
 	// ExportListener exports a listener.
 	ExportListener(ctx context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error)
+
+	// VerifyClientCertificate verifies the certificate chain presented by
+	// a network client attempting to connect to the weavelet. It returns an
+	// error if the network connection should not be established with the
+	// client. Otherwise, it returns the list of weavelet components that the
+	// client is authorized to invoke methods on.
+	//
+	// NOTE: this method is only called if weavelet security was enabled, i.e.,
+	// if EnvelopeInfo had non-nil SelfKey and SelfCertChain fields.
+	VerifyClientCertificate(ctx context.Context, certChain [][]byte) ([]string, error)
+
+	// VerifyServerCertificate verifies the certificate chain presented by
+	// the server the weavelet is attempting to connect to. It returns an
+	// error iff the server identity doesn't match the identity of the passed
+	// component.
+	//
+	// NOTE: this method is only called if weavelet security was enabled, i.e.,
+	// if EnvelopeInfo had non-nil SelfKey and SelfCert fields.
+	VerifyServerCertificate(ctx context.Context, certChain [][]byte, targetComponent string) error
 
 	// CreateLogSaver creates and returns a function that saves log entries
 	// to the environment.

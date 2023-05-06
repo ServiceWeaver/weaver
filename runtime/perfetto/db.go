@@ -33,7 +33,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -95,20 +94,13 @@ type DB struct {
 	replicaNumCache *lru.Cache[replicaCacheKey, int]
 }
 
-// Open opens the default trace database on the local machine.
-func Open(ctx context.Context) (*DB, error) {
-	dataDir, err := files.DefaultDataDir()
-	if err != nil {
+// Open opens the default trace database on the local machine, which is
+// persisted in the provided file.
+func Open(ctx context.Context, fname string) (*DB, error) {
+	if err := os.MkdirAll(filepath.Dir(fname), 0700); err != nil {
 		return nil, err
 	}
 
-	// TODO(mwhittaker): Use a different db for every deployer. Have the purge
-	// commands delete the db.
-	fname := filepath.Join(dataDir, "perfetto.db")
-	return open(ctx, fname)
-}
-
-func open(ctx context.Context, fname string) (*DB, error) {
 	// The DB may be opened by multiple writers. Turn on appropriate
 	// concurrency control options. See:
 	//   https://www.sqlite.org/pragma.html#pragma_locking_mode

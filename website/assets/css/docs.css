@@ -151,3 +151,23 @@
 .pre-copy-button:active {
   background: #888;
 }
+
+h1:hover .heading-link,
+h2:hover .heading-link,
+h3:hover .heading-link,
+h4:hover .heading-link,
+h5:hover .heading-link,
+h6:hover .heading-link {
+  visibility: visible;
+}
+
+.heading-link {
+  margin-left: 1ch;
+  text-decoration: none;
+  visibility: hidden;
+  opacity: 50%;
+}
+
+.heading-link:hover {
+  opacity: 100%;
+}

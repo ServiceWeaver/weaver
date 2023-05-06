@@ -26,11 +26,7 @@ type cartStore struct {
 	cache     cartCache
 }
 
-func newCartStore(component weaver.Instance) (*cartStore, error) {
-	cache, err := weaver.Get[cartCache](component)
-	if err != nil {
-		return nil, err
-	}
+func newCartStore(component weaver.Instance, cache cartCache) (*cartStore, error) {
 	return &cartStore{component: component, cache: cache}, nil
 }
 

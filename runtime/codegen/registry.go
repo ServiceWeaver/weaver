@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -53,7 +54,7 @@ type registry struct {
 type Registration struct {
 	Name     string             // full package-prefixed component name
 	Iface    reflect.Type       // interface type for the component
-	New      func() any         // returns a new instance of the implementation type
+	Impl     reflect.Type       // implementation type (struct)
 	ConfigFn func(impl any) any // returns pointer to config field in local impl if non-nil
 	Routed   bool               // True if calls to this component should be routed
 
@@ -61,6 +62,10 @@ type Registration struct {
 	LocalStubFn  func(impl any, tracer trace.Tracer) any
 	ClientStubFn func(stub Stub, caller string) any
 	ServerStubFn func(impl any, load func(key uint64, load float64)) Server
+
+	// RefData holds a string containing the result of MakeEdgeString(Name, Dst)
+	// for all components named Dst used by this component.
+	RefData string
 }
 
 // register registers a Service Weaver component. If the registry's close method was
@@ -72,8 +77,9 @@ func (r *registry) register(reg Registration) error {
 
 	r.m.Lock()
 	defer r.m.Unlock()
-	if _, ok := r.components[reg.Iface]; ok {
-		return errors.New("component already registered")
+	if old, ok := r.components[reg.Iface]; ok {
+		return fmt.Errorf("component %s already registered for type %v when registering %v",
+			reg.Name, old.Impl, reg.Impl)
 	}
 	if r.components == nil {
 		r.components = map[reflect.Type]*Registration{}
@@ -88,8 +94,17 @@ func (r *registry) register(reg Registration) error {
 }
 
 func verifyRegistration(reg Registration) error {
-	if reg.New == nil {
-		return errors.New("nil New")
+	if reg.Iface == nil {
+		return errors.New("missing component type")
+	}
+	if reg.Iface.Kind() != reflect.Interface {
+		return errors.New("component type is not an interface")
+	}
+	if reg.Impl == nil {
+		return errors.New("missing implementation type")
+	}
+	if reg.Impl.Kind() != reflect.Struct {
+		return errors.New("implementation type is not a struct")
 	}
 	if reg.LocalStubFn == nil {
 		return errors.New("nil LocalStubFn")
@@ -136,10 +151,38 @@ func ComponentConfigValidator(path, cfg string) error {
 			"weaver.WithConfig[configType] embedded field to %v and run weaver generate again)",
 			info.Name, info.Iface)
 	}
-	objConfig := info.ConfigFn(info.New())
+	objConfig := info.ConfigFn(reflect.New(info.Impl).Interface())
 	config := &protos.AppConfig{Sections: map[string]string{path: cfg}}
 	if err := runtime.ParseConfigSection(path, "", config.Sections, objConfig); err != nil {
 		return fmt.Errorf("%v: bad config: %w", info.Iface, err)
 	}
 	return nil
+}
+
+// CallEdge records that fact that the Caller component uses the
+// Callee component. Both types are types of the corresponding
+// component interfaces.
+type CallEdge struct {
+	Caller reflect.Type
+	Callee reflect.Type
+}
+
+// CallGraph returns the component call graph (as a list of CallEdge values).
+func CallGraph() []CallEdge {
+	var result []CallEdge
+	for _, reg := range Registered() {
+		impl := reg.Impl
+		for i, n := 0, impl.NumField(); i < n; i++ {
+			// Handle field with type weaver.Ref[T].
+			ref := impl.Field(i).Type
+			if ref.PkgPath() == "github.com/ServiceWeaver/weaver" &&
+				strings.HasPrefix(ref.Name(), "Ref[") &&
+				ref.Kind() == reflect.Struct &&
+				ref.NumField() == 1 &&
+				ref.Field(0).Name == "value" {
+				result = append(result, CallEdge{reg.Iface, ref.Field(0).Type})
+			}
+		}
+	}
+	return result
 }

@@ -20,6 +20,9 @@ package simple
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -35,18 +38,11 @@ type Source interface {
 
 type source struct {
 	weaver.Implements[Source]
-	dst Destination
-}
-
-func (s *source) Init(_ context.Context) error {
-	s.Logger().Debug("simple.Init")
-	dst, err := weaver.Get[Destination](s)
-	s.dst = dst
-	return err
+	dst weaver.Ref[Destination]
 }
 
 func (s *source) Emit(ctx context.Context, file, msg string) error {
-	return s.dst.Record(ctx, file, msg)
+	return s.dst.Get().Record(ctx, file, msg)
 }
 
 type Destination interface {
@@ -102,3 +98,50 @@ func (d *destination) GetAll(_ context.Context, file string) ([]string, error) {
 	str := strings.TrimSpace(string(data))
 	return strings.Split(str, "\n"), nil
 }
+
+// Server is a component used to test Service Weaver listener handling.
+// An HTTP server is started when this component is initialized.
+// simple_test.go checks the functionality of the HTTP server by fetching
+// from a well-known URL on the server.
+type Server interface {
+	Address(context.Context) (string, error)
+	ProxyAddress(context.Context) (string, error)
+	Shutdown(context.Context) error
+}
+
+const ServerTestResponse = "hello world"
+
+type server struct {
+	weaver.Implements[Server]
+	addr  string
+	proxy string
+	srv   *http.Server
+}
+
+func (s *server) Init(ctx context.Context) error {
+	//nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
+	lis, err := s.Listener("hello", weaver.ListenerOptions{})
+	if err != nil {
+		return err
+	}
+	s.addr = lis.String()
+	s.proxy = lis.ProxyAddr()
+
+	// Run server on listener.
+	s.srv = &http.Server{
+		Handler: weaver.InstrumentHandlerFunc("test", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, ServerTestResponse)
+		}),
+	}
+	go func() {
+		err := s.srv.Serve(lis)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			panic(err)
+		}
+	}()
+	return nil
+}
+
+func (s *server) Address(ctx context.Context) (string, error)      { return s.addr, nil }
+func (s *server) ProxyAddress(ctx context.Context) (string, error) { return s.proxy, nil }
+func (s *server) Shutdown(ctx context.Context) error               { return s.srv.Shutdown(ctx) }

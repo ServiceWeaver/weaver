@@ -16,13 +16,14 @@ package weaver
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -39,6 +40,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
@@ -55,20 +57,10 @@ type weavelet struct {
 	transport *transport           // Transport for cross-weavelet communication
 	dialAddr  string               // Address this weavelet is reachable at
 	tracer    trace.Tracer         // Tracer for this weavelet
+	selfCert  *tls.Certificate     // TLS certificate for this weavelet
 
-	root             *component                  // The automatically created "root" component
 	componentsByName map[string]*component       // component name -> component
 	componentsByType map[reflect.Type]*component // component type -> component
-
-	// TODO(mwhittaker): We have one client for every component. Every client
-	// independently maintains network connections to every weavelet hosting
-	// the component. Thus, there may be many redundant network connections to
-	// the same weavelet. Given n weavelets hosting m components, there's at
-	// worst n^2m connections rather than a more optimal n^2 (a single
-	// connection between every pair of weavelets). We should rewrite things to
-	// avoid the redundancy.
-	clientsLock sync.Mutex
-	tcpClients  map[string]*client // indexed by component
 }
 
 type transport struct {
@@ -77,9 +69,13 @@ type transport struct {
 }
 
 type client struct {
-	client   call.Connection
 	resolver *routingResolver
 	balancer *routingBalancer
+}
+
+type server struct {
+	net.Listener
+	wlet *weavelet
 }
 
 // Ensure that WeaveletHandler remains in-sync with conn.WeaveletHandler.
@@ -87,13 +83,10 @@ var _ conn.WeaveletHandler = &weavelet{}
 
 // newWeavelet returns a new weavelet.
 func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*weavelet, error) {
-	byName := make(map[string]*component, len(componentInfos))
-	byType := make(map[reflect.Type]*component, len(componentInfos))
 	w := &weavelet{
 		ctx:              ctx,
-		componentsByName: byName,
-		componentsByType: byType,
-		tcpClients:       map[string]*client{},
+		componentsByName: make(map[string]*component, len(componentInfos)),
+		componentsByType: make(map[reflect.Type]*component, len(componentInfos)),
 	}
 
 	// TODO(mwhittaker): getEnv starts the WeaveletConn handler which calls
@@ -118,14 +111,32 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 			// Discard all log entries.
 			logger: slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout)),
 		}
-		byName[info.Name] = c
-		byType[info.Iface] = c
+		w.componentsByName[info.Name] = c
+		w.componentsByType[info.Iface] = c
 	}
-	main, ok := byName["main"]
-	if !ok {
-		return nil, fmt.Errorf("internal error: no main component registered")
+
+	// Initialize client side of the mTLS protocol.
+	if (info.SelfCertChain == nil) != (info.SelfKey == nil) {
+		return nil, fmt.Errorf(
+			"EnvelopeInfo.{SelfCert, SelfKey} must both be either empty or non-empty")
 	}
-	main.impl = &componentImpl{component: main}
+	if info.SelfCertChain != nil {
+		cert, err := tls.X509KeyPair(info.SelfCertChain, info.SelfKey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cert/key pair in EnvelopeInfo: %w", err)
+		}
+		w.selfCert = &cert
+		for cname, c := range w.componentsByName {
+			cname := cname
+			c.clientTLS = &tls.Config{
+				Certificates:       []tls.Certificate{*w.selfCert},
+				InsecureSkipVerify: true, // ok when VerifyPeerCertificate present
+				VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+					return w.env.VerifyServerCertificate(w.ctx, rawCerts, cname)
+				},
+			}
+		}
+	}
 
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
@@ -161,17 +172,18 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		},
 	}
 	w.tracer = tracer
-	main.tracer = tracer
-	w.root = main
-
 	return w, nil
 }
 
 // start starts a weavelet, executing the logic to start and manage components.
-// If Start fails, it returns a non-nil error.
-// Otherwise, if this process hosts "main", start returns the main component.
-// Otherwise, Start never returns.
-func (w *weavelet) start() (Instance, error) {
+// Creates the component passed to weaver.Run() eagerly if hosted in this process.
+// Start never returns on success.
+func (w *weavelet) start(rootType reflect.Type, rootBody func(context.Context, any) error) error {
+	root, err := w.getComponentByType(rootType)
+	if err != nil {
+		return err
+	}
+
 	// Launch status server for single process deployments.
 	if single, ok := w.env.(*singleprocessEnv); ok {
 		go func() {
@@ -179,37 +191,6 @@ func (w *weavelet) start() (Instance, error) {
 				single.SystemLogger().Error("status server", "err", err)
 			}
 		}()
-	}
-
-	// Create handlers for all of the components served by the weavelet. Note
-	// that the components themselves may not be started, but we still register
-	// their handlers because we want to avoid concurrency issues with on-demand
-	// handler additions.
-	//
-	// TODO(mwhittaker): Only add handlers for a component once it has started?
-	// This will likely require us to update the set of handlers *after* we
-	// start serving them, which might require some additional locking.
-	handlers := &call.HandlerMap{}
-	for _, c := range w.componentsByName {
-		w.addHandlers(handlers, c)
-	}
-	// Add a dummy "ready" handler. Clients will repeatedly call this RPC until
-	// it responds successfully, ensuring the server is ready.
-	handlers.Set("", "ready", func(context.Context, []byte) ([]byte, error) {
-		return nil, nil
-	})
-
-	if w.info.RunMain {
-		// Set appropriate logger and tracer for main.
-		w.root.logger = slog.New(&logging.LogHandler{
-			Opts: logging.Options{
-				App:        w.root.info.Name,
-				Deployment: w.info.DeploymentId,
-				Component:  w.root.info.Name,
-				Weavelet:   w.info.Id,
-			},
-			Write: w.env.CreateLogSaver(),
-		})
 	}
 
 	if w.info.SingleProcess {
@@ -226,17 +207,17 @@ func (w *weavelet) start() (Instance, error) {
 		startWork(w.ctx, "serve weavelet conn", remote.conn.Serve)
 
 		lis := remote.conn.Listener()
-		addr := fmt.Sprintf("tcp://%s", lis.Addr().String())
-		w.dialAddr = addr
+		w.dialAddr = remote.conn.WeaveletInfo().DialAddr
 		for _, c := range w.componentsByName {
 			if c.info.Routed {
 				// TODO(rgrandl): In the future, we may want to collect load for all components.
-				c.load = newLoadCollector(c.info.Name, addr)
+				c.load = newLoadCollector(c.info.Name, w.dialAddr)
 			}
 		}
 
+		server := &server{Listener: lis, wlet: w}
 		startWork(w.ctx, "handle calls", func() error {
-			return call.Serve(w.ctx, lis, handlers, w.transport.serverOpts)
+			return call.Serve(w.ctx, server, w.transport.serverOpts)
 		})
 	}
 
@@ -259,11 +240,18 @@ func (w *weavelet) start() (Instance, error) {
 	// Note that if a component is started locally (e.g., a component in a process
 	// calls Get("B") for a component B assigned to the same process), then the
 	// component's name is also registered with the protos.
+
 	if w.info.RunMain {
-		return w.root.impl, nil
+		impl, err := w.getImpl(root)
+		if err != nil {
+			return err
+		}
+
+		// Invoke the user supplied function, passing it the root instance we just created.
+		return rootBody(w.ctx, impl.impl)
 	}
 
-	// Not the main-process. Run forever.
+	// Run forever.
 	// TODO(mwhittaker): Catch and return errors.
 	select {}
 }
@@ -308,39 +296,40 @@ func (w *weavelet) logRolodexCard() {
 }
 
 // getInstance returns an instance of the provided component. If the component
-// is local, the returned instance is local. Otherwise, it's a network client.
-// requester is the name of the requesting component.
-func (w *weavelet) getInstance(c *component, requester string) (interface{}, error) {
+// is local, the results are a local stub used to invoke methods on the component
+// as well as the actual local object. Otherwise, the results are a network client
+// and nil.
+func (w *weavelet) getInstance(c *component, requester string) (any, any, error) {
 	// Register the component.
 	c.registerInit.Do(func() {
-		w.env.SystemLogger().Debug("Registering component...", "component", c.info.Name)
-		errMsg := fmt.Sprintf("cannot register component %q to start", c.info.Name)
+		w.env.SystemLogger().Debug("Activating component...", "component", c.info.Name)
+		errMsg := fmt.Sprintf("cannot activate component %q", c.info.Name)
 		c.registerErr = w.repeatedly(errMsg, func() error {
 			return w.env.ActivateComponent(w.ctx, c.info.Name, c.info.Routed)
 		})
 		if c.registerErr != nil {
-			w.env.SystemLogger().Error("Registering component failed", "err", c.registerErr, "component", c.info.Name)
+			w.env.SystemLogger().Error("Activating component failed", "err", c.registerErr, "component", c.info.Name)
 		} else {
-			w.env.SystemLogger().Debug("Registering component succeeded", "component", c.info.Name)
+			w.env.SystemLogger().Debug("Activating component succeeded", "component", c.info.Name)
 		}
 	})
 	if c.registerErr != nil {
-		return nil, c.registerErr
+		return nil, nil, c.registerErr
 	}
 
 	if c.local.Read() {
 		impl, err := w.getImpl(c)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return c.info.LocalStubFn(impl.impl, impl.component.tracer), nil
+		return c.info.LocalStubFn(impl.impl, impl.component.tracer), impl.impl, nil
 	}
 
 	stub, err := w.getStub(c)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c.info.ClientStubFn(stub.stub, requester), nil
+	return c.info.ClientStubFn(stub, requester), nil, nil
 }
 
 // getListener returns a network listener with the given name.
@@ -377,7 +366,7 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, nil
 }
 
-// addHandlers registers a component's methods as handlers in stub.HandlerMap.
+// addHandlers registers a component's methods as handlers in the given map.
 // Specifically, for every method m in the component, we register a function f
 // that (1) creates the local component if it hasn't been created yet and (2)
 // calls m.
@@ -441,12 +430,12 @@ func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*proto
 			c, err := w.getComponent(component)
 			if err != nil {
 				// TODO(mwhittaker): Propagate errors.
-				w.env.SystemLogger().Error("getComponent", err, "component", component)
+				w.env.SystemLogger().Error("getComponent", "err", err, "component", component)
 				return
 			}
 			if _, err = w.getImpl(c); err != nil {
 				// TODO(mwhittaker): Propagate errors.
-				w.env.SystemLogger().Error("getImpl", err, "component", component)
+				w.env.SystemLogger().Error("getImpl", "err", err, "component", component)
 				return
 			}
 		}
@@ -478,9 +467,14 @@ func (w *weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (repl
 		}
 	}
 
+	c, err := w.getComponent(req.RoutingInfo.Component)
+	if err != nil {
+		return nil, err
+	}
+
 	// Update resolver and balancer.
-	client := w.getTCPClient(req.RoutingInfo.Component)
-	endpoints, err := parseEndpoints(req.RoutingInfo.Replicas)
+	client := w.getClient(c)
+	endpoints, err := parseEndpoints(req.RoutingInfo.Replicas, c.clientTLS)
 	if err != nil {
 		return nil, err
 	}
@@ -488,10 +482,6 @@ func (w *weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (repl
 	client.balancer.update(req.RoutingInfo.Assignment)
 
 	// Update local.
-	c, err := w.getComponent(req.RoutingInfo.Component)
-	if err != nil {
-		return nil, err
-	}
 	c.local.TryWrite(req.RoutingInfo.Local)
 	return &protos.UpdateRoutingInfoReply{}, nil
 }
@@ -540,7 +530,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		c.tracer = w.tracer
 
 		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
-		if err := createComponent(w.ctx, c); err != nil {
+		if err := w.createComponent(w.ctx, c); err != nil {
 			w.env.SystemLogger().Error("Constructing component failed", "err", err, "component", c.info.Name)
 			return err
 		}
@@ -559,10 +549,11 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 	return c.impl, c.implErr
 }
 
-func createComponent(ctx context.Context, c *component) error {
+func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	// Create the implementation object.
-	obj := c.info.New()
+	obj := reflect.New(c.info.Impl).Interface()
 
+	// Fill config if necessary.
 	if c.info.ConfigFn != nil {
 		cfg := c.info.ConfigFn(obj)
 		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.info.Sections, cfg); err != nil {
@@ -575,6 +566,19 @@ func createComponent(ctx context.Context, c *component) error {
 		return fmt.Errorf("component %q: type %T is not a component implementation", c.info.Name, obj)
 	} else {
 		i.setInstance(c.impl)
+	}
+
+	// Fill ref fields.
+	err := fillRefs(obj, func(refType reflect.Type) (any, error) {
+		sub, err := w.getComponentByType(refType)
+		if err != nil {
+			return nil, err
+		}
+		r, _, err := w.getInstance(sub, c.info.Name)
+		return r, err
+	})
+	if err != nil {
+		return err
 	}
 
 	// Call Init if available.
@@ -598,17 +602,37 @@ func (w *weavelet) repeatedly(errMsg string, f func() error) error {
 	return fmt.Errorf("%s: %w", errMsg, w.ctx.Err())
 }
 
+// getClient returns a component's network client, initializing it if necessary.
+func (w *weavelet) getClient(c *component) *client {
+	c.clientInit.Do(func() {
+		c.client = &client{
+			resolver: newRoutingResolver(),
+			balancer: newRoutingBalancer(c.clientTLS),
+		}
+	})
+	return c.client
+}
+
 // getStub returns a component's componentStub, initializing it if necessary.
-func (w *weavelet) getStub(c *component) (*componentStub, error) {
+func (w *weavelet) getStub(c *component) (*stub, error) {
 	init := func(c *component) error {
 		// Initialize the client.
-		w.env.SystemLogger().Debug("Getting TCP client to component...", "component", c.info.Name)
-		client := w.getTCPClient(c.info.Name)
-		if err := client.init(w.ctx, w.transport.clientOpts); err != nil {
-			w.env.SystemLogger().Error("Getting TCP client to component failed", "err", err, "component", c.info.Name)
+		w.env.SystemLogger().Debug("Creating a connection to a remote component...", "component", c.info.Name)
+		client := w.getClient(c)
+
+		// Create the client connection.
+		opts := w.transport.clientOpts
+		conn, err := call.Connect(w.ctx, client.resolver, opts)
+		if err != nil {
+			w.env.SystemLogger().Error("Creating a connection to remote component failed", "err", err, "component", c.info.Name)
 			return err
 		}
-		w.env.SystemLogger().Debug("Getting TCP client to component succeeded", "component", c.info.Name)
+		if err := waitUntilReady(w.ctx, conn); err != nil {
+			w.env.SystemLogger().Error("Waiting for remote component failed", "err", err, "component", c.info.Name)
+			return err
+		}
+
+		w.env.SystemLogger().Debug("Creating connection to remote component succeeded", "component", c.info.Name)
 
 		// Construct the keys for the methods.
 		n := c.info.Iface.NumMethod()
@@ -622,13 +646,12 @@ func (w *weavelet) getStub(c *component) (*componentStub, error) {
 		if c.info.Routed {
 			balancer = client.balancer
 		}
-		c.stub = &componentStub{
-			stub: &stub{
-				client:   client.client,
-				methods:  methods,
-				balancer: balancer,
-				tracer:   w.tracer,
-			},
+		c.stub = &stub{
+			component: c.info.Name,
+			conn:      conn,
+			methods:   methods,
+			balancer:  balancer,
+			tracer:    w.tracer,
 		}
 		return nil
 	}
@@ -646,32 +669,6 @@ func waitUntilReady(ctx context.Context, client call.Connection) error {
 	return ctx.Err()
 }
 
-// getTCPClient returns the TCP client for the provided component.
-func (w *weavelet) getTCPClient(component string) *client {
-	// Create entry in client map.
-	w.clientsLock.Lock()
-	defer w.clientsLock.Unlock()
-	c, ok := w.tcpClients[component]
-	if !ok {
-		c = &client{
-			resolver: newRoutingResolver(),
-			balancer: newRoutingBalancer(),
-		}
-		w.tcpClients[component] = c
-	}
-	return c
-}
-
-// init initializes a client. It should only be called once.
-func (c *client) init(ctx context.Context, opts call.ClientOptions) error {
-	var err error
-	c.client, err = call.Connect(ctx, c.resolver, opts)
-	if err != nil {
-		return err
-	}
-	return waitUntilReady(ctx, c.client)
-}
-
 // startWork runs fn() in the background.
 // Errors are fatal unless we have already been canceled.
 func startWork(ctx context.Context, msg string, fn func() error) {
@@ -681,4 +678,62 @@ func startWork(ctx context.Context, msg string, fn func() error) {
 			os.Exit(1)
 		}
 	}()
+}
+
+var _ call.Listener = &server{}
+
+func (s *server) Accept() (net.Conn, *call.HandlerMap, error) {
+	conn, err := s.Listener.Accept()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if s.wlet.selfCert == nil {
+		// No security: all components are accessible.
+		hm, err := s.handlers(maps.Keys(s.wlet.componentsByName))
+		return conn, hm, err
+	}
+
+	// Establish a TLS connection with the client and get the list of
+	// components it can access.
+	var accessibleComponents []string
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{*s.wlet.selfCert},
+		ClientAuth:   tls.RequireAnyClientCert,
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+			var err error
+			accessibleComponents, err = s.wlet.env.VerifyClientCertificate(s.wlet.ctx, rawCerts)
+			return err
+		},
+	}
+	tlsConn := tls.Server(conn, tlsConfig)
+	if err := tlsConn.HandshakeContext(s.wlet.ctx); err != nil {
+		return nil, nil, fmt.Errorf("TLS handshake error: %w", err)
+	}
+
+	// NOTE: VerifyPeerCertificate above has been called at this point.
+	hm, err := s.handlers(accessibleComponents)
+	return tlsConn, hm, err
+}
+
+// handlers returns method handlers for the given components.
+func (s *server) handlers(components []string) (*call.HandlerMap, error) {
+	// Note that the components themselves may not be started, but we still
+	// register their handlers to avoid concurrency issues with on-demand
+	// handler additions.
+	hm := &call.HandlerMap{}
+	for _, component := range components {
+		c, err := s.wlet.getComponent(component)
+		if err != nil {
+			return nil, err
+		}
+		s.wlet.addHandlers(hm, c)
+	}
+
+	// Add a dummy "ready" handler. Clients will repeatedly call this
+	// RPC until it responds successfully, ensuring the server is ready.
+	hm.Set("", "ready", func(context.Context, []byte) ([]byte, error) {
+		return nil, nil
+	})
+	return hm, nil
 }

@@ -66,14 +66,29 @@ func TestComponentConfigValidatorErrors(t *testing.T) {
 	}
 }
 
+func TestCallGraph(t *testing.T) {
+	edges := map[string]bool{}
+	for _, e := range codegen.CallGraph() {
+		edges[fmt.Sprintf("%v -> %v", e.Caller, e.Callee)] = true
+	}
+	if !edges["codegen_test.A -> codegen_test.B"] {
+		t.Error("did not find expected A->B edge in call graph")
+	}
+	if edges["codegen_test.B -> codegen_test.A"] {
+		t.Error("found unexpected B->A edge in call graph")
+	}
+}
+
 const (
 	typeWithoutConfig = "codegen_test/withoutConfig"
 	typeWithConfig    = "codegen_test/withConfig"
 )
 
-type componentWithoutConfig struct{}
+type componentWithoutConfig interface{}
+type componentWithoutConfigImpl struct{}
 
-type componentWithConfig struct {
+type componentWithConfig interface{}
+type componentWithConfigImpl struct {
 	weaver.WithConfig[testconfig]
 }
 
@@ -89,27 +104,37 @@ func (t testconfig) Validate() error {
 	return nil
 }
 
+type A interface{}
+type B interface{}
+
+type aimpl struct {
+	weaver.Implements[A]
+	b weaver.Ref[B] //nolint:nolintlint,unused // present just for call graph extraction
+}
+
+type bimpl struct {
+	weaver.Implements[B]
+}
+
+func register[Intf, Impl any](name string, configFn func(any) any) {
+	var zero Impl
+	codegen.Register(codegen.Registration{
+		Name:         name,
+		Iface:        reflect.TypeOf((*Intf)(nil)).Elem(),
+		Impl:         reflect.TypeOf(zero),
+		ConfigFn:     configFn,
+		LocalStubFn:  func(any, trace.Tracer) any { return nil },
+		ClientStubFn: func(codegen.Stub, string) any { return nil },
+		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
+	})
+}
+
 // Register dummy components for test.
 func init() {
-	local := func(any, trace.Tracer) any { return nil }
-	client := func(codegen.Stub, string) any { return nil }
-	server := func(any, func(uint64, float64)) codegen.Server { return nil }
-
-	codegen.Register(codegen.Registration{
-		Name:         typeWithoutConfig,
-		Iface:        reflect.TypeOf((*componentWithoutConfig)(nil)).Elem(),
-		New:          func() any { return &componentWithoutConfig{} },
-		LocalStubFn:  local,
-		ClientStubFn: client,
-		ServerStubFn: server,
-	})
-	codegen.Register(codegen.Registration{
-		Name:         typeWithConfig,
-		Iface:        reflect.TypeOf((*componentWithConfig)(nil)).Elem(),
-		New:          func() any { return &componentWithConfig{} },
-		ConfigFn:     func(i any) any { return i.(*componentWithConfig).Config() },
-		LocalStubFn:  local,
-		ClientStubFn: client,
-		ServerStubFn: server,
+	register[A, aimpl]("codegen_test/A", nil)
+	register[B, bimpl]("codegen_test/B", nil)
+	register[componentWithoutConfig, componentWithoutConfigImpl](typeWithoutConfig, nil)
+	register[componentWithConfig, componentWithConfigImpl](typeWithConfig, func(i any) any {
+		return i.(*componentWithConfigImpl).Config() //nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
 	})
 }

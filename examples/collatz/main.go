@@ -59,13 +59,7 @@ var localAddr = flag.String("local_addr", "localhost:9000", "Collatz server loca
 
 func main() {
 	flag.Parse()
-	ctx := context.Background()
-	root := weaver.Init(ctx)
-	server, err := newServer(root)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := server.Run(); err != nil {
+	if err := weaver.Run(context.Background(), serve); err != nil {
 		log.Fatal(err)
 	}
 }

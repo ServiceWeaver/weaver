@@ -16,6 +16,8 @@ package multi
 
 import (
 	"context"
+	"crypto"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -28,6 +30,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/internal/tool/certs"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
@@ -55,6 +58,8 @@ type deployer struct {
 	config       *protos.AppConfig
 	started      time.Time
 	logger       *slog.Logger
+	caCert       *x509.Certificate
+	caKey        crypto.PrivateKey
 	running      errgroup.Group
 	logsDB       *logging.FileStore
 	traceDB      *perfetto.DB
@@ -118,7 +123,7 @@ var _ envelope.EnvelopeHandler = &handler{}
 // time by canceling the passed-in context.
 func newDeployer(ctx context.Context, deploymentId string, config *protos.AppConfig) (*deployer, error) {
 	// Create the log saver.
-	logsDB, err := logging.NewFileStore(logdir)
+	logsDB, err := logging.NewFileStore(logDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
@@ -131,9 +136,13 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		},
 		Write: logsDB.Add,
 	})
+	caCert, caKey, err := certs.GenerateCACert()
+	if err != nil {
+		return nil, fmt.Errorf("cannot generate signing certificate: %w", err)
+	}
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx)
+	traceDB, err := perfetto.Open(ctx, perfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
@@ -151,6 +160,8 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		ctx:            ctx,
 		ctxCancel:      cancel,
 		logger:         logger,
+		caCert:         caCert,
+		caKey:          caKey,
 		logsDB:         logsDB,
 		traceDB:        traceDB,
 		statsProcessor: imetrics.NewStatsProcessor(),
@@ -258,6 +269,16 @@ func (d *deployer) startColocationGroup(g *group) error {
 
 	components := maps.Keys(g.components)
 	for r := 0; r < defaultReplication; r++ {
+		// Generate a signed certificate that encodes the group name.
+		cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, g.name)
+		if err != nil {
+			return fmt.Errorf("cannot generate cert: %w", err)
+		}
+		certPEM, keyPEM, err := certs.PEMEncode(cert, key)
+		if err != nil {
+			return fmt.Errorf("cannot PEM-encode cert: %w", err)
+		}
+
 		// Start the weavelet and capture its logs, traces, and metrics.
 		info := &protos.EnvelopeInfo{
 			App:           d.config.Name,
@@ -266,7 +287,9 @@ func (d *deployer) startColocationGroup(g *group) error {
 			Sections:      d.config.Sections,
 			SingleProcess: false,
 			SingleMachine: true,
-			RunMain:       g.components["main"],
+			RunMain:       g.components[runtime.Main],
+			SelfCertChain: certPEM,
+			SelfKey:       keyPEM,
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config)
 		if err != nil {
@@ -322,7 +345,9 @@ func checkVersion(appVersion *protos.SemVer) error {
 }
 
 func (d *deployer) startMain() error {
-	return d.activateComponent(&protos.ActivateComponentRequest{Component: "main"})
+	return d.activateComponent(&protos.ActivateComponentRequest{
+		Component: runtime.Main,
+	})
 }
 
 // ActivateComponent implements the envelope.EnvelopeHandler interface.
@@ -352,6 +377,59 @@ func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 	// Route remotely.
 	target.subscribers[req.Component] = append(target.subscribers[req.Component], h.envelope)
 	return h.envelope.UpdateRoutingInfo(target.routing(req.Component))
+}
+
+// VerifyClientCertificate implements the envelope.EnvelopeHandler interface.
+func (h *handler) VerifyClientCertificate(_ context.Context, req *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	_, err := h.verifyCertificate(req.CertChain)
+	if err != nil {
+		return nil, err
+	}
+
+	// For now, return all components.
+	// TODO(spetrovic): Use the call graph to return the set of components
+	// that the client group is allowed to invoke methods on.
+	return &protos.VerifyClientCertificateReply{
+		Components: h.envelope.WeaveletInfo().Components,
+	}, nil
+}
+
+// VerifyServerCertificate implements the envelope.EnvelopeHandler interface.
+func (h *handler) VerifyServerCertificate(_ context.Context, req *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	actual, err := h.verifyCertificate(req.CertChain)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the expected group name for the target component.
+	expected, ok := h.colocation[req.TargetComponent]
+	if !ok {
+		expected = req.TargetComponent
+	}
+	if expected != actual {
+		return nil, fmt.Errorf("invalid server identity for target component %s: want %q, got %q", req.TargetComponent, expected, actual)
+	}
+	return &protos.VerifyServerCertificateReply{}, nil
+}
+
+func (h *handler) verifyCertificate(certChain [][]byte) (string, error) {
+	if n := len(certChain); n != 1 {
+		return "", fmt.Errorf("invalid cert chain length: want 1, got %d", n)
+	}
+	names, err := certs.VerifySignedCert(certChain[0], h.caCert)
+	if err != nil {
+		return "", fmt.Errorf("cannot verify the cert: %w", err)
+	}
+	if len(names) != 1 {
+		return "", fmt.Errorf("invalid cert: expected a single name, got %v", names)
+	}
+
+	name := names[0]
+	_, ok := h.groups[name]
+	if !ok {
+		return "", fmt.Errorf("invalid cert: expected a group name, got %v", name)
+	}
+	return name, nil
 }
 
 func (d *deployer) activateComponent(req *protos.ActivateComponentRequest) error {

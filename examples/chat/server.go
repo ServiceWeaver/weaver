@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"flag"
@@ -37,24 +38,20 @@ import (
 var flagAddress = flag.String("http", ":0", "host:port to use for when running locally (picked automatically by default)")
 
 type server struct {
+	weaver.Implements[weaver.Main]
 	httpServer http.Server
-	store      SQLStore
-	scaler     ImageScaler
-	cache      LocalCache
+	store      weaver.Ref[SQLStore]
+	scaler     weaver.Ref[ImageScaler]
+	cache      weaver.Ref[LocalCache]
 }
 
-func newServer(store SQLStore, scaler ImageScaler, cache LocalCache) *server {
-	s := &server{store: store, scaler: scaler, cache: cache}
+func serve(ctx context.Context, s *server) error {
 	s.httpServer.Handler = instrument(s.label, s)
-	return s
-}
-
-func (s *server) run(root weaver.Instance) error {
-	lis, err := root.Listener("chat", weaver.ListenerOptions{LocalAddress: *flagAddress})
+	lis, err := s.Listener("chat", weaver.ListenerOptions{LocalAddress: *flagAddress})
 	if err != nil {
 		return err
 	}
-	root.Logger().Debug("Chat service available", "address", lis)
+	s.Logger().Debug("Chat service available", "address", lis)
 	return s.httpServer.Serve(lis)
 }
 
@@ -72,7 +69,7 @@ func (s *server) label(r *http.Request) string {
 	}
 
 	switch r.URL.Path {
-	case "/", "/thumbnail", "/newthread", "/newpost", "/healthz":
+	case "/", "/thumbnail", "/newthread", "/newpost", weaver.HealthzURL:
 		return r.URL.Path
 	default:
 		return "unknown"
@@ -96,7 +93,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.newThread(w, r, user)
 	case "/newpost":
 		s.newPost(w, r, user)
-	case "/healthz":
+	case weaver.HealthzURL:
 		// Returns OK status.
 	default:
 		http.Error(w, "not found", http.StatusNotFound)
@@ -123,7 +120,7 @@ func (s *server) redirectToFeed(w http.ResponseWriter, r *http.Request, user str
 
 func (s *server) generateFeed(w http.ResponseWriter, r *http.Request, user string) {
 	ctx := r.Context()
-	threads, err := s.store.GetFeed(ctx, user)
+	threads, err := s.store.Get().GetFeed(ctx, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -148,7 +145,7 @@ func (s *server) serveThumbnail(w http.ResponseWriter, r *http.Request, user str
 	ctx := r.Context()
 	q := r.URL.Query()
 	key := q.Get("id")
-	if thumb, err := s.cache.Get(ctx, key); err == nil {
+	if thumb, err := s.cache.Get().Get(ctx, key); err == nil {
 		w.Write([]byte(thumb))
 		return
 	}
@@ -157,19 +154,19 @@ func (s *server) serveThumbnail(w http.ResponseWriter, r *http.Request, user str
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	img, err := s.store.GetImage(ctx, user, ImageID(id))
+	img, err := s.store.Get().GetImage(ctx, user, ImageID(id))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	const maxSize = 128
-	small, err := s.scaler.Scale(ctx, img, maxSize, maxSize)
+	small, err := s.scaler.Get().Scale(ctx, img, maxSize, maxSize)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Write(small)
-	_ = s.cache.Put(ctx, key, string(small))
+	_ = s.cache.Get().Put(ctx, key, string(small))
 }
 
 func (s *server) newThread(w http.ResponseWriter, r *http.Request, user string) {
@@ -190,7 +187,7 @@ func (s *server) newThread(w http.ResponseWriter, r *http.Request, user string) 
 	}
 	_ = img
 
-	_, err = s.store.CreateThread(r.Context(), user, time.Now(), others, msg, img)
+	_, err = s.store.Get().CreateThread(r.Context(), user, time.Now(), others, msg, img)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -209,7 +206,7 @@ func (s *server) newPost(w http.ResponseWriter, r *http.Request, user string) {
 		http.Error(w, "no message", http.StatusBadRequest)
 		return
 	}
-	err = s.store.CreatePost(r.Context(), user, time.Now(), ThreadID(tid), msg)
+	err = s.store.Get().CreatePost(r.Context(), user, time.Now(), ThreadID(tid), msg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

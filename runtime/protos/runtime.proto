@@ -109,6 +109,8 @@ message EnvelopeMsg {
   ActivateComponentReply activate_component_reply = 10;
   GetListenerAddressReply get_listener_address_reply = 11;
   ExportListenerReply export_listener_reply = 12;
+  VerifyClientCertificateReply verify_client_certificate_reply = 13;
+  VerifyServerCertificateReply verify_server_certificate_reply = 14;
 }
 
 // WeaveletMsg is a message sent by a weavelet to an envelope.
@@ -139,6 +141,8 @@ message WeaveletMsg {
   ActivateComponentRequest activate_component_request = 12;
   GetListenerAddressRequest get_listener_address_request = 13;
   ExportListenerRequest export_listener_request = 14;
+  VerifyClientCertificateRequest verify_client_certificate_request = 15;
+  VerifyServerCertificateRequest verify_server_certificate_request = 16;
 }
 
 // EnvelopeInfo is the information provided by an envelope to a weavelet during
@@ -151,6 +155,12 @@ message EnvelopeInfo {
   bool single_process = 5;           // a single-process deployment?
   bool single_machine = 6;           // a single-machine deployment?
   bool run_main = 7;                 // run the main function?
+
+  // PEM-encoded blocks containing (1) the certificate chain identifying the
+  // weavelet and (2) the corresponding private key. Used for enforcing mTLS
+  // security across components. If empty, security won't be enforced.
+  bytes self_cert_chain = 8; // certificate identifying the weavelet
+  bytes self_key = 9;        // private key for the leaf cert in self_cert_chain
 }
 
 // WeaveletInfo is the information provided by a weavelet to an envelope during
@@ -167,6 +177,11 @@ message WeaveletInfo {
 
   // The deployer API version of the weavelet.
   SemVer version = 3;
+
+  // The set of all components known to weavelet.
+  repeated string components = 4;
+
+  // TODO(spetrovic): Add call edges between components.
 }
 
 // SemVer represents a [semantic version][1] of the form
@@ -476,6 +491,37 @@ message ExportListenerReply {
   // retrying certain errors.
   string error = 2;
 }
+
+// VerifyClientCertificateRequest is a request from a weavelet to verify
+// the identity of a client that is attempting to connect to the weavelet.
+message VerifyClientCertificateRequest {
+  // Client's certificate chain. Each certificate in the chain is represented as
+  // a DER-encoded ASN.1 structure.
+  repeated bytes cert_chain = 1;
+}
+
+// VerifyClientCertificateReply is a reply to a VerifyClientCertificateRequest.
+// If the client certificate cannot be verified, an error should be returned
+// rather than an empty reply.
+message VerifyClientCertificateReply {
+  // The set of components hosted by the weavelet that the client is allowed to
+  // invoke methods on.
+  repeated string components = 1;
+}
+
+// VerifyServerCertificateRequest is a request from a weavelet to verify
+// the identity of the server it is attempting to connect to.
+message VerifyServerCertificateRequest {
+  // Server's certificate chain. Each certificate in the chain is represented as
+  // a DER-encoded ASN.1 structure.
+  repeated bytes cert_chain = 1;
+
+  // Name of the component the server is meant to be hosting.
+  string target_component = 2;
+}
+
+// VerifyServerCertificateReply is a reply to a VerifyServerCertificateRequest.
+message VerifyServerCertificateReply {}
 
 // LogEntry is a log entry. Every log entry consists of a message (the thing the
 // user logged) and a set of metadata describing the message.

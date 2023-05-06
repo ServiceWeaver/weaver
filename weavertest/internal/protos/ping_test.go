@@ -18,22 +18,18 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
 )
 
 func TestPingPong(t *testing.T) {
 	ctx := context.Background()
-	root := weavertest.Init(ctx, t, weavertest.Options{})
-	pingponger, err := weaver.Get[PingPonger](root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pong, err := pingponger.Ping(ctx, &Ping{Id: 42})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pong.Id != 42 {
-		t.Fatalf("bad pong: got %v, want %v", pong.Id, 42)
-	}
+	weavertest.Run(t, weavertest.Options{}, func(pingponger PingPonger) {
+		pong, err := pingponger.Ping(ctx, &Ping{Id: 42})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pong.Id != 42 {
+			t.Fatalf("bad pong: got %v, want %v", pong.Id, 42)
+		}
+	})
 }

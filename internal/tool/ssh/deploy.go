@@ -88,13 +88,13 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Copy the binaries to each location.
-	locations, err := copyBinaries(locs, dep)
+	locs, err := copyBinaries(locs, dep)
 	if err != nil {
 		return err
 	}
 
 	// Run the manager.
-	stopFn, err := impl.RunManager(ctx, dep, locations, logDir)
+	stopFn, err := impl.RunManager(ctx, dep, locs)
 	if err != nil {
 		return fmt.Errorf("cannot instantiate the manager: %w", err)
 	}
@@ -115,7 +115,7 @@ func deploy(ctx context.Context, args []string) error {
 	}()
 
 	// Follow the logs.
-	source := logging.FileSource(logDir)
+	source := logging.FileSource(impl.LogDir)
 	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, dep.Id)
 	r, err := source.Query(ctx, query, true)
 	if err != nil {

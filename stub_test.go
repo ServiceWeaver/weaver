@@ -132,7 +132,7 @@ func TestCall(t *testing.T) {
 
 			// Call the method.
 			stub := stub{
-				client:  &localClient{fn: test.fn},
+				conn:    &localClient{fn: test.fn},
 				methods: []call.MethodKey{call.MakeMethodKey("", "test")},
 			}
 			out, err := stub.Run(context.Background(), 0, enc.Data(), 0)
@@ -176,7 +176,7 @@ func TestErrorArgsNotEncoded(t *testing.T) {
 		}
 
 		stub := stub{
-			client:  &localClient{fn: fn},
+			conn:    &localClient{fn: fn},
 			methods: []call.MethodKey{call.MakeMethodKey("", "test")},
 		}
 		_, err := stub.Run(context.Background(), 0, nil, 0)
@@ -211,7 +211,7 @@ func TestErrorResultsNotDecoded(t *testing.T) {
 	}
 
 	stub := stub{
-		client:  &localClient{fn: fn},
+		conn:    &localClient{fn: fn},
 		methods: []call.MethodKey{call.MakeMethodKey("", "test")},
 	}
 	if _, err := stub.Run(context.Background(), 0, enc.Data(), 0); err != nil {

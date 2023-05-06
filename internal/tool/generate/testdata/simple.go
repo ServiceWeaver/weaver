@@ -16,7 +16,7 @@
 // package foo
 // func init() {
 // codegen.Register(codegen.Registration{
-// &impl{}
+// impl{}
 // return foo_local_stub{impl: impl.(foo),
 // return foo_client_stub{stub: stub,
 // type foo_local_stub struct

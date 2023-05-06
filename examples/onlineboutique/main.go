@@ -38,15 +38,10 @@ import (
 var localAddr = flag.String("local_addr", ":12345", "Local address")
 
 func main() {
-	ctx := context.Background()
-	root := weaver.Init(ctx)
-	server, err := frontend.NewServer(root)
-	if err != nil {
+	flag.Parse()
+	frontend.SetLocalAddress(*localAddr)
+	if err := weaver.Run(context.Background(), frontend.Serve); err != nil {
 		fmt.Fprintln(os.Stderr, "Error creating frontend: ", err)
-		os.Exit(1)
-	}
-	if err := server.Run(*localAddr); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

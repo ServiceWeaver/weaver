@@ -249,6 +249,18 @@ func (b *babysitter) ExportListener(_ context.Context, req *protos.ExportListene
 	return reply, nil
 }
 
+// VerifyClientCertificate implements the envelope.EnvelopeHandler interface.
+func (b *babysitter) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	// TODO(spetrovic): Implement this functionality.
+	panic("unimplemented")
+}
+
+// VerifyServerCertificate implements the envelope.EnvelopeHandler interface.
+func (b *babysitter) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	// TODO(spetrovic): Implement this functionality.
+	panic("unimplemented")
+}
+
 func (b *babysitter) getRoutingInfo(component string, routed bool, version string) (*protos.RoutingInfo, string, error) {
 	req := &GetRoutingInfoRequest{
 		RequestingGroup: b.info.Group,

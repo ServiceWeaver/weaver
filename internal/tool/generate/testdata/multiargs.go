@@ -23,7 +23,7 @@
 // func (x *Bar) WeaverMarshal(enc *codegen.Encoder)
 // func (x *Bar) WeaverUnmarshal(dec *codegen.Decoder)
 // EncodeBinaryMarshaler
-// &impl{}
+// impl{}
 
 // UNEXPECTED
 // c.Args.Encode(a3)

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,33 +26,20 @@ import (
 )
 
 type server struct {
+	weaver.Implements[weaver.Main]
 	mux  http.ServeMux
-	root weaver.Instance
-	odd  Odd
-	even Even
+	odd  weaver.Ref[Odd]
+	even weaver.Ref[Even]
 }
 
-func newServer(root weaver.Instance) (*server, error) {
-	odd, err := weaver.Get[Odd](root)
-	if err != nil {
-		return nil, err
-	}
-	even, err := weaver.Get[Even](root)
-	if err != nil {
-		return nil, err
-	}
-	s := &server{root: root, odd: odd, even: even}
+func serve(ctx context.Context, s *server) error {
 	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
-	s.mux.Handle("/healthz", weaver.InstrumentHandlerFunc("/healthz", s.handleHealthz))
-	return s, nil
-}
-
-func (s *server) Run() error {
-	lis, err := s.root.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})
+	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
+	lis, err := s.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})
 	if err != nil {
 		return err
 	}
-	s.root.Logger().Debug("Collatz service available", "address", lis)
+	s.Logger().Debug("Collatz service available", "address", lis)
 	return http.Serve(lis, otelhttp.NewHandler(&s.mux, "http"))
 }
 
@@ -71,9 +59,9 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	for x != 1 {
 		fmt.Fprintf(&builder, "%d\n", x)
 		if x%2 == 0 {
-			x, err = s.even.Do(r.Context(), x)
+			x, err = s.even.Get().Do(r.Context(), x)
 		} else {
-			x, err = s.odd.Do(r.Context(), x)
+			x, err = s.odd.Get().Do(r.Context(), x)
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -82,8 +70,4 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(&builder, "%d\n", x)
 	fmt.Fprint(w, builder.String())
-}
-
-func (s *server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintln(w, "ok")
 }

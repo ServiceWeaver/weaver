@@ -15,6 +15,7 @@
 package weaver
 
 import (
+	"crypto/tls"
 	"net"
 	"sync"
 
@@ -46,21 +47,17 @@ type Instance interface {
 	// Listener returns a network listener with the given name that is suitable
 	// for hosting an HTTP server.
 	//
-	// Name may be used by the Service Weaver framework to route client traffic to the
-	// corresponding network listener. As such, listener names should follow the
-	// DNS format for names.
+	// Name may be used by the Service Weaver framework to route client traffic
+	// to the corresponding network listener. As such, listener names should
+	// follow the DNS format for names.
 	//
-	// HTTP servers constructed using this listener are expected to perform health
-	// checks on the reserved "/healthz" URL prefix. (Note that this URL prefix
-	// is configured to never receive any user traffic.)
+	// HTTP servers constructed using this listener are expected to perform
+	// health checks on the reserved HealthzURL path. (Note that this
+	// URL path is configured to never receive any user traffic.)
 	//
 	// If different processes in an application call Listener() multiple times
 	// with the same listener name but different options, the options value from
 	// one of those calls will be used when constructing the listener.
-	//
-	// TODO(mwhittaker): Return the address of the proxy somehow. Right now, if a
-	// user specifies a LocalAddress like ":0", they don't have a way to know what
-	// address the proxy is listening on.
 	Listener(name string, options ListenerOptions) (*Listener, error)
 
 	// rep is for internal use.
@@ -76,17 +73,11 @@ type componentImpl struct {
 	serverStub codegen.Server // handles calls from other processes
 }
 
-// componentStub is a stub to a component running remotely on a different process.
-// A componentStub is not a component implementation. Rather, it's a stub that
-// proxies method calls over the network to a remote process.
-type componentStub struct {
-	stub *stub // stub used to create clients
-}
-
 // component represents a Service Weaver component and all corresponding metadata.
 type component struct {
-	wlet *weavelet             // read-only, once initialized
-	info *codegen.Registration // read-only, once initialized
+	wlet      *weavelet             // read-only, once initialized
+	info      *codegen.Registration // read-only, once initialized
+	clientTLS *tls.Config           // read-only, once initialized
 
 	registerInit sync.Once // used to register the component
 	registerErr  error     // non-nil if registration fails
@@ -97,15 +88,36 @@ type component struct {
 	logger   *slog.Logger   // read-only after implInit.Do()
 	tracer   trace.Tracer   // read-only after implInit.Do()
 
-	stubInit sync.Once      // used to initialize stub
-	stubErr  error          // non-nil if stub creation fails
-	stub     *componentStub // only ever non-nil if this component is remote or routed
+	// TODO(mwhittaker): We have one client for every component. Every client
+	// independently maintains network connections to every weavelet hosting
+	// the component. Thus, there may be many redundant network connections to
+	// the same weavelet. Given n weavelets hosting m components, there's at
+	// worst n^2m connections rather than a more optimal n^2 (a single
+	// connection between every pair of weavelets). We should rewrite things to
+	// avoid the redundancy.
+	clientInit sync.Once // used to initialize client
+	client     *client   // only evern non-nil if this component is remote or routed
+
+	stubInit sync.Once // used to initialize stub
+	stubErr  error     // non-nil if stub creation fails
+	stub     *stub     // only ever non-nil if this component is remote or routed
 
 	local register.WriteOnce[bool] // routed locally?
 	load  *loadCollector           // non-nil for routed components
 }
 
 var _ Instance = &componentImpl{}
+
+// Main is interface implemented by an application's main component.
+// This component is created automatically by `weaver.Run`.
+type Main interface{}
+
+// MainInstance is used to trigger a type-checking error if the user code
+// attempts to pass a non-main component to `weaver.Run`.
+type MainInstance interface {
+	Instance
+	implements(Main)
+}
 
 // Implements[T] is a type that can be embedded inside a component implementation
 // struct to indicate that the struct implements a component of type T. E.g.,
@@ -134,23 +146,41 @@ type Implements[T any] struct {
 // setInstance is used during component initialization to fill Implements.component.
 func (i *Implements[T]) setInstance(c *componentImpl) { i.componentImpl = c }
 
+// implements is a method that can only be implemented inside the weaver package.
+//
+//nolint:unused
+func (i *Implements[T]) implements(T) {}
+
+// Ref[T] is a field that can be placed inside a component implementation
+// struct. T must be a component type. Service Weaver will automatically
+// fill such a field with a handle to the corresponding component.
+type Ref[T any] struct {
+	value T
+}
+
+// Get returns a handle to the component of type T.
+func (r Ref[T]) Get() T { return r.value }
+
+// isRef is an internal interface that is only implemented by Ref[T] and is
+// used by the implementation to check that a value is of type Ref[T].
+func (r Ref[T]) isRef() {}
+
 // A Listener is Service Weaver's implementation of a net.Listener.
 //
 // A Listener implements the net.Listener interface, so you can use a Listener
 // wherever you use a net.Listener. For example,
 //
-//	func main() {
-//	    root := weaver.Init(context.Background())
-//	    lis, err := root.Listener("hello", weaver.ListenerOptions{})
+//	weaver.Run(..., func(..., s *server) {
+//	    lis, err := s.Listener("hello", weaver.ListenerOptions{})
 //	    if err != nil {
 //	        log.Fatal(err)
 //	    }
-//	    root.Logger().Info("Listener available at %v", lis)
+//	    s.Logger().Info("Listener available at %v", lis)
 //	    http.HandleFunc("/a", func(http.ResponseWriter, *http.Request) {...})
 //	    http.HandleFunc("/b", func(http.ResponseWriter, *http.Request) {...})
 //	    http.HandleFunc("/c", func(http.ResponseWriter, *http.Request) {...})
 //	    http.Serve(lis, nil)
-//	}
+//	})
 type Listener struct {
 	net.Listener        // underlying listener
 	proxyAddr    string // address of proxy that forwards to the listener

@@ -15,17 +15,11 @@
 package ssh
 
 import (
-	"path/filepath"
-
 	"github.com/ServiceWeaver/weaver/internal/status"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
 var (
-	// logDir is where weaver ssh deployed applications store their logs.
-	logDir = filepath.Join(logging.DefaultLogDir, "weaver_ssh")
-
 	Commands = map[string]*tool.Command{
 		"deploy":    &deployCmd,
 		"logs":      tool.LogsCmd(&logsSpec),

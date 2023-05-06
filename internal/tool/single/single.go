@@ -19,16 +19,22 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
 var (
+	// The directories and files where the single process deployer stores data.
+	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "single")
+	RegistryDir  = filepath.Join(dataDir, "registry")
+	PerfettoFile = filepath.Join(dataDir, "perfetto.db")
+
 	dashboardSpec = &status.DashboardSpec{
-		Tool:     "weaver single",
-		Registry: defaultRegistry,
+		Tool:         "weaver single",
+		PerfettoFile: PerfettoFile,
+		Registry:     defaultRegistry,
 		Commands: func(deploymentId string) []status.Command {
 			return []status.Command{
 				{Label: "status", Command: "weaver single status"},
@@ -36,11 +42,10 @@ var (
 			}
 		},
 	}
-
 	purgeSpec = &tool.PurgeSpec{
 		Tool:  "weaver single",
 		Kill:  "weaver single (dashboard|profile)",
-		Paths: []string{filepath.Join(must.Must(files.DefaultDataDir()), "single_registry")},
+		Paths: []string{dataDir},
 	}
 
 	Commands = map[string]*tool.Command{
@@ -54,9 +59,5 @@ var (
 )
 
 func defaultRegistry(ctx context.Context) (*status.Registry, error) {
-	dir, err := files.DefaultDataDir()
-	if err != nil {
-		return nil, err
-	}
-	return status.NewRegistry(ctx, filepath.Join(dir, "single_registry"))
+	return status.NewRegistry(ctx, RegistryDir)
 }

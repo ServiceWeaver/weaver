@@ -20,6 +20,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
+// Main is the name of the main component.
+const Main = "github.com/ServiceWeaver/weaver/Main"
+
 // CheckEnvelopeInfo checks that EnvelopeInfo is well-formed.
 func CheckEnvelopeInfo(w *protos.EnvelopeInfo) error {
 	if w == nil {
