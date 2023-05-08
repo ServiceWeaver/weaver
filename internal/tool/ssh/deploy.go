@@ -39,6 +39,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
 var deployCmd = tool.Command{
@@ -74,6 +75,17 @@ func deploy(ctx context.Context, args []string) error {
 	// Sanity check the config.
 	if _, err := os.Stat(app.Binary); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("binary %q doesn't exist", app.Binary)
+	}
+	major, minor, patch, err := version.ReadVersion(app.Binary)
+	if err != nil {
+		return fmt.Errorf("read binary version: %w", err)
+	}
+	if major != version.Major || minor != version.Minor || patch != version.Patch {
+		return fmt.Errorf(
+			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d",
+			version.Major, version.Minor, version.Patch,
+			major, minor, patch,
+		)
 	}
 
 	// Retrieve the list of locations to deploy.
