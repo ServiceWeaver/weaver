@@ -133,7 +133,10 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
-// Returns the paths to the directories where the binaries were copied, keyed by locations.
+// copyBinaries copies the tool and the application binary
+// to the given set of locations. It produces a map which
+// returns the paths to the directories where the binaries
+// were copied, keyed by locations.
 func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, error) {
 	ex, err := os.Executable()
 	if err != nil {
@@ -148,14 +151,12 @@ func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, err
 	binary := dep.App.Binary
 
 	for loc, tmpDir := range tmpDirs {
-		remotePath := filepath.Join(tmpDir, filepath.Base(binary))
-
 		cmd := exec.Command("ssh", loc, "mkdir", "-p", tmpDir)
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("unable to create deployment directory at location %s: %w\n", loc, err)
 		}
 
-		cmd = exec.Command("scp", ex, remotePath, loc+":"+tmpDir)
+		cmd = exec.Command("scp", ex, binary, loc+":"+tmpDir)
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("unable to copy app binary at location %s: %w\n", loc, err)
 		}
