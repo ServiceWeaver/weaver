@@ -133,10 +133,7 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
-// copyBinaries copies the tool and the application binary
-// to the given set of locations. It produces a map which
-// contains the location as a key and the tmpDir in which
-// the binary was copied as a value.
+// Returns the paths to the directories where the binaries were copied, keyed by locations.
 func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, error) {
 	ex, err := os.Executable()
 	if err != nil {
@@ -239,19 +236,16 @@ func getAbsoluteFilePath(file string) (string, error) {
 	return abs, nil
 }
 
-// getTmpDirs prints the tmp directory in which the weaver binary will
-// be stored on the remote machine. The tmp directories are produced using
-// a dry-run and are therefore unsafe. See: https://linux.die.net/man/1/mktemp
+// getTmpDirs returns the path to the tmp directories where
+// the weaver binaries will be stored at each remote location.
 func getTmpDirs(locs []string, depId string) (map[string]string, error) {
 	tmpDirs := make(map[string]string, len(locs))
 	for _, loc := range locs {
 		cmd := exec.Command("ssh", loc, "mktemp", "-u")
-
 		tmpDir, err := cmd.Output()
 		if err != nil {
 			return nil, err
 		}
-
 		tmpDirs[loc] = filepath.Join(strings.TrimSpace(string(tmpDir)), depId)
 	}
 
