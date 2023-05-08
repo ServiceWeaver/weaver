@@ -36,6 +36,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// config contains the options in the [multi] section of a weaver config file.
+type config struct {
+	MTLS bool `toml:"mtls"` // enable mTLS?
+}
+
+const (
+	configKey      = "github.com/ServiceWeaver/weaver/multi"
+	shortConfigKey = "multi"
+)
+
 var deployCmd = tool.Command{
 	Name:        "deploy",
 	Description: "Deploy a Service Weaver app",
@@ -61,19 +71,25 @@ func deploy(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
-	config, err := runtime.ParseConfig(configFile, string(bytes), codegen.ComponentConfigValidator)
+	appConfig, err := runtime.ParseConfig(configFile, string(bytes), codegen.ComponentConfigValidator)
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
 
 	// Sanity check the config.
-	if _, err := os.Stat(config.Binary); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("binary %q doesn't exist", config.Binary)
+	if _, err := os.Stat(appConfig.Binary); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("binary %q doesn't exist", appConfig.Binary)
+	}
+
+	// Parse the multi section of the config.
+	multiConfig := config{}
+	if err := runtime.ParseConfigSection(configKey, shortConfigKey, appConfig.Sections, &multiConfig); err != nil {
+		return fmt.Errorf("parse multi config: %w", err)
 	}
 
 	// Create the deployer.
 	deploymentId := uuid.New().String()
-	d, err := newDeployer(ctx, deploymentId, config)
+	d, err := newDeployer(ctx, deploymentId, appConfig, &multiConfig)
 	if err != nil {
 		return fmt.Errorf("create deployer: %w", err)
 	}
@@ -113,7 +129,7 @@ func deploy(ctx context.Context, args []string) error {
 	}
 	reg := status.Registration{
 		DeploymentId: deploymentId,
-		App:          config.Name,
+		App:          appConfig.Name,
 		Addr:         lis.Addr().String(),
 	}
 	fmt.Fprint(os.Stderr, reg.Rolodex())
@@ -132,9 +148,9 @@ func deploy(ctx context.Context, args []string) error {
 		// Wait for the user to kill the app or the app to return an error.
 		select {
 		case <-userDone:
-			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", config.Name)
+			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", appConfig.Name)
 		case err := <-deployerDone:
-			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", config.Name, err)
+			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", appConfig.Name, err)
 		}
 		if err := registry.Unregister(ctx, deploymentId); err != nil {
 			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
