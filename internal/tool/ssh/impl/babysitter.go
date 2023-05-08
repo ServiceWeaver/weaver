@@ -24,13 +24,13 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
-	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/slog"
@@ -131,12 +131,12 @@ func checkVersion(appVersion *protos.SemVer) error {
 	if appVersion == nil {
 		return fmt.Errorf("version mismatch: nil app version")
 	}
-	if appVersion.Major != runtime.Major ||
-		appVersion.Minor != runtime.Minor ||
-		appVersion.Patch != runtime.Patch {
+	if appVersion.Major != version.Major ||
+		appVersion.Minor != version.Minor ||
+		appVersion.Patch != version.Patch {
 		return fmt.Errorf(
 			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d.",
-			runtime.Major, runtime.Minor, runtime.Patch,
+			version.Major, version.Minor, version.Patch,
 			appVersion.Major, appVersion.Minor, appVersion.Patch,
 		)
 	}

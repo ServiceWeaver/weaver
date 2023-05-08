@@ -20,18 +20,13 @@ import (
 	"debug/macho"
 	"debug/pe"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
 
-// ReadComponentGraph reads component graph information from the specified
-// binary. The return value is a sequence [src,dst] edges where src and
-// dst are fully qualified component names. E.g.,
-//
-//	github.com/ServiceWeaver/weaver/Main
-func ReadComponentGraph(file string) ([][2]string, error) {
+// ROData returns the read-only data section of the provided binary.
+func ROData(file string) ([]byte, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -45,58 +40,43 @@ func ReadComponentGraph(file string) ([][2]string, error) {
 	}
 
 	// Handle the file formats we support.
-	var result [][2]string
 	switch {
 	case bytes.HasPrefix(prefix, []byte("\x7FELF")): // Linux
-		result, err = readElf(f)
+		f, err := elf.NewFile(f)
+		if err != nil {
+			return nil, err
+		}
+		return f.Section(".rodata").Data()
 	case bytes.HasPrefix(prefix, []byte("MZ")): // Windows
-		result, err = readPe(f)
+		f, err := pe.NewFile(f)
+		if err != nil {
+			return nil, err
+		}
+		return f.Section(".rdata").Data()
 	case bytes.HasPrefix(prefix, []byte("\xFE\xED\xFA")): // MacOS
-		result, err = readMacho(f)
+		f, err := macho.NewFile(f)
+		if err != nil {
+			return nil, err
+		}
+		return f.Section("__rodata").Data()
 	case bytes.HasPrefix(prefix[1:], []byte("\xFA\xED\xFE")): // MacOS
-		result, err = readMacho(f)
+		f, err := macho.NewFile(f)
+		if err != nil {
+			return nil, err
+		}
+		return f.Section("__rodata").Data()
 	default:
-		err = fmt.Errorf("unknown format")
+		return nil, fmt.Errorf("unknown format")
 	}
-	if err != nil {
-		return nil, fmt.Errorf("file %s: %w", file, err)
-	}
-	return result, nil
 }
 
-func readElf(in io.ReaderAt) ([][2]string, error) {
-	f, err := elf.NewFile(in)
-	if err != nil {
-		return nil, err
-	}
-	return searchSection(f.Section(".rodata"))
-}
-
-func readPe(in io.ReaderAt) ([][2]string, error) {
-	f, err := pe.NewFile(in)
-	if err != nil {
-		return nil, err
-	}
-	return searchSection(f.Section(".rdata"))
-}
-
-func readMacho(in io.ReaderAt) ([][2]string, error) {
-	f, err := macho.NewFile(in)
-	if err != nil {
-		return nil, err
-	}
-	return searchSection(f.Section("__rodata"))
-}
-
-type section interface {
-	Open() io.ReadSeeker
-}
-
-func searchSection(s section) ([][2]string, error) {
-	if s == nil {
-		return nil, fmt.Errorf("read-only data section not found")
-	}
-	data, err := io.ReadAll(s.Open())
+// ReadComponentGraph reads component graph information from the specified
+// binary. The return value is a sequence [src,dst] edges where src and
+// dst are fully qualified component names. E.g.,
+//
+//	github.com/ServiceWeaver/weaver/Main
+func ReadComponentGraph(file string) ([][2]string, error) {
+	data, err := ROData(file)
 	if err != nil {
 		return nil, err
 	}

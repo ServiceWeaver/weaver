@@ -12,7 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package runtime
+// Package version contains code related to deployer API versioning.
+package version
+
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+
+	"github.com/ServiceWeaver/weaver/runtime/bin"
+)
 
 const (
 	// The version of the deployer API---aka pipe API---in semantic version
@@ -38,6 +47,50 @@ const (
 	// TODO(mwhittaker): Write a doc explaining versioning in detail. Include
 	// Srdjan's comments in PR #219.
 	Major = 0
-	Minor = 8
+	Minor = 9
 	Patch = 0
 )
+
+// version exists to embed the deployer API version into a Service Weaver
+// binary. We split declaring and assigning version to prevent the compiler
+// from erasing it.
+//
+//nolint:unused
+var version string
+
+func init() {
+	version = "⟦wEaVeRvErSiOn:0.9.0⟧"
+}
+
+// ReadVersion reads version (major, minor, patch) from the specified binary.
+func ReadVersion(filename string) (int, int, int, error) {
+	data, err := bin.ROData(filename)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return extractVersion(data)
+}
+
+// extractVersion returns the version (major, minor, patch) corresponding to
+// MakeVersionString() embedded in data.
+func extractVersion(data []byte) (int, int, int, error) {
+	re := regexp.MustCompile(`⟦wEaVeRvErSiOn:([0-9]*?)\.([0-9]*?)\.([0-9]*?)⟧`)
+	m := re.FindSubmatch(data)
+	if m == nil {
+		return 0, 0, 0, fmt.Errorf("version not found")
+	}
+	major, minor, patch := string(m[1]), string(m[2]), string(m[3])
+	ma, err := strconv.Atoi(major)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("invalid major %q: %w", major, err)
+	}
+	mi, err := strconv.Atoi(minor)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("invalid minor %q: %w", minor, err)
+	}
+	pa, err := strconv.Atoi(patch)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("invalid patch %q: %w", patch, err)
+	}
+	return ma, mi, pa, nil
+}
