@@ -297,7 +297,11 @@ func serve(ctx context.Context, app *app) error {
 
     // Serve the /hello endpoint.
     http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-        reversed, err := app.reverser.Get().Reverse(ctx, "!dlroW ,olleH")
+        name := r.URL.Query().Get("name")
+        if name == "" {
+            name = "World"
+        }
+        reversed, err := app.reverser.Get().Reverse(ctx, name)
         if err != nil {
             http.Error(w, err.Error(), http.StatusInternalServerError)
             return
