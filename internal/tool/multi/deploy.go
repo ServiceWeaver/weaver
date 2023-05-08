@@ -33,6 +33,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/uuid"
 )
 
@@ -85,6 +86,17 @@ func deploy(ctx context.Context, args []string) error {
 	multiConfig := config{}
 	if err := runtime.ParseConfigSection(configKey, shortConfigKey, appConfig.Sections, &multiConfig); err != nil {
 		return fmt.Errorf("parse multi config: %w", err)
+	}
+	major, minor, patch, err := version.ReadVersion(appConfig.Binary)
+	if err != nil {
+		return fmt.Errorf("read binary version: %w", err)
+	}
+	if major != version.Major || minor != version.Minor || patch != version.Patch {
+		return fmt.Errorf(
+			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d",
+			version.Major, version.Minor, version.Patch,
+			major, minor, patch,
+		)
 	}
 
 	// Create the deployer.
