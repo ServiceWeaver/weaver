@@ -28,6 +28,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
 // WeaveletHandler handles messages from the envelope. A handler should not
@@ -107,9 +108,9 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 		DialAddr: dialAddr,
 		Pid:      int64(os.Getpid()),
 		Version: &protos.SemVer{
-			Major: runtime.Major,
-			Minor: runtime.Minor,
-			Patch: runtime.Patch,
+			Major: version.Major,
+			Minor: version.Minor,
+			Patch: version.Patch,
 		},
 		Components: components,
 	}

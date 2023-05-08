@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	rt "github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
 // VersionCmd returns a command to show a deployer's version.
@@ -32,7 +32,7 @@ func VersionCmd(tool string) *Command {
 		Description: fmt.Sprintf("Show %q version", tool),
 		Help:        fmt.Sprintf("Usage:\n  %s version", tool),
 		Fn: func(context.Context, []string) error {
-			semver := fmt.Sprintf("%d.%d.%d", rt.Major, rt.Minor, rt.Patch)
+			semver := fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
 			commit := "?"
 			if info, ok := debug.ReadBuildInfo(); ok {
 				for _, setting := range info.Settings {
