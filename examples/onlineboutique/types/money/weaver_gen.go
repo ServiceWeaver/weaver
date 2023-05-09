@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
-
+var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 // Local stub implementations.
 

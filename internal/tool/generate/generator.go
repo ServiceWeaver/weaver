@@ -782,6 +782,7 @@ func (g *generator) generate() error {
 		fn := func(format string, args ...interface{}) {
 			fmt.Fprintln(&body, fmt.Sprintf(format, args...))
 		}
+		g.generateVersionCheck(fn)
 		g.generateRegisteredComponents(fn)
 		g.generateLocalStubs(fn)
 		g.generateClientStubs(fn)
@@ -878,6 +879,17 @@ func (g *generator) generateImports(p printFn) {
 		}
 	}
 	p(`)`)
+}
+
+func (g *generator) generateVersionCheck(p printFn) {
+	// Example output when 'weaver generate' has codegen API version 0.1.0:
+	//
+	//     var _ codegen.LatestVersion = codegen.Version[[0][1]struct{}]("You used ...")
+	p(`var _ %s = %s[[%d][%d]struct{}](%q)`,
+		g.codegen().qualify("LatestVersion"), g.codegen().qualify("Version"),
+		codegen.Major, codegen.Minor,
+		fmt.Sprintf(`You used 'weaver generate' codegen version %d.%d.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.`, codegen.Major, codegen.Minor),
+	)
 }
 
 // generateRegisteredComponents generates code that registers the components with Service Weaver.
