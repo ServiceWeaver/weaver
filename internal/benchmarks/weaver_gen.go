@@ -16,6 +16,8 @@ import (
 )
 
 func init() {
+	codegen.ReportVersion(0, 9, 0)
+
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1",
 		Iface:       reflect.TypeOf((*Ping1)(nil)).Elem(),

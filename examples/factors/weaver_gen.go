@@ -15,6 +15,8 @@ import (
 )
 
 func init() {
+	codegen.ReportVersion(0, 9, 0)
+
 	codegen.Register(codegen.Registration{
 		Name:   "github.com/ServiceWeaver/weaver/examples/factors/Factorer",
 		Iface:  reflect.TypeOf((*Factorer)(nil)).Elem(),

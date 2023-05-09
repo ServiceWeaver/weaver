@@ -12,6 +12,8 @@ import (
 )
 
 func init() {
+	codegen.ReportVersion(0, 9, 0)
+
 	codegen.Register(codegen.Registration{
 		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A",
 		Iface:        reflect.TypeOf((*A)(nil)).Elem(),

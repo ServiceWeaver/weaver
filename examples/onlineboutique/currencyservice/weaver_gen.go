@@ -16,6 +16,8 @@ import (
 )
 
 func init() {
+	codegen.ReportVersion(0, 9, 0)
+
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice/T",
 		Iface:       reflect.TypeOf((*T)(nil)).Elem(),

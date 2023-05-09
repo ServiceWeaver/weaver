@@ -889,6 +889,8 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 	g.tset.importPackage("context", "context")
 	p(``)
 	p(`func init() {`)
+	p(`	%s(%d, %d, %d)`, g.codegen().qualify("ReportVersion"), codegen.Major, codegen.Minor, codegen.Patch)
+	p(`	`)
 	for _, comp := range g.components {
 		name := comp.intfName()
 
