@@ -618,6 +618,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh
     os/signal
     os/user
     path/filepath
+    strings
     syscall
 github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     context

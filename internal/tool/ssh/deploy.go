@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/google/uuid"
@@ -87,12 +88,13 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Copy the binaries to each location.
-	if err := copyBinaries(locs, dep); err != nil {
+	locations, err := copyBinaries(locs, dep)
+	if err != nil {
 		return err
 	}
 
 	// Run the manager.
-	stopFn, err := impl.RunManager(ctx, dep, locs)
+	stopFn, err := impl.RunManager(ctx, dep, locations)
 	if err != nil {
 		return fmt.Errorf("cannot instantiate the manager: %w", err)
 	}
@@ -131,30 +133,36 @@ func deploy(ctx context.Context, args []string) error {
 	}
 }
 
-// copyBinaries copies the tool and the application binary to the given set
-// of locations.
-func copyBinaries(locs []string, dep *protos.Deployment) error {
+// copyBinaries copies the tool and the application binary
+// to the given set of locations. It produces a map which
+// returns the paths to the directories where the binaries
+// were copied, keyed by locations.
+func copyBinaries(locs []string, dep *protos.Deployment) (map[string]string, error) {
 	ex, err := os.Executable()
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	tmpDirs, err := getTmpDirs(locs, dep.Id)
+	if err != nil {
+		return nil, err
 	}
 
 	binary := dep.App.Binary
-	remoteDepDir := filepath.Join(os.TempDir(), dep.Id)
-	dep.App.Binary = filepath.Join(remoteDepDir, filepath.Base(dep.App.Binary))
-	for _, loc := range locs {
-		// Make an app deployment directory at each location.
-		cmd := exec.Command("ssh", loc, "mkdir", "-p", remoteDepDir)
+
+	for loc, tmpDir := range tmpDirs {
+		cmd := exec.Command("ssh", loc, "mkdir", "-p", tmpDir)
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("unable to create deployment directory at location %s: %w\n", loc, err)
+			return nil, fmt.Errorf("unable to create deployment directory at location %s: %w\n", loc, err)
 		}
 
-		cmd = exec.Command("scp", ex, binary, loc+":"+remoteDepDir)
+		cmd = exec.Command("scp", ex, binary, loc+":"+tmpDir)
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("unable to copy app binary at location %s: %w\n", loc, err)
+			return nil, fmt.Errorf("unable to copy app binary at location %s: %w\n", loc, err)
 		}
 	}
-	return nil
+
+	return tmpDirs, nil
 }
 
 // terminateDeployment terminates all the processes corresponding to the deployment
@@ -227,4 +235,20 @@ func getAbsoluteFilePath(file string) (string, error) {
 		return "", fmt.Errorf("unable to find file %s: %w", file, err)
 	}
 	return abs, nil
+}
+
+// getTmpDirs returns the path to the tmp directories where
+// the weaver binaries will be stored at each remote location.
+func getTmpDirs(locs []string, depId string) (map[string]string, error) {
+	tmpDirs := make(map[string]string, len(locs))
+	for _, loc := range locs {
+		cmd := exec.Command("ssh", loc, "mktemp", "-u")
+		tmpDir, err := cmd.Output()
+		if err != nil {
+			return nil, err
+		}
+		tmpDirs[loc] = filepath.Join(strings.TrimSpace(string(tmpDir)), depId)
+	}
+
+	return tmpDirs, nil
 }
