@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -289,4 +290,15 @@ func TestTracesReadWrite(t *testing.T) {
 	); diff != "" {
 		t.Fatalf("span: (-want,+got):\n%s\n", diff)
 	}
+}
+
+// Register a dummy component for test.
+func init() {
+	type A interface{}
+
+	type aimpl struct {
+		weaver.Implements[A]
+	}
+
+	register[A, aimpl]("conn_test/A")
 }

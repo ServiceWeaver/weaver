@@ -19,14 +19,18 @@ import (
 	"errors"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // We test the combination of conn, EnvelopeConn, WeaveletConn here.
@@ -155,7 +159,7 @@ type handlerForTest struct{}
 
 var _ conn.EnvelopeHandler = &handlerForTest{}
 
-func (*handlerForTest) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error {
+func (*handlerForTest) HandleTraceSpans(context.Context, []sdktrace.ReadOnlySpan) error {
 	return nil
 }
 
@@ -181,4 +185,27 @@ func (*handlerForTest) VerifyClientCertificate(context.Context, *protos.VerifyCl
 
 func (*handlerForTest) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
 	panic("unused")
+}
+
+func register[Intf, Impl any](name string) {
+	var zero Impl
+	codegen.Register(codegen.Registration{
+		Name:         name,
+		Iface:        reflect.TypeOf((*Intf)(nil)).Elem(),
+		Impl:         reflect.TypeOf(zero),
+		LocalStubFn:  func(any, trace.Tracer) any { return nil },
+		ClientStubFn: func(codegen.Stub, string) any { return nil },
+		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
+	})
+}
+
+// Register a dummy component for test.
+func init() {
+	type A interface{}
+
+	type aimpl struct {
+		weaver.Implements[A]
+	}
+
+	register[A, aimpl]("conn_test/A")
 }
