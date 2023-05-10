@@ -38,6 +38,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
@@ -56,6 +57,7 @@ type deployer struct {
 	ctxCancel    context.CancelFunc
 	deploymentId string
 	config       *protos.AppConfig
+	multiConfig  *config
 	started      time.Time
 	logger       *slog.Logger
 	caCert       *x509.Certificate
@@ -121,7 +123,7 @@ var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer creates a new deployer. The deployer can be stopped at any
 // time by canceling the passed-in context.
-func newDeployer(ctx context.Context, deploymentId string, config *protos.AppConfig) (*deployer, error) {
+func newDeployer(ctx context.Context, deploymentId string, config *protos.AppConfig, multiConfig *config) (*deployer, error) {
 	// Create the log saver.
 	logsDB, err := logging.NewFileStore(logDir)
 	if err != nil {
@@ -136,9 +138,13 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		},
 		Write: logsDB.Add,
 	})
-	caCert, caKey, err := certs.GenerateCACert()
-	if err != nil {
-		return nil, fmt.Errorf("cannot generate signing certificate: %w", err)
+	var caCert *x509.Certificate
+	var caKey crypto.PrivateKey
+	if multiConfig.MTLS {
+		caCert, caKey, err = certs.GenerateCACert()
+		if err != nil {
+			return nil, fmt.Errorf("cannot generate signing certificate: %w", err)
+		}
 	}
 
 	// Create the trace saver.
@@ -167,6 +173,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		statsProcessor: imetrics.NewStatsProcessor(),
 		deploymentId:   deploymentId,
 		config:         config,
+		multiConfig:    multiConfig,
 		started:        time.Now(),
 		colocation:     colocation,
 		groups:         map[string]*group{},
@@ -270,13 +277,20 @@ func (d *deployer) startColocationGroup(g *group) error {
 	components := maps.Keys(g.components)
 	for r := 0; r < defaultReplication; r++ {
 		// Generate a signed certificate that encodes the group name.
-		cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, g.name)
-		if err != nil {
-			return fmt.Errorf("cannot generate cert: %w", err)
-		}
-		certPEM, keyPEM, err := certs.PEMEncode(cert, key)
-		if err != nil {
-			return fmt.Errorf("cannot PEM-encode cert: %w", err)
+		//
+		// TODO(spetrovic): Create one cert per group rather than per replica?
+		// If you increase the default replication from 2 to something like 10,
+		// this takes a long long time.
+		var certPEM, keyPEM []byte
+		if d.multiConfig.MTLS {
+			cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, g.name)
+			if err != nil {
+				return fmt.Errorf("cannot generate cert: %w", err)
+			}
+			certPEM, keyPEM, err = certs.PEMEncode(cert, key)
+			if err != nil {
+				return fmt.Errorf("cannot PEM-encode cert: %w", err)
+			}
 		}
 
 		// Start the weavelet and capture its logs, traces, and metrics.
@@ -332,12 +346,12 @@ func checkVersion(appVersion *protos.SemVer) error {
 	if appVersion == nil {
 		return fmt.Errorf("version mismatch: nil app version")
 	}
-	if appVersion.Major != runtime.Major ||
-		appVersion.Minor != runtime.Minor ||
-		appVersion.Patch != runtime.Patch {
+	if appVersion.Major != version.Major ||
+		appVersion.Minor != version.Minor ||
+		appVersion.Patch != version.Patch {
 		return fmt.Errorf(
 			"version mismatch: deployer version %d.%d.%d is incompatible with app version %d.%d.%d.",
-			runtime.Major, runtime.Minor, runtime.Patch,
+			version.Major, version.Minor, version.Patch,
 			appVersion.Major, appVersion.Minor, appVersion.Patch,
 		)
 	}

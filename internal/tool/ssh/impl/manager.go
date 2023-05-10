@@ -71,8 +71,8 @@ var (
 	// The directories and files where "weaver ssh" stores data.
 	//
 	// TODO(mwhittaker): Take these as arguments and move them to ssh.go.
+	LogDir       = filepath.Join(runtime.LogsDir(), "ssh")
 	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "ssh")
-	LogDir       = filepath.Join(dataDir, "logs")
 	registryDir  = filepath.Join(dataDir, "registry")
 	PerfettoFile = filepath.Join(dataDir, "perfetto.db")
 )

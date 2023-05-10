@@ -28,8 +28,8 @@ import (
 
 var (
 	// The directories and files where "weaver multi" stores data.
+	logDir       = filepath.Join(runtime.LogsDir(), "multi")
 	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "multi")
-	logDir       = filepath.Join(dataDir, "logs")
 	registryDir  = filepath.Join(dataDir, "registry")
 	perfettoFile = filepath.Join(dataDir, "perfetto.db")
 
@@ -50,7 +50,7 @@ var (
 	purgeSpec = &tool.PurgeSpec{
 		Tool:  "weaver multi",
 		Kill:  "weaver multi (dashboard|deploy|logs|profile)",
-		Paths: []string{dataDir},
+		Paths: []string{logDir, dataDir},
 	}
 
 	Commands = map[string]*tool.Command{
