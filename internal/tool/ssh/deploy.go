@@ -30,6 +30,7 @@ import (
 	"syscall"
 
 	"github.com/google/uuid"
+	"golang.org/x/exp/maps"
 
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -204,17 +205,21 @@ func getLocations(app *protos.AppConfig) ([]string, error) {
 	}
 	defer readFile.Close()
 
+	locations := map[string]bool{}
 	fileScanner := bufio.NewScanner(readFile)
 	fileScanner.Split(bufio.ScanLines)
-	var locations []string
 	for fileScanner.Scan() {
-		locations = append(locations, fileScanner.Text())
+		loc := fileScanner.Text()
+		if _, ok := locations[loc]; ok {
+			return nil, fmt.Errorf("no duplicate locations allowed to deploy using the ssh deployer")
+		}
+		locations[loc] = true
 	}
 
 	if len(locations) == 0 {
 		return nil, fmt.Errorf("no locations to deploy using the ssh deployer")
 	}
-	return locations, nil
+	return maps.Keys(locations), nil
 }
 
 // getAbsoluteFilePath returns the absolute path for a file.

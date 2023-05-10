@@ -611,6 +611,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/google/uuid
+    golang.org/x/exp/maps
     io
     os
     os/exec
