@@ -180,3 +180,19 @@ func TestRoutedCall(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkCall(b *testing.B) {
+	for _, single := range []bool{true, false} {
+		opt := weavertest.Options{SingleProcess: single}
+		b.Run(fmt.Sprintf("Single=%t", single), func(b *testing.B) {
+			weavertest.Run(b, opt, func(dst simple.Destination) {
+				for i := 0; i < b.N; i++ {
+					_, err := dst.Getpid(context.Background())
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		})
+	}
+}

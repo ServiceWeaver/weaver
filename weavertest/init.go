@@ -69,6 +69,7 @@ type testMainInterface interface{}
 //	func(ComponentType, ComponentType2)
 //	...
 func Run(t testing.TB, opts Options, testBody any) {
+	_, isBench := t.(*testing.B)
 	t.Helper()
 	runner, err := checkRunFunc(testBody)
 	if err != nil {
@@ -119,7 +120,7 @@ func Run(t testing.TB, opts Options, testBody any) {
 	if opts.SingleProcess {
 		ctx = initSingleProcess(ctx, opts.Config)
 	} else {
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), opts.Config, logWriter)
+		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, opts.Config, logWriter)
 		if err != nil {
 			t.Fatal(err)
 		}

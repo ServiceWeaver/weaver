@@ -27,6 +27,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const matchNothingRE = "a^" // Regular expression that never matches
+
 // initMultiProcess initializes a brand new multi-process execution environment
 // that places every component in its own collocation group. It returns a
 // function that can be used to stop the execution.
@@ -38,7 +40,7 @@ import (
 // component level configs. config is allowed to be empty.
 //
 // Future extension: allow options so the user can control collocation/replication/etc.
-func initMultiProcess(ctx context.Context, name string, config string, logWriter func(string)) (context.Context, func() error, error) {
+func initMultiProcess(ctx context.Context, name string, isBench bool, config string, logWriter func(string)) (context.Context, func() error, error) {
 	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -77,7 +79,12 @@ func initMultiProcess(ctx context.Context, name string, config string, logWriter
 	}
 	appConfig.Name = strings.ReplaceAll(name, "/", "_")
 	appConfig.Binary = exe
-	appConfig.Args = []string{"-test.run", "^" + regexp.QuoteMeta(name) + "$"}
+	nameRE := "^" + regexp.QuoteMeta(name) + "$"
+	if isBench {
+		appConfig.Args = []string{"-test.run", matchNothingRE, "-test.bench", nameRE}
+	} else {
+		appConfig.Args = []string{"-test.run", nameRE}
+	}
 
 	wlet := &protos.EnvelopeInfo{
 		App:           appConfig.Name,
