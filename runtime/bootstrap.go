@@ -43,6 +43,7 @@ type Bootstrap struct {
 	ToWeaveletFile *os.File // Pipe to send to weavelet (weavertest only).
 	ToEnvelopeFile *os.File // Pipe to send to envelope (weavertest only).
 	TestConfig     string   // Config file contents (weavertest only).
+	Quiet          bool     // Don't log or print anything.
 }
 
 // BootstrapKey is the Context key used by weavertest to pass Bootstrap to [weaver.Run].

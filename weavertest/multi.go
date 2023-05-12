@@ -40,7 +40,7 @@ const matchNothingRE = "a^" // Regular expression that never matches
 // component level configs. config is allowed to be empty.
 //
 // Future extension: allow options so the user can control collocation/replication/etc.
-func initMultiProcess(ctx context.Context, name string, isBench bool, config string, logWriter func(string)) (context.Context, func() error, error) {
+func initMultiProcess(ctx context.Context, name string, isBench bool, config string, logWriter func(*protos.LogEntry)) (context.Context, func() error, error) {
 	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
 		return nil, nil, err

@@ -23,9 +23,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/runtime"
-	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -54,11 +52,11 @@ const DefaultReplication = 2
 type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
-	wlet       *protos.EnvelopeInfo // info for subprocesses
-	config     *protos.AppConfig    // application config
-	colocation map[string]string    // maps component to group
-	running    errgroup.Group       // collects errors from goroutines
-	log        func(string)         // logs the passed in string
+	wlet       *protos.EnvelopeInfo   // info for subprocesses
+	config     *protos.AppConfig      // application config
+	colocation map[string]string      // maps component to group
+	running    errgroup.Group         // collects errors from goroutines
+	log        func(*protos.LogEntry) // logs the passed in string
 
 	mu     sync.Mutex        // guards fields below
 	groups map[string]*group // groups, by group name
@@ -103,7 +101,7 @@ type connection struct {
 var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer returns a new weavertest multiprocess deployer.
-func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, logWriter func(string)) *deployer {
+func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, logWriter func(*protos.LogEntry)) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
 		for _, c := range group.Components {
@@ -220,7 +218,7 @@ func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) err
 	// every log entry. If we used a single pretty printer, it would
 	// perform dimming, but when the dimmed output is interspersed with
 	// various other test logs, it is confusing.
-	d.log(logging.NewPrettyPrinter(colors.Enabled()).Format(entry))
+	d.log(entry)
 	return nil
 }
 

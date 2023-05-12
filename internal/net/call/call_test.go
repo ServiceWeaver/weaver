@@ -258,7 +258,7 @@ func getClientConn(t testing.TB, protocol string, endpoint call.Endpoint, maker 
 	t.Helper()
 	ctx := context.Background()
 
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, maker(endpoint), opts)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
@@ -311,7 +311,7 @@ func (p *pipeEndpoint) Dial(context.Context) (net.Conn, error) {
 	client, server := pipe(p.t)
 	// Note: do not use passed in context since we want the server to
 	// be independent of the context in which the client is running.
-	opts := call.ServerOptions{Logger: logging.NewTestLogger(p.t)}
+	opts := call.ServerOptions{Logger: logging.NewTestSlogger(p.t)}
 	call.ServeOn(context.Background(), server, p.handlers, opts)
 	return client, nil
 }
@@ -551,7 +551,7 @@ func TestSingleTCPServer(t *testing.T) {
 	protocols := []string{"tcp", "mtls"}
 
 	ctx := context.Background()
-	opts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	endpoints := startServers(ctx, opts)
 
 	// Run all of the subtests on a single connection.
@@ -587,7 +587,7 @@ func TestTracePropagation(t *testing.T) {
 	h := &call.HandlerMap{}
 	h.Set("", "trace", traceHandler(span.SpanContext()))
 	ep := pipeEndpoint{t: t, handlers: h}
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(context.Background(), call.NewConstantResolver(&ep), opts)
 	if err != nil {
 		t.Fatal(err)
@@ -607,7 +607,7 @@ func TestMultipleEndpoints(t *testing.T) {
 			resolver := maker(server(t, "0"), server(t, "1"), server(t, "2"))
 			options := call.ClientOptions{
 				Balancer: call.RoundRobin(),
-				Logger:   logging.NewTestLogger(t),
+				Logger:   logging.NewTestSlogger(t),
 			}
 			client, err := call.Connect(ctx, resolver, options)
 			if err != nil {
@@ -633,7 +633,7 @@ func TestChangingEndpoints(t *testing.T) {
 	n := 3
 	ctx := context.Background()
 	resolver := newDynamicResolver()
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -661,7 +661,7 @@ func TestShardedBalancer(t *testing.T) {
 	resolver := call.NewConstantResolver(s1, s2, s3)
 	opts := call.ClientOptions{
 		Balancer: call.Sharded(),
-		Logger:   logging.NewTestLogger(t),
+		Logger:   logging.NewTestSlogger(t),
 	}
 	client, err := call.Connect(ctx, resolver, opts)
 	if err != nil {
@@ -706,7 +706,7 @@ func TestCallOptionsBalancer(t *testing.T) {
 	ctx := context.Background()
 	s1, s2, s3 := server(t, "1"), server(t, "2"), server(t, "3")
 	resolver := call.NewConstantResolver(s1, s2, s3)
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -753,7 +753,7 @@ func TestCallOptionsBalancer(t *testing.T) {
 // constant resolver that returns no endpoints.
 func TestNoEndpointsConstant(t *testing.T) {
 	ctx := context.Background()
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	_, err := call.Connect(ctx, call.NewConstantResolver(), opts)
 	if err == nil {
 		t.Fatal("unexpected success when expecting error")
@@ -772,7 +772,7 @@ func TestNoEndpointsNonConstant(t *testing.T) {
 
 	// Connecting with a non-constant resolver isn't an error because the
 	// resolver may return endpoints later.
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -811,7 +811,7 @@ func TestEndpointsRetained(t *testing.T) {
 
 	// Construct the network.
 	c, s := pipe(t)
-	sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	call.ServeOn(ctx, s, handlersFor("1"), sopts)
 	m := &closeMock{connWrapper: connWrapper{c}}
 	server1 := &connEndpoint{"1", m}
@@ -819,7 +819,7 @@ func TestEndpointsRetained(t *testing.T) {
 
 	// Construct the client.
 	resolver := newDynamicResolver(server1)
-	copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -853,7 +853,7 @@ func TestDraining(t *testing.T) {
 
 	// Construct the network.
 	c, s := pipe(t)
-	sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	call.ServeOn(ctx, s, handlersFor("1"), sopts)
 	m := &closeMock{connWrapper: connWrapper{c}}
 	server1 := &connEndpoint{"1", m}
@@ -861,7 +861,7 @@ func TestDraining(t *testing.T) {
 
 	// Construct the client.
 	resolver := newDynamicResolver(server1)
-	copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		t.Fatal(err)
@@ -916,7 +916,7 @@ func TestNoActiveDraining(t *testing.T) {
 
 	// Construct the network.
 	c, s := pipe(t)
-	sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	call.ServeOn(ctx, s, handlersFor("1"), sopts)
 	m := &closeMock{connWrapper: connWrapper{c}}
 	server1 := &connEndpoint{"1", m}
@@ -924,7 +924,7 @@ func TestNoActiveDraining(t *testing.T) {
 
 	// Construct the client.
 	resolver := newDynamicResolver(server1)
-	copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		t.Fatal(err)
@@ -960,7 +960,7 @@ func TestCloseDraining(t *testing.T) {
 
 	// Construct the network.
 	c, s := pipe(t)
-	sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	call.ServeOn(ctx, s, handlersFor("1"), sopts)
 	m := &closeMock{connWrapper: connWrapper{c}}
 	server1 := &connEndpoint{"1", m}
@@ -968,7 +968,7 @@ func TestCloseDraining(t *testing.T) {
 
 	// Construct the client.
 	resolver := newDynamicResolver(server1)
-	copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		t.Fatal(err)
@@ -1005,7 +1005,7 @@ func TestRememberDraining(t *testing.T) {
 
 	// Construct the network.
 	c, s := pipe(t)
-	sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	call.ServeOn(ctx, s, handlers, sopts)
 	m := &closeMock{connWrapper: connWrapper{c}}
 	server1 := &connEndpoint{"1", m}
@@ -1014,7 +1014,7 @@ func TestRememberDraining(t *testing.T) {
 
 	// Construct the client.
 	resolver := newDynamicResolver(server1)
-	copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		t.Fatal(err)
@@ -1053,7 +1053,7 @@ func TestRefreshDraining(t *testing.T) {
 
 	// Construct the network.
 	c, s := pipe(t)
-	sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 	call.ServeOn(ctx, s, handlersFor("1"), sopts)
 	m := &closeMock{connWrapper: connWrapper{c}}
 	server1 := &connEndpoint{"1", m}
@@ -1061,7 +1061,7 @@ func TestRefreshDraining(t *testing.T) {
 
 	// Construct the client.
 	resolver := newDynamicResolver(server1)
-	copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		t.Fatal(err)
@@ -1099,10 +1099,10 @@ func TestCommunicationErrors(t *testing.T) {
 			defer cancelFunc()
 
 			c, s := pipe(t)
-			sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+			sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 			call.ServeOn(ctx, s, handlers, sopts)
 			endpoint := &connEndpoint{"server", c}
-			copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+			copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 			client, err := call.Connect(ctx, maker(endpoint), copts)
 			if err != nil {
 				t.Fatal(err)
@@ -1163,10 +1163,10 @@ func TestWriteError(t *testing.T) {
 				c = &readErrorInjector{connWrapper: connWrapper{c}, limit: limit}
 			}
 
-			sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+			sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 			call.ServeOn(ctx, s, handlers, sopts)
 			endpoint := &connEndpoint{"server", c}
-			copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+			copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 			client, err := call.Connect(ctx, test.maker(endpoint), copts)
 			if err != nil {
 				t.Fatal(err)
@@ -1212,13 +1212,13 @@ func TestReconnect(t *testing.T) {
 			for i := range conns {
 				c, s := pipe(t)
 				conns[i] = &writeErrorInjector{connWrapper: connWrapper{c}, limit: limit}
-				sopts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+				sopts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 				call.ServeOn(ctx, s, handlers, sopts)
 			}
 
 			// Make a client that uses the created connections in order.
 			endpoint := &connsEndpoint{name: "server", conns: conns}
-			copts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+			copts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 			client, err := call.Connect(ctx, maker(endpoint), copts)
 			if err != nil {
 				t.Fatal(err)
@@ -1258,7 +1258,7 @@ func TestPartialFailure(t *testing.T) {
 			resolver := maker(server1, server2)
 			options := call.ClientOptions{
 				Balancer: call.RoundRobin(),
-				Logger:   logging.NewTestLogger(t),
+				Logger:   logging.NewTestSlogger(t),
 			}
 			client, err := call.Connect(ctx, resolver, options)
 			if err != nil {
@@ -1293,7 +1293,7 @@ func TestManyEndpointChanges(t *testing.T) {
 	numChanges := 25
 	numCallers := 5
 	resolver := newDynamicResolver(servers(t, numServers)...)
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, opts)
 	if err != nil {
 		t.Fatal(err)
@@ -1360,7 +1360,7 @@ func TestResolverError(t *testing.T) {
 	// Create the client.
 	ctx := context.Background()
 	resolver := &failResolver{}
-	opts := call.ClientOptions{Logger: logging.NewTestLogger(t)}
+	opts := call.ClientOptions{Logger: logging.NewTestSlogger(t)}
 	client, err := call.Connect(ctx, resolver, opts)
 	if err != nil {
 		t.Fatal(err)
@@ -1376,7 +1376,7 @@ func TestResolverError(t *testing.T) {
 
 func BenchmarkCall(b *testing.B) {
 	ctx := context.Background()
-	opts := call.ServerOptions{Logger: logging.NewTestLogger(b)}
+	opts := call.ServerOptions{Logger: logging.NewTestSlogger(b)}
 	endpoints := startServers(ctx, opts)
 
 	for resolverName, maker := range resolverMakers {
@@ -1415,7 +1415,7 @@ func TestCancelServe(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		opts := call.ServerOptions{Logger: logging.NewTestLogger(t)}
+		opts := call.ServerOptions{Logger: logging.NewTestSlogger(t)}
 		err := call.Serve(ctx, testListener{Listener: lis}, opts)
 		if err != ctx.Err() {
 			t.Errorf("unexpected error from Serve: %v", err)

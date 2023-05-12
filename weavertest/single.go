@@ -16,6 +16,7 @@ package weavertest
 
 import (
 	"context"
+	"testing"
 
 	"github.com/ServiceWeaver/weaver/runtime"
 )
@@ -28,5 +29,6 @@ import (
 func initSingleProcess(ctx context.Context, config string) context.Context {
 	return context.WithValue(ctx, runtime.BootstrapKey{}, runtime.Bootstrap{
 		TestConfig: config,
+		Quiet:      !testing.Verbose(),
 	})
 }
