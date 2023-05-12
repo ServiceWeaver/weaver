@@ -49,9 +49,10 @@ import (
 
 // singleprocessEnv implements the env used for singleprocess Service Weaver applications.
 type singleprocessEnv struct {
-	ctx    context.Context
-	info   *protos.EnvelopeInfo
-	config *protos.AppConfig
+	ctx       context.Context
+	bootstrap runtime.Bootstrap
+	info      *protos.EnvelopeInfo
+	config    *protos.AppConfig
 
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
@@ -123,6 +124,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 
 	env := &singleprocessEnv{
 		ctx:            ctx,
+		bootstrap:      bootstrap,
 		info:           wlet,
 		config:         appConfig,
 		submissionTime: time.Now(),
@@ -203,7 +205,9 @@ func (e *singleprocessEnv) serveStatus(ctx context.Context) error {
 		App:          e.info.App,
 		Addr:         lis.Addr().String(),
 	}
-	fmt.Fprint(os.Stderr, reg.Rolodex())
+	if !e.bootstrap.Quiet {
+		fmt.Fprint(os.Stderr, reg.Rolodex())
+	}
 	if err := registry.Register(ctx, reg); err != nil {
 		return err
 	}
@@ -314,7 +318,14 @@ func (e *singleprocessEnv) Profile(_ context.Context, req *protos.GetProfileRequ
 func (e *singleprocessEnv) CreateLogSaver() func(entry *protos.LogEntry) {
 	pp := logging.NewPrettyPrinter(colors.Enabled())
 	return func(entry *protos.LogEntry) {
-		fmt.Fprintln(os.Stderr, pp.Format(entry))
+		msg := pp.Format(entry)
+		if e.bootstrap.Quiet {
+			// Note that we format the log entry regardless of whether we print
+			// it so that benchmark results are not skewed significantly by the
+			// presence of the -test.v flag.
+			return
+		}
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 

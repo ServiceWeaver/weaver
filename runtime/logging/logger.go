@@ -129,41 +129,59 @@ func StderrLogger(opts Options) *slog.Logger {
 	return slog.New(&LogHandler{Opts: opts, Write: writeText})
 }
 
-// testLogger implements a logger for tests.
-type testLogger struct {
+// TestLogger implements a logger for tests.
+type TestLogger struct {
 	t        testing.TB     // logs until t finishes
 	pp       *PrettyPrinter // pretty prints log entries
 	mu       sync.Mutex     // guards finished
 	finished bool           // has t finished?
 }
 
-// log logs the provided log entry using t.log.
-func (t *testLogger) log(entry *protos.LogEntry) {
+// Log logs the provided Log entry using t.Log.
+func (t *TestLogger) Log(entry *protos.LogEntry) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.finished {
-		// If the test is finished, Log may panic if called, so don't log
-		// anything.
-		return
-	}
+
 	entry.TimeMicros = time.Now().UnixMicro()
-	t.t.Log(t.pp.Format(entry))
+	if t.pp == nil {
+		t.pp = NewPrettyPrinter(colors.Enabled())
+	}
+
+	msg := t.pp.Format(entry)
+	switch {
+	case !testing.Verbose():
+		// If -test.v isn't provided, don't log anything. Note that writing to
+		// t.Log isn't sufficient because B.Log ignores -test.v [1]. We
+		// override this behavior because, otherwise, weavertest benchmark
+		// results are polluted with logs and are very hard to read.
+		//
+		// [1]: https://pkg.go.dev/testing#B.Log
+	case t.finished:
+		// If the test is finished, Log may panic if called. Instead, we write
+		// to stderr so we don't lose useful debugging information.
+		fmt.Fprintln(os.Stderr, msg)
+	default:
+		t.t.Log(msg)
+	}
 }
 
-// silence prevents any future log entries from being logged.
-func (t *testLogger) silence() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.finished = true
+// NewTestLogger returns a new TestLogger.
+func NewTestLogger(t testing.TB) *TestLogger {
+	logger := &TestLogger{t: t}
+	t.Cleanup(func() {
+		logger.mu.Lock()
+		defer logger.mu.Unlock()
+		logger.finished = true
+	})
+	return logger
 }
 
-// NewTestLogger returns a new logger for tests.
-func NewTestLogger(t testing.TB) *slog.Logger {
-	th := &testLogger{t: t, pp: NewPrettyPrinter(colors.Enabled())}
-	t.Cleanup(th.silence)
+// NewTestSlogger returns a new logger for tests.
+func NewTestSlogger(t testing.TB) *slog.Logger {
+	logger := NewTestLogger(t)
 	return slog.New(&LogHandler{
 		Opts:  Options{Component: "TestLogger", Weavelet: uuid.New().String()},
-		Write: th.log,
+		Write: logger.Log,
 	})
 }
 

@@ -20,12 +20,12 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/private"
+	"github.com/ServiceWeaver/weaver/runtime/logging"
 )
 
 // Options configure weavertest.Init.
@@ -76,21 +76,6 @@ func Run(t testing.TB, opts Options, testBody any) {
 		t.Fatal(fmt.Errorf("weavertest.Run argument: %v", err))
 	}
 
-	// Make a log writer that forwards to t.
-	var logMu sync.Mutex
-	logToTest := true
-	logWriter := func(entry string) {
-		logMu.Lock()
-		defer logMu.Unlock()
-		if logToTest {
-			t.Log(entry)
-		} else {
-			// Test has exited, so write to stderr so we don't lose
-			// useful debugging information.
-			fmt.Fprintln(os.Stderr, entry)
-		}
-	}
-
 	var cleanup func() error
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer func() {
@@ -106,11 +91,6 @@ func Run(t testing.TB, opts Options, testBody any) {
 			}
 		}
 
-		// Do not let active goroutines attempt to use t from now on.
-		logMu.Lock()
-		logToTest = false
-		logMu.Unlock()
-
 		// Enable the following to print stacks of goroutine that did not shut down properly.
 		if false {
 			logStacks()
@@ -120,7 +100,8 @@ func Run(t testing.TB, opts Options, testBody any) {
 	if opts.SingleProcess {
 		ctx = initSingleProcess(ctx, opts.Config)
 	} else {
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, opts.Config, logWriter)
+		logger := logging.NewTestLogger(t)
+		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, opts.Config, logger.Log)
 		if err != nil {
 			t.Fatal(err)
 		}
