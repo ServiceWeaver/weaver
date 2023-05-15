@@ -33,9 +33,11 @@ There will be three Git repositories involved:
     will typically be at a URL that looks like `github.com/_your_user_name_/weaver`
 3.  *local* - your local clone of `origin`
 
-Here is a detailed outline of the steps needed to make changes to Service
-Weaver. Steps 1-3 will only be needed the first time you are making changes to
-ServiceWeaver.
+### First time setup
+
+Follow these steps to get ready for making changes to ServiceWeaver.  These
+steps are only needed once and not for subsequent changes you might want to
+make:
 
 1.  Fork the `ServiceWeaver` repository on GitHub to create `origin`.
     Visit [ServiceWeaver][github_weaver] GitHub repository and click the `Fork` button.
@@ -52,28 +54,27 @@ ServiceWeaver.
     cd weaver
     git remote add upstream git@github.com:ServiceWeaver/weaver.git
     ```
+### Making changes
 
-4. Make a local branch in your clone and pull any recent changes into it.
+Here is a detailed outline of the steps needed to make changes to Service
+Weaver.
+
+
+1. Make a local branch in your clone and pull any recent changes into it.
 
    ```shell
    git switch -c my_branch  # Pick a name appropriate to your work
    git pull upstream main
    ```
 
-5. Make changes and commit to local branch.
+2. Make changes and commit to local branch.
 
    ```shell
    # ... editing, testing, ... 
    git commit ...
    ```
 
-   If you need to make multiple commits (e.g., if you checkpoint as
-   you work), consider using `git commit --amend` or some other git
-   command to keep all of your changes in a single commit.
-    
-   TODO: should we avoid discouraging multi-commit PRs?
-
-6. Pull any changes that may have been made in the upstream repository
+3. Pull any changes that may have been made in the upstream repository
    main branch.
 
    ```shell
@@ -84,52 +85,54 @@ ServiceWeaver.
    Note that this command may result in merge conflicts. Fix those if
    needed.
 
-7. Push your branch to the corresponding branch in your fork (the `origin` repository).
+4. Push your branch to the corresponding branch in your fork (the `origin` repository).
 
    ```shell
    git switch my_branch
    git push origin my_branch
    ```
 
-8. Select the branch you are working on in the drop-down menu of branches on
+5. Select the branch you are working on in the drop-down menu of branches on
    https://github.com/_your_user_name_/weaver . Then hit the `Compare and pull
    request` button.
 
-9. Respond to feedback, which may involve making new commits or
-   updating your prior commits. If you made any changes, push them
-   to github again. If you amended a commit, you will have to force
-   the push.
+6. Respond to feedback, which may involve making new commits.
+   If you made any changes, push them to github again.
 
    ```shell
    git switch my_branch
-   git push --force origin my_branch
+   git push origin my_branch
    ```
 
-10. Once reviewers are happy, pull any main branch changes that may
-    have happened since step 6.
+   Repeat as necessary until all feedback has been handled.
+
+   Note: the preceding approach will cause the pull request to become a sequence
+   of commits. Some people like to keep just a single commit that is amended as
+   changes are made. If you are amending commits that had already been pushed,
+   you will have to add `--force` to the `git push` command above.
+
+7. Once reviewers are happy, pull any main branch changes that may
+   have happened since step 3.
    
     ```shell
     git switch my_branch
     git pull --rebase upstream main
     ```
 
-    If you made multiple commits, squash them together if you wish
-    (typically using an interactive rebase).
-
-    If you picked up new changes or made any changes, push your branch
-    again to github, as described in step 9.
-
-11. Ask somebody who has permissions (or do it yourself if you
+8. If you made multiple commits, squash them together (typically using an
+    interactive rebase).
+    
+9.  Ask somebody who has permissions (or do it yourself if you
     have permissions) to merge your branch into the main branch
     of the `upstream` repository. The reviewer may do this without
     being asked.
 
-    Select the `Rebase and merge` option on https://github.com/ServiceWeaver/weaver
+    Select the `Squash and merge` option on https://github.com/ServiceWeaver/weaver
     or use the command line instructions found on that page.
 
-12. Delete the branch from `local`
+10. Delete the branch from `local`
 
-13. Delete the branch from `origin`: Visit https://github.com/_your_user_name/weaver/branches
+11. Delete the branch from `origin`: Visit https://github.com/_your_user_name/weaver/branches
     and check that `my_branch` is not marked as Open. If so, hit the delete
     button (looks like a trash icon) next to `my_branch`.
 
