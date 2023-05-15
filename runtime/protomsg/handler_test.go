@@ -30,7 +30,7 @@ func TestPanicHandler(t *testing.T) {
 	const msg = "zardoz"
 	server := httptest.NewServer(panicHandler(
 		// Discard logs.
-		slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout)),
+		slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError + 1})),
 		func(http.ResponseWriter, *http.Request) {
 			panic(msg)
 		}),
