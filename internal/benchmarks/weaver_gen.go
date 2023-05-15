@@ -2541,6 +2541,14 @@ func (s ping9_server_stub) pingS(ctx context.Context, args []byte) (res []byte, 
 
 var _ codegen.AutoMarshal = &X1{}
 
+type __is_X1[T ~struct {
+	weaver.AutoMarshal
+	A X2
+	B []int64
+}] struct{}
+
+var _ __is_X1[X1]
+
 func (x *X1) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("X1.WeaverMarshal: nil receiver"))
@@ -2582,6 +2590,13 @@ func serviceweaver_dec_slice_int64_a8f7f092(dec *codegen.Decoder) []int64 {
 
 var _ codegen.AutoMarshal = &X2{}
 
+type __is_X2[T ~struct {
+	weaver.AutoMarshal
+	A X3
+}] struct{}
+
+var _ __is_X2[X2]
+
 func (x *X2) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("X2.WeaverMarshal: nil receiver"))
@@ -2597,6 +2612,15 @@ func (x *X2) WeaverUnmarshal(dec *codegen.Decoder) {
 }
 
 var _ codegen.AutoMarshal = &X3{}
+
+type __is_X3[T ~struct {
+	weaver.AutoMarshal
+	A X4
+	B int64
+	C int64
+}] struct{}
+
+var _ __is_X3[X3]
 
 func (x *X3) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
@@ -2618,6 +2642,15 @@ func (x *X3) WeaverUnmarshal(dec *codegen.Decoder) {
 
 var _ codegen.AutoMarshal = &X4{}
 
+type __is_X4[T ~struct {
+	weaver.AutoMarshal
+	A int64
+	B X5
+	C int64
+}] struct{}
+
+var _ __is_X4[X4]
+
 func (x *X4) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("X4.WeaverMarshal: nil receiver"))
@@ -2638,6 +2671,14 @@ func (x *X4) WeaverUnmarshal(dec *codegen.Decoder) {
 
 var _ codegen.AutoMarshal = &X5{}
 
+type __is_X5[T ~struct {
+	weaver.AutoMarshal
+	A int64
+	B int64
+}] struct{}
+
+var _ __is_X5[X5]
+
 func (x *X5) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("X5.WeaverMarshal: nil receiver"))
@@ -2655,6 +2696,13 @@ func (x *X5) WeaverUnmarshal(dec *codegen.Decoder) {
 }
 
 var _ codegen.AutoMarshal = &X6{}
+
+type __is_X6[T ~struct {
+	weaver.AutoMarshal
+	A []bool
+}] struct{}
+
+var _ __is_X6[X6]
 
 func (x *X6) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
@@ -2695,6 +2743,23 @@ func serviceweaver_dec_slice_bool_c791c3b0(dec *codegen.Decoder) []bool {
 
 var _ codegen.AutoMarshal = &payloadC{}
 
+type __is_payloadC[T ~struct {
+	weaver.AutoMarshal
+	A float64
+	B string
+	C int64
+	D X1
+	E string
+	F int64
+	G X6
+	H string
+	I int64
+	J float32
+	K string
+}] struct{}
+
+var _ __is_payloadC[payloadC]
+
 func (x *payloadC) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("payloadC.WeaverMarshal: nil receiver"))
@@ -2730,6 +2795,13 @@ func (x *payloadC) WeaverUnmarshal(dec *codegen.Decoder) {
 }
 
 var _ codegen.AutoMarshal = &payloadS{}
+
+type __is_payloadS[T ~struct {
+	weaver.AutoMarshal
+	Values []string
+}] struct{}
+
+var _ __is_payloadS[payloadS]
 
 func (x *payloadS) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {

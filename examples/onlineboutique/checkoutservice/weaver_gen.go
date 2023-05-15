@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice"
+	"github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/codes"
@@ -173,6 +175,17 @@ func (s t_server_stub) placeOrder(ctx context.Context, args []byte) (res []byte,
 // AutoMarshal implementations.
 
 var _ codegen.AutoMarshal = &PlaceOrderRequest{}
+
+type __is_PlaceOrderRequest[T ~struct {
+	weaver.AutoMarshal
+	UserID       string
+	UserCurrency string
+	Address      shippingservice.Address
+	Email        string
+	CreditCard   paymentservice.CreditCardInfo
+}] struct{}
+
+var _ __is_PlaceOrderRequest[PlaceOrderRequest]
 
 func (x *PlaceOrderRequest) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {

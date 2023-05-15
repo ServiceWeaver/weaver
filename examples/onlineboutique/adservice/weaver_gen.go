@@ -173,6 +173,14 @@ func (s t_server_stub) getAds(ctx context.Context, args []byte) (res []byte, err
 
 var _ codegen.AutoMarshal = &Ad{}
 
+type __is_Ad[T ~struct {
+	weaver.AutoMarshal
+	RedirectURL string
+	Text        string
+}] struct{}
+
+var _ __is_Ad[Ad]
+
 func (x *Ad) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("Ad.WeaverMarshal: nil receiver"))

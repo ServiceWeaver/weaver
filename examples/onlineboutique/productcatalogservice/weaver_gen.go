@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -368,6 +369,18 @@ func (s t_server_stub) searchProducts(ctx context.Context, args []byte) (res []b
 // AutoMarshal implementations.
 
 var _ codegen.AutoMarshal = &Product{}
+
+type __is_Product[T ~struct {
+	weaver.AutoMarshal
+	ID          string   "json:\"id\""
+	Name        string   "json:\"name\""
+	Description string   "json:\"description\""
+	Picture     string   "json:\"picture\""
+	PriceUSD    money.T  "json:\"priceUsd\""
+	Categories  []string "json:\"categories\""
+}] struct{}
+
+var _ __is_Product[Product]
 
 func (x *Product) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {

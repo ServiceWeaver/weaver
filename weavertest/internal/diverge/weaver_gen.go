@@ -444,6 +444,14 @@ func (s pointer_server_stub) get(ctx context.Context, args []byte) (res []byte, 
 
 var _ codegen.AutoMarshal = &Pair{}
 
+type __is_Pair[T ~struct {
+	weaver.AutoMarshal
+	X *int
+	Y *int
+}] struct{}
+
+var _ __is_Pair[Pair]
+
 func (x *Pair) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("Pair.WeaverMarshal: nil receiver"))
