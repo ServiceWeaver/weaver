@@ -149,12 +149,27 @@ func init() {
 	})
 }
 
+// weaver.Instance checks.
+var _ weaver.InstanceOf[Ping1] = &ping1{}
+var _ weaver.InstanceOf[Ping10] = &ping10{}
+var _ weaver.InstanceOf[Ping2] = &ping2{}
+var _ weaver.InstanceOf[Ping3] = &ping3{}
+var _ weaver.InstanceOf[Ping4] = &ping4{}
+var _ weaver.InstanceOf[Ping5] = &ping5{}
+var _ weaver.InstanceOf[Ping6] = &ping6{}
+var _ weaver.InstanceOf[Ping7] = &ping7{}
+var _ weaver.InstanceOf[Ping8] = &ping8{}
+var _ weaver.InstanceOf[Ping9] = &ping9{}
+
 // Local stub implementations.
 
 type ping1_local_stub struct {
 	impl   Ping1
 	tracer trace.Tracer
 }
+
+// Check that ping1_local_stub implements the Ping1 interface.
+var _ Ping1 = &ping1_local_stub{}
 
 func (s ping1_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -195,6 +210,9 @@ type ping10_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that ping10_local_stub implements the Ping10 interface.
+var _ Ping10 = &ping10_local_stub{}
+
 func (s ping10_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -233,6 +251,9 @@ type ping2_local_stub struct {
 	impl   Ping2
 	tracer trace.Tracer
 }
+
+// Check that ping2_local_stub implements the Ping2 interface.
+var _ Ping2 = &ping2_local_stub{}
 
 func (s ping2_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -273,6 +294,9 @@ type ping3_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that ping3_local_stub implements the Ping3 interface.
+var _ Ping3 = &ping3_local_stub{}
+
 func (s ping3_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -311,6 +335,9 @@ type ping4_local_stub struct {
 	impl   Ping4
 	tracer trace.Tracer
 }
+
+// Check that ping4_local_stub implements the Ping4 interface.
+var _ Ping4 = &ping4_local_stub{}
 
 func (s ping4_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -351,6 +378,9 @@ type ping5_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that ping5_local_stub implements the Ping5 interface.
+var _ Ping5 = &ping5_local_stub{}
+
 func (s ping5_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -389,6 +419,9 @@ type ping6_local_stub struct {
 	impl   Ping6
 	tracer trace.Tracer
 }
+
+// Check that ping6_local_stub implements the Ping6 interface.
+var _ Ping6 = &ping6_local_stub{}
 
 func (s ping6_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -429,6 +462,9 @@ type ping7_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that ping7_local_stub implements the Ping7 interface.
+var _ Ping7 = &ping7_local_stub{}
+
 func (s ping7_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -468,6 +504,9 @@ type ping8_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that ping8_local_stub implements the Ping8 interface.
+var _ Ping8 = &ping8_local_stub{}
+
 func (s ping8_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -506,6 +545,9 @@ type ping9_local_stub struct {
 	impl   Ping9
 	tracer trace.Tracer
 }
+
+// Check that ping9_local_stub implements the Ping9 interface.
+var _ Ping9 = &ping9_local_stub{}
 
 func (s ping9_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -548,6 +590,9 @@ type ping1_client_stub struct {
 	pingCMetrics *codegen.MethodMetrics
 	pingSMetrics *codegen.MethodMetrics
 }
+
+// Check that ping1_client_stub implements the Ping1 interface.
+var _ Ping1 = &ping1_client_stub{}
 
 func (s ping1_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
@@ -667,6 +712,9 @@ type ping10_client_stub struct {
 	pingSMetrics *codegen.MethodMetrics
 }
 
+// Check that ping10_client_stub implements the Ping10 interface.
+var _ Ping10 = &ping10_client_stub{}
+
 func (s ping10_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
 	start := time.Now()
@@ -784,6 +832,9 @@ type ping2_client_stub struct {
 	pingCMetrics *codegen.MethodMetrics
 	pingSMetrics *codegen.MethodMetrics
 }
+
+// Check that ping2_client_stub implements the Ping2 interface.
+var _ Ping2 = &ping2_client_stub{}
 
 func (s ping2_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
@@ -903,6 +954,9 @@ type ping3_client_stub struct {
 	pingSMetrics *codegen.MethodMetrics
 }
 
+// Check that ping3_client_stub implements the Ping3 interface.
+var _ Ping3 = &ping3_client_stub{}
+
 func (s ping3_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
 	start := time.Now()
@@ -1020,6 +1074,9 @@ type ping4_client_stub struct {
 	pingCMetrics *codegen.MethodMetrics
 	pingSMetrics *codegen.MethodMetrics
 }
+
+// Check that ping4_client_stub implements the Ping4 interface.
+var _ Ping4 = &ping4_client_stub{}
 
 func (s ping4_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
@@ -1139,6 +1196,9 @@ type ping5_client_stub struct {
 	pingSMetrics *codegen.MethodMetrics
 }
 
+// Check that ping5_client_stub implements the Ping5 interface.
+var _ Ping5 = &ping5_client_stub{}
+
 func (s ping5_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
 	start := time.Now()
@@ -1256,6 +1316,9 @@ type ping6_client_stub struct {
 	pingCMetrics *codegen.MethodMetrics
 	pingSMetrics *codegen.MethodMetrics
 }
+
+// Check that ping6_client_stub implements the Ping6 interface.
+var _ Ping6 = &ping6_client_stub{}
 
 func (s ping6_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
@@ -1375,6 +1438,9 @@ type ping7_client_stub struct {
 	pingSMetrics *codegen.MethodMetrics
 }
 
+// Check that ping7_client_stub implements the Ping7 interface.
+var _ Ping7 = &ping7_client_stub{}
+
 func (s ping7_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
 	start := time.Now()
@@ -1493,6 +1559,9 @@ type ping8_client_stub struct {
 	pingSMetrics *codegen.MethodMetrics
 }
 
+// Check that ping8_client_stub implements the Ping8 interface.
+var _ Ping8 = &ping8_client_stub{}
+
 func (s ping8_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
 	start := time.Now()
@@ -1610,6 +1679,9 @@ type ping9_client_stub struct {
 	pingCMetrics *codegen.MethodMetrics
 	pingSMetrics *codegen.MethodMetrics
 }
+
+// Check that ping9_client_stub implements the Ping9 interface.
+var _ Ping9 = &ping9_client_stub{}
 
 func (s ping9_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
@@ -1730,7 +1802,10 @@ type ping1_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping1_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping1_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping1_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -1801,7 +1876,10 @@ type ping10_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping10_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping10_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping10_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -1872,7 +1950,10 @@ type ping2_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping2_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping2_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping2_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -1943,7 +2024,10 @@ type ping3_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping3_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping3_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping3_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -2014,7 +2098,10 @@ type ping4_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping4_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping4_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping4_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -2085,7 +2172,10 @@ type ping5_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping5_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping5_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping5_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -2156,7 +2246,10 @@ type ping6_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping6_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping6_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping6_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -2227,7 +2320,10 @@ type ping7_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping7_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping7_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping7_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -2298,7 +2394,10 @@ type ping8_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping8_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping8_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping8_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":
@@ -2369,7 +2468,10 @@ type ping9_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that ping9_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &ping9_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s ping9_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "PingC":

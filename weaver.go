@@ -118,7 +118,7 @@ var healthzInit sync.Once
 //	        log.Fatal(err)
 //	    }
 //	}
-func Run[T MainInstance](ctx context.Context, app func(context.Context, T) error) error {
+func Run[T InstanceOf[Main]](ctx context.Context, app func(context.Context, T) error) error {
 	// Register HealthzHandler in the default ServerMux.
 	healthzInit.Do(func() {
 		http.HandleFunc(HealthzURL, HealthzHandler)

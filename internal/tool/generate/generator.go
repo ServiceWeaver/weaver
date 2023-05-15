@@ -784,6 +784,7 @@ func (g *generator) generate() error {
 		}
 		g.generateVersionCheck(fn)
 		g.generateRegisteredComponents(fn)
+		g.generateInstanceChecks(fn)
 		g.generateLocalStubs(fn)
 		g.generateClientStubs(fn)
 		g.generateServerStubs(fn)
@@ -892,6 +893,21 @@ func (g *generator) generateVersionCheck(p printFn) {
 	)
 }
 
+// generateInstanceChecks generates code that checks that every component
+// implementation type implements weaver.Instance.
+func (g *generator) generateInstanceChecks(p printFn) {
+	// If someone deletes a weaver.Implements annotation and forgets to re-run
+	// `weaver generate`, these checks will fail to build. Similarly, if a user
+	// changes the interface in a weaver.Implements and forgets to re-run
+	// `weaver generate`, these checks will fail to build.
+	p(``)
+	p(`// weaver.Instance checks.`)
+	for _, c := range g.components {
+		// e.g., var _ weaver.InstanceOf[Odd] = &odd{}
+		p(`var _ %s[%s] = &%s{}`, g.weaver().qualify("InstanceOf"), g.tset.genTypeString(c.intf), g.tset.genTypeString(c.impl))
+	}
+}
+
 // generateRegisteredComponents generates code that registers the components with Service Weaver.
 func (g *generator) generateRegisteredComponents(p printFn) {
 	if len(g.components) == 0 {
@@ -975,6 +991,12 @@ func (g *generator) generateLocalStubs(p printFn) {
 		p(`	impl %s`, g.componentRef(comp))
 		p(`	tracer %s`, g.trace().qualify("Tracer"))
 		p(`}`)
+
+		p(``)
+		p(`// Check that %s implements the %s interface.`, stub, g.tset.genTypeString(comp.intf))
+		p(`var _ %s = &%s{}`, g.tset.genTypeString(comp.intf), stub)
+		p(``)
+
 		for _, m := range comp.methods() {
 			mt := m.Type().(*types.Signature)
 			p(``)
@@ -1028,6 +1050,11 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`	%sMetrics *%s`, notExported(m.Name()), g.codegen().qualify("MethodMetrics"))
 		}
 		p(`}`)
+
+		p(``)
+		p(`// Check that %s implements the %s interface.`, stub, g.tset.genTypeString(comp.intf))
+		p(`var _ %s = &%s{}`, g.tset.genTypeString(comp.intf), stub)
+		p(``)
 
 		// Assign method indices in sorted order.
 		mlist := make([]string, len(comp.methods()))
@@ -1504,7 +1531,12 @@ func (g *generator) generateServerStubs(p printFn) {
 		p(`	addLoad func(key uint64, load float64)`)
 		p(`}`)
 		p(``)
-		p(`// GetStubFn implements the stub.Server interface.`)
+
+		p(`// Check that %s implements the %s interface.`, stub, g.codegen().qualify("Server"))
+		p(`var _ %s = &%s{}`, g.codegen().qualify("Server"), stub)
+		p(``)
+
+		p(`// GetStubFn implements the codegen.Server interface.`)
 		p(`func (s %s) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {`, stub)
 		p(`	switch method {`)
 		for _, m := range comp.methods() {

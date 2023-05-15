@@ -61,6 +61,12 @@ func init() {
 	})
 }
 
+// weaver.Instance checks.
+var _ weaver.InstanceOf[A] = &a{}
+var _ weaver.InstanceOf[B] = &b{}
+var _ weaver.InstanceOf[C] = &c{}
+var _ weaver.InstanceOf[weaver.Main] = &app{}
+
 // Local stub implementations.
 
 type a_local_stub struct {
@@ -68,20 +74,32 @@ type a_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that a_local_stub implements the A interface.
+var _ A = &a_local_stub{}
+
 type b_local_stub struct {
 	impl   B
 	tracer trace.Tracer
 }
+
+// Check that b_local_stub implements the B interface.
+var _ B = &b_local_stub{}
 
 type c_local_stub struct {
 	impl   C
 	tracer trace.Tracer
 }
 
+// Check that c_local_stub implements the C interface.
+var _ C = &c_local_stub{}
+
 type main_local_stub struct {
 	impl   weaver.Main
 	tracer trace.Tracer
 }
+
+// Check that main_local_stub implements the weaver.Main interface.
+var _ weaver.Main = &main_local_stub{}
 
 // Client stub implementations.
 
@@ -89,17 +107,29 @@ type a_client_stub struct {
 	stub codegen.Stub
 }
 
+// Check that a_client_stub implements the A interface.
+var _ A = &a_client_stub{}
+
 type b_client_stub struct {
 	stub codegen.Stub
 }
+
+// Check that b_client_stub implements the B interface.
+var _ B = &b_client_stub{}
 
 type c_client_stub struct {
 	stub codegen.Stub
 }
 
+// Check that c_client_stub implements the C interface.
+var _ C = &c_client_stub{}
+
 type main_client_stub struct {
 	stub codegen.Stub
 }
+
+// Check that main_client_stub implements the weaver.Main interface.
+var _ weaver.Main = &main_client_stub{}
 
 // Server stub implementations.
 
@@ -108,7 +138,10 @@ type a_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that a_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &a_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s a_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	default:
@@ -121,7 +154,10 @@ type b_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that b_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &b_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s b_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	default:
@@ -134,7 +170,10 @@ type c_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that c_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &c_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s c_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	default:
@@ -147,7 +186,10 @@ type main_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that main_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &main_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	default:
