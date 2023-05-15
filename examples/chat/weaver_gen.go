@@ -955,6 +955,17 @@ func (s sQLStore_server_stub) getImage(ctx context.Context, args []byte) (res []
 
 var _ codegen.AutoMarshal = &Post{}
 
+type __is_Post[T ~struct {
+	weaver.AutoMarshal
+	ID      PostID
+	Creator string
+	When    time.Time
+	Text    string
+	ImageID ImageID
+}] struct{}
+
+var _ __is_Post[Post]
+
 func (x *Post) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("Post.WeaverMarshal: nil receiver"))
@@ -978,6 +989,14 @@ func (x *Post) WeaverUnmarshal(dec *codegen.Decoder) {
 }
 
 var _ codegen.AutoMarshal = &Thread{}
+
+type __is_Thread[T ~struct {
+	weaver.AutoMarshal
+	ID    ThreadID
+	Posts []Post
+}] struct{}
+
+var _ __is_Thread[Thread]
 
 func (x *Thread) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {

@@ -747,6 +747,14 @@ func (s cartCache_server_stub) remove(ctx context.Context, args []byte) (res []b
 
 var _ codegen.AutoMarshal = &CartItem{}
 
+type __is_CartItem[T ~struct {
+	weaver.AutoMarshal
+	ProductID string
+	Quantity  int32
+}] struct{}
+
+var _ __is_CartItem[CartItem]
+
 func (x *CartItem) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
 		panic(fmt.Errorf("CartItem.WeaverMarshal: nil receiver"))
