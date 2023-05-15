@@ -64,6 +64,13 @@ type Instance interface {
 	rep() *component
 }
 
+// InstanceOf[T] is the interface implemented by a struct that embeds
+// weaver.Implements[T].
+type InstanceOf[T any] interface {
+	Instance
+	implements(T)
+}
+
 // componentImpl is a fully instantiated Service Weaver component that is running locally on
 // this process. If the component's method is invoked from the local process,
 // a local stub is used; otherwise, a server stub is used.
@@ -111,13 +118,6 @@ var _ Instance = &componentImpl{}
 // Main is interface implemented by an application's main component.
 // This component is created automatically by `weaver.Run`.
 type Main interface{}
-
-// MainInstance is used to trigger a type-checking error if the user code
-// attempts to pass a non-main component to `weaver.Run`.
-type MainInstance interface {
-	Instance
-	implements(Main)
-}
 
 // Implements[T] is a type that can be embedded inside a component implementation
 // struct to indicate that the struct implements a component of type T. E.g.,

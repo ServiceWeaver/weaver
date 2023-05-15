@@ -57,12 +57,20 @@ func init() {
 	})
 }
 
+// weaver.Instance checks.
+var _ weaver.InstanceOf[Even] = &even{}
+var _ weaver.InstanceOf[weaver.Main] = &server{}
+var _ weaver.InstanceOf[Odd] = &odd{}
+
 // Local stub implementations.
 
 type even_local_stub struct {
 	impl   Even
 	tracer trace.Tracer
 }
+
+// Check that even_local_stub implements the Even interface.
+var _ Even = &even_local_stub{}
 
 func (s even_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -86,10 +94,16 @@ type main_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that main_local_stub implements the weaver.Main interface.
+var _ weaver.Main = &main_local_stub{}
+
 type odd_local_stub struct {
 	impl   Odd
 	tracer trace.Tracer
 }
+
+// Check that odd_local_stub implements the Odd interface.
+var _ Odd = &odd_local_stub{}
 
 func (s odd_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -114,6 +128,9 @@ type even_client_stub struct {
 	stub      codegen.Stub
 	doMetrics *codegen.MethodMetrics
 }
+
+// Check that even_client_stub implements the Even interface.
+var _ Even = &even_client_stub{}
 
 func (s even_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	// Update metrics.
@@ -176,10 +193,16 @@ type main_client_stub struct {
 	stub codegen.Stub
 }
 
+// Check that main_client_stub implements the weaver.Main interface.
+var _ weaver.Main = &main_client_stub{}
+
 type odd_client_stub struct {
 	stub      codegen.Stub
 	doMetrics *codegen.MethodMetrics
 }
+
+// Check that odd_client_stub implements the Odd interface.
+var _ Odd = &odd_client_stub{}
 
 func (s odd_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	// Update metrics.
@@ -245,7 +268,10 @@ type even_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that even_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &even_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s even_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Do":
@@ -285,7 +311,10 @@ type main_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that main_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &main_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	default:
@@ -298,7 +327,10 @@ type odd_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that odd_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &odd_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s odd_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Do":

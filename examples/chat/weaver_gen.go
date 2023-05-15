@@ -78,12 +78,21 @@ func init() {
 	})
 }
 
+// weaver.Instance checks.
+var _ weaver.InstanceOf[ImageScaler] = &scaler{}
+var _ weaver.InstanceOf[LocalCache] = &localCache{}
+var _ weaver.InstanceOf[weaver.Main] = &server{}
+var _ weaver.InstanceOf[SQLStore] = &sqlStore{}
+
 // Local stub implementations.
 
 type imageScaler_local_stub struct {
 	impl   ImageScaler
 	tracer trace.Tracer
 }
+
+// Check that imageScaler_local_stub implements the ImageScaler interface.
+var _ ImageScaler = &imageScaler_local_stub{}
 
 func (s imageScaler_local_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -106,6 +115,9 @@ type localCache_local_stub struct {
 	impl   LocalCache
 	tracer trace.Tracer
 }
+
+// Check that localCache_local_stub implements the LocalCache interface.
+var _ LocalCache = &localCache_local_stub{}
 
 func (s localCache_local_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -146,10 +158,16 @@ type main_local_stub struct {
 	tracer trace.Tracer
 }
 
+// Check that main_local_stub implements the weaver.Main interface.
+var _ weaver.Main = &main_local_stub{}
+
 type sQLStore_local_stub struct {
 	impl   SQLStore
 	tracer trace.Tracer
 }
+
+// Check that sQLStore_local_stub implements the SQLStore interface.
+var _ SQLStore = &sQLStore_local_stub{}
 
 func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -226,6 +244,9 @@ type imageScaler_client_stub struct {
 	scaleMetrics *codegen.MethodMetrics
 }
 
+// Check that imageScaler_client_stub implements the ImageScaler interface.
+var _ ImageScaler = &imageScaler_client_stub{}
+
 func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	// Update metrics.
 	start := time.Now()
@@ -292,6 +313,9 @@ type localCache_client_stub struct {
 	getMetrics *codegen.MethodMetrics
 	putMetrics *codegen.MethodMetrics
 }
+
+// Check that localCache_client_stub implements the LocalCache interface.
+var _ LocalCache = &localCache_client_stub{}
 
 func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
 	// Update metrics.
@@ -412,6 +436,9 @@ type main_client_stub struct {
 	stub codegen.Stub
 }
 
+// Check that main_client_stub implements the weaver.Main interface.
+var _ weaver.Main = &main_client_stub{}
+
 type sQLStore_client_stub struct {
 	stub                codegen.Stub
 	createPostMetrics   *codegen.MethodMetrics
@@ -419,6 +446,9 @@ type sQLStore_client_stub struct {
 	getFeedMetrics      *codegen.MethodMetrics
 	getImageMetrics     *codegen.MethodMetrics
 }
+
+// Check that sQLStore_client_stub implements the SQLStore interface.
+var _ SQLStore = &sQLStore_client_stub{}
 
 func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	// Update metrics.
@@ -653,7 +683,10 @@ type imageScaler_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that imageScaler_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &imageScaler_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s imageScaler_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Scale":
@@ -697,7 +730,10 @@ type localCache_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that localCache_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &localCache_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s localCache_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "Get":
@@ -765,7 +801,10 @@ type main_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that main_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &main_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	default:
@@ -778,7 +817,10 @@ type sQLStore_server_stub struct {
 	addLoad func(key uint64, load float64)
 }
 
-// GetStubFn implements the stub.Server interface.
+// Check that sQLStore_server_stub implements the codegen.Server interface.
+var _ codegen.Server = &sQLStore_server_stub{}
+
+// GetStubFn implements the codegen.Server interface.
 func (s sQLStore_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "CreatePost":
