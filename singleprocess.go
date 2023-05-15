@@ -324,7 +324,7 @@ func (e *singleprocessEnv) CreateTraceExporter() sdktrace.SpanExporter {
 
 func (e *singleprocessEnv) SystemLogger() *slog.Logger {
 	// In single process execution, system logs are hidden.
-	return slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout))
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError + 1}))
 }
 
 // serveHTTP serves HTTP traffic on the provided listener using the provided

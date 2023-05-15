@@ -109,7 +109,7 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 			info: info,
 			// May be remote, so start with no-op logger. May set real logger later.
 			// Discard all log entries.
-			logger: slog.New(slog.HandlerOptions{Level: slog.LevelError + 1}.NewTextHandler(os.Stdout)),
+			logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError + 1})),
 		}
 		w.componentsByName[info.Name] = c
 		w.componentsByType[info.Iface] = c
