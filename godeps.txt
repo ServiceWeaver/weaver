@@ -772,7 +772,6 @@ github.com/ServiceWeaver/weaver/runtime/logging
     strconv
     strings
     sync
-    testing
     time
 github.com/ServiceWeaver/weaver/runtime/metrics
     encoding/binary

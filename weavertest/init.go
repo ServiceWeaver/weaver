@@ -100,7 +100,7 @@ func Run(t testing.TB, opts Options, testBody any) {
 	if opts.SingleProcess {
 		ctx = initSingleProcess(ctx, opts.Config)
 	} else {
-		logger := logging.NewTestLogger(t)
+		logger := logging.NewTestLogger(t, testing.Verbose())
 		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, opts.Config, logger.Log)
 		if err != nil {
 			t.Fatal(err)
