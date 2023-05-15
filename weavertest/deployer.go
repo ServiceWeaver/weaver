@@ -73,7 +73,6 @@ type group struct {
 }
 
 // handler handles a connection to a weavelet.
-// TODO(sanjay): make deployer implement EnvelopeHandler interface and delete handler.
 type handler struct {
 	*deployer
 	group      *group
