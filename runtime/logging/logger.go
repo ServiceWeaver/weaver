@@ -21,14 +21,12 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"testing"
 	"time"
-
-	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
 
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/uuid"
+	"golang.org/x/exp/slog"
 )
 
 // Options configures the log entries produced by a logger.
@@ -129,31 +127,44 @@ func StderrLogger(opts Options) *slog.Logger {
 	return slog.New(&LogHandler{Opts: opts, Write: writeText})
 }
 
-// TestLogger implements a logger for tests.
-type TestLogger struct {
-	t        testing.TB     // logs until t finishes
-	pp       *PrettyPrinter // pretty prints log entries
-	mu       sync.Mutex     // guards finished
-	finished bool           // has t finished?
+// TB is the subset of the [testing.TB] interface needed by a TestLogger.
+type TB interface {
+	Log(args ...any)
+	Cleanup(func())
 }
 
-// Log logs the provided Log entry using t.Log.
-func (t *TestLogger) Log(entry *protos.LogEntry) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+// TestLogger implements a logger for tests.
+type TestLogger struct {
+	t        TB         // logs until t finishes
+	verbose  bool       // show logs?
+	mu       sync.Mutex // guards finished
+	finished bool       // has t finished?
+}
 
-	entry.TimeMicros = time.Now().UnixMicro()
-	if t.pp == nil {
-		t.pp = NewPrettyPrinter(colors.Enabled())
+// Log logs the provided log entry using t.t.Log while the test is running and
+// logs to stderr afterwards.
+func (t *TestLogger) Log(entry *protos.LogEntry) {
+	if entry.TimeMicros == 0 {
+		entry.TimeMicros = time.Now().UnixMicro()
 	}
 
-	msg := t.pp.Format(entry)
+	// We create a new pretty printer for every message to disable dimming and
+	// indenting. When multiple log outputs from different weavelets are
+	// intermixed in a test, dimming and indenting can get confusing.
+	msg := NewPrettyPrinter(colors.Enabled()).Format(entry)
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	switch {
-	case !testing.Verbose():
+	case !t.verbose:
 		// If -test.v isn't provided, don't log anything. Note that writing to
 		// t.Log isn't sufficient because B.Log ignores -test.v [1]. We
 		// override this behavior because, otherwise, weavertest benchmark
 		// results are polluted with logs and are very hard to read.
+		//
+		// Also note that we still format msg and grab the lock even if
+		// t.verbose is false to prevent the performance of a benchmark varying
+		// drastically based on the presence of the -test.v flag.
 		//
 		// [1]: https://pkg.go.dev/testing#B.Log
 	case t.finished:
@@ -166,8 +177,8 @@ func (t *TestLogger) Log(entry *protos.LogEntry) {
 }
 
 // NewTestLogger returns a new TestLogger.
-func NewTestLogger(t testing.TB) *TestLogger {
-	logger := &TestLogger{t: t}
+func NewTestLogger(t TB, verbose bool) *TestLogger {
+	logger := &TestLogger{t: t, verbose: verbose}
 	t.Cleanup(func() {
 		logger.mu.Lock()
 		defer logger.mu.Unlock()
@@ -177,8 +188,8 @@ func NewTestLogger(t testing.TB) *TestLogger {
 }
 
 // NewTestSlogger returns a new logger for tests.
-func NewTestSlogger(t testing.TB) *slog.Logger {
-	logger := NewTestLogger(t)
+func NewTestSlogger(t TB, verbose bool) *slog.Logger {
+	logger := NewTestLogger(t, verbose)
 	return slog.New(&LogHandler{
 		Opts:  Options{Component: "TestLogger", Weavelet: uuid.New().String()},
 		Write: logger.Log,

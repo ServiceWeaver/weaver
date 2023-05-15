@@ -246,7 +246,7 @@ func serve(b *testing.B, config config) {
 	// Launch the server.
 	go func() {
 		opts := config.serverOpts()
-		opts.Logger = logging.NewTestSlogger(b)
+		opts.Logger = logging.NewTestSlogger(b, testing.Verbose())
 		switch err := call.Serve(ctx, config.listen(), opts); err {
 		case nil, ctx.Err():
 		case err:
@@ -340,12 +340,12 @@ func BenchmarkPipeRPC(b *testing.B) {
 	c, s := net.Pipe()
 	defer c.Close()
 	defer s.Close()
-	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(b)}
+	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(b, testing.Verbose())}
 	call.ServeOn(ctx, s, &handlers, sopts)
 
 	// Create the client.
 	resolver := call.NewConstantResolver(&connEndpoint{"client", c})
-	copts := call.ClientOptions{Logger: logging.NewTestSlogger(b)}
+	copts := call.ClientOptions{Logger: logging.NewTestSlogger(b, testing.Verbose())}
 	client, err := call.Connect(ctx, resolver, copts)
 	if err != nil {
 		b.Fatal(err)
@@ -361,7 +361,7 @@ func BenchmarkLocalRPC(b *testing.B) {
 			serve(b, config)
 			resolver := call.NewConstantResolver(config.endpoint())
 			opts := config.clientOpts()
-			opts.Logger = logging.NewTestSlogger(b)
+			opts.Logger = logging.NewTestSlogger(b, testing.Verbose())
 			client, err := call.Connect(context.Background(), resolver, opts)
 			if err != nil {
 				b.Fatal(err)
@@ -379,7 +379,7 @@ func BenchmarkMultiprocRPC(b *testing.B) {
 			serveSubprocess(b, config)
 			resolver := call.NewConstantResolver(config.endpoint())
 			opts := config.clientOpts()
-			opts.Logger = logging.NewTestSlogger(b)
+			opts.Logger = logging.NewTestSlogger(b, testing.Verbose())
 			client, err := call.Connect(context.Background(), resolver, opts)
 			if err != nil {
 				b.Fatal(err)

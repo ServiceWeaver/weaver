@@ -32,7 +32,7 @@ func TestTestLogger(t *testing.T) {
 	// Test plan: Launch a goroutine that continues to write to a TestLogger
 	// after the test ends. The logger should stop logging when the test ends.
 	t.Run("sub", func(t *testing.T) {
-		logger := NewTestSlogger(t)
+		logger := NewTestSlogger(t, testing.Verbose())
 		go func() {
 			for {
 				logger.Debug("Ping")
