@@ -122,26 +122,17 @@ Weaver.
 8. If you made multiple commits, squash them together (typically using an
     interactive rebase).
     
-9. Force push the current branch (which should now be a single commit on top
-   of the current main branch) to github:
-    
-    ```shell
-    git push --force origin my_branch
-    ```
-
-    TODO(sanjay): Drop this step and switch to `Squash and merge` below.
-
-10. Ask somebody who has permissions (or do it yourself if you
+9.  Ask somebody who has permissions (or do it yourself if you
     have permissions) to merge your branch into the main branch
     of the `upstream` repository. The reviewer may do this without
     being asked.
 
-    Select the `Rebase and merge` option on https://github.com/ServiceWeaver/weaver
+    Select the `Squash and merge` option on https://github.com/ServiceWeaver/weaver
     or use the command line instructions found on that page.
 
-11. Delete the branch from `local`
+10. Delete the branch from `local`
 
-12. Delete the branch from `origin`: Visit https://github.com/_your_user_name/weaver/branches
+11. Delete the branch from `origin`: Visit https://github.com/_your_user_name/weaver/branches
     and check that `my_branch` is not marked as Open. If so, hit the delete
     button (looks like a trash icon) next to `my_branch`.
 
