@@ -37,6 +37,9 @@ func init() {
 // weaver.Instance checks.
 var _ weaver.InstanceOf[T] = &impl{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &impl{}
+
 // Local stub implementations.
 
 type t_local_stub struct {

@@ -50,6 +50,10 @@ func init() {
 var _ weaver.InstanceOf[Started] = &started{}
 var _ weaver.InstanceOf[Widget] = &widget{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &started{}
+var _ weaver.Unrouted = &widget{}
+
 // Local stub implementations.
 
 type started_local_stub struct {

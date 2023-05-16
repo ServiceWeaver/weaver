@@ -83,6 +83,12 @@ var _ weaver.InstanceOf[LocalCache] = &localCache{}
 var _ weaver.InstanceOf[weaver.Main] = &server{}
 var _ weaver.InstanceOf[SQLStore] = &sqlStore{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &scaler{}
+var _ weaver.Unrouted = &localCache{}
+var _ weaver.Unrouted = &server{}
+var _ weaver.Unrouted = &sqlStore{}
+
 // Local stub implementations.
 
 type imageScaler_local_stub struct {

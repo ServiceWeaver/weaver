@@ -151,6 +151,10 @@ func (i *Implements[T]) setInstance(c *componentImpl) { i.componentImpl = c }
 //nolint:unused
 func (i *Implements[T]) implements(T) {}
 
+func (*componentImpl) routedBy(if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate) {}
+
+var _ Unrouted = (*componentImpl)(nil)
+
 // Ref[T] is a field that can be placed inside a component implementation
 // struct. T must be a component type. Service Weaver will automatically
 // fill such a field with a handle to the corresponding component.
@@ -291,6 +295,23 @@ type ListenerOptions struct {
 // guaranteed. As a corollary, you should never depend on routing for
 // correctness. Only use routing to increase performance in the common case.
 type WithRouter[T any] struct{}
+
+//nolint:unused
+func (WithRouter[T]) routedBy(T) {}
+
+// RoutedBy[T] is the interface implemented by a struct that embeds
+// weaver.RoutedBy[T].
+type RoutedBy[T any] interface {
+	routedBy(T)
+}
+
+// Unrouted is the interface implemented by instances that don't embed
+// weaver.WithRouter[T].
+type Unrouted interface {
+	routedBy(if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate)
+}
+
+type if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate struct{}
 
 // AutoMarshal is a type that can be embedded within a struct to indicate that
 // "weaver generate" should generate serialization methods for the struct.

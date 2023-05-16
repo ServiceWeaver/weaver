@@ -36,6 +36,9 @@ func init() {
 // weaver.Instance checks.
 var _ weaver.InstanceOf[PingPonger] = &impl{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &impl{}
+
 // Local stub implementations.
 
 type pingPonger_local_stub struct {

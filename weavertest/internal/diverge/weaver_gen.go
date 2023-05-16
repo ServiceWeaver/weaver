@@ -65,6 +65,11 @@ var _ weaver.InstanceOf[Errer] = &errer{}
 var _ weaver.InstanceOf[Failer] = &failer{}
 var _ weaver.InstanceOf[Pointer] = &pointer{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &errer{}
+var _ weaver.Unrouted = &failer{}
+var _ weaver.Unrouted = &pointer{}
+
 // Local stub implementations.
 
 type errer_local_stub struct {
