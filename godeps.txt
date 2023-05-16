@@ -8,6 +8,7 @@ github.com/ServiceWeaver/weaver
     fmt
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
+    github.com/ServiceWeaver/weaver/internal/config
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
@@ -368,6 +369,10 @@ github.com/ServiceWeaver/weaver/internal/benchmarks
 github.com/ServiceWeaver/weaver/internal/cond
     context
     sync
+github.com/ServiceWeaver/weaver/internal/config
+    fmt
+    reflect
+    strings
 github.com/ServiceWeaver/weaver/internal/env
     fmt
     strings
@@ -712,6 +717,7 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     encoding/binary
     errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/config
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/protos

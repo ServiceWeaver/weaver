@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -551,11 +552,12 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 
 func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	// Create the implementation object.
-	obj := reflect.New(c.info.Impl).Interface()
+	v := reflect.New(c.info.Impl)
+	obj := v.Interface()
 
 	// Fill config if necessary.
-	if c.info.ConfigFn != nil {
-		cfg := c.info.ConfigFn(obj)
+	if cfg := config.Config(v); cfg != nil {
+		// Populate the *T.
 		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.info.Sections, cfg); err != nil {
 			return err
 		}

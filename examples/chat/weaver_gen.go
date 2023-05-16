@@ -61,10 +61,9 @@ func init() {
 		RefData: "⟦7e1a0aa0:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/SQLStore⟧\n⟦ae108c0d:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/ImageScaler⟧\n⟦c86a1d44:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/LocalCache⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:     "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
-		Iface:    reflect.TypeOf((*SQLStore)(nil)).Elem(),
-		Impl:     reflect.TypeOf(sqlStore{}),
-		ConfigFn: func(i any) any { return i.(*sqlStore).WithConfig.Config() },
+		Name:  "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
+		Iface: reflect.TypeOf((*SQLStore)(nil)).Elem(),
+		Impl:  reflect.TypeOf(sqlStore{}),
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer}
 		},

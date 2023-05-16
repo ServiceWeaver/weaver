@@ -853,10 +853,6 @@ func isWeaverMain(t types.Type) bool {
 	return isWeaverType(t, "Main", 0)
 }
 
-func isWeaverWithConfig(t types.Type) bool {
-	return isWeaverType(t, "WithConfig", 1)
-}
-
 func isWeaverWithRouter(t types.Type) bool {
 	return isWeaverType(t, "WithRouter", 1)
 }

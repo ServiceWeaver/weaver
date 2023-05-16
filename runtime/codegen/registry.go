@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/trace"
@@ -52,11 +53,10 @@ type registry struct {
 
 // Registration is the configuration needed to register a Service Weaver component.
 type Registration struct {
-	Name     string             // full package-prefixed component name
-	Iface    reflect.Type       // interface type for the component
-	Impl     reflect.Type       // implementation type (struct)
-	ConfigFn func(impl any) any // returns pointer to config field in local impl if non-nil
-	Routed   bool               // True if calls to this component should be routed
+	Name   string       // full package-prefixed component name
+	Iface  reflect.Type // interface type for the component
+	Impl   reflect.Type // implementation type (struct)
+	Routed bool         // True if calls to this component should be routed
 
 	// Functions that return different types of stubs.
 	LocalStubFn  func(impl any, tracer trace.Tracer) any
@@ -139,19 +139,22 @@ func (r *registry) find(path string) (*Registration, bool) {
 
 // ComponentConfigValidator checks that cfg is a valid configuration
 // for the component type whose fully qualified name is given by path.
+//
+// TODO(mwhittaker): Move out of codegen package? It's not used by the
+// generated code.
 func ComponentConfigValidator(path, cfg string) error {
 	info, ok := globalRegistry.find(path)
 	if !ok {
 		// Not for a known component.
 		return nil
 	}
-	if info.ConfigFn == nil {
+	objConfig := config.Config(reflect.New(info.Impl))
+	if objConfig == nil {
 		return fmt.Errorf("unexpected configuration for component %v "+
 			"that does not support configuration (add a "+
-			"weaver.WithConfig[configType] embedded field to %v and run weaver generate again)",
+			"weaver.WithConfig[configType] embedded field to %v)",
 			info.Name, info.Iface)
 	}
-	objConfig := info.ConfigFn(reflect.New(info.Impl).Interface())
 	config := &protos.AppConfig{Sections: map[string]string{path: cfg}}
 	if err := runtime.ParseConfigSection(path, "", config.Sections, objConfig); err != nil {
 		return fmt.Errorf("%v: bad config: %w", info.Iface, err)
