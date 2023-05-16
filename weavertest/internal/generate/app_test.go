@@ -17,7 +17,6 @@ package generate
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -28,7 +27,7 @@ import (
 // TODO(mwhittaker): Induce an error in the encoding, decoding, and RPC call.
 func TestErrors(t *testing.T) {
 	ctx := context.Background()
-	weavertest.Run(t, weavertest.Options{}, func(client testApp) {
+	weavertest.Run(t, weavertest.Multi, weavertest.Options{}, func(client testApp) {
 		// Trigger an application error. Verify that an application error
 		// is returned.
 		x, err := client.Get(ctx, "foo", appError)
@@ -57,10 +56,10 @@ func TestErrors(t *testing.T) {
 }
 
 func TestPointers(t *testing.T) {
-	for _, single := range []bool{true, false} {
-		t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
+	for _, mode := range weavertest.AllModes() {
+		t.Run(mode.String(), func(t *testing.T) {
 			ctx := context.Background()
-			weavertest.Run(t, weavertest.Options{SingleProcess: single}, func(client testApp) {
+			weavertest.Run(t, mode, weavertest.Options{}, func(client testApp) {
 				// Check pointer passing for nil pointer.
 				got, err := client.IncPointer(ctx, nil)
 				if err != nil {

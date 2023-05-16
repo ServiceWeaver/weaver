@@ -28,12 +28,43 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 )
 
+// Mode controls where components live and how their methods are invoked.
+type Mode uint8
+
+const (
+	// Local places all components in the same process and uses local procedure calls
+	// for method invocations.
+	// This is the default value.
+	Local Mode = iota
+
+	// Multi places all components in different process (unless explicitly colocated)
+	// and uses RPCs for method invocations on remote components and local procedure calls
+	// for method invocations on colocated components.
+	Multi
+
+	// RPC places all components in the same process and uses RPCs for method invocations.
+	RPC
+)
+
+// String returns a string representation of a Mode, suitable for using as sub-test names.
+func (m Mode) String() string {
+	switch m {
+	case RPC:
+		return "RPC"
+	case Local:
+		return "Local"
+	case Multi:
+		return "Multi"
+	default:
+		panic(fmt.Sprintf("unknown mode %d", m))
+	}
+}
+
+// AllModes returns a slice of all supported weavertest modes.
+func AllModes() []Mode { return []Mode{Local, RPC, Multi} }
+
 // Options configure weavertest.Init.
 type Options struct {
-	// If true, every component is colocated in a single process. Otherwise,
-	// every component is run in a separate OS process.
-	SingleProcess bool
-
 	// Config contains configuration identical to what might be found in a
 	// Service Weaver config file. It can contain application level as well as component
 	// level configuration. Config is allowed to be empty.
@@ -58,7 +89,7 @@ type testMainInterface interface{}
 // and callTestBody with these components.
 //
 //	func TestFoo(t *testing.T) {
-//	    weavertest.Run(t, weavertest.Options{}, func(foo Foo, bar Bar) {
+//	    weavertest.Run(t, weavertest.Local, weavertest.Options{}, func(foo Foo, bar Bar) {
 //		// Test foo and bar ...
 //	    })
 //	}
@@ -68,7 +99,10 @@ type testMainInterface interface{}
 //	func(ComponentType1)
 //	func(ComponentType, ComponentType2)
 //	...
-func Run(t testing.TB, opts Options, testBody any) {
+//
+// mode controls which processes host which components and how the
+// components communicate.
+func Run(t testing.TB, mode Mode, opts Options, testBody any) {
 	_, isBench := t.(*testing.B)
 	t.Helper()
 	runner, err := checkRunFunc(testBody)
@@ -97,11 +131,11 @@ func Run(t testing.TB, opts Options, testBody any) {
 		}
 	}()
 
-	if opts.SingleProcess {
+	if mode == Local {
 		ctx = initSingleProcess(ctx, opts.Config)
 	} else {
 		logger := logging.NewTestLogger(t, testing.Verbose())
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, opts.Config, logger.Log)
+		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, mode, opts.Config, logger.Log)
 		if err != nil {
 			t.Fatal(err)
 		}

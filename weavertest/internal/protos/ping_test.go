@@ -23,7 +23,7 @@ import (
 
 func TestPingPong(t *testing.T) {
 	ctx := context.Background()
-	weavertest.Run(t, weavertest.Options{}, func(pingponger PingPonger) {
+	weavertest.Run(t, weavertest.Local, weavertest.Options{}, func(pingponger PingPonger) {
 		pong, err := pingponger.Ping(ctx, &Ping{Id: 42})
 		if err != nil {
 			t.Fatal(err)
