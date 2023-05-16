@@ -67,6 +67,12 @@ var _ weaver.InstanceOf[B] = &b{}
 var _ weaver.InstanceOf[C] = &c{}
 var _ weaver.InstanceOf[weaver.Main] = &app{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &a{}
+var _ weaver.Unrouted = &b{}
+var _ weaver.Unrouted = &c{}
+var _ weaver.Unrouted = &app{}
+
 // Local stub implementations.
 
 type a_local_stub struct {

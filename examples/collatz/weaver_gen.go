@@ -62,6 +62,11 @@ var _ weaver.InstanceOf[Even] = &even{}
 var _ weaver.InstanceOf[weaver.Main] = &server{}
 var _ weaver.InstanceOf[Odd] = &odd{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &even{}
+var _ weaver.Unrouted = &server{}
+var _ weaver.Unrouted = &odd{}
+
 // Local stub implementations.
 
 type even_local_stub struct {

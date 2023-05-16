@@ -51,6 +51,13 @@ func init() {
 var _ weaver.InstanceOf[Factorer] = &factorer{}
 var _ weaver.InstanceOf[weaver.Main] = &server{}
 
+// weaver.Router checks.
+var _ weaver.RoutedBy[router] = &factorer{}
+var _ weaver.Unrouted = &server{}
+
+// Component "factorer", router "router" checks.
+var _ func(_ context.Context, x int) int = (&router{}).Factors // routed
+
 // Local stub implementations.
 
 type factorer_local_stub struct {

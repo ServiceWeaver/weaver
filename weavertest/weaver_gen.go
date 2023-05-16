@@ -31,6 +31,9 @@ func init() {
 // weaver.Instance checks.
 var _ weaver.InstanceOf[testMainInterface] = &testMain{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &testMain{}
+
 // Local stub implementations.
 
 type testMainInterface_local_stub struct {

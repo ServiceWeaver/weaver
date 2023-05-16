@@ -52,6 +52,15 @@ func init() {
 var _ weaver.InstanceOf[T] = &impl{}
 var _ weaver.InstanceOf[cartCache] = &cartCacheImpl{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &impl{}
+var _ weaver.RoutedBy[cartCacheRouter] = &cartCacheImpl{}
+
+// Component "cartCacheImpl", router "cartCacheRouter" checks.
+var _ func(_ context.Context, key string, value []CartItem) string = (&cartCacheRouter{}).Add // routed
+var _ func(_ context.Context, key string) string = (&cartCacheRouter{}).Get                   // routed
+var _ func(_ context.Context, key string) string = (&cartCacheRouter{}).Remove                // routed
+
 // Local stub implementations.
 
 type t_local_stub struct {

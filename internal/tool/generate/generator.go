@@ -777,6 +777,7 @@ func (g *generator) generate() error {
 		g.generateVersionCheck(fn)
 		g.generateRegisteredComponents(fn)
 		g.generateInstanceChecks(fn)
+		g.generateRouterChecks(fn)
 		g.generateLocalStubs(fn)
 		g.generateClientStubs(fn)
 		g.generateServerStubs(fn)
@@ -897,6 +898,91 @@ func (g *generator) generateInstanceChecks(p printFn) {
 	for _, c := range g.components {
 		// e.g., var _ weaver.InstanceOf[Odd] = &odd{}
 		p(`var _ %s[%s] = &%s{}`, g.weaver().qualify("InstanceOf"), g.tset.genTypeString(c.intf), g.tset.genTypeString(c.impl))
+	}
+}
+
+// generateRouterChecks generates code that checks that every component
+// implementation is either unrouted or is routed by the expected router.
+func (g *generator) generateRouterChecks(p printFn) {
+	// If a user adds, deletes, or changes an embedded weaver.WithRouter[T]
+	// annotation and forgets to re-run `weaver generate`, these checks will
+	// fail to build.
+	p(``)
+	p(`// weaver.Router checks.`)
+	for _, c := range g.components {
+		if c.router == nil {
+			// e.g., var _ weaver.Unrouted = &odd{}
+			p(`var _ %s = &%s{}`, g.weaver().qualify("Unrouted"), g.tset.genTypeString(c.impl))
+
+		} else {
+			// e.g., var _ weaver.RoutedBy[router] = &odd{}
+			p(`var _ %s[%s] = &%s{}`, g.weaver().qualify("RoutedBy"), g.tset.genTypeString(c.router), g.tset.genTypeString(c.impl))
+		}
+	}
+
+	for _, c := range g.components {
+		if c.router == nil {
+			continue
+		}
+		p(`// Component %q, router %q checks.`, c.impl.Obj().Name(), c.router.Obj().Name())
+
+		// Collect the names of all unrouted methods.
+		methods := map[string]bool{}
+		underlying := c.intf.Underlying().(*types.Interface)
+		for i := 0; i < underlying.NumMethods(); i++ {
+			methods[underlying.Method(i).Name()] = true
+		}
+		for i := 0; i < c.router.NumMethods(); i++ {
+			delete(methods, c.router.Method(i).Name())
+		}
+		unrouted := maps.Keys(methods)
+		sort.Strings(unrouted)
+
+		// Generate code to check for addition of an unrouted method. Given a
+		// component struct "calc", a router "router", and unrouted methods
+		// "add" and "sub", we generate the following code:
+		//
+		//     type __calc_router_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate struct {
+		//         router
+		//         __calc_router_embedding
+		//     }
+		//
+		//     type __calc_router_embedding struct {}
+		//     func (__calc_router_embedding) add()
+		//     func (__calc_router_embedding) sub()
+		checker := fmt.Sprintf("__%s_%s_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate", c.impl.Obj().Name(), c.router.Obj().Name())
+		embedding := fmt.Sprintf("__%s_%s_embedding", c.impl.Obj().Name(), c.router.Obj().Name())
+		if len(unrouted) > 0 {
+			p(`type %s struct {`, checker)
+			p(`	%s`, g.tset.genTypeString(c.router))
+			p(`	%s`, embedding)
+			p(`}`)
+			p(``)
+			p(`type %s struct {}`, embedding)
+			for _, m := range unrouted {
+				p(`func (%s) %s() {}`, embedding, m)
+			}
+			p(``)
+		}
+
+		// If a user deletes a routed method from or implements an unrouted
+		// method on an embedded router and forgets to re-run `weaver
+		// generate`, these checks will fail to build.
+		//
+		// For example, given a component struct "calc", a router "router",
+		// unrouted methods "add" and "sub", and routed method "mul", we
+		// generate the following code:
+		//
+		//     var _ func(context.Context, int, int) (int, error) = (&calc{}).mul // routed
+		//     var _ = (&__calc_router_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate{}).add // unrouted
+		//     var _ = (&__calc_router_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate{}).sub // unrouted
+		for i := 0; i < c.router.NumMethods(); i++ {
+			m := c.router.Method(i)
+			p(`var _ %s = (&%s{}).%s // routed`, g.tset.genTypeString(m.Type()), g.tset.genTypeString(c.router), m.Name())
+		}
+		for _, m := range unrouted {
+			p(`var _ = (&%s{}).%s // unrouted`, checker, m)
+		}
 	}
 }
 

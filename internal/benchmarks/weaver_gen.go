@@ -161,6 +161,18 @@ var _ weaver.InstanceOf[Ping7] = &ping7{}
 var _ weaver.InstanceOf[Ping8] = &ping8{}
 var _ weaver.InstanceOf[Ping9] = &ping9{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &ping1{}
+var _ weaver.Unrouted = &ping10{}
+var _ weaver.Unrouted = &ping2{}
+var _ weaver.Unrouted = &ping3{}
+var _ weaver.Unrouted = &ping4{}
+var _ weaver.Unrouted = &ping5{}
+var _ weaver.Unrouted = &ping6{}
+var _ weaver.Unrouted = &ping7{}
+var _ weaver.Unrouted = &ping8{}
+var _ weaver.Unrouted = &ping9{}
+
 // Local stub implementations.
 
 type ping1_local_stub struct {

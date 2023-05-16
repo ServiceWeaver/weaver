@@ -65,6 +65,28 @@ var _ weaver.InstanceOf[Destination] = &destination{}
 var _ weaver.InstanceOf[Server] = &server{}
 var _ weaver.InstanceOf[Source] = &source{}
 
+// weaver.Router checks.
+var _ weaver.RoutedBy[destRouter] = &destination{}
+var _ weaver.Unrouted = &server{}
+var _ weaver.Unrouted = &source{}
+
+// Component "destination", router "destRouter" checks.
+type __destination_destRouter_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate struct {
+	destRouter
+	__destination_destRouter_embedding
+}
+
+type __destination_destRouter_embedding struct{}
+
+func (__destination_destRouter_embedding) GetAll() {}
+func (__destination_destRouter_embedding) Getpid() {}
+func (__destination_destRouter_embedding) Record() {}
+
+var _ func(_ context.Context, file string, msg string) string = (&destRouter{}).RoutedRecord                 // routed
+var _ = (&__destination_destRouter_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate{}).GetAll // unrouted
+var _ = (&__destination_destRouter_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate{}).Getpid // unrouted
+var _ = (&__destination_destRouter_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate{}).Record // unrouted
+
 // Local stub implementations.
 
 type destination_local_stub struct {

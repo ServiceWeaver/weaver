@@ -15,6 +15,8 @@ var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver
 
 // weaver.Instance checks.
 
+// weaver.Router checks.
+
 // Local stub implementations.
 
 // Client stub implementations.

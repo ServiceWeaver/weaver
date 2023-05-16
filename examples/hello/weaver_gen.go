@@ -50,6 +50,10 @@ func init() {
 var _ weaver.InstanceOf[weaver.Main] = &app{}
 var _ weaver.InstanceOf[Reverser] = &reverser{}
 
+// weaver.Router checks.
+var _ weaver.Unrouted = &app{}
+var _ weaver.Unrouted = &reverser{}
+
 // Local stub implementations.
 
 type main_local_stub struct {
