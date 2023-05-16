@@ -541,13 +541,12 @@ type aimpl struct {
 	weaver.Implements[A]
 }
 
-func register[Intf, Impl any](name string, configFn func(any) any) {
+func register[Intf, Impl any](name string) {
 	var zero Impl
 	codegen.Register(codegen.Registration{
 		Name:         name,
 		Iface:        reflect.TypeOf((*Intf)(nil)).Elem(),
 		Impl:         reflect.TypeOf(zero),
-		ConfigFn:     configFn,
 		LocalStubFn:  func(any, trace.Tracer) any { return nil },
 		ClientStubFn: func(codegen.Stub, string) any { return nil },
 		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
@@ -556,5 +555,5 @@ func register[Intf, Impl any](name string, configFn func(any) any) {
 
 // Register a dummy component for test.
 func init() {
-	register[A, aimpl]("envelope_test/A", nil)
+	register[A, aimpl]("envelope_test/A")
 }

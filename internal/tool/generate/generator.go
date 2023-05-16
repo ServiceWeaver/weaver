@@ -395,12 +395,10 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 		return nil, nil
 	}
 
-	// Find any weaver.Implements[T], weaver.WithRouter[T], and
-	// weaver.WithConfig[T] embedded fields.
+	// Find any weaver.Implements[T] or weaver.WithRouter[T] embedded fields.
 	var intf *types.Named   // The component interface type
 	var router *types.Named // Router type (if any)
 	var isMain bool         // Is intf weaver.Main?
-	var hasConfig bool      // Does impl embed weaver.WithConfig?
 	var refs []*types.Named // T for which weaver.Ref[T] exists in struct
 	for _, f := range s.Fields.List {
 		typeAndValue, ok := pkg.TypesInfo.Types[f.Type]
@@ -452,10 +450,6 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 					formatType(pkg, named))
 			}
 			intf = named
-
-		// The field f is an embedded weaver.WithConfig[T].
-		case isWeaverWithConfig(t):
-			hasConfig = true
 
 		// The field f is an embedded weaver.WithRouter[T].
 		case isWeaverWithRouter(t):
@@ -512,12 +506,11 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 	}
 
 	comp := &component{
-		intf:      intf,
-		impl:      impl,
-		router:    router,
-		isMain:    isMain,
-		hasConfig: hasConfig,
-		refs:      refs,
+		intf:   intf,
+		impl:   impl,
+		router: router,
+		isMain: isMain,
+		refs:   refs,
 	}
 
 	// Find routing information if needed.
@@ -551,7 +544,6 @@ type component struct {
 	routingKey    types.Type      // routing key, or nil if there is no router
 	routedMethods map[string]bool // the set of methods with a routing function
 	isMain        bool            // intf is weaver.Main
-	hasConfig     bool            // implementation embeds weaver.WithConfig?
 	refs          []*types.Named  // List of T where a weaver.Ref[T] field is in impl struct
 }
 
@@ -962,9 +954,6 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//   https://pkg.go.dev/reflect#example-TypeOf
 		p(`		Iface: %s((*%s)(nil)).Elem(),`, reflect.qualify("TypeOf"), g.componentRef(comp))
 		p(`		Impl: %s(%s{}),`, reflect.qualify("TypeOf"), comp.implName())
-		if comp.hasConfig {
-			p(`		ConfigFn: func(i any) any { return i.(*%s).WithConfig.Config() },`, comp.implName())
-		}
 		if comp.router != nil {
 			p(`		Routed: true,`)
 		}
