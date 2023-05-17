@@ -32,21 +32,19 @@ import (
 )
 
 func TestOneComponent(t *testing.T) {
-	for _, mode := range weavertest.AllModes() {
-		t.Run(mode.String(), func(t *testing.T) {
-			weavertest.Run(t, mode, weavertest.Options{}, func(dst simple.Destination) {
+	for _, runner := range weavertest.AllRunners() {
+		t.Run(runner.Name(), func(t *testing.T) {
+			runner.Run(t, func(dst simple.Destination) {
 				// Get the PID of the dst component. Check whether root and dst are running
 				// in the same process.
 				cPid := os.Getpid()
 				dstPid, _ := dst.Getpid(context.Background())
 				sameProcess := cPid == dstPid
-
-				switch mode {
-				case weavertest.RPC, weavertest.Local:
+				if runner.SingleProcess() {
 					if !sameProcess {
 						t.Fatal("the root and the dst components should run in the same process")
 					}
-				case weavertest.Multi:
+				} else {
 					if sameProcess {
 						t.Fatal("the root and the dst components should run in different processes")
 					}
@@ -59,28 +57,18 @@ func TestOneComponent(t *testing.T) {
 func TestTwoComponents(t *testing.T) {
 	// Add a list of items to a component (dst) from another component (src). Verify that
 	// dst updates the state accordingly.
-	type testCase struct {
-		name   string
-		Mode   weavertest.Mode
-		config string
-	}
 	ctx := context.Background()
-	for _, c := range []testCase{
-		{"single", weavertest.Local, ""},
-		{"rpc", weavertest.RPC, ""},
-		{"multi", weavertest.Multi, ""},
-		{"colocate", weavertest.Multi, `
-			[serviceweaver]
-			colocate = [
-			  [
-			    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
-			    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
-			  ]
-		]`},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			opts := weavertest.Options{Config: c.config}
-			weavertest.Run(t, c.Mode, opts, func(src simple.Source, dst simple.Destination) {
+	colocate := weavertest.Multi.WithName("Colocate").WithConfig(`
+		[serviceweaver]
+		colocate = [
+		  [
+		    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
+		    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+		  ]
+	]`)
+	for _, runner := range append(weavertest.AllRunners(), colocate) {
+		t.Run(runner.Name(), func(t *testing.T) {
+			runner.Run(t, func(src simple.Source, dst simple.Destination) {
 				file := filepath.Join(t.TempDir(), fmt.Sprintf("simple_%s", uuid.New().String()))
 				want := []string{"a", "b", "c", "d", "e"}
 				for _, in := range want {
@@ -102,9 +90,9 @@ func TestTwoComponents(t *testing.T) {
 }
 
 func TestServer(t *testing.T) {
-	for _, mode := range weavertest.AllModes() {
-		t.Run(mode.String(), func(t *testing.T) {
-			weavertest.Run(t, mode, weavertest.Options{}, func(srv simple.Server) {
+	for _, runner := range weavertest.AllRunners() {
+		t.Run(runner.Name(), func(t *testing.T) {
+			runner.Run(t, func(srv simple.Server) {
 				ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
 				defer cancelFunc()
 				defer func() {
@@ -126,7 +114,7 @@ func TestServer(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Could not fetch proxy address: %v", err)
 				}
-				if mode == weavertest.Local && proxy != "" {
+				if runner.SingleProcess() && proxy != "" {
 					t.Fatalf("Unexpected proxy %q", proxy)
 				}
 
@@ -153,10 +141,10 @@ func TestServer(t *testing.T) {
 func TestRoutedCall(t *testing.T) {
 	// Make a call to a routed method.
 	ctx := context.Background()
-	for _, mode := range weavertest.AllModes() {
-		t.Run(mode.String(), func(t *testing.T) {
+	for _, runner := range weavertest.AllRunners() {
+		t.Run(runner.Name(), func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), fmt.Sprintf("simple_%s", uuid.New().String()))
-			weavertest.Run(t, mode, weavertest.Options{}, func(dst simple.Destination) {
+			runner.Run(t, func(dst simple.Destination) {
 				if err := dst.RoutedRecord(ctx, file, "hello"); err != nil {
 					t.Fatal(err)
 				}
@@ -176,9 +164,9 @@ func TestRoutedCall(t *testing.T) {
 }
 
 func BenchmarkCall(b *testing.B) {
-	for _, mode := range weavertest.AllModes() {
-		b.Run(mode.String(), func(b *testing.B) {
-			weavertest.Run(b, mode, weavertest.Options{}, func(dst simple.Destination) {
+	for _, runner := range weavertest.AllRunners() {
+		b.Run(runner.Name(), func(b *testing.B) {
+			runner.Run(b, func(dst simple.Destination) {
 				for i := 0; i < b.N; i++ {
 					_, err := dst.Getpid(context.Background())
 					if err != nil {

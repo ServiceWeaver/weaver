@@ -52,7 +52,7 @@ const DefaultReplication = 2
 type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
-	mode       Mode
+	runner     Runner
 	wlet       *protos.EnvelopeInfo   // info for subprocesses
 	config     *protos.AppConfig      // application config
 	colocation map[string]string      // maps component to group
@@ -101,7 +101,7 @@ type connection struct {
 var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer returns a new weavertest multiprocess deployer.
-func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, mode Mode, logWriter func(*protos.LogEntry)) *deployer {
+func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, logWriter func(*protos.LogEntry)) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
 		for _, c := range group.Components {
@@ -112,7 +112,7 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	d := &deployer{
 		ctx:        ctx,
 		ctxCancel:  cancel,
-		mode:       mode,
+		runner:     runner,
 		wlet:       wlet,
 		config:     config,
 		colocation: colocation,
@@ -122,7 +122,7 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	return d
 }
 
-func (d *deployer) start(config string) error {
+func (d *deployer) start() error {
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -152,7 +152,7 @@ func (d *deployer) start(config string) error {
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
 		ToEnvelopeFile: fromWeaveletWriter,
-		TestConfig:     config,
+		TestConfig:     d.runner.config,
 	}
 	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
 
@@ -300,7 +300,7 @@ func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateCompo
 	if !h.subscribed[req.Component] {
 		h.subscribed[req.Component] = true
 
-		if h.mode != RPC && h.group.name == target.name {
+		if !h.runner.forceRPC && h.group.name == target.name {
 			// Route locally.
 			routing := &protos.RoutingInfo{Component: req.Component, Local: true}
 			if err := h.conn.UpdateRoutingInfo(routing); err != nil {
@@ -372,8 +372,8 @@ func (d *deployer) startGroup(g *group) error {
 // REQUIRES: d.mu is held.
 func (d *deployer) group(component string) *group {
 	var name string
-	if d.mode == RPC {
-		name = "main" // In RPC mode everything is in one group.
+	if !d.runner.multi {
+		name = "main" // Everything is in one group.
 	} else if component == "github.com/ServiceWeaver/weaver/weavertest/testMainInterface" {
 		name = "main" // Force testMain into main group
 	} else if x, ok := d.colocation[component]; ok {

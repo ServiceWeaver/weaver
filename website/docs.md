@@ -1222,9 +1222,10 @@ environment variables.
 # Testing
 
 Service Weaver includes a `weavertest` package that you can use to test your
-Service Weaver applications. Tests use `weavertest.Run` instead of
-`weaver.Run`. To test an `Adder` component with an `Add` method, for example,
-create an `adder_test.go` file with the following contents.
+Service Weaver applications. The package provides a `Runner` type with a `Run`
+method Tests use `Runner.Run` instead of `weaver.Run`. To test an `Adder`
+component with an `Add` method, for example, create an `adder_test.go` file with
+the following contents.
 
 ```go
 package main
@@ -1238,7 +1239,8 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-     weavertest.Run(t, weavertest.Options{}, func(adder Adder) {
+     runner := weavertest.Local  // A runner that runs components in a single process
+     runner.Run(t, func(adder Adder) {
          ctx := context.Background()
          got, err := adder.Add(ctx, 1, 2)
          if err != nil {
@@ -1251,22 +1253,21 @@ func TestAdd(t *testing.T) {
 }
 ```
 
-Run `go test` to run the test. `weavertest.Run` will create an `Adder` component
-and pass it to the supplied function. Tests that want to exercise multiple
+Run `go test` to run the test. `runner.Run` will create an `Adder` component and
+pass it to the supplied function. Tests that want to exercise multiple
 components can pass a function with a separate argument per component. Each of
 those components will be created and passed to the function.
 
 ```go
 func TestArithmetic(t *testing.T) {
-    weavertest.Run(t, weavertest.Options{}, func(adder Adder, multiplier Multiplier) {
+    weavertest.Local.Run(t, func(adder Adder, multiplier Multiplier) {
         // ...
     })
 }
 ```
 
-`weavertest.Run` takes a `weavertest.Options` argument, which you can use to
-configure the execution of the test. The mode argument controls the placement of
-components and how they communicate with each other:
+`weavertest` provides a set of builtin Runners that differ in how they partition
+components across processes and how the components communicate with each other:
 
 1. **weavertest.Local**: Every component will be placed in the test process, and
    all component method calls will use local procedure calls, happens when you
@@ -1278,15 +1279,15 @@ components and how they communicate with each other:
    all component method calls will use remote even though the callee is
    local. This mode is most useful when collecting profiles or coverage data.
 
-Tests run in `weavertest.Local` mode are easier to debug and troubleshoot, but
-do not test distributed execution. You should test in all modes to get the best of
-both worlds:
+Tests run using `weavertest.Local` are easier to debug and troubleshoot, but do
+not test distributed execution. You should test with different runners to get
+the best of both worlds:
 
 ```go
 func TestAdd(t *testing.T) {
-    for _, mode := range weavertest.AllModes() {
-        t.Run(mode.String(), func(t *testing.T) {
-            weavertest.Run(t, mode, weavertest.Options{}, func(adder Adder) {
+    for _, runner := range weavertest.AllRunners() {
+        t.Run(runner.String(), func(t *testing.T) {
+            runner.Run(t, func(adder Adder) {
                 // ...
             })
         })
@@ -1294,8 +1295,18 @@ func TestAdd(t *testing.T) {
 }
 ```
 
-You can also provide the contents of a [config file](#config-files) using the
-`Config` field of the `weavertest.Options` struct.
+You can also provide the contents of a [config file](#config-files) to a runner
+by using the `Runner.WithConfig` method, `WithConfig` returns a Runner that uses
+the supplied configuration when it runs a test.
+
+```go
+func TestArithmetic(t *testing.T) {
+    runner := weavertest.Local.WithConfig(`[serviceweaver] ...`)
+    runner.Run(t, func(adder Adder, multiplier Multiplier) {
+        // ...
+    })
+}
+```
 
 <div hidden class="todo">
 TODO(mwhittaker): Explain how you can unit test a component directly, but it's
