@@ -61,14 +61,14 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[Errer] = &errer{}
-var _ weaver.InstanceOf[Failer] = &failer{}
-var _ weaver.InstanceOf[Pointer] = &pointer{}
+var _ weaver.InstanceOf[Errer] = (*errer)(nil)
+var _ weaver.InstanceOf[Failer] = (*failer)(nil)
+var _ weaver.InstanceOf[Pointer] = (*pointer)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &errer{}
-var _ weaver.Unrouted = &failer{}
-var _ weaver.Unrouted = &pointer{}
+var _ weaver.Unrouted = (*errer)(nil)
+var _ weaver.Unrouted = (*failer)(nil)
+var _ weaver.Unrouted = (*pointer)(nil)
 
 // Local stub implementations.
 
@@ -78,7 +78,7 @@ type errer_local_stub struct {
 }
 
 // Check that errer_local_stub implements the Errer interface.
-var _ Errer = &errer_local_stub{}
+var _ Errer = (*errer_local_stub)(nil)
 
 func (s errer_local_stub) Err(ctx context.Context, a0 int) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -103,7 +103,7 @@ type failer_local_stub struct {
 }
 
 // Check that failer_local_stub implements the Failer interface.
-var _ Failer = &failer_local_stub{}
+var _ Failer = (*failer_local_stub)(nil)
 
 func (s failer_local_stub) ImJustHereSoWeaverGenerateDoesntComplain(ctx context.Context) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -128,7 +128,7 @@ type pointer_local_stub struct {
 }
 
 // Check that pointer_local_stub implements the Pointer interface.
-var _ Pointer = &pointer_local_stub{}
+var _ Pointer = (*pointer_local_stub)(nil)
 
 func (s pointer_local_stub) Get(ctx context.Context) (r0 Pair, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -155,7 +155,7 @@ type errer_client_stub struct {
 }
 
 // Check that errer_client_stub implements the Errer interface.
-var _ Errer = &errer_client_stub{}
+var _ Errer = (*errer_client_stub)(nil)
 
 func (s errer_client_stub) Err(ctx context.Context, a0 int) (err error) {
 	// Update metrics.
@@ -219,7 +219,7 @@ type failer_client_stub struct {
 }
 
 // Check that failer_client_stub implements the Failer interface.
-var _ Failer = &failer_client_stub{}
+var _ Failer = (*failer_client_stub)(nil)
 
 func (s failer_client_stub) ImJustHereSoWeaverGenerateDoesntComplain(ctx context.Context) (err error) {
 	// Update metrics.
@@ -275,7 +275,7 @@ type pointer_client_stub struct {
 }
 
 // Check that pointer_client_stub implements the Pointer interface.
-var _ Pointer = &pointer_client_stub{}
+var _ Pointer = (*pointer_client_stub)(nil)
 
 func (s pointer_client_stub) Get(ctx context.Context) (r0 Pair, err error) {
 	// Update metrics.
@@ -334,7 +334,7 @@ type errer_server_stub struct {
 }
 
 // Check that errer_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &errer_server_stub{}
+var _ codegen.Server = (*errer_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s errer_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -376,7 +376,7 @@ type failer_server_stub struct {
 }
 
 // Check that failer_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &failer_server_stub{}
+var _ codegen.Server = (*failer_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s failer_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -413,7 +413,7 @@ type pointer_server_stub struct {
 }
 
 // Check that pointer_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &pointer_server_stub{}
+var _ codegen.Server = (*pointer_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s pointer_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -447,7 +447,7 @@ func (s pointer_server_stub) get(ctx context.Context, args []byte) (res []byte, 
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = &Pair{}
+var _ codegen.AutoMarshal = (*Pair)(nil)
 
 type __is_Pair[T ~struct {
 	weaver.AutoMarshal

@@ -25,7 +25,7 @@ var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = &Order{}
+var _ codegen.AutoMarshal = (*Order)(nil)
 
 type __is_Order[T ~struct {
 	weaver.AutoMarshal
@@ -83,7 +83,7 @@ func serviceweaver_dec_slice_OrderItem_2b9377cb(dec *codegen.Decoder) []OrderIte
 	return res
 }
 
-var _ codegen.AutoMarshal = &OrderItem{}
+var _ codegen.AutoMarshal = (*OrderItem)(nil)
 
 type __is_OrderItem[T ~struct {
 	weaver.AutoMarshal

@@ -62,16 +62,16 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[A] = &a{}
-var _ weaver.InstanceOf[B] = &b{}
-var _ weaver.InstanceOf[C] = &c{}
-var _ weaver.InstanceOf[weaver.Main] = &app{}
+var _ weaver.InstanceOf[A] = (*a)(nil)
+var _ weaver.InstanceOf[B] = (*b)(nil)
+var _ weaver.InstanceOf[C] = (*c)(nil)
+var _ weaver.InstanceOf[weaver.Main] = (*app)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &a{}
-var _ weaver.Unrouted = &b{}
-var _ weaver.Unrouted = &c{}
-var _ weaver.Unrouted = &app{}
+var _ weaver.Unrouted = (*a)(nil)
+var _ weaver.Unrouted = (*b)(nil)
+var _ weaver.Unrouted = (*c)(nil)
+var _ weaver.Unrouted = (*app)(nil)
 
 // Local stub implementations.
 
@@ -81,7 +81,7 @@ type a_local_stub struct {
 }
 
 // Check that a_local_stub implements the A interface.
-var _ A = &a_local_stub{}
+var _ A = (*a_local_stub)(nil)
 
 type b_local_stub struct {
 	impl   B
@@ -89,7 +89,7 @@ type b_local_stub struct {
 }
 
 // Check that b_local_stub implements the B interface.
-var _ B = &b_local_stub{}
+var _ B = (*b_local_stub)(nil)
 
 type c_local_stub struct {
 	impl   C
@@ -97,7 +97,7 @@ type c_local_stub struct {
 }
 
 // Check that c_local_stub implements the C interface.
-var _ C = &c_local_stub{}
+var _ C = (*c_local_stub)(nil)
 
 type main_local_stub struct {
 	impl   weaver.Main
@@ -105,7 +105,7 @@ type main_local_stub struct {
 }
 
 // Check that main_local_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_local_stub{}
+var _ weaver.Main = (*main_local_stub)(nil)
 
 // Client stub implementations.
 
@@ -114,28 +114,28 @@ type a_client_stub struct {
 }
 
 // Check that a_client_stub implements the A interface.
-var _ A = &a_client_stub{}
+var _ A = (*a_client_stub)(nil)
 
 type b_client_stub struct {
 	stub codegen.Stub
 }
 
 // Check that b_client_stub implements the B interface.
-var _ B = &b_client_stub{}
+var _ B = (*b_client_stub)(nil)
 
 type c_client_stub struct {
 	stub codegen.Stub
 }
 
 // Check that c_client_stub implements the C interface.
-var _ C = &c_client_stub{}
+var _ C = (*c_client_stub)(nil)
 
 type main_client_stub struct {
 	stub codegen.Stub
 }
 
 // Check that main_client_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_client_stub{}
+var _ weaver.Main = (*main_client_stub)(nil)
 
 // Server stub implementations.
 
@@ -145,7 +145,7 @@ type a_server_stub struct {
 }
 
 // Check that a_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &a_server_stub{}
+var _ codegen.Server = (*a_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s a_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -161,7 +161,7 @@ type b_server_stub struct {
 }
 
 // Check that b_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &b_server_stub{}
+var _ codegen.Server = (*b_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s b_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -177,7 +177,7 @@ type c_server_stub struct {
 }
 
 // Check that c_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &c_server_stub{}
+var _ codegen.Server = (*c_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s c_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -193,7 +193,7 @@ type main_server_stub struct {
 }
 
 // Check that main_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &main_server_stub{}
+var _ codegen.Server = (*main_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

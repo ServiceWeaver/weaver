@@ -61,14 +61,14 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[Destination] = &destination{}
-var _ weaver.InstanceOf[Server] = &server{}
-var _ weaver.InstanceOf[Source] = &source{}
+var _ weaver.InstanceOf[Destination] = (*destination)(nil)
+var _ weaver.InstanceOf[Server] = (*server)(nil)
+var _ weaver.InstanceOf[Source] = (*source)(nil)
 
 // weaver.Router checks.
-var _ weaver.RoutedBy[destRouter] = &destination{}
-var _ weaver.Unrouted = &server{}
-var _ weaver.Unrouted = &source{}
+var _ weaver.RoutedBy[destRouter] = (*destination)(nil)
+var _ weaver.Unrouted = (*server)(nil)
+var _ weaver.Unrouted = (*source)(nil)
 
 // Component "destination", router "destRouter" checks.
 type __destination_destRouter_if_youre_seeing_this_you_probably_forgot_to_run_weaver_generate struct {
@@ -95,7 +95,7 @@ type destination_local_stub struct {
 }
 
 // Check that destination_local_stub implements the Destination interface.
-var _ Destination = &destination_local_stub{}
+var _ Destination = (*destination_local_stub)(nil)
 
 func (s destination_local_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -171,7 +171,7 @@ type server_local_stub struct {
 }
 
 // Check that server_local_stub implements the Server interface.
-var _ Server = &server_local_stub{}
+var _ Server = (*server_local_stub)(nil)
 
 func (s server_local_stub) Address(ctx context.Context) (r0 string, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -230,7 +230,7 @@ type source_local_stub struct {
 }
 
 // Check that source_local_stub implements the Source interface.
-var _ Source = &source_local_stub{}
+var _ Source = (*source_local_stub)(nil)
 
 func (s source_local_stub) Emit(ctx context.Context, a0 string, a1 string) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -260,7 +260,7 @@ type destination_client_stub struct {
 }
 
 // Check that destination_client_stub implements the Destination interface.
-var _ Destination = &destination_client_stub{}
+var _ Destination = (*destination_client_stub)(nil)
 
 func (s destination_client_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
 	// Update metrics.
@@ -495,7 +495,7 @@ type server_client_stub struct {
 }
 
 // Check that server_client_stub implements the Server interface.
-var _ Server = &server_client_stub{}
+var _ Server = (*server_client_stub)(nil)
 
 func (s server_client_stub) Address(ctx context.Context) (r0 string, err error) {
 	// Update metrics.
@@ -649,7 +649,7 @@ type source_client_stub struct {
 }
 
 // Check that source_client_stub implements the Source interface.
-var _ Source = &source_client_stub{}
+var _ Source = (*source_client_stub)(nil)
 
 func (s source_client_stub) Emit(ctx context.Context, a0 string, a1 string) (err error) {
 	// Update metrics.
@@ -717,7 +717,7 @@ type destination_server_stub struct {
 }
 
 // Check that destination_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &destination_server_stub{}
+var _ codegen.Server = (*destination_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s destination_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -840,7 +840,7 @@ type server_server_stub struct {
 }
 
 // Check that server_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &server_server_stub{}
+var _ codegen.Server = (*server_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s server_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -921,7 +921,7 @@ type source_server_stub struct {
 }
 
 // Check that source_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &source_server_stub{}
+var _ codegen.Server = (*source_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s source_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

@@ -22,7 +22,7 @@ var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = &T{}
+var _ codegen.AutoMarshal = (*T)(nil)
 
 type __is_T[T ~struct {
 	weaver.AutoMarshal

@@ -29,10 +29,10 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[weaver.Main] = &app{}
+var _ weaver.InstanceOf[weaver.Main] = (*app)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &app{}
+var _ weaver.Unrouted = (*app)(nil)
 
 // Local stub implementations.
 
@@ -42,7 +42,7 @@ type main_local_stub struct {
 }
 
 // Check that main_local_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_local_stub{}
+var _ weaver.Main = (*main_local_stub)(nil)
 
 // Client stub implementations.
 
@@ -51,7 +51,7 @@ type main_client_stub struct {
 }
 
 // Check that main_client_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_client_stub{}
+var _ weaver.Main = (*main_client_stub)(nil)
 
 // Server stub implementations.
 
@@ -61,7 +61,7 @@ type main_server_stub struct {
 }
 
 // Check that main_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &main_server_stub{}
+var _ codegen.Server = (*main_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

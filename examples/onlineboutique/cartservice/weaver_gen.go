@@ -49,12 +49,12 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[T] = &impl{}
-var _ weaver.InstanceOf[cartCache] = &cartCacheImpl{}
+var _ weaver.InstanceOf[T] = (*impl)(nil)
+var _ weaver.InstanceOf[cartCache] = (*cartCacheImpl)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &impl{}
-var _ weaver.RoutedBy[cartCacheRouter] = &cartCacheImpl{}
+var _ weaver.Unrouted = (*impl)(nil)
+var _ weaver.RoutedBy[cartCacheRouter] = (*cartCacheImpl)(nil)
 
 // Component "cartCacheImpl", router "cartCacheRouter" checks.
 var _ func(_ context.Context, key string, value []CartItem) string = (&cartCacheRouter{}).Add // routed
@@ -69,7 +69,7 @@ type t_local_stub struct {
 }
 
 // Check that t_local_stub implements the T interface.
-var _ T = &t_local_stub{}
+var _ T = (*t_local_stub)(nil)
 
 func (s t_local_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -128,7 +128,7 @@ type cartCache_local_stub struct {
 }
 
 // Check that cartCache_local_stub implements the cartCache interface.
-var _ cartCache = &cartCache_local_stub{}
+var _ cartCache = (*cartCache_local_stub)(nil)
 
 func (s cartCache_local_stub) Add(ctx context.Context, a0 string, a1 []CartItem) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -191,7 +191,7 @@ type t_client_stub struct {
 }
 
 // Check that t_client_stub implements the T interface.
-var _ T = &t_client_stub{}
+var _ T = (*t_client_stub)(nil)
 
 func (s t_client_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err error) {
 	// Update metrics.
@@ -372,7 +372,7 @@ type cartCache_client_stub struct {
 }
 
 // Check that cartCache_client_stub implements the cartCache interface.
-var _ cartCache = &cartCache_client_stub{}
+var _ cartCache = (*cartCache_client_stub)(nil)
 
 func (s cartCache_client_stub) Add(ctx context.Context, a0 string, a1 []CartItem) (err error) {
 	// Update metrics.
@@ -557,7 +557,7 @@ type t_server_stub struct {
 }
 
 // Check that t_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &t_server_stub{}
+var _ codegen.Server = (*t_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -654,7 +654,7 @@ type cartCache_server_stub struct {
 }
 
 // Check that cartCache_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &cartCache_server_stub{}
+var _ codegen.Server = (*cartCache_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s cartCache_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -754,7 +754,7 @@ func (s cartCache_server_stub) remove(ctx context.Context, args []byte) (res []b
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = &CartItem{}
+var _ codegen.AutoMarshal = (*CartItem)(nil)
 
 type __is_CartItem[T ~struct {
 	weaver.AutoMarshal

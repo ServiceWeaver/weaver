@@ -58,14 +58,14 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[Even] = &even{}
-var _ weaver.InstanceOf[weaver.Main] = &server{}
-var _ weaver.InstanceOf[Odd] = &odd{}
+var _ weaver.InstanceOf[Even] = (*even)(nil)
+var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)
+var _ weaver.InstanceOf[Odd] = (*odd)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &even{}
-var _ weaver.Unrouted = &server{}
-var _ weaver.Unrouted = &odd{}
+var _ weaver.Unrouted = (*even)(nil)
+var _ weaver.Unrouted = (*server)(nil)
+var _ weaver.Unrouted = (*odd)(nil)
 
 // Local stub implementations.
 
@@ -75,7 +75,7 @@ type even_local_stub struct {
 }
 
 // Check that even_local_stub implements the Even interface.
-var _ Even = &even_local_stub{}
+var _ Even = (*even_local_stub)(nil)
 
 func (s even_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -100,7 +100,7 @@ type main_local_stub struct {
 }
 
 // Check that main_local_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_local_stub{}
+var _ weaver.Main = (*main_local_stub)(nil)
 
 type odd_local_stub struct {
 	impl   Odd
@@ -108,7 +108,7 @@ type odd_local_stub struct {
 }
 
 // Check that odd_local_stub implements the Odd interface.
-var _ Odd = &odd_local_stub{}
+var _ Odd = (*odd_local_stub)(nil)
 
 func (s odd_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -135,7 +135,7 @@ type even_client_stub struct {
 }
 
 // Check that even_client_stub implements the Even interface.
-var _ Even = &even_client_stub{}
+var _ Even = (*even_client_stub)(nil)
 
 func (s even_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	// Update metrics.
@@ -199,7 +199,7 @@ type main_client_stub struct {
 }
 
 // Check that main_client_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_client_stub{}
+var _ weaver.Main = (*main_client_stub)(nil)
 
 type odd_client_stub struct {
 	stub      codegen.Stub
@@ -207,7 +207,7 @@ type odd_client_stub struct {
 }
 
 // Check that odd_client_stub implements the Odd interface.
-var _ Odd = &odd_client_stub{}
+var _ Odd = (*odd_client_stub)(nil)
 
 func (s odd_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	// Update metrics.
@@ -274,7 +274,7 @@ type even_server_stub struct {
 }
 
 // Check that even_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &even_server_stub{}
+var _ codegen.Server = (*even_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s even_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -317,7 +317,7 @@ type main_server_stub struct {
 }
 
 // Check that main_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &main_server_stub{}
+var _ codegen.Server = (*main_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -333,7 +333,7 @@ type odd_server_stub struct {
 }
 
 // Check that odd_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &odd_server_stub{}
+var _ codegen.Server = (*odd_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s odd_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
