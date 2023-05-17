@@ -119,22 +119,35 @@ Weaver.
     git pull --rebase upstream main
     ```
 
-8. If you made multiple commits, squash them together (typically using an
-    interactive rebase).
-    
-9.  Ask somebody who has permissions (or do it yourself if you
+    If some changes were pulled, push again to the PR, but this time you will
+    need to force push since the rebase above will have rewritten your commits.
+
+    ```shell
+    git switch my_branch
+    git push --force origin my_branch
+    ```
+
+8.  Ask somebody who has permissions (or do it yourself if you
     have permissions) to merge your branch into the main branch
     of the `upstream` repository. The reviewer may do this without
     being asked.
 
     Select the `Squash and merge` option on https://github.com/ServiceWeaver/weaver
-    or use the command line instructions found on that page.
+    or use the command line instructions found on that page. Edit the commit message
+    as appropriate for the squashed commit.
+
+9.  Delete the branch from `origin`:
+
+    ```
+    git push origin --delete my_branch
+    ```
 
 10. Delete the branch from `local`
 
-11. Delete the branch from `origin`: Visit https://github.com/_your_user_name/weaver/branches
-    and check that `my_branch` is not marked as Open. If so, hit the delete
-    button (looks like a trash icon) next to `my_branch`.
+    ```
+    git switch main
+    git branch -D my_branch
+    ```
 
 ### Code Reviews
 
