@@ -28,47 +28,50 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 )
 
-// Mode controls where components live and how their methods are invoked.
-type Mode uint8
-
-const (
-	// Local places all components in the same process and uses local procedure calls
-	// for method invocations.
-	// This is the default value.
-	Local Mode = iota
-
-	// RPC places all components in the same process and uses RPCs for method invocations.
-	RPC
-
-	// Multi places all components in different process (unless explicitly colocated)
-	// and uses RPCs for method invocations on remote components and local procedure calls
-	// for method invocations on colocated components.
-	Multi
-)
-
-// String returns a string representation of a Mode, suitable for using as sub-test names.
-func (m Mode) String() string {
-	switch m {
-	case RPC:
-		return "RPC"
-	case Local:
-		return "Local"
-	case Multi:
-		return "Multi"
-	default:
-		panic(fmt.Sprintf("unknown mode %d", m))
-	}
+// Runner runs user-supplied testing code as a weaver application.
+type Runner struct {
+	multi    bool // Use multiple processes
+	forceRPC bool // Use RPCs even for local calls
+	name     string
+	config   string
 }
 
-// AllModes returns a slice of all supported weavertest modes.
-func AllModes() []Mode { return []Mode{Local, RPC, Multi} }
+var (
+	// Local is a Runner that places all components in the same process
+	// and uses local procedure calls for method invocations.
+	Local = Runner{name: "Local"}
 
-// Options configure weavertest.Init.
-type Options struct {
-	// Config contains configuration identical to what might be found in a
-	// Service Weaver config file. It can contain application level as well as component
-	// level configuration. Config is allowed to be empty.
-	Config string
+	// RPC is a Runner that places all components in the same process
+	// and uses RPCs for method invocations.
+	RPC = Runner{multi: false, forceRPC: true, name: "RPC"}
+
+	// Multi is a Runner that places all components in different
+	// process (unless explicitly colocated) and uses RPCs for method
+	// invocations on remote components and local procedure calls for
+	// method invocations on colocated components.
+	Multi = Runner{multi: true, name: "Multi"}
+)
+
+// AllRunners returns a slice of all builtin weavertest runners.
+func AllRunners() []Runner { return []Runner{Local, RPC, Multi} }
+
+// WithName returns a new Runner with the specified name. It is useful
+// when the runner has been adjusted and is no longer identical to one
+// of the predefined runners.
+func (r Runner) WithName(name string) Runner { r.name = name; return r }
+
+// WithConfig returns a new Runner with the specified Service Weaver
+// configuration. The config value passed here is identical to what
+// might be found in a Service Weaver config file. It can contain
+// application level as well as component level configuration.
+func (r Runner) WithConfig(config string) Runner { r.config = config; return r }
+
+// Name returns the runner name. It is suitable for use as a sub-test or sub-benchmark name.
+func (r Runner) Name() string {
+	if r.name == "" {
+		return "Default"
+	}
+	return r.name
 }
 
 //go:generate ../cmd/weaver/weaver generate
@@ -89,7 +92,7 @@ type testMainInterface interface{}
 // and callTestBody with these components.
 //
 //	func TestFoo(t *testing.T) {
-//	    weavertest.Run(t, weavertest.Local, weavertest.Options{}, func(foo Foo, bar Bar) {
+//	    weavertest.Local.Run(t, func(foo Foo, bar Bar) {
 //		// Test foo and bar ...
 //	    })
 //	}
@@ -99,10 +102,7 @@ type testMainInterface interface{}
 //	func(ComponentType1)
 //	func(ComponentType, ComponentType2)
 //	...
-//
-// mode controls which processes host which components and how the
-// components communicate.
-func Run(t testing.TB, mode Mode, opts Options, testBody any) {
+func (r Runner) Run(t testing.TB, testBody any) {
 	_, isBench := t.(*testing.B)
 	t.Helper()
 	runner, err := checkRunFunc(testBody)
@@ -131,11 +131,11 @@ func Run(t testing.TB, mode Mode, opts Options, testBody any) {
 		}
 	}()
 
-	if mode == Local {
-		ctx = initSingleProcess(ctx, opts.Config)
+	if !r.multi && !r.forceRPC {
+		ctx = initSingleProcessLocal(ctx, r.config)
 	} else {
 		logger := logging.NewTestLogger(t, testing.Verbose())
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, mode, opts.Config, logger.Log)
+		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, r, logger.Log)
 		if err != nil {
 			t.Fatal(err)
 		}
