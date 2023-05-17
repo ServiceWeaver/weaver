@@ -37,13 +37,13 @@ const (
 	// This is the default value.
 	Local Mode = iota
 
+	// RPC places all components in the same process and uses RPCs for method invocations.
+	RPC
+
 	// Multi places all components in different process (unless explicitly colocated)
 	// and uses RPCs for method invocations on remote components and local procedure calls
 	// for method invocations on colocated components.
 	Multi
-
-	// RPC places all components in the same process and uses RPCs for method invocations.
-	RPC
 )
 
 // String returns a string representation of a Mode, suitable for using as sub-test names.

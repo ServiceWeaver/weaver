@@ -49,8 +49,7 @@
 //
 //  3. RPC: Every component will be placed in a same process, but
 //     method calls will use RPCs. This mode is most useful when
-//     profiling or collecting
-//     coverage information.
+//     profiling or collecting coverage information.
 //
 // Example:
 //
