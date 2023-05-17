@@ -138,7 +138,7 @@ func (r Runner) Run(t testing.TB, testBody any) {
 	}()
 
 	if !r.multi && !r.forceRPC {
-		ctx = initSingleProcess(ctx, r.config)
+		ctx = initSingleProcessLocal(ctx, r.config)
 	} else {
 		logger := logging.NewTestLogger(t, testing.Verbose())
 		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, r, logger.Log)

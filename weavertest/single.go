@@ -21,12 +21,12 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 )
 
-// initSingleProcess initializes a brand new single-process execution environment.
+// initSingleProcessLocal initializes a brand new single-process execution environment.
 //
 // config contains configuration identical to what might be found in a file passed
 // when deploying an application. It can contain application level as well as
 // component level configs. config is allowed to be empty.
-func initSingleProcess(ctx context.Context, config string) context.Context {
+func initSingleProcessLocal(ctx context.Context, config string) context.Context {
 	return context.WithValue(ctx, runtime.BootstrapKey{}, runtime.Bootstrap{
 		TestConfig: config,
 		Quiet:      !testing.Verbose(),
