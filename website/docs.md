@@ -1265,21 +1265,28 @@ func TestArithmetic(t *testing.T) {
 ```
 
 `weavertest.Run` takes a `weavertest.Options` argument, which you can use to
-configure the execution of the test. By default, `weavertest.Run` will run every
-component in a different process. This is similar to what happens when you run
-`weaver multi deploy`. If you set the `SingleProcess` option, `weavertest.Run`
-will instead run every component in the calling process, similar to what happens
-when you `go run` a Service Weaver application. Single-process tests are easier
-to debug and troubleshoot, but do not test distributed execution. You should
-test in both single and multiprocess mode to get the best of both worlds:
+configure the execution of the test. The mode argument controls the placement of
+components and how they communicate with each other:
 
+1. **weavertest.Local**: Every component will be placed in the test process, and
+   all component method calls will use local procedure calls, happens when you
+   `go run` a Service Weaver application.
+2. **weavertest.Multi**: Every component will be placed in a
+   different process. This is similar to what happens when you run `weaver multi
+   deploy`.
+3. **weavertest.RPC**: Every component will be placed in the test process, but
+   all component method calls will use remote even though the callee is
+   local. This mode is most useful when collecting profiles or coverage data.
+
+Tests run in `weavertest.Local` mode are easier to debug and troubleshoot, but
+do not test distributed execution. You should test in all modes to get the best of
+both worlds:
 
 ```go
 func TestAdd(t *testing.T) {
-    for _, single := range []bool{true, false} {
-        t.Run(fmt.Sprintf("Single=%t", single), func(t *testing.T) {
-            opts := weavertest.Options{SingleProcess: single}
-            weavertest.Run(t, opts, func(adder Adder) {
+    for _, mode := range weavertest.AllModes() {
+        t.Run(mode.String(), func(t *testing.T) {
+            weavertest.Run(t, mode, weavertest.Options{}, func(adder Adder) {
                 // ...
             })
         })

@@ -17,7 +17,6 @@ package diverge
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/ServiceWeaver/weaver/weavertest"
@@ -43,13 +42,14 @@ func (rec *errorRecorder) Fatal(args ...any) {
 }
 
 // TestFailer demonstrates that we only propagate constructor errors in
-// singleprocess mode. In multiprocess mode, if a constructor returns an error,
+// Local mode. In non-local mode, if a constructor returns an error,
 // the entire process crashes. This causes us to get a non-nil network error.
 func TestFailer(t *testing.T) {
-	for _, single := range []bool{true, false} {
-		t.Run(fmt.Sprintf("Single=%v", single), func(t *testing.T) {
+	for _, mode := range weavertest.AllModes() {
+		t.Run(mode.String(), func(t *testing.T) {
 			recorder := &errorRecorder{t, nil}
-			weavertest.Run(recorder, weavertest.Options{SingleProcess: single}, func(f Failer) {})
+			weavertest.Run(recorder, mode, weavertest.Options{}, func(f Failer) {})
+			single := (mode == weavertest.Local)
 			if want, got := single, errors.Is(recorder.err, ErrFailed); want != got {
 				t.Fatalf("expecting Is(ErrFailed) = %v, got %v for error %v", want, got, recorder.err)
 			}
@@ -57,15 +57,16 @@ func TestFailer(t *testing.T) {
 	}
 }
 
-// TestDealiasing demonstrates that pointers are only de-aliased in multiprocess mode.
+// TestDealiasing demonstrates that pointers are only de-aliased when we use RPCs.
 func TestDealiasing(t *testing.T) {
-	for _, single := range []bool{true, false} {
-		t.Run(fmt.Sprintf("Single=%v", single), func(t *testing.T) {
-			weavertest.Run(t, weavertest.Options{SingleProcess: single}, func(p Pointer) {
+	for _, mode := range weavertest.AllModes() {
+		t.Run(mode.String(), func(t *testing.T) {
+			weavertest.Run(t, mode, weavertest.Options{}, func(p Pointer) {
 				pair, err := p.Get(context.Background())
 				if err != nil {
 					t.Fatal(err)
 				}
+				single := (mode == weavertest.Local)
 				if want, got := single, (pair.X == pair.Y); want != got {
 					t.Fatalf("expecting aliasing = %v, got %v", want, got)
 				}
@@ -74,12 +75,13 @@ func TestDealiasing(t *testing.T) {
 	}
 }
 
-// TestCustomErrors* demonstrates that custom Is methods are ignored in multiprocess mode.
+// TestCustomErrors* demonstrates that custom Is methods are ignored when using RPCs.
 func TestCustomErrors(t *testing.T) {
-	for _, single := range []bool{true, false} {
-		t.Run(fmt.Sprintf("Single=%v", single), func(t *testing.T) {
-			weavertest.Run(t, weavertest.Options{SingleProcess: single}, func(e Errer) {
+	for _, mode := range weavertest.AllModes() {
+		t.Run(mode.String(), func(t *testing.T) {
+			weavertest.Run(t, mode, weavertest.Options{}, func(e Errer) {
 				err := e.Err(context.Background(), 1)
+				single := (mode == weavertest.Local)
 				if want, got := single, errors.Is(err, IntError{2}); want != got {
 					t.Fatalf("expecting Is(IntError{2}) = %v, got %v for error %v", want, got, err)
 				}

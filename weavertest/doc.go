@@ -32,15 +32,30 @@
 //	}
 //
 // weavertest.Run is passed a weavertest.Options, which you can use to configure
-// the execution of the test. By default, weavertest.Run will run every
-// component in a different process. This is similar to what happens when you
-// run weaver multi deploy. If you set the SingleProcess option, weavertest.Run
-// will instead run every component in a single process, similar to what
-// happens when you "go run" a Service Weaver application.
+// the execution of the test.
+//
+// The mode argument to weavertest.Run controls whether or not components are
+// placed in different processes and whether or not RPCs are used for components
+// in the same process.
+//
+//  1. Local: all components are placed in a single process and method
+//     invocations are local procedure calls. This is similar to what
+//     happens when you run the Service Weaver binary directly or run
+//     the application using "go run".
+//
+//  2. Multi: Every component will be placed in a separate process,
+//     similar to what happens when you "weaver multi deploy" a
+//     Service Weaver application.
+//
+//  3. RPC: Every component will be placed in a same process, but
+//     method calls will use RPCs. This mode is most useful when
+//     profiling or collecting coverage information.
+//
+// Example:
 //
 //	func TestReverseSingle(t *testing.T) {
-//	    weavertest.Run(t, weavetest.Options{SingleProcess: true}, func(reverser Reverser) {
-//		// ...
-//	    })
+//	  weavertest.Run(t, weavertest.Multi, weavetest.Options{}, func(reverser Reverser) {
+//	    // ...
+//	  })
 //	}
 package weavertest
