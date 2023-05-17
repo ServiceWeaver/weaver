@@ -64,8 +64,10 @@ type destination struct {
 	mu sync.Mutex
 }
 
+var pid = os.Getpid()
+
 func (d *destination) Getpid(_ context.Context) (int, error) {
-	return os.Getpid(), nil
+	return pid, nil
 }
 
 // Record adds a message.
