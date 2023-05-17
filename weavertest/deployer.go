@@ -52,7 +52,7 @@ const DefaultReplication = 2
 type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
-	runner     Runner
+	runner     Runner                 // holds runner-specific info like config
 	wlet       *protos.EnvelopeInfo   // info for subprocesses
 	config     *protos.AppConfig      // application config
 	colocation map[string]string      // maps component to group
