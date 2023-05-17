@@ -40,13 +40,13 @@ func TestOneComponent(t *testing.T) {
 				cPid := os.Getpid()
 				dstPid, _ := dst.Getpid(context.Background())
 				sameProcess := cPid == dstPid
-				if runner.SingleProcess() {
-					if !sameProcess {
-						t.Fatal("the root and the dst components should run in the same process")
-					}
-				} else {
+				if runner == weavertest.Multi {
 					if sameProcess {
 						t.Fatal("the root and the dst components should run in different processes")
+					}
+				} else {
+					if !sameProcess {
+						t.Fatal("the root and the dst components should run in the same process")
 					}
 				}
 			})
@@ -114,7 +114,7 @@ func TestServer(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Could not fetch proxy address: %v", err)
 				}
-				if runner.SingleProcess() && proxy != "" {
+				if runner != weavertest.Multi && proxy != "" {
 					t.Fatalf("Unexpected proxy %q", proxy)
 				}
 

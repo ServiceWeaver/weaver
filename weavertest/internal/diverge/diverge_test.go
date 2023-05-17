@@ -49,8 +49,8 @@ func TestFailer(t *testing.T) {
 		t.Run(runner.Name(), func(t *testing.T) {
 			recorder := &errorRecorder{t, nil}
 			runner.Run(recorder, func(f Failer) {})
-			single := !runner.UsesRPC()
-			if want, got := single, errors.Is(recorder.err, ErrFailed); want != got {
+			localCalls := runner == weavertest.Local
+			if want, got := localCalls, errors.Is(recorder.err, ErrFailed); want != got {
 				t.Fatalf("expecting Is(ErrFailed) = %v, got %v for error %v", want, got, recorder.err)
 			}
 		})
@@ -66,8 +66,8 @@ func TestDealiasing(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				single := !runner.UsesRPC()
-				if want, got := single, (pair.X == pair.Y); want != got {
+				localCalls := runner == weavertest.Local
+				if want, got := localCalls, (pair.X == pair.Y); want != got {
 					t.Fatalf("expecting aliasing = %v, got %v", want, got)
 				}
 			})
@@ -81,8 +81,8 @@ func TestCustomErrors(t *testing.T) {
 		t.Run(runner.Name(), func(t *testing.T) {
 			runner.Run(t, func(e Errer) {
 				err := e.Err(context.Background(), 1)
-				single := !runner.UsesRPC()
-				if want, got := single, errors.Is(err, IntError{2}); want != got {
+				localCalls := runner == weavertest.Local
+				if want, got := localCalls, errors.Is(err, IntError{2}); want != got {
 					t.Fatalf("expecting Is(IntError{2}) = %v, got %v for error %v", want, got, err)
 				}
 			})

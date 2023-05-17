@@ -74,12 +74,6 @@ func (r Runner) Name() string {
 	return r.name
 }
 
-// SingleProcess returns true iff the runner will run all components in a single process.
-func (r Runner) SingleProcess() bool { return !r.multi }
-
-// UsesRPC returns true iff the runner uses RPCs for communication.
-func (r Runner) UsesRPC() bool { return r.multi || r.forceRPC }
-
 //go:generate ../cmd/weaver/weaver generate
 
 // testMain is the component implementation used in tests.
