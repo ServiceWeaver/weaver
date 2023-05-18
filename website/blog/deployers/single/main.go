@@ -116,8 +116,13 @@ func (d *deployer) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
 	return nil
 }
 
+func (*deployer) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
+	panic("unused")
+}
+
 func (*deployer) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
-	// This deployer doesn't enable network-level security.
+	// This deployer doesn't enable mTLS.
 	panic("unused")
 }
 

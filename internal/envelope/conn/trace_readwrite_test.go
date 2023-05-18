@@ -65,6 +65,10 @@ func (*pipeForTest) ExportListener(context.Context, *protos.ExportListenerReques
 	return nil, nil
 }
 
+func (*pipeForTest) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	panic("unused")
+}
+
 func (*pipeForTest) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
 	panic("unused")
 }

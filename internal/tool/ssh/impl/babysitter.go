@@ -224,6 +224,12 @@ func (b *babysitter) ExportListener(_ context.Context, req *protos.ExportListene
 	return reply, nil
 }
 
+// GetSelfCertificate implements the envelope.EnvelopeHandler interface.
+func (b *babysitter) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	// TODO(spetrovic): Implement this functionality.
+	panic("unimplemented")
+}
+
 // VerifyClientCertificate implements the envelope.EnvelopeHandler interface.
 func (b *babysitter) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
 	// TODO(spetrovic): Implement this functionality.

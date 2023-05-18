@@ -179,6 +179,10 @@ func (*handlerForTest) ExportListener(context.Context, *protos.ExportListenerReq
 	return nil, nil
 }
 
+func (*handlerForTest) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	panic("unused")
+}
+
 func (*handlerForTest) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
 	panic("unused")
 }

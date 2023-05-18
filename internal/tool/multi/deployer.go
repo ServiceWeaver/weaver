@@ -86,6 +86,8 @@ type group struct {
 	assignments map[string]*protos.Assignment   // assignment, by component
 	subscribers map[string][]*envelope.Envelope // routing info subscribers, by component
 	callable    []string                        // callable components for group
+	certPEM     []byte                          // group certificate
+	keyPEM      []byte                          // group private key
 }
 
 // A proxyInfo contains information about a proxy.
@@ -137,12 +139,6 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 
-	// Form co-location groups.
-	groups, err := computeGroups(config)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
 		ctx:            ctx,
@@ -157,8 +153,12 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		config:         config,
 		multiConfig:    multiConfig,
 		started:        time.Now(),
-		groups:         groups,
 		proxies:        map[string]*proxyInfo{},
+	}
+
+	// Form co-location groups.
+	if err := d.computeGroups(); err != nil {
+		return nil, err
 	}
 
 	// Start a goroutine that collects metrics.
@@ -179,8 +179,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 	return d, nil
 }
 
-// computeGroups computes the colocation group information for the given
-// application.
+// computeGroups computes the colocation group information for the deployer.
 //
 // computeGroups places components into co-location groups based on the
 // colocate stanza in a config. For example, consider the following config.
@@ -194,12 +193,23 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 // "C" and a co-location group with components "D" and "E". All other
 // components are placed in their own co-location group. We use the first
 // listed component as the co-location group name.
-func computeGroups(config *protos.AppConfig) (map[string]*group, error) {
+func (d *deployer) computeGroups() error {
 	groups := map[string]*group{}
-	ensureGroup := func(component string) *group {
+	ensureGroup := func(component string) (*group, error) {
 		if g, ok := groups[component]; ok {
-			return g
+			return g, nil
 		}
+		var certPEM, keyPEM []byte
+		if d.multiConfig.MTLS {
+			cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, component)
+			if err != nil {
+				return nil, fmt.Errorf("cannot generate cert: %w", err)
+			}
+			if certPEM, keyPEM, err = certs.PEMEncode(cert, key); err != nil {
+				return nil, err
+			}
+		}
+
 		g := &group{
 			// TODO(spetrovic): ensure a consistent name is picked for
 			// colocation groups across versions.
@@ -208,18 +218,23 @@ func computeGroups(config *protos.AppConfig) (map[string]*group, error) {
 			addresses:   map[string]bool{},
 			assignments: map[string]*protos.Assignment{},
 			subscribers: map[string][]*envelope.Envelope{},
+			certPEM:     certPEM,
+			keyPEM:      keyPEM,
 		}
 		groups[component] = g
-		return g
+		return g, nil
 	}
 
 	// Use the colocation information to place multiple components
 	// in the same group.
-	for _, grp := range config.Colocate {
+	for _, grp := range d.config.Colocate {
 		if len(grp.Components) == 0 {
 			continue
 		}
-		g := ensureGroup(grp.Components[0])
+		g, err := ensureGroup(grp.Components[0])
+		if err != nil {
+			return err
+		}
 		for i := 1; i < len(grp.Components); i++ {
 			groups[grp.Components[i]] = g
 		}
@@ -228,19 +243,24 @@ func computeGroups(config *protos.AppConfig) (map[string]*group, error) {
 	// Use the call graph information to (1) identify all components in the
 	// application binary and create groups for them, and (2) compute the
 	// set of components a given group is allowed to invoke methods on.
-	callGraph, err := bin.ReadComponentGraph(config.Binary)
+	callGraph, err := bin.ReadComponentGraph(d.config.Binary)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the call graph from the application binary: %w", err)
+		return fmt.Errorf("cannot read the call graph from the application binary: %w", err)
 	}
 	for _, edge := range callGraph {
 		src := edge[0]
 		dst := edge[1]
-		ensureGroup(dst)
-		srcGroup := ensureGroup(src)
+		if _, err := ensureGroup(dst); err != nil {
+			return err
+		}
+		srcGroup, err := ensureGroup(src)
+		if err != nil {
+			return err
+		}
 		srcGroup.callable = append(srcGroup.callable, dst)
 	}
-
-	return groups, nil
+	d.groups = groups
+	return nil
 }
 
 // wait waits for the deployer to terminate. It returns an error that
@@ -298,23 +318,6 @@ func (d *deployer) startColocationGroup(g *group) error {
 
 	components := maps.Keys(g.started)
 	for r := 0; r < defaultReplication; r++ {
-		// Generate a signed certificate that encodes the group name.
-		//
-		// TODO(spetrovic): Create one cert per group rather than per replica?
-		// If you increase the default replication from 2 to something like 10,
-		// this takes a long long time.
-		var certPEM, keyPEM []byte
-		if d.multiConfig.MTLS {
-			cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, g.name)
-			if err != nil {
-				return fmt.Errorf("cannot generate cert: %w", err)
-			}
-			certPEM, keyPEM, err = certs.PEMEncode(cert, key)
-			if err != nil {
-				return fmt.Errorf("cannot PEM-encode cert: %w", err)
-			}
-		}
-
 		// Start the weavelet and capture its logs, traces, and metrics.
 		info := &protos.EnvelopeInfo{
 			App:           d.config.Name,
@@ -324,8 +327,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 			SingleProcess: false,
 			SingleMachine: true,
 			RunMain:       g.started[runtime.Main],
-			SelfCertChain: certPEM,
-			SelfKey:       keyPEM,
+			Mtls:          d.multiConfig.MTLS,
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config)
 		if err != nil {
@@ -395,6 +397,14 @@ func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 	// Route remotely.
 	target.subscribers[req.Component] = append(target.subscribers[req.Component], h.envelope)
 	return h.envelope.UpdateRoutingInfo(target.routing(req.Component))
+}
+
+// GetSelfCertificate implements the envelope.EnvelopeHandler interface.
+func (h *handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	return &protos.GetSelfCertificateReply{
+		Cert: h.g.certPEM,
+		Key:  h.g.keyPEM,
+	}, nil
 }
 
 // VerifyClientCertificate implements the envelope.EnvelopeHandler interface.

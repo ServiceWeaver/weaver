@@ -40,6 +40,10 @@ type env interface {
 	// ExportListener exports a listener.
 	ExportListener(ctx context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error)
 
+	// GetSelfCertificate returns the certificate and the private key the
+	// weavelet should use for network connection establishment.
+	GetSelfCertificate(ctx context.Context) ([]byte, []byte, error)
+
 	// VerifyClientCertificate verifies the certificate chain presented by
 	// a network client attempting to connect to the weavelet. It returns an
 	// error if the network connection should not be established with the

@@ -58,7 +58,6 @@ type weavelet struct {
 	transport *transport           // Transport for cross-weavelet communication
 	dialAddr  string               // Address this weavelet is reachable at
 	tracer    trace.Tracer         // Tracer for this weavelet
-	selfCert  *tls.Certificate     // TLS certificate for this weavelet
 
 	componentsByName map[string]*component       // component name -> component
 	componentsByType map[reflect.Type]*component // component type -> component
@@ -116,21 +115,14 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 		w.componentsByType[info.Iface] = c
 	}
 
-	// Initialize client side of the mTLS protocol.
-	if (info.SelfCertChain == nil) != (info.SelfKey == nil) {
-		return nil, fmt.Errorf(
-			"EnvelopeInfo.{SelfCert, SelfKey} must both be either empty or non-empty")
-	}
-	if info.SelfCertChain != nil {
-		cert, err := tls.X509KeyPair(info.SelfCertChain, info.SelfKey)
-		if err != nil {
-			return nil, fmt.Errorf("invalid cert/key pair in EnvelopeInfo: %w", err)
-		}
-		w.selfCert = &cert
+	if info.Mtls {
+		// Initialize client side of the mTLS protocol.
 		for cname, c := range w.componentsByName {
 			cname := cname
 			c.clientTLS = &tls.Config{
-				Certificates:       []tls.Certificate{*w.selfCert},
+				GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+					return w.getSelfCertificate()
+				},
 				InsecureSkipVerify: true, // ok when VerifyPeerCertificate present
 				VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 					return w.env.VerifyServerCertificate(w.ctx, rawCerts, cname)
@@ -174,6 +166,20 @@ func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*
 	}
 	w.tracer = tracer
 	return w, nil
+}
+
+// getSelfCertificate returns the certificate the weavelet should use for
+// establishing a network connection. Only called if w.info.Mtls.
+func (w *weavelet) getSelfCertificate() (*tls.Certificate, error) {
+	cert, key, err := w.env.GetSelfCertificate(w.ctx)
+	if err != nil {
+		return nil, err
+	}
+	tlsCert, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return nil, err
+	}
+	return &tlsCert, nil
 }
 
 // start starts a weavelet, executing the logic to start and manage components.
@@ -690,7 +696,7 @@ func (s *server) Accept() (net.Conn, *call.HandlerMap, error) {
 		return nil, nil, err
 	}
 
-	if s.wlet.selfCert == nil {
+	if !s.wlet.info.Mtls {
 		// No security: all components are accessible.
 		hm, err := s.handlers(maps.Keys(s.wlet.componentsByName))
 		return conn, hm, err
@@ -700,8 +706,10 @@ func (s *server) Accept() (net.Conn, *call.HandlerMap, error) {
 	// components it can access.
 	var accessibleComponents []string
 	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{*s.wlet.selfCert},
-		ClientAuth:   tls.RequireAnyClientCert,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return s.wlet.getSelfCertificate()
+		},
+		ClientAuth: tls.RequireAnyClientCert,
 		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			var err error
 			accessibleComponents, err = s.wlet.env.VerifyClientCertificate(s.wlet.ctx, rawCerts)

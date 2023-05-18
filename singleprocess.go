@@ -163,6 +163,10 @@ func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr stri
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (e *singleprocessEnv) GetSelfCertificate(ctx context.Context) ([]byte, []byte, error) {
+	panic("unused")
+}
+
 func (e *singleprocessEnv) VerifyClientCertificate(context.Context, [][]byte) ([]string, error) {
 	panic("unused")
 }

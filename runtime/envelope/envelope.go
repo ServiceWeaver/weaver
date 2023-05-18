@@ -51,14 +51,22 @@ type EnvelopeHandler interface {
 	// traffic to the provided address.
 	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
+	// GetSelfCertificate returns the certificate and the private key the
+	// weavelet should use for network connection establishment. The weavelet
+	// will issue this request each time it establishes a connection with
+	// another weavelet.
+	// NOTE: This method is only called if mTLS was enabled for the weavelet,
+	// by passing it an EnvelopeInfo with mtls=true.
+	GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
+
 	// VerifyClientCertificate verifies the certificate chain presented by
 	// a network client attempting to connect to the weavelet. It returns an
 	// error if the network connection should not be established with the
 	// client. Otherwise, it returns the list of weavelet components that the
 	// client is authorized to invoke methods on.
 	//
-	// NOTE: this method is only called if weavelet security was enabled, by
-	// passing non-nil SelfKey and SelfCertChain fields in the EnvelopeInfo.
+	// NOTE: This method is only called if mTLS was enabled for the weavelet,
+	// by passing it an EnvelopeInfo with mtls=true.
 	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
 
 	// VerifyServerCertificate verifies the certificate chain presented by
@@ -66,8 +74,8 @@ type EnvelopeHandler interface {
 	// error iff the server identity doesn't match the identity of the specified
 	// component.
 	//
-	// NOTE: this method is only called if weavelet security was enabled, i.e.,
-	// if EnvelopeInfo had non-nil SelfKey and SelfCert fields.
+	// NOTE: This method is only called if mTLS was enabled for the weavelet,
+	// by passing it an EnvelopeInfo with mtls=true.
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 
 	// HandleLogEntry handles a log entry.
