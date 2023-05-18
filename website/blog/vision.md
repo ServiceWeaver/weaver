@@ -1,4 +1,4 @@
-# Towards Modern Development of Cloud Applications
+# Monolith or Microservices or Both
 
 <div class="blog-author">Robert Grandl</div>
 <div class="blog-date">May 16, 2023</div>
