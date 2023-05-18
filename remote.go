@@ -106,6 +106,16 @@ func (e *remoteEnv) ExportListener(_ context.Context, listener, addr string, opt
 	return e.conn.ExportListenerRPC(request)
 }
 
+// GetSelfCertificate implements the Env interface.
+func (e *remoteEnv) GetSelfCertificate(ctx context.Context) ([]byte, []byte, error) {
+	request := &protos.GetSelfCertificateRequest{}
+	reply, err := e.conn.GetSelfCertificateRPC(request)
+	if err != nil {
+		return nil, nil, err
+	}
+	return reply.Cert, reply.Key, nil
+}
+
 // VerifyClientCertificate implements the Env interface.
 func (e *remoteEnv) VerifyClientCertificate(ctx context.Context, certChain [][]byte) ([]string, error) {
 	request := &protos.VerifyClientCertificateRequest{CertChain: certChain}

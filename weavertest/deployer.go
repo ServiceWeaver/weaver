@@ -239,11 +239,18 @@ func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerR
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (*deployer) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
+	panic("unused")
+}
+
 func (*deployer) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
 	panic("unused")
 }
 
 func (*deployer) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
 	panic("unused")
 }
 

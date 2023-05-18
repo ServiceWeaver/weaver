@@ -109,6 +109,7 @@ message EnvelopeMsg {
   ActivateComponentReply activate_component_reply = 10;
   GetListenerAddressReply get_listener_address_reply = 11;
   ExportListenerReply export_listener_reply = 12;
+  GetSelfCertificateReply get_self_certificate_reply = 15;
   VerifyClientCertificateReply verify_client_certificate_reply = 13;
   VerifyServerCertificateReply verify_server_certificate_reply = 14;
 }
@@ -141,6 +142,7 @@ message WeaveletMsg {
   ActivateComponentRequest activate_component_request = 12;
   GetListenerAddressRequest get_listener_address_request = 13;
   ExportListenerRequest export_listener_request = 14;
+  GetSelfCertificateRequest get_self_certificate_request = 17;
   VerifyClientCertificateRequest verify_client_certificate_request = 15;
   VerifyServerCertificateRequest verify_server_certificate_request = 16;
 }
@@ -156,11 +158,8 @@ message EnvelopeInfo {
   bool single_machine = 6;           // a single-machine deployment?
   bool run_main = 7;                 // run the main function?
 
-  // PEM-encoded blocks containing (1) the certificate chain identifying the
-  // weavelet and (2) the corresponding private key. Used for enforcing mTLS
-  // security across components. If empty, security won't be enforced.
-  bytes self_cert_chain = 8; // certificate identifying the weavelet
-  bytes self_key = 9;        // private key for the leaf cert in self_cert_chain
+  // Should weavelets establish mTLS connections with each other?
+  bool mtls = 8;
 }
 
 // WeaveletInfo is the information provided by a weavelet to an envelope during
@@ -485,6 +484,19 @@ message ExportListenerReply {
   // this error. In the future, we should have a more robust way to avoid
   // retrying certain errors.
   string error = 2;
+}
+
+// GetSelfCertificateRequest is a request from a weavelet for its certificate
+// and the corresponding private key.
+message GetSelfCertificateRequest {}
+
+// GetSelfCertificateReply is a reply to a GetSelfCertificateRequest.
+message GetSelfCertificateReply {
+  // PEM-encoded blocks containing (1) the certificate identifying the
+  // weavelet and (2) the corresponding private key. Used for enforcing mTLS
+  // security across components.
+  bytes cert = 1; // certificate identifying the weavelet
+  bytes key = 2;  // private key corresponding to cert
 }
 
 // VerifyClientCertificateRequest is a request from a weavelet to verify

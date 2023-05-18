@@ -139,6 +139,10 @@ func (h *handler) ExportListener(_ context.Context, req *protos.ExportListenerRe
 	return &protos.ExportListenerReply{}, nil
 }
 
+func (*handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	panic("unused")
+}
+
 func (*handler) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
 	panic("unused")
 }

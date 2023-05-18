@@ -95,7 +95,7 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 	}
 	wc.lis = lis
 	dialAddr := fmt.Sprintf("tcp://%s", lis.Addr().String())
-	if wc.einfo.SelfKey != nil {
+	if wc.einfo.Mtls {
 		dialAddr = fmt.Sprintf("mtls://%s", dialAddr)
 	}
 	wc.winfo = &protos.WeaveletInfo{
@@ -255,6 +255,19 @@ func (w *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*pr
 		return nil, fmt.Errorf("nil ExportListenerReply received from envelope")
 	}
 	return reply.ExportListenerReply, nil
+}
+
+// GetSelfCertificateRPC returns the certificate and the private key the
+// weavelet should use for network connection establishment.
+func (w *WeaveletConn) GetSelfCertificateRPC(req *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	reply, err := w.rpc(&protos.WeaveletMsg{GetSelfCertificateRequest: req})
+	if err != nil {
+		return nil, err
+	}
+	if reply.GetSelfCertificateReply == nil {
+		return nil, fmt.Errorf("nil GetSelfCertificateReply received from envelope")
+	}
+	return reply.GetSelfCertificateReply, nil
 }
 
 // VerifyClientCertificateRPC verifies the identity of a client that is

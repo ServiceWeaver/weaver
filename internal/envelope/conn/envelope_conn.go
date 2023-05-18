@@ -34,6 +34,7 @@ type EnvelopeHandler interface {
 	ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error)
 	GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error)
 	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
+	GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
 	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 	HandleLogEntry(context.Context, *protos.LogEntry) error
@@ -219,6 +220,13 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 			Id:                  -msg.Id,
 			Error:               errstring(err),
 			ExportListenerReply: reply,
+		})
+	case msg.GetSelfCertificateRequest != nil:
+		reply, err := h.GetSelfCertificate(e.ctx, msg.GetSelfCertificateRequest)
+		return e.conn.send(&protos.EnvelopeMsg{
+			Id:                      -msg.Id,
+			Error:                   errstring(err),
+			GetSelfCertificateReply: reply,
 		})
 	case msg.VerifyClientCertificateRequest != nil:
 		reply, err := h.VerifyClientCertificate(e.ctx, msg.VerifyClientCertificateRequest)
