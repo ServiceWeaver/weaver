@@ -67,6 +67,7 @@ var files = []file{
 	staticFile("blog/deployers/assets/weavelets.svg"),
 
 	{dst: "blog/corba.html", markdown: "blog/corba.md", template: "blog_entry.html", title: "CORBA vs the Fallacies of Distributed Computing", license: true},
+	{dst: "blog/vision.html", markdown: "blog/vision.md", template: "blog_entry.html", title: "Monolith or Microservices or Both", license: true},
 
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
@@ -90,6 +91,7 @@ var files = []file{
 	staticFile("assets/js/placement.js"),
 	staticFile("assets/js/snap.svg-min.js"),
 	staticFile("assets/js/toc.js"),
+	staticFile("assets/docs/hotos23_vision_paper.pdf"),
 	// TODO: Add todo.js? It is currently not useful since our goldmark
 	// configuration drops unknown HTML.
 }
