@@ -14,7 +14,7 @@ import (
 	"reflect"
 	"time"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
@@ -78,16 +78,16 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[ImageScaler] = &scaler{}
-var _ weaver.InstanceOf[LocalCache] = &localCache{}
-var _ weaver.InstanceOf[weaver.Main] = &server{}
-var _ weaver.InstanceOf[SQLStore] = &sqlStore{}
+var _ weaver.InstanceOf[ImageScaler] = (*scaler)(nil)
+var _ weaver.InstanceOf[LocalCache] = (*localCache)(nil)
+var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)
+var _ weaver.InstanceOf[SQLStore] = (*sqlStore)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &scaler{}
-var _ weaver.Unrouted = &localCache{}
-var _ weaver.Unrouted = &server{}
-var _ weaver.Unrouted = &sqlStore{}
+var _ weaver.Unrouted = (*scaler)(nil)
+var _ weaver.Unrouted = (*localCache)(nil)
+var _ weaver.Unrouted = (*server)(nil)
+var _ weaver.Unrouted = (*sqlStore)(nil)
 
 // Local stub implementations.
 
@@ -97,7 +97,7 @@ type imageScaler_local_stub struct {
 }
 
 // Check that imageScaler_local_stub implements the ImageScaler interface.
-var _ ImageScaler = &imageScaler_local_stub{}
+var _ ImageScaler = (*imageScaler_local_stub)(nil)
 
 func (s imageScaler_local_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -122,7 +122,7 @@ type localCache_local_stub struct {
 }
 
 // Check that localCache_local_stub implements the LocalCache interface.
-var _ LocalCache = &localCache_local_stub{}
+var _ LocalCache = (*localCache_local_stub)(nil)
 
 func (s localCache_local_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -164,7 +164,7 @@ type main_local_stub struct {
 }
 
 // Check that main_local_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_local_stub{}
+var _ weaver.Main = (*main_local_stub)(nil)
 
 type sQLStore_local_stub struct {
 	impl   SQLStore
@@ -172,7 +172,7 @@ type sQLStore_local_stub struct {
 }
 
 // Check that sQLStore_local_stub implements the SQLStore interface.
-var _ SQLStore = &sQLStore_local_stub{}
+var _ SQLStore = (*sQLStore_local_stub)(nil)
 
 func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -250,7 +250,7 @@ type imageScaler_client_stub struct {
 }
 
 // Check that imageScaler_client_stub implements the ImageScaler interface.
-var _ ImageScaler = &imageScaler_client_stub{}
+var _ ImageScaler = (*imageScaler_client_stub)(nil)
 
 func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	// Update metrics.
@@ -320,7 +320,7 @@ type localCache_client_stub struct {
 }
 
 // Check that localCache_client_stub implements the LocalCache interface.
-var _ LocalCache = &localCache_client_stub{}
+var _ LocalCache = (*localCache_client_stub)(nil)
 
 func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
 	// Update metrics.
@@ -442,7 +442,7 @@ type main_client_stub struct {
 }
 
 // Check that main_client_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_client_stub{}
+var _ weaver.Main = (*main_client_stub)(nil)
 
 type sQLStore_client_stub struct {
 	stub                codegen.Stub
@@ -453,7 +453,7 @@ type sQLStore_client_stub struct {
 }
 
 // Check that sQLStore_client_stub implements the SQLStore interface.
-var _ SQLStore = &sQLStore_client_stub{}
+var _ SQLStore = (*sQLStore_client_stub)(nil)
 
 func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	// Update metrics.
@@ -689,7 +689,7 @@ type imageScaler_server_stub struct {
 }
 
 // Check that imageScaler_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &imageScaler_server_stub{}
+var _ codegen.Server = (*imageScaler_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s imageScaler_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -736,7 +736,7 @@ type localCache_server_stub struct {
 }
 
 // Check that localCache_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &localCache_server_stub{}
+var _ codegen.Server = (*localCache_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s localCache_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -807,7 +807,7 @@ type main_server_stub struct {
 }
 
 // Check that main_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &main_server_stub{}
+var _ codegen.Server = (*main_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -823,7 +823,7 @@ type sQLStore_server_stub struct {
 }
 
 // Check that sQLStore_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &sQLStore_server_stub{}
+var _ codegen.Server = (*sQLStore_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s sQLStore_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -958,7 +958,7 @@ func (s sQLStore_server_stub) getImage(ctx context.Context, args []byte) (res []
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = &Post{}
+var _ codegen.AutoMarshal = (*Post)(nil)
 
 type __is_Post[T ~struct {
 	weaver.AutoMarshal
@@ -993,7 +993,7 @@ func (x *Post) WeaverUnmarshal(dec *codegen.Decoder) {
 	*(*int64)(&x.ImageID) = dec.Int64()
 }
 
-var _ codegen.AutoMarshal = &Thread{}
+var _ codegen.AutoMarshal = (*Thread)(nil)
 
 type __is_Thread[T ~struct {
 	weaver.AutoMarshal

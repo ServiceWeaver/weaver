@@ -13,7 +13,7 @@ import (
 	"reflect"
 	"time"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
@@ -47,12 +47,12 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[Started] = &started{}
-var _ weaver.InstanceOf[Widget] = &widget{}
+var _ weaver.InstanceOf[Started] = (*started)(nil)
+var _ weaver.InstanceOf[Widget] = (*widget)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &started{}
-var _ weaver.Unrouted = &widget{}
+var _ weaver.Unrouted = (*started)(nil)
+var _ weaver.Unrouted = (*widget)(nil)
 
 // Local stub implementations.
 
@@ -62,7 +62,7 @@ type started_local_stub struct {
 }
 
 // Check that started_local_stub implements the Started interface.
-var _ Started = &started_local_stub{}
+var _ Started = (*started_local_stub)(nil)
 
 func (s started_local_stub) MarkStarted(ctx context.Context, a0 string) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -87,7 +87,7 @@ type widget_local_stub struct {
 }
 
 // Check that widget_local_stub implements the Widget interface.
-var _ Widget = &widget_local_stub{}
+var _ Widget = (*widget_local_stub)(nil)
 
 func (s widget_local_stub) Use(ctx context.Context, a0 string) (err error) {
 	span := trace.SpanFromContext(ctx)
@@ -114,7 +114,7 @@ type started_client_stub struct {
 }
 
 // Check that started_client_stub implements the Started interface.
-var _ Started = &started_client_stub{}
+var _ Started = (*started_client_stub)(nil)
 
 func (s started_client_stub) MarkStarted(ctx context.Context, a0 string) (err error) {
 	// Update metrics.
@@ -178,7 +178,7 @@ type widget_client_stub struct {
 }
 
 // Check that widget_client_stub implements the Widget interface.
-var _ Widget = &widget_client_stub{}
+var _ Widget = (*widget_client_stub)(nil)
 
 func (s widget_client_stub) Use(ctx context.Context, a0 string) (err error) {
 	// Update metrics.
@@ -244,7 +244,7 @@ type started_server_stub struct {
 }
 
 // Check that started_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &started_server_stub{}
+var _ codegen.Server = (*started_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s started_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -286,7 +286,7 @@ type widget_server_stub struct {
 }
 
 // Check that widget_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &widget_server_stub{}
+var _ codegen.Server = (*widget_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s widget_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

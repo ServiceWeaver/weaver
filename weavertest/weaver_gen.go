@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
@@ -29,10 +29,10 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[testMainInterface] = &testMain{}
+var _ weaver.InstanceOf[testMainInterface] = (*testMain)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &testMain{}
+var _ weaver.Unrouted = (*testMain)(nil)
 
 // Local stub implementations.
 
@@ -42,7 +42,7 @@ type testMainInterface_local_stub struct {
 }
 
 // Check that testMainInterface_local_stub implements the testMainInterface interface.
-var _ testMainInterface = &testMainInterface_local_stub{}
+var _ testMainInterface = (*testMainInterface_local_stub)(nil)
 
 // Client stub implementations.
 
@@ -51,7 +51,7 @@ type testMainInterface_client_stub struct {
 }
 
 // Check that testMainInterface_client_stub implements the testMainInterface interface.
-var _ testMainInterface = &testMainInterface_client_stub{}
+var _ testMainInterface = (*testMainInterface_client_stub)(nil)
 
 // Server stub implementations.
 
@@ -61,7 +61,7 @@ type testMainInterface_server_stub struct {
 }
 
 // Check that testMainInterface_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &testMainInterface_server_stub{}
+var _ codegen.Server = (*testMainInterface_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s testMainInterface_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

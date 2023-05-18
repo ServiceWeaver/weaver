@@ -13,7 +13,7 @@ import (
 	"reflect"
 	"time"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
@@ -34,10 +34,10 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[PingPonger] = &impl{}
+var _ weaver.InstanceOf[PingPonger] = (*impl)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &impl{}
+var _ weaver.Unrouted = (*impl)(nil)
 
 // Local stub implementations.
 
@@ -47,7 +47,7 @@ type pingPonger_local_stub struct {
 }
 
 // Check that pingPonger_local_stub implements the PingPonger interface.
-var _ PingPonger = &pingPonger_local_stub{}
+var _ PingPonger = (*pingPonger_local_stub)(nil)
 
 func (s pingPonger_local_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -74,7 +74,7 @@ type pingPonger_client_stub struct {
 }
 
 // Check that pingPonger_client_stub implements the PingPonger interface.
-var _ PingPonger = &pingPonger_client_stub{}
+var _ PingPonger = (*pingPonger_client_stub)(nil)
 
 func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
 	// Update metrics.
@@ -136,7 +136,7 @@ type pingPonger_server_stub struct {
 }
 
 // Check that pingPonger_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &pingPonger_server_stub{}
+var _ codegen.Server = (*pingPonger_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s pingPonger_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

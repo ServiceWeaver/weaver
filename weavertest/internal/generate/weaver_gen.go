@@ -13,7 +13,7 @@ import (
 	"reflect"
 	"time"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
@@ -34,10 +34,10 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[testApp] = &impl{}
+var _ weaver.InstanceOf[testApp] = (*impl)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &impl{}
+var _ weaver.Unrouted = (*impl)(nil)
 
 // Local stub implementations.
 
@@ -47,7 +47,7 @@ type testApp_local_stub struct {
 }
 
 // Check that testApp_local_stub implements the testApp interface.
-var _ testApp = &testApp_local_stub{}
+var _ testApp = (*testApp_local_stub)(nil)
 
 func (s testApp_local_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -92,7 +92,7 @@ type testApp_client_stub struct {
 }
 
 // Check that testApp_client_stub implements the testApp interface.
-var _ testApp = &testApp_client_stub{}
+var _ testApp = (*testApp_client_stub)(nil)
 
 func (s testApp_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
 	// Update metrics.
@@ -218,7 +218,7 @@ type testApp_server_stub struct {
 }
 
 // Check that testApp_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &testApp_server_stub{}
+var _ codegen.Server = (*testApp_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s testApp_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

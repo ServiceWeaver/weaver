@@ -13,7 +13,7 @@ import (
 	"reflect"
 	"time"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
@@ -47,12 +47,12 @@ func init() {
 }
 
 // weaver.Instance checks.
-var _ weaver.InstanceOf[weaver.Main] = &server{}
-var _ weaver.InstanceOf[Reverser] = &reverser{}
+var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)
+var _ weaver.InstanceOf[Reverser] = (*reverser)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = &server{}
-var _ weaver.Unrouted = &reverser{}
+var _ weaver.Unrouted = (*server)(nil)
+var _ weaver.Unrouted = (*reverser)(nil)
 
 // Local stub implementations.
 
@@ -62,7 +62,7 @@ type main_local_stub struct {
 }
 
 // Check that main_local_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_local_stub{}
+var _ weaver.Main = (*main_local_stub)(nil)
 
 type reverser_local_stub struct {
 	impl   Reverser
@@ -70,7 +70,7 @@ type reverser_local_stub struct {
 }
 
 // Check that reverser_local_stub implements the Reverser interface.
-var _ Reverser = &reverser_local_stub{}
+var _ Reverser = (*reverser_local_stub)(nil)
 
 func (s reverser_local_stub) Reverse(ctx context.Context, a0 string) (r0 string, err error) {
 	span := trace.SpanFromContext(ctx)
@@ -96,7 +96,7 @@ type main_client_stub struct {
 }
 
 // Check that main_client_stub implements the weaver.Main interface.
-var _ weaver.Main = &main_client_stub{}
+var _ weaver.Main = (*main_client_stub)(nil)
 
 type reverser_client_stub struct {
 	stub           codegen.Stub
@@ -104,7 +104,7 @@ type reverser_client_stub struct {
 }
 
 // Check that reverser_client_stub implements the Reverser interface.
-var _ Reverser = &reverser_client_stub{}
+var _ Reverser = (*reverser_client_stub)(nil)
 
 func (s reverser_client_stub) Reverse(ctx context.Context, a0 string) (r0 string, err error) {
 	// Update metrics.
@@ -171,7 +171,7 @@ type main_server_stub struct {
 }
 
 // Check that main_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &main_server_stub{}
+var _ codegen.Server = (*main_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
@@ -187,7 +187,7 @@ type reverser_server_stub struct {
 }
 
 // Check that reverser_server_stub implements the codegen.Server interface.
-var _ codegen.Server = &reverser_server_stub{}
+var _ codegen.Server = (*reverser_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
 func (s reverser_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {

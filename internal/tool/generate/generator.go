@@ -897,7 +897,7 @@ func (g *generator) generateInstanceChecks(p printFn) {
 	p(`// weaver.Instance checks.`)
 	for _, c := range g.components {
 		// e.g., var _ weaver.InstanceOf[Odd] = &odd{}
-		p(`var _ %s[%s] = &%s{}`, g.weaver().qualify("InstanceOf"), g.tset.genTypeString(c.intf), g.tset.genTypeString(c.impl))
+		p(`var _ %s[%s] = (*%s)(nil)`, g.weaver().qualify("InstanceOf"), g.tset.genTypeString(c.intf), g.tset.genTypeString(c.impl))
 	}
 }
 
@@ -912,11 +912,11 @@ func (g *generator) generateRouterChecks(p printFn) {
 	for _, c := range g.components {
 		if c.router == nil {
 			// e.g., var _ weaver.Unrouted = &odd{}
-			p(`var _ %s = &%s{}`, g.weaver().qualify("Unrouted"), g.tset.genTypeString(c.impl))
+			p(`var _ %s = (*%s)(nil)`, g.weaver().qualify("Unrouted"), g.tset.genTypeString(c.impl))
 
 		} else {
 			// e.g., var _ weaver.RoutedBy[router] = &odd{}
-			p(`var _ %s[%s] = &%s{}`, g.weaver().qualify("RoutedBy"), g.tset.genTypeString(c.router), g.tset.genTypeString(c.impl))
+			p(`var _ %s[%s] = (*%s)(nil)`, g.weaver().qualify("RoutedBy"), g.tset.genTypeString(c.router), g.tset.genTypeString(c.impl))
 		}
 	}
 
@@ -1069,7 +1069,7 @@ func (g *generator) generateLocalStubs(p printFn) {
 
 		p(``)
 		p(`// Check that %s implements the %s interface.`, stub, g.tset.genTypeString(comp.intf))
-		p(`var _ %s = &%s{}`, g.tset.genTypeString(comp.intf), stub)
+		p(`var _ %s = (*%s)(nil)`, g.tset.genTypeString(comp.intf), stub)
 		p(``)
 
 		for _, m := range comp.methods() {
@@ -1128,7 +1128,7 @@ func (g *generator) generateClientStubs(p printFn) {
 
 		p(``)
 		p(`// Check that %s implements the %s interface.`, stub, g.tset.genTypeString(comp.intf))
-		p(`var _ %s = &%s{}`, g.tset.genTypeString(comp.intf), stub)
+		p(`var _ %s = (*%s)(nil)`, g.tset.genTypeString(comp.intf), stub)
 		p(``)
 
 		// Assign method indices in sorted order.
@@ -1608,7 +1608,7 @@ func (g *generator) generateServerStubs(p printFn) {
 		p(``)
 
 		p(`// Check that %s implements the %s interface.`, stub, g.codegen().qualify("Server"))
-		p(`var _ %s = &%s{}`, g.codegen().qualify("Server"), stub)
+		p(`var _ %s = (*%s)(nil)`, g.codegen().qualify("Server"), stub)
 		p(``)
 
 		p(`// GetStubFn implements the codegen.Server interface.`)
@@ -1762,7 +1762,7 @@ func (g *generator) generateAutoMarshalMethods(p printFn) {
 		// These checks ensure that if a user changes the Pair struct and
 		// forgets to re-run "weaver generate", the app will not build.
 		p(``)
-		p(`var _ %s = &%s{}`, g.codegen().qualify("AutoMarshal"), ts(t))
+		p(`var _ %s = (*%s)(nil)`, g.codegen().qualify("AutoMarshal"), ts(t))
 		p(`type __is_%s[T ~%s] struct{}`, t.(*types.Named).Obj().Name(), ts(s))
 		p(`var _ __is_%s[%s]`, t.(*types.Named).Obj().Name(), ts(t))
 

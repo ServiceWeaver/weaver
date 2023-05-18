@@ -8,7 +8,7 @@ import (
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver generate' codegen version 0.10.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 // weaver.Instance checks.
 
@@ -22,7 +22,7 @@ var _ codegen.LatestVersion = codegen.Version[[0][10]struct{}]("You used 'weaver
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = &T{}
+var _ codegen.AutoMarshal = (*T)(nil)
 
 type __is_T[T ~struct {
 	weaver.AutoMarshal
