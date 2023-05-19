@@ -26,6 +26,7 @@ import (
 	"go/types"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -548,7 +549,7 @@ type component struct {
 }
 
 func fullName(t *types.Named) string {
-	return filepath.Join(t.Obj().Pkg().Path(), t.Obj().Name())
+	return path.Join(t.Obj().Pkg().Path(), t.Obj().Name())
 }
 
 // intfName returns the component interface name.
