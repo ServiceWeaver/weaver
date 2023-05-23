@@ -57,6 +57,7 @@ type singleprocessEnv struct {
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
 	traceSaver     func(spans *protos.TraceSpans) error
+	pp             *logging.PrettyPrinter
 
 	mu         sync.Mutex
 	listeners  map[string][]string // listener addresses, keyed by name
@@ -131,6 +132,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		listeners:      map[string][]string{},
 		statsProcessor: imetrics.NewStatsProcessor(),
 		traceSaver:     traceSaver,
+		pp:             logging.NewPrettyPrinter(colors.Enabled()),
 	}
 	go func() {
 		err := env.statsProcessor.CollectMetrics(ctx, metrics.Snapshot)
@@ -320,9 +322,8 @@ func (e *singleprocessEnv) Profile(_ context.Context, req *protos.GetProfileRequ
 }
 
 func (e *singleprocessEnv) CreateLogSaver() func(entry *protos.LogEntry) {
-	pp := logging.NewPrettyPrinter(colors.Enabled())
 	return func(entry *protos.LogEntry) {
-		msg := pp.Format(entry)
+		msg := e.pp.Format(entry)
 		if e.bootstrap.Quiet {
 			// Note that we format the log entry regardless of whether we print
 			// it so that benchmark results are not skewed significantly by the
