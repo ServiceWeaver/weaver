@@ -1222,10 +1222,10 @@ environment variables.
 # Testing
 
 Service Weaver includes a `weavertest` package that you can use to test your
-Service Weaver applications. The package provides a `Runner` type with a `Run`
-method Tests use `Runner.Run` instead of `weaver.Run`. To test an `Adder`
-component with an `Add` method, for example, create an `adder_test.go` file with
-the following contents.
+Service Weaver applications. The package provides a `Runner` type with `Test`
+and `Bench` methods. Tests use `Runner.Test` instead of `weaver.Run`. To test an
+`Adder` component with an `Add` method, for example, create an `adder_test.go`
+file with the following contents.
 
 ```go
 package main
@@ -1240,7 +1240,7 @@ import (
 
 func TestAdd(t *testing.T) {
      runner := weavertest.Local  // A runner that runs components in a single process
-     runner.Run(t, func(adder Adder) {
+     runner.Test(t, func(t *testing.T, adder Adder) {
          ctx := context.Background()
          got, err := adder.Add(ctx, 1, 2)
          if err != nil {
@@ -1253,14 +1253,15 @@ func TestAdd(t *testing.T) {
 }
 ```
 
-Run `go test` to run the test. `runner.Run` will create an `Adder` component and
-pass it to the supplied function. Tests that want to exercise multiple
-components can pass a function with a separate argument per component. Each of
-those components will be created and passed to the function.
+Run `go test` to run the test. `runner.Test` will create a sub-test and within
+it will create an `Adder` component and pass it to the supplied function. Tests
+that want to exercise multiple components can pass a function with a separate
+argument per component. Each of those components will be created and passed to
+the function.
 
 ```go
 func TestArithmetic(t *testing.T) {
-    weavertest.Local.Run(t, func(adder Adder, multiplier Multiplier) {
+    weavertest.Local.Test(t, func(t *testing.T, adder Adder, multiplier Multiplier) {
         // ...
     })
 }
@@ -1281,15 +1282,13 @@ components across processes and how the components communicate with each other:
 
 Tests run using `weavertest.Local` are easier to debug and troubleshoot, but do
 not test distributed execution. You should test with different runners to get
-the best of both worlds:
+the best of both worlds (each Runner.Test call will create a new sub-test):
 
 ```go
 func TestAdd(t *testing.T) {
     for _, runner := range weavertest.AllRunners() {
-        t.Run(runner.String(), func(t *testing.T) {
-            runner.Run(t, func(adder Adder) {
-                // ...
-            })
+        runner.Test(t, func(t *testing.T, adder Adder) {
+            // ...
         })
     }
 }
@@ -1302,7 +1301,7 @@ the supplied configuration when it runs a test.
 ```go
 func TestArithmetic(t *testing.T) {
     runner := weavertest.Local.WithConfig(`[serviceweaver] ...`)
-    runner.Run(t, func(adder Adder, multiplier Multiplier) {
+    runner.Test(t, func(t *testing.T, adder Adder, multiplier Multiplier) {
         // ...
     })
 }

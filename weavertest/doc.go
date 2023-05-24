@@ -14,13 +14,13 @@
 
 // Package weavertest provides a way to test Service Weaver components.
 //
-// Use [weavertest.Run] to exercise a set of components. For example,
+// Use [weavertest.Test] to exercise a set of components. For example,
 // imagine we have a Reverser component with a Reverse method that
 // reverses strings. To test the Reverser component, we can create a
 // reverser_test.go file with the following contents.
 //
 //	func TestReverse(t *testing.T) {
-//	    weavertest.Run(t, weavetest.Options{}, func(reverser Reverser) {
+//	    weavertest.Local.Test(t, func(t *testing.T, reverser Reverser) {
 //		got, err := reverser.Reverse(ctx, "diaper drawer")
 //		if err != nil {
 //		    t.Fatal(err)
@@ -31,12 +31,9 @@
 //	    })
 //	}
 //
-// weavertest.Run is passed a weavertest.Options, which you can use to configure
-// the execution of the test.
-//
-// The mode argument to weavertest.Run controls whether or not components are
-// placed in different processes and whether or not RPCs are used for components
-// in the same process.
+// Multiple Runners are provided by weavertest. The runners differ in
+// whether or not components are placed in different processes and
+// whether or not RPCs are used for components in the same process.
 //
 //  1. Local: all components are placed in a single process and method
 //     invocations are local procedure calls. This is similar to what
@@ -54,7 +51,7 @@
 // Example:
 //
 //	func TestReverseSingle(t *testing.T) {
-//	  weavertest.Run(t, weavertest.Multi, weavetest.Options{}, func(reverser Reverser) {
+//	  weavertest.Multi.Test(t, func(t *testing.T, reverser Reverser) {
 //	    // ...
 //	  })
 //	}

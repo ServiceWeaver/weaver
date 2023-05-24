@@ -27,7 +27,7 @@ import (
 // TODO(mwhittaker): Induce an error in the encoding, decoding, and RPC call.
 func TestErrors(t *testing.T) {
 	ctx := context.Background()
-	weavertest.Multi.Run(t, func(client testApp) {
+	weavertest.Multi.Test(t, func(t *testing.T, client testApp) {
 		// Trigger an application error. Verify that an application error
 		// is returned.
 		x, err := client.Get(ctx, "foo", appError)
@@ -57,31 +57,29 @@ func TestErrors(t *testing.T) {
 
 func TestPointers(t *testing.T) {
 	for _, runner := range weavertest.AllRunners() {
-		t.Run(runner.Name(), func(t *testing.T) {
-			ctx := context.Background()
-			runner.Run(t, func(client testApp) {
-				// Check pointer passing for nil pointer.
-				got, err := client.IncPointer(ctx, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got != nil {
-					t.Fatalf("unexpected non-nil result: %v", got)
-				}
+		ctx := context.Background()
+		runner.Test(t, func(t *testing.T, client testApp) {
+			// Check pointer passing for nil pointer.
+			got, err := client.IncPointer(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != nil {
+				t.Fatalf("unexpected non-nil result: %v", got)
+			}
 
-				// Check pointer passing for non-nil pointer.
-				x := 7
-				got, err = client.IncPointer(ctx, &x)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got == nil {
-					t.Fatal("unexpected nil result")
-				}
-				if *got != x+1 {
-					t.Fatalf("unexpected pointer to %d; expecting %d", *got, x+1)
-				}
-			})
+			// Check pointer passing for non-nil pointer.
+			x := 7
+			got, err = client.IncPointer(ctx, &x)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got == nil {
+				t.Fatal("unexpected nil result")
+			}
+			if *got != x+1 {
+				t.Fatalf("unexpected pointer to %d; expecting %d", *got, x+1)
+			}
 		})
 	}
 }

@@ -26,7 +26,7 @@ import (
 )
 
 func TestFeed(t *testing.T) {
-	weavertest.Local.Run(t, func(store SQLStore) {
+	weavertest.Local.Test(t, func(t *testing.T, store SQLStore) {
 		ctx := context.Background()
 
 		// Run the test.
@@ -81,7 +81,7 @@ func TestFeed(t *testing.T) {
 }
 
 func TestImage(t *testing.T) {
-	weavertest.Local.Run(t, func(store SQLStore) {
+	weavertest.Local.Test(t, func(t *testing.T, store SQLStore) {
 		ctx := context.Background()
 
 		// Create thread with an image in the initial post.
