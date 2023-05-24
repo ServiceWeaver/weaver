@@ -55,14 +55,14 @@ var (
 // AllRunners returns a slice of all builtin weavertest runners.
 func AllRunners() []Runner { return []Runner{Local, RPC, Multi} }
 
-// WithName returns a new Runner with the specified name. It is useful
-// when the runner has been adjusted and is no longer identical to one
-// of the predefined runners.
+// WithName returns a Runner copy with the specified name. It is
+// useful when the runner has been adjusted and is no longer identical
+// to one of the predefined runners.
 func (r Runner) WithName(name string) Runner { r.name = name; return r }
 
-// WithConfig returns a new Runner with the specified Service Weaver
-// configuration. The config value passed here is identical to what
-// might be found in a Service Weaver config file. It can contain
+// WithConfig returns a Runner copy that uses the specified Service
+// Weaver configuration. The config value passed here is identical to
+// what might be found in a Service Weaver config file. It can contain
 // application level as well as component level configuration.
 func (r Runner) WithConfig(config string) Runner { r.config = config; return r }
 
@@ -86,26 +86,55 @@ type testMain struct {
 // weaver.Main.
 type testMainInterface interface{}
 
-// Run is a testing version of weaver.Run. Run is passed a function that accepts
-// a list of components. Run will create a brand new weaver application execution
-// environment, create the components whose types are arguments to testBody,
-// and callTestBody with these components.
+// Test runs a sub-test of t that tests supplied Service Weaver
+// application code.  It fails at runtime if body is not a function
+// whose signature looks like:
+//
+//	func(*testing.T, ComponentType1)
+//	func(*testing.T, ComponentType, ComponentType2)
+//	...
+//
+// body is called in the context of a brand-new Service Weaver
+// application and is passed the *testing.T for the sub-test,
+// followed by a the list of components.
 //
 //	func TestFoo(t *testing.T) {
-//	    weavertest.Local.Run(t, func(foo Foo, bar Bar) {
+//	    weavertest.Local.Test(t, func(t *testing.T, foo Foo, bar Bar) {
 //		// Test foo and bar ...
 //	    })
 //	}
-//
-// The test fails at runtime if testBody is not a function whose signature looks like:
-//
-//	func(ComponentType1)
-//	func(ComponentType, ComponentType2)
-//	...
-func (r Runner) Run(t testing.TB, testBody any) {
-	_, isBench := t.(*testing.B)
+func (r Runner) Test(t *testing.T, body any) {
 	t.Helper()
-	runner, err := checkRunFunc(testBody)
+	t.Run(r.Name(), func(t *testing.T) { r.sub(t, false, body) })
+}
+
+// Bench runs a sub-benchmark of b that benchmarks supplied Service
+// Weaver application code.  It fails at runtime if body is not a
+// function whose signature looks like:
+//
+//	func(*testing.B, ComponentType1)
+//	func(*testing.B, ComponentType, ComponentType2)
+//	...
+//
+// body is called in the context of a brand-new Service Weaver
+// application and is passed the *testing.B for the sub-benchmark,
+// followed by a the list of components.
+//
+//	func BenchmarkFoo(b *testing.B) {
+//	    weavertest.Local.Bench(b, func(b *testing.B, foo Foo) {
+//		for i := 0; i < b.N; i++ {
+//		    ... use foo ...
+//		}
+//	    })
+//	}
+func (r Runner) Bench(b *testing.B, testBody any) {
+	b.Helper()
+	b.Run(r.Name(), func(b *testing.B) { r.sub(b, true, testBody) })
+}
+
+func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
+	t.Helper()
+	runner, err := checkRunFunc(t, testBody)
 	if err != nil {
 		t.Fatal(fmt.Errorf("weavertest.Run argument: %v", err))
 	}
@@ -147,10 +176,11 @@ func (r Runner) Run(t testing.TB, testBody any) {
 	}
 }
 
-// checkRunFunc checks that the type of the function passed to weavertest.Run
-// is correct (its arguments are components). On success it returns a function
-// that gets the components and passes them to fn.
-func checkRunFunc(fn any) (func(context.Context, any) error, error) {
+// checkRunFunc checks that the type of the function passed to
+// weavertest.Run is correct (its first argument matches t and its
+// remaining arguments are components). On success it returns a
+// function that gets the components and passes them to fn.
+func checkRunFunc(t testing.TB, fn any) (func(context.Context, any) error, error) {
 	fnType := reflect.TypeOf(fn)
 	if fnType == nil || fnType.Kind() != reflect.Func {
 		return nil, fmt.Errorf("not a func")
@@ -159,16 +189,21 @@ func checkRunFunc(fn any) (func(context.Context, any) error, error) {
 		return nil, fmt.Errorf("must not be variadic")
 	}
 	n := fnType.NumIn()
-	if n == 0 {
-		return nil, fmt.Errorf("must have at least one arg")
+	if n < 2 {
+		return nil, fmt.Errorf("must have at least two args")
 	}
 	if fnType.NumOut() > 0 {
 		return nil, fmt.Errorf("must have no return outputs")
 	}
 
+	if fnType.In(0) != reflect.TypeOf(t) {
+		return nil, fmt.Errorf("function first argument type %v does not match first weavertest.Run argument %T", fnType.In(0), t)
+	}
+
 	return func(ctx context.Context, impl any) error {
 		args := make([]reflect.Value, n)
-		for i := range args {
+		args[0] = reflect.ValueOf(t)
+		for i := 1; i < n; i++ {
 			argType := fnType.In(i)
 			comp, err := private.Get(impl, argType)
 			if err != nil {

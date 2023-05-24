@@ -31,19 +31,6 @@ func init() {
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer",
-		Iface:       reflect.TypeOf((*Failer)(nil)).Elem(),
-		Impl:        reflect.TypeOf(failer{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return failer_local_stub{impl: impl.(Failer), tracer: tracer} },
-		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return failer_client_stub{stub: stub, imJustHereSoWeaverGenerateDoesntComplainMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Failer", Method: "ImJustHereSoWeaverGenerateDoesntComplain"})}
-		},
-		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return failer_server_stub{impl: impl.(Failer), addLoad: addLoad}
-		},
-		RefData: "",
-	})
-	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer",
 		Iface: reflect.TypeOf((*Pointer)(nil)).Elem(),
 		Impl:  reflect.TypeOf(pointer{}),
@@ -62,12 +49,10 @@ func init() {
 
 // weaver.Instance checks.
 var _ weaver.InstanceOf[Errer] = (*errer)(nil)
-var _ weaver.InstanceOf[Failer] = (*failer)(nil)
 var _ weaver.InstanceOf[Pointer] = (*pointer)(nil)
 
 // weaver.Router checks.
 var _ weaver.Unrouted = (*errer)(nil)
-var _ weaver.Unrouted = (*failer)(nil)
 var _ weaver.Unrouted = (*pointer)(nil)
 
 // Local stub implementations.
@@ -95,31 +80,6 @@ func (s errer_local_stub) Err(ctx context.Context, a0 int) (err error) {
 	}
 
 	return s.impl.Err(ctx, a0)
-}
-
-type failer_local_stub struct {
-	impl   Failer
-	tracer trace.Tracer
-}
-
-// Check that failer_local_stub implements the Failer interface.
-var _ Failer = (*failer_local_stub)(nil)
-
-func (s failer_local_stub) ImJustHereSoWeaverGenerateDoesntComplain(ctx context.Context) (err error) {
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "diverge.Failer.ImJustHereSoWeaverGenerateDoesntComplain", trace.WithSpanKind(trace.SpanKindInternal))
-		defer func() {
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-			}
-			span.End()
-		}()
-	}
-
-	return s.impl.ImJustHereSoWeaverGenerateDoesntComplain(ctx)
 }
 
 type pointer_local_stub struct {
@@ -206,62 +166,6 @@ func (s errer_client_stub) Err(ctx context.Context, a0 int) (err error) {
 		return
 	}
 	s.errMetrics.BytesReply.Put(float64(len(results)))
-
-	// Decode the results.
-	dec := codegen.NewDecoder(results)
-	err = dec.Error()
-	return
-}
-
-type failer_client_stub struct {
-	stub                                            codegen.Stub
-	imJustHereSoWeaverGenerateDoesntComplainMetrics *codegen.MethodMetrics
-}
-
-// Check that failer_client_stub implements the Failer interface.
-var _ Failer = (*failer_client_stub)(nil)
-
-func (s failer_client_stub) ImJustHereSoWeaverGenerateDoesntComplain(ctx context.Context) (err error) {
-	// Update metrics.
-	start := time.Now()
-	s.imJustHereSoWeaverGenerateDoesntComplainMetrics.Count.Add(1)
-
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "diverge.Failer.ImJustHereSoWeaverGenerateDoesntComplain", trace.WithSpanKind(trace.SpanKindClient))
-	}
-
-	defer func() {
-		// Catch and return any panics detected during encoding/decoding/rpc.
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-			if err != nil {
-				err = errors.Join(weaver.RemoteCallError, err)
-			}
-		}
-
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-			s.imJustHereSoWeaverGenerateDoesntComplainMetrics.ErrorCount.Add(1)
-		}
-		span.End()
-
-		s.imJustHereSoWeaverGenerateDoesntComplainMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
-	}()
-
-	var shardKey uint64
-
-	// Call the remote method.
-	s.imJustHereSoWeaverGenerateDoesntComplainMetrics.BytesRequest.Put(0)
-	var results []byte
-	results, err = s.stub.Run(ctx, 0, nil, shardKey)
-	if err != nil {
-		err = errors.Join(weaver.RemoteCallError, err)
-		return
-	}
-	s.imJustHereSoWeaverGenerateDoesntComplainMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -363,43 +267,6 @@ func (s errer_server_stub) err(ctx context.Context, args []byte) (res []byte, er
 	// user code: fix this.
 	// Call the local method.
 	appErr := s.impl.Err(ctx, a0)
-
-	// Encode the results.
-	enc := codegen.NewEncoder()
-	enc.Error(appErr)
-	return enc.Data(), nil
-}
-
-type failer_server_stub struct {
-	impl    Failer
-	addLoad func(key uint64, load float64)
-}
-
-// Check that failer_server_stub implements the codegen.Server interface.
-var _ codegen.Server = (*failer_server_stub)(nil)
-
-// GetStubFn implements the codegen.Server interface.
-func (s failer_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
-	switch method {
-	case "ImJustHereSoWeaverGenerateDoesntComplain":
-		return s.imJustHereSoWeaverGenerateDoesntComplain
-	default:
-		return nil
-	}
-}
-
-func (s failer_server_stub) imJustHereSoWeaverGenerateDoesntComplain(ctx context.Context, args []byte) (res []byte, err error) {
-	// Catch and return any panics detected during encoding/decoding/rpc.
-	defer func() {
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-		}
-	}()
-
-	// TODO(rgrandl): The deferred function above will recover from panics in the
-	// user code: fix this.
-	// Call the local method.
-	appErr := s.impl.ImJustHereSoWeaverGenerateDoesntComplain(ctx)
 
 	// Encode the results.
 	enc := codegen.NewEncoder()

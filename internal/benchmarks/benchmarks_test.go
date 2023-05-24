@@ -339,7 +339,7 @@ func BenchmarkPing(b *testing.B) {
 		}
 		name := fmt.Sprintf("chain=%02d,size=%s", bm.numChainedComponents, size)
 		b.Run(name, func(b *testing.B) {
-			weavertest.Local.Run(b, func(pObj Ping1) {
+			weavertest.Local.Bench(b, func(b *testing.B, pObj Ping1) {
 				if bm.componentSize == complex {
 					payload := genWorkload(1)[0]
 					for i := 0; i < b.N; i++ {
@@ -370,7 +370,7 @@ func init() {
 func TestBenchmark(t *testing.T) {
 	// Test plan: Send a ping request from Component1 to Component10. Verify that
 	// the response is the same as the request when we send both simple and complex payloads.
-	weavertest.Local.Run(t, func(ping Ping1) {
+	weavertest.Local.Test(t, func(t *testing.T, ping Ping1) {
 		ctx := context.Background()
 		depth := 10
 

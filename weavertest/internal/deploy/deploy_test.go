@@ -31,7 +31,7 @@ func TestReplicated(t *testing.T) {
 
 	// Instruct the weavertest deployer to replicate each component. Note that each
 	// component should be replicated weavertest.DefaultReplication times.
-	weavertest.Multi.Run(t, func(w deploy.Widget) {
+	weavertest.Multi.Test(t, func(t *testing.T, w deploy.Widget) {
 		dir := t.TempDir()
 		w.Use(ctx, dir)
 		// Verify that deployed processes started.
