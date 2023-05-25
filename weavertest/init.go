@@ -79,7 +79,11 @@ type FakeComponent struct {
 
 // Fake arranges to use impl as the implementation for the component type T.
 // The result is typically placed in Runner.Fakes.
-func Fake[T any](impl T) FakeComponent {
+// REQUIRES: impl must implement T.
+func Fake[T any](impl any) FakeComponent {
+	if _, ok := impl.(T); !ok {
+		panic(fmt.Sprintf("%T does not implement %v", impl, reflect.TypeOf((*T)(nil)).Elem()))
+	}
 	return FakeComponent{intf: reflect.TypeOf((*T)(nil)).Elem(), impl: impl}
 }
 
