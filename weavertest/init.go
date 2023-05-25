@@ -39,7 +39,7 @@ type Runner struct {
 	// has adjusted some properties of Runner like Config.
 	Name string
 
-	// Config us sed as the Service Weaver configuration. The
+	// Config is used as the Service Weaver configuration. The
 	// string is interpreted as the contents of a Service Weaver
 	// config file. It can contain application level as well as
 	// component level configuration.
