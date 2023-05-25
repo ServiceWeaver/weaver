@@ -1295,12 +1295,13 @@ func TestAdd(t *testing.T) {
 ```
 
 You can also provide the contents of a [config file](#config-files) to a runner
-by using the `Runner.WithConfig` method, `WithConfig` returns a Runner that uses
-the supplied configuration when it runs a test.
+by setting the `Runner.Config` field:
 
 ```go
 func TestArithmetic(t *testing.T) {
-    runner := weavertest.Local.WithConfig(`[serviceweaver] ...`)
+    runner := weavertest.Local()
+    runner.Name = "Custom"
+    runner.Config = `[serviceweaver] ...`
     runner.Test(t, func(t *testing.T, adder Adder, multiplier Multiplier) {
         // ...
     })
