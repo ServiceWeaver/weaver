@@ -39,7 +39,7 @@ func TestOneComponent(t *testing.T) {
 			cPid := os.Getpid()
 			dstPid, _ := dst.Getpid(context.Background())
 			sameProcess := cPid == dstPid
-			if runner == weavertest.Multi {
+			if runner.Name == weavertest.Multi.Name {
 				if sameProcess {
 					t.Fatal("the root and the dst components should run in different processes")
 				}
@@ -47,6 +47,30 @@ func TestOneComponent(t *testing.T) {
 				if !sameProcess {
 					t.Fatal("the root and the dst components should run in the same process")
 				}
+			}
+		})
+	}
+}
+
+type fakeDest struct{ file, msg string }
+
+func (f *fakeDest) Getpid(context.Context) (int, error)                { return 100, nil }
+func (f *fakeDest) GetAll(context.Context, string) ([]string, error)   { return nil, nil }
+func (f *fakeDest) RoutedRecord(context.Context, string, string) error { return nil }
+func (f *fakeDest) Record(ctx context.Context, file, msg string) error {
+	f.file = file
+	f.msg = msg
+	return nil
+}
+
+func TestFake(t *testing.T) {
+	for _, runner := range weavertest.AllRunners() {
+		fake := &fakeDest{}
+		runner.Fakes = append(runner.Fakes, weavertest.Fake[simple.Destination](fake))
+		runner.Test(t, func(t *testing.T, src simple.Source) {
+			src.Emit(context.Background(), "file", "msg")
+			if fake.file != "file" || fake.msg != "msg" {
+				t.Fatal("fake Destination method not called")
 			}
 		})
 	}
@@ -114,7 +138,7 @@ func TestServer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Could not fetch proxy address: %v", err)
 			}
-			if runner != weavertest.Multi && proxy != "" {
+			if runner.Name != weavertest.Multi.Name && proxy != "" {
 				t.Fatalf("Unexpected proxy %q", proxy)
 			}
 

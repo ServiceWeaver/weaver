@@ -133,11 +133,11 @@ func Run[T InstanceOf[Main]](ctx context.Context, app func(context.Context, T) e
 		}
 		return app(ctx, arg)
 	}
-	return internalRun(ctx, rootType, rootBody)
+	return internalRun(ctx, rootType, private.RunOptions{}, rootBody)
 }
 
-func internalRun(ctx context.Context, rootType reflect.Type, rootBody func(context.Context, any) error) error {
-	wlet, err := newWeavelet(ctx, codegen.Registered())
+func internalRun(ctx context.Context, rootType reflect.Type, opts private.RunOptions, rootBody func(context.Context, any) error) error {
+	wlet, err := newWeavelet(ctx, opts, codegen.Registered())
 	if err != nil {
 		return fmt.Errorf("error initializating application: %w", err)
 	}

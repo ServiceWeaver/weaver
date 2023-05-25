@@ -57,6 +57,7 @@ type deployer struct {
 	config     *protos.AppConfig      // application config
 	colocation map[string]string      // maps component to group
 	running    errgroup.Group         // collects errors from goroutines
+	local      map[string]bool        // Components that should run locally
 	log        func(*protos.LogEntry) // logs the passed in string
 
 	mu     sync.Mutex        // guards fields below
@@ -117,8 +118,19 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		config:     config,
 		colocation: colocation,
 		groups:     map[string]*group{},
+		local:      map[string]bool{},
 		log:        logWriter,
 	}
+
+	// Force testMain to be local.
+	d.local["github.com/ServiceWeaver/weaver/weavertest/testMainInterface"] = true
+
+	// Fakes need to be local as well.
+	for _, fake := range runner.Fakes {
+		name := fmt.Sprintf("%s/%s", fake.intf.PkgPath(), fake.intf.Name())
+		d.local[name] = true
+	}
+
 	return d
 }
 
@@ -381,8 +393,8 @@ func (d *deployer) group(component string) *group {
 	var name string
 	if !d.runner.multi {
 		name = "main" // Everything is in one group.
-	} else if component == "github.com/ServiceWeaver/weaver/weavertest/testMainInterface" {
-		name = "main" // Force testMain into main group
+	} else if d.local[component] {
+		name = "main" // Run locally
 	} else if x, ok := d.colocation[component]; ok {
 		name = x // Use specified group
 	} else {

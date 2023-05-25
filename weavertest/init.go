@@ -44,6 +44,12 @@ type Runner struct {
 	// config file. It can contain application level as well as
 	// component level configuration.
 	Config string
+
+	// Fakes holds a list of component implementations that should
+	// be used instead of the implementations registered in the binary.
+	// The typical use is to override some subset of the application
+	// code being tested with test-specific component implementations.
+	Fakes []FakeComponent
 }
 
 var (
@@ -64,6 +70,18 @@ var (
 
 // AllRunners returns a slice of all builtin weavertest runners.
 func AllRunners() []Runner { return []Runner{Local, RPC, Multi} }
+
+// FakeComponent records the implementation to use for a specific component type.
+type FakeComponent struct {
+	intf reflect.Type
+	impl any
+}
+
+// Fake arranges to use impl as the implementaion for the component type T.
+// The result is typically placed in Runner.Fakes.
+func Fake[T any](impl T) FakeComponent {
+	return FakeComponent{intf: reflect.TypeOf((*T)(nil)).Elem(), impl: impl}
+}
 
 //go:generate ../cmd/weaver/weaver generate
 
@@ -162,7 +180,7 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 		ctx, cleanup = multiCtx, multiCleanup
 	}
 
-	if err := runWeaver(ctx, runner); err != nil {
+	if err := runWeaver(ctx, r, runner); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -207,8 +225,12 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, any) error, error
 	}, nil
 }
 
-func runWeaver(ctx context.Context, body func(context.Context, any) error) error {
-	return private.Run(ctx, reflect.TypeOf((*testMainInterface)(nil)).Elem(), body)
+func runWeaver(ctx context.Context, runner Runner, body func(context.Context, any) error) error {
+	opts := private.RunOptions{Fakes: map[reflect.Type]any{}}
+	for _, f := range runner.Fakes {
+		opts.Fakes[f.intf] = f.impl
+	}
+	return private.Run(ctx, reflect.TypeOf((*testMainInterface)(nil)).Elem(), opts, body)
 }
 
 // logStacks prints the stacks of live goroutines. This functionality
