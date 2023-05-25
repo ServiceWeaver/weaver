@@ -32,47 +32,38 @@ import (
 type Runner struct {
 	multi    bool // Use multiple processes
 	forceRPC bool // Use RPCs even for local calls
-	name     string
-	config   string
+
+	// Name is used as the name of the sub-test created by
+	// Runner.Test (or the sub-benchmark created by
+	// Runner.Bench). The default value is fine unless the user
+	// has adjusted some properties of Runner like Config.
+	Name string
+
+	// Config is used as the Service Weaver configuration. The
+	// string is interpreted as the contents of a Service Weaver
+	// config file. It can contain application level as well as
+	// component level configuration.
+	Config string
 }
 
 var (
 	// Local is a Runner that places all components in the same process
 	// and uses local procedure calls for method invocations.
-	Local = Runner{name: "Local"}
+	Local = Runner{Name: "Local"}
 
 	// RPC is a Runner that places all components in the same process
 	// and uses RPCs for method invocations.
-	RPC = Runner{multi: false, forceRPC: true, name: "RPC"}
+	RPC = Runner{multi: false, forceRPC: true, Name: "RPC"}
 
 	// Multi is a Runner that places all components in different
 	// process (unless explicitly colocated) and uses RPCs for method
 	// invocations on remote components and local procedure calls for
 	// method invocations on colocated components.
-	Multi = Runner{multi: true, name: "Multi"}
+	Multi = Runner{multi: true, Name: "Multi"}
 )
 
 // AllRunners returns a slice of all builtin weavertest runners.
 func AllRunners() []Runner { return []Runner{Local, RPC, Multi} }
-
-// WithName returns a Runner copy with the specified name. It is
-// useful when the runner has been adjusted and is no longer identical
-// to one of the predefined runners.
-func (r Runner) WithName(name string) Runner { r.name = name; return r }
-
-// WithConfig returns a Runner copy that uses the specified Service
-// Weaver configuration. The config value passed here is identical to
-// what might be found in a Service Weaver config file. It can contain
-// application level as well as component level configuration.
-func (r Runner) WithConfig(config string) Runner { r.config = config; return r }
-
-// Name returns the runner name. It is suitable for use as a sub-test or sub-benchmark name.
-func (r Runner) Name() string {
-	if r.name == "" {
-		return "Default"
-	}
-	return r.name
-}
 
 //go:generate ../cmd/weaver/weaver generate
 
@@ -105,7 +96,7 @@ type testMainInterface interface{}
 //	}
 func (r Runner) Test(t *testing.T, body any) {
 	t.Helper()
-	t.Run(r.Name(), func(t *testing.T) { r.sub(t, false, body) })
+	t.Run(r.Name, func(t *testing.T) { r.sub(t, false, body) })
 }
 
 // Bench runs a sub-benchmark of b that benchmarks supplied Service
@@ -129,7 +120,7 @@ func (r Runner) Test(t *testing.T, body any) {
 //	}
 func (r Runner) Bench(b *testing.B, testBody any) {
 	b.Helper()
-	b.Run(r.Name(), func(b *testing.B) { r.sub(b, true, testBody) })
+	b.Run(r.Name, func(b *testing.B) { r.sub(b, true, testBody) })
 }
 
 func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
@@ -161,7 +152,7 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 	}()
 
 	if !r.multi && !r.forceRPC {
-		ctx = initSingleProcessLocal(ctx, r.config)
+		ctx = initSingleProcessLocal(ctx, r.Config)
 	} else {
 		logger := logging.NewTestLogger(t, testing.Verbose())
 		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, r, logger.Log)

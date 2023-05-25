@@ -66,9 +66,9 @@ func initMultiProcess(ctx context.Context, name string, isBench bool, runner Run
 
 	// Construct AppConfig and EnvelopeInfo.
 	appConfig := &protos.AppConfig{}
-	if runner.config != "" {
+	if runner.Config != "" {
 		var err error
-		appConfig, err = runtime.ParseConfig("[testconfig]", runner.config, codegen.ComponentConfigValidator)
+		appConfig, err = runtime.ParseConfig("[testconfig]", runner.Config, codegen.ComponentConfigValidator)
 		if err != nil {
 			return nil, nil, err
 		}

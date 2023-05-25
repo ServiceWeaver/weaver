@@ -152,7 +152,7 @@ func (d *deployer) start() error {
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
 		ToEnvelopeFile: fromWeaveletWriter,
-		TestConfig:     d.runner.config,
+		TestConfig:     d.runner.Config,
 	}
 	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
 
