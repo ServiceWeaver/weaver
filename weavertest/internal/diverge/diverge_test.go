@@ -32,7 +32,7 @@ func TestDealiasing(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			localCalls := runner == weavertest.Local
+			localCalls := runner.Name == weavertest.Local.Name
 			if want, got := localCalls, (pair.X == pair.Y); want != got {
 				t.Fatalf("expecting aliasing = %v, got %v", want, got)
 			}
@@ -45,7 +45,7 @@ func TestCustomErrors(t *testing.T) {
 	for _, runner := range weavertest.AllRunners() {
 		runner.Test(t, func(t *testing.T, e Errer) {
 			err := e.Err(context.Background(), 1)
-			localCalls := runner == weavertest.Local
+			localCalls := runner.Name == weavertest.Local.Name
 			if want, got := localCalls, errors.Is(err, IntError{2}); want != got {
 				t.Fatalf("expecting Is(IntError{2}) = %v, got %v for error %v", want, got, err)
 			}

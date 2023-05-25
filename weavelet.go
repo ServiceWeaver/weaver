@@ -29,6 +29,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
+	"github.com/ServiceWeaver/weaver/internal/private"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -58,6 +59,7 @@ type weavelet struct {
 	transport *transport           // Transport for cross-weavelet communication
 	dialAddr  string               // Address this weavelet is reachable at
 	tracer    trace.Tracer         // Tracer for this weavelet
+	overrides map[reflect.Type]any // Component implementation overrides
 
 	componentsByName map[string]*component       // component name -> component
 	componentsByType map[reflect.Type]*component // component type -> component
@@ -82,9 +84,10 @@ type server struct {
 var _ conn.WeaveletHandler = &weavelet{}
 
 // newWeavelet returns a new weavelet.
-func newWeavelet(ctx context.Context, componentInfos []*codegen.Registration) (*weavelet, error) {
+func newWeavelet(ctx context.Context, options private.RunOptions, componentInfos []*codegen.Registration) (*weavelet, error) {
 	w := &weavelet{
 		ctx:              ctx,
+		overrides:        options.Fakes,
 		componentsByName: make(map[string]*component, len(componentInfos)),
 		componentsByType: make(map[reflect.Type]*component, len(componentInfos)),
 	}
@@ -557,6 +560,12 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 }
 
 func (w *weavelet) createComponent(ctx context.Context, c *component) error {
+	if obj, ok := w.overrides[c.info.Iface]; ok {
+		// Use supplied implementation (typically a weavertest fake).
+		c.impl.impl = obj
+		return nil
+	}
+
 	// Create the implementation object.
 	v := reflect.New(c.info.Impl)
 	obj := v.Interface()

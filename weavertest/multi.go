@@ -55,7 +55,7 @@ func initMultiProcess(ctx context.Context, name string, isBench bool, runner Run
 			}
 			os.Exit(1)
 		}()
-		err := runWeaver(ctx, func(context.Context, any) error {
+		err := runWeaver(ctx, runner, func(context.Context, any) error {
 			return nil
 		})
 		if err != nil {
