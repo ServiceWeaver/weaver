@@ -47,7 +47,7 @@ const (
 	// TODO(mwhittaker): Write a doc explaining versioning in detail. Include
 	// Srdjan's comments in PR #219.
 	Major = 0
-	Minor = 12
+	Minor = 13
 	Patch = 0
 )
 
@@ -55,11 +55,16 @@ const (
 // binary. We split declaring and assigning version to prevent the compiler
 // from erasing it.
 //
+// NOTE that version should be initialized with a hardcoded string that should
+// reflect the values of Major, Minor and Patch.
+//
 //nolint:unused
 var version string
 
 func init() {
-	version = "⟦wEaVeRvErSiOn:0.12.0⟧"
+	// Make sure that the hardcoded string reflects the values of Major, Minor and
+	// Patch.
+	version = "⟦wEaVeRvErSiOn:0.13.0⟧"
 }
 
 // ReadVersion reads version (major, minor, patch) from the specified binary.

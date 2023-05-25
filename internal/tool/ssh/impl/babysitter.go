@@ -201,7 +201,7 @@ func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
 }
 
 // GetListenerAddress implements the protos.EnvelopeHandler interface.
-func (b *babysitter) GetListenerAddress(_ context.Context, req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+func (b *babysitter) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
 	host, err := os.Hostname()
 	if err != nil {
 		return nil, err

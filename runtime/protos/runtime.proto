@@ -455,7 +455,6 @@ message ActivateComponentReply {}
 //    $HOSTNAME:0. It will separately start a proxy on localhost:9000.
 message GetListenerAddressRequest {
   string name = 1;           // listener name
-  string local_address = 2;  // LocalAddress argument in ListenerOptions
 }
 
 // GetListenerAddressReply is a reply to a GetListenerAddressRequest.

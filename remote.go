@@ -40,7 +40,7 @@ type remoteEnv struct {
 
 var _ env = &remoteEnv{}
 
-func newRemoteEnv(ctx context.Context, bootstrap runtime.Bootstrap, handler conn.WeaveletHandler) (*remoteEnv, error) {
+func newRemoteEnv(_ context.Context, bootstrap runtime.Bootstrap, handler conn.WeaveletHandler) (*remoteEnv, error) {
 	// Create pipe to communicate with the envelope.
 	toWeavelet, toEnvelope, err := bootstrap.MakePipes()
 	if err != nil {
@@ -88,11 +88,8 @@ func (e *remoteEnv) ActivateComponent(_ context.Context, component string, route
 }
 
 // GetListenerAddress implements the Env interface.
-func (e *remoteEnv) GetListenerAddress(_ context.Context, name string, opts ListenerOptions) (*protos.GetListenerAddressReply, error) {
-	request := &protos.GetListenerAddressRequest{
-		Name:         name,
-		LocalAddress: opts.LocalAddress,
-	}
+func (e *remoteEnv) GetListenerAddress(_ context.Context, name string, _ ListenerOptions) (*protos.GetListenerAddressReply, error) {
+	request := &protos.GetListenerAddressRequest{Name: name}
 	return e.conn.GetListenerAddressRPC(request)
 }
 
@@ -107,7 +104,7 @@ func (e *remoteEnv) ExportListener(_ context.Context, listener, addr string, opt
 }
 
 // GetSelfCertificate implements the Env interface.
-func (e *remoteEnv) GetSelfCertificate(ctx context.Context) ([]byte, []byte, error) {
+func (e *remoteEnv) GetSelfCertificate(context.Context) ([]byte, []byte, error) {
 	request := &protos.GetSelfCertificateRequest{}
 	reply, err := e.conn.GetSelfCertificateRPC(request)
 	if err != nil {
@@ -117,7 +114,7 @@ func (e *remoteEnv) GetSelfCertificate(ctx context.Context) ([]byte, []byte, err
 }
 
 // VerifyClientCertificate implements the Env interface.
-func (e *remoteEnv) VerifyClientCertificate(ctx context.Context, certChain [][]byte) ([]string, error) {
+func (e *remoteEnv) VerifyClientCertificate(_ context.Context, certChain [][]byte) ([]string, error) {
 	request := &protos.VerifyClientCertificateRequest{CertChain: certChain}
 	reply, err := e.conn.VerifyClientCertificateRPC(request)
 	if err != nil {
@@ -127,7 +124,7 @@ func (e *remoteEnv) VerifyClientCertificate(ctx context.Context, certChain [][]b
 }
 
 // VerifyServerCertificate implements the Env interface.
-func (e *remoteEnv) VerifyServerCertificate(ctx context.Context, certChain [][]byte, targetComponent string) error {
+func (e *remoteEnv) VerifyServerCertificate(_ context.Context, certChain [][]byte, targetComponent string) error {
 	request := &protos.VerifyServerCertificateRequest{
 		CertChain:       certChain,
 		TargetComponent: targetComponent,
