@@ -20,7 +20,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"testing"
 
+	"github.com/ServiceWeaver/weaver/internal/private"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -40,13 +42,14 @@ const matchNothingRE = "a^" // Regular expression that never matches
 // component level configs. config is allowed to be empty.
 //
 // Future extension: allow options so the user can control collocation/replication/etc.
-func initMultiProcess(ctx context.Context, name string, isBench bool, runner Runner, logWriter func(*protos.LogEntry)) (context.Context, func() error, error) {
+func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Runner, logWriter func(*protos.LogEntry)) (context.Context, func() error, error) {
+	t.Helper()
 	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	if bootstrap.HasPipes() {
-		// This is a child process, so just call weaver.Run() which should block.
+		// This is a child process, so just start the application and wait.
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Fprintf(os.Stderr, "panic in Service Weaver sub-process: %v\n", r)
@@ -55,8 +58,10 @@ func initMultiProcess(ctx context.Context, name string, isBench bool, runner Run
 			}
 			os.Exit(1)
 		}()
-		err := runWeaver(ctx, runner, func(context.Context, any) error {
-			return nil
+
+		err := runWeaver(ctx, t, runner, func(context.Context, private.App) error {
+			<-ctx.Done() // Wait for parent process
+			return ctx.Err()
 		})
 		if err != nil {
 			panic(err)
@@ -77,6 +82,7 @@ func initMultiProcess(ctx context.Context, name string, isBench bool, runner Run
 	if err != nil {
 		return nil, nil, fmt.Errorf("error fetching binary path: %v", err)
 	}
+	name := t.Name()
 	appConfig.Name = strings.ReplaceAll(name, "/", "_")
 	appConfig.Binary = exe
 	nameRE := "^" + regexp.QuoteMeta(name) + "$"

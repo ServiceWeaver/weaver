@@ -15,12 +15,18 @@
 // testprogram is used by version tests.
 package main
 
-import "github.com/ServiceWeaver/weaver"
+import (
+	"context"
+
+	"github.com/ServiceWeaver/weaver"
+)
 
 //go:generate ../../../cmd/weaver/weaver generate
 
 type app struct {
 	weaver.Implements[weaver.Main]
 }
+
+func (*app) Main(context.Context) error { return nil }
 
 func main() {}

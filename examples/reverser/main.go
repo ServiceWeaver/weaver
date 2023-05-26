@@ -37,7 +37,7 @@ var (
 func main() {
 	// Initialize the Service Weaver application.
 	flag.Parse()
-	if err := weaver.Run(context.Background(), serve); err != nil {
+	if err := weaver.Run(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -47,7 +47,7 @@ type server struct {
 	reverser weaver.Ref[Reverser]
 }
 
-func serve(ctx context.Context, s *server) error {
+func (s *server) Main(ctx context.Context) error {
 	// Get a network listener.
 	opts := weaver.ListenerOptions{LocalAddress: *address}
 	lis, err := s.Listener("reverser", opts)

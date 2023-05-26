@@ -93,7 +93,7 @@ type Server struct {
 	adService             weaver.Ref[adservice.T]
 }
 
-func Serve(ctx context.Context, s *Server) error {
+func (s *Server) Main(ctx context.Context) error {
 	// Find out where we're running.
 	// Set ENV_PLATFORM (default to local if not set; use env var if set;
 	// otherwise detect GCP, which overrides env).

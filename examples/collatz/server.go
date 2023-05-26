@@ -32,7 +32,7 @@ type server struct {
 	even weaver.Ref[Even]
 }
 
-func serve(ctx context.Context, s *server) error {
+func (s *server) Main(ctx context.Context) error {
 	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
 	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
 	lis, err := s.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})

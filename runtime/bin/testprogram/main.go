@@ -15,7 +15,11 @@
 // testprogram is used by bin tests.
 package main
 
-import "github.com/ServiceWeaver/weaver"
+import (
+	"context"
+
+	"github.com/ServiceWeaver/weaver"
+)
 
 //go:generate ../../../cmd/weaver/weaver generate
 
@@ -27,6 +31,8 @@ type app struct {
 	weaver.Implements[weaver.Main]
 	a weaver.Ref[A] //nolint:unused // intentionally declared but not used
 }
+
+func (*app) Main(context.Context) error { return nil }
 
 type a struct {
 	weaver.Implements[A]

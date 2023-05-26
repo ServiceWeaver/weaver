@@ -28,7 +28,7 @@ type server struct {
 	factorer weaver.Ref[Factorer]
 }
 
-func serve(ctx context.Context, s *server) error {
+func (s *server) Main(ctx context.Context) error {
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
 
 	lis, err := s.Listener("factors", weaver.ListenerOptions{LocalAddress: *localAddr})

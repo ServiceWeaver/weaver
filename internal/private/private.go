@@ -24,17 +24,22 @@ import (
 	"reflect"
 )
 
-// RunOptions controls a Service  Weaver application execution.
-type RunOptions struct {
+// AppOptions controls a Service  Weaver application execution.
+type AppOptions struct {
 	// Fakes holds a mapping from component interface type to the fake
 	// implementation to use for that component.
 	Fakes map[reflect.Type]any
 }
 
-// Run runs a Service Weaver application rooted at a component with
-// interface type rootType, app as the body of the application, and
-// the supplied options.
-var Run func(ctx context.Context, rootType reflect.Type, options RunOptions, app func(context.Context, any) error) error
+// Starts starts a Service Weaver application.
+// Callers are required to call app.Wait().
+var Start func(ctx context.Context, options AppOptions) (App, error)
 
-// Get fetches the component with type t with root recorded as the requester.
-var Get func(root any, t reflect.Type) (any, error)
+// App is an internal handle to a Service Weaver application.
+type App interface {
+	// Wait returns when the application has ended.
+	Wait(context.Context) error
+
+	// Get fetches the component with type t from wlet.
+	Get(requester string, t reflect.Type) (any, error)
+}

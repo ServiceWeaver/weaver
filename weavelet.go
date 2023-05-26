@@ -83,8 +83,11 @@ type server struct {
 // Ensure that WeaveletHandler remains in-sync with conn.WeaveletHandler.
 var _ conn.WeaveletHandler = &weavelet{}
 
+// weavelet should also implement the private.App API used by weavertest.
+var _ private.App = &weavelet{}
+
 // newWeavelet returns a new weavelet.
-func newWeavelet(ctx context.Context, options private.RunOptions, componentInfos []*codegen.Registration) (*weavelet, error) {
+func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos []*codegen.Registration) (*weavelet, error) {
 	w := &weavelet{
 		ctx:              ctx,
 		overrides:        options.Fakes,
@@ -186,14 +189,7 @@ func (w *weavelet) getSelfCertificate() (*tls.Certificate, error) {
 }
 
 // start starts a weavelet, executing the logic to start and manage components.
-// Creates the component passed to weaver.Run() eagerly if hosted in this process.
-// Start never returns on success.
-func (w *weavelet) start(rootType reflect.Type, rootBody func(context.Context, any) error) error {
-	root, err := w.getComponentByType(rootType)
-	if err != nil {
-		return err
-	}
-
+func (w *weavelet) start() error {
 	// Launch status server for single process deployments.
 	if single, ok := w.env.(*singleprocessEnv); ok {
 		go func() {
@@ -251,19 +247,34 @@ func (w *weavelet) start(rootType reflect.Type, rootBody func(context.Context, a
 	// calls Get("B") for a component B assigned to the same process), then the
 	// component's name is also registered with the protos.
 
-	if w.info.RunMain {
-		impl, err := w.getImpl(root)
+	return nil
+}
+
+func (w *weavelet) Wait(ctx context.Context) error {
+	if m, ok := w.componentsByType[reflect.TypeOf((*Main)(nil)).Elem()]; ok && m.local.Read() {
+		// This process is hosting weaver.Main, so call its Main() method.
+		impl, err := w.getImpl(ctx, m)
 		if err != nil {
 			return err
 		}
-
-		// Invoke the user supplied function, passing it the root instance we just created.
-		return rootBody(w.ctx, impl.impl)
+		return impl.impl.(Main).Main(ctx)
 	}
 
-	// Run forever.
-	// TODO(mwhittaker): Catch and return errors.
-	select {}
+	// Run until cancelled.
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (w *weavelet) Get(requester string, compType reflect.Type) (any, error) {
+	component, err := w.getComponentByType(compType)
+	if err != nil {
+		return nil, err
+	}
+	result, _, err := w.getInstance(w.ctx, component, requester)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // logRolodexCard pretty prints a card that includes basic information about
@@ -309,13 +320,13 @@ func (w *weavelet) logRolodexCard() {
 // is local, the results are a local stub used to invoke methods on the component
 // as well as the actual local object. Otherwise, the results are a network client
 // and nil.
-func (w *weavelet) getInstance(c *component, requester string) (any, any, error) {
+func (w *weavelet) getInstance(ctx context.Context, c *component, requester string) (any, any, error) {
 	// Register the component.
 	c.registerInit.Do(func() {
 		w.env.SystemLogger().Debug("Activating component...", "component", c.info.Name)
 		errMsg := fmt.Sprintf("cannot activate component %q", c.info.Name)
 		c.registerErr = w.repeatedly(errMsg, func() error {
-			return w.env.ActivateComponent(w.ctx, c.info.Name, c.info.Routed)
+			return w.env.ActivateComponent(ctx, c.info.Name, c.info.Routed)
 		})
 		if c.registerErr != nil {
 			w.env.SystemLogger().Error("Activating component failed", "err", c.registerErr, "component", c.info.Name)
@@ -328,7 +339,7 @@ func (w *weavelet) getInstance(c *component, requester string) (any, any, error)
 	}
 
 	if c.local.Read() {
-		impl, err := w.getImpl(c)
+		impl, err := w.getImpl(ctx, c)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -390,7 +401,7 @@ func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 			// yet taken effect). d.getImpl(c) will start the component if it
 			// hasn't already been started, or it will be a noop if the component
 			// has already been started.
-			impl, err := w.getImpl(c)
+			impl, err := w.getImpl(w.ctx, c)
 			if err != nil {
 				return nil, err
 			}
@@ -443,7 +454,7 @@ func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*proto
 				w.env.SystemLogger().Error("getComponent", "err", err, "component", component)
 				return
 			}
-			if _, err = w.getImpl(c); err != nil {
+			if _, err = w.getImpl(w.ctx, c); err != nil {
 				// TODO(mwhittaker): Propagate errors.
 				w.env.SystemLogger().Error("getImpl", "err", err, "component", component)
 				return
@@ -519,7 +530,7 @@ func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
 }
 
 // getImpl returns a component's componentImpl, initializing it if necessary.
-func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
+func (w *weavelet) getImpl(ctx context.Context, c *component) (*componentImpl, error) {
 	init := func(c *component) error {
 		// We have to initialize these fields before passing to c.info.fn
 		// because the user's constructor may use them.
@@ -540,7 +551,7 @@ func (w *weavelet) getImpl(c *component) (*componentImpl, error) {
 		c.tracer = w.tracer
 
 		w.env.SystemLogger().Debug("Constructing component", "component", c.info.Name)
-		if err := w.createComponent(w.ctx, c); err != nil {
+		if err := w.createComponent(ctx, c); err != nil {
 			w.env.SystemLogger().Error("Constructing component failed", "err", err, "component", c.info.Name)
 			return err
 		}
@@ -591,7 +602,7 @@ func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 		if err != nil {
 			return nil, err
 		}
-		r, _, err := w.getInstance(sub, c.info.Name)
+		r, _, err := w.getInstance(ctx, sub, c.info.Name)
 		return r, err
 	})
 	if err != nil {
