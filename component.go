@@ -120,10 +120,8 @@ var _ Instance = &componentImpl{}
 // This component is instantiated and its Main() method called by
 // `weaver.Run`.
 type Main interface {
-	// TODO(reviewer): Should we make this method optional?
-	// That will avoid other components potentially calling it remotely.
-	// Alternative: we just do not emit stubs for weaver.Main and/or
-	// disallow weaver.Ref[weaver.Main]?
+	// Main contains the application main. It typically loops
+	// forever, e.g., inside http.Serve.
 	Main(context.Context) error
 }
 
