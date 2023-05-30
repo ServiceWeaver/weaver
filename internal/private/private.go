@@ -24,7 +24,7 @@ import (
 	"reflect"
 )
 
-// AppOptions controls a Service  Weaver application execution.
+// AppOptions controls a Service Weaver application execution.
 type AppOptions struct {
 	// Fakes holds a mapping from component interface type to the fake
 	// implementation to use for that component.

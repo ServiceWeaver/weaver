@@ -288,7 +288,7 @@ func TestGeneratorErrors(t *testing.T) {
 			errfile := strings.TrimSuffix(filename, ".go") + "_error.txt"
 			if err == nil {
 				os.Remove(filepath.Join(dir, errfile))
-				t.Fatalf("unexpectedly succeeded:\n%s\n", output)
+				t.Fatalf("unexpectedly succeeded (want error containing %q):\n%s\n", want, output)
 			}
 
 			// Check that the error looks like what we expect.

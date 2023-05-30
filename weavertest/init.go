@@ -257,7 +257,7 @@ func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(conte
 	select {
 	case err := <-result:
 		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Logf("weaver.Main.Main failure: %v", err)
+			t.Fatalf("weaver.Main.Main failure: %v", err)
 		}
 	case <-time.After(time.Second):
 		t.Log("weaver.Main.Main not exiting after cancellation")
