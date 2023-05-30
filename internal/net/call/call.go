@@ -444,8 +444,9 @@ func (rc *reconnectingConnection) watchResolver(ctx context.Context, version *Ve
 			// Resolver wishes to be called again after an appropriate delay.
 			continue
 		}
-		err = rc.updateEndpoints(endpoints)
-		logError(rc.opts.Logger, "watchResolver", err)
+		if err := rc.updateEndpoints(endpoints); err != nil {
+			logError(rc.opts.Logger, "watchResolver", err)
+		}
 		version = newVersion
 		r.Reset()
 	}

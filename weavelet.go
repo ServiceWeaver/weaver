@@ -228,25 +228,6 @@ func (w *weavelet) start() error {
 	}
 
 	w.logRolodexCard()
-
-	// Every Service Weaver process launches a watchComponentsToStart goroutine that
-	// periodically starts components, as needed. Every Service Weaver process can host one or
-	// more Service Weaver components. The components assigned to a Service Weaver process is predetermined,
-	// but a component O is started lazily only when O.Get() is called by some
-	// other component. So, a process may not be running all the components it has been
-	// assigned. For example, process P may be assigned components X, Y, and Z but
-	// only running components X and Y.
-	//
-	// How does a process know what components to run? Every Service Weaver process notifies
-	// the runtime about the set of components that should be started. When a component
-	// A in process PA calls B.Get() for a component B assigned to process PB, A
-	// notifies the runtime that "B" should start. Process PB watches the set of
-	// components it should start from the runtime, and starts the new components accordingly.
-	//
-	// Note that if a component is started locally (e.g., a component in a process
-	// calls Get("B") for a component B assigned to the same process), then the
-	// component's name is also registered with the protos.
-
 	return nil
 }
 
