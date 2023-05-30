@@ -251,7 +251,9 @@ func (w *weavelet) start() error {
 }
 
 func (w *weavelet) Wait(ctx context.Context) error {
-	if m, ok := w.componentsByType[reflect.TypeOf((*Main)(nil)).Elem()]; ok && m.local.Read() {
+	// Note that a weavertest may have RunMain set to true, but no main
+	// component registered.
+	if m, ok := w.componentsByType[reflect.TypeOf((*Main)(nil)).Elem()]; ok && w.info.RunMain {
 		// This process is hosting weaver.Main, so call its Main() method.
 		impl, err := w.getImpl(ctx, m)
 		if err != nil {
