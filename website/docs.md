@@ -747,6 +747,12 @@ config file using the `SERVICEWEAVER_CONFIG` environment variable:
 $ SERVICEWEAVER_CONFIG=weaver.toml go run .
 ```
 
+Or, use `weaver single deploy`:
+
+```console
+$ weaver single deploy weaver.toml
+```
+
 # Logging
 
 <div hidden class="todo">
@@ -1363,6 +1369,21 @@ Tutorial](#step-by-step-tutorial) section for a full example.
 
 ```console
 $ go run .
+```
+
+If you run an application using `go run`, you can provide a config file using
+the `SERVICEWEAVER_CONFIG` environment variable:
+
+```console
+$ SERVICEWEAVER_CONFIG=weaver.toml go run .
+```
+
+Or, you can use the `weaver single deploy` command. `weaver single deploy` is
+practically identical to `go run .`, but it makes it easier to provide a config
+file.
+
+```console
+$ weaver single deploy weaver.toml
 ```
 
 You can run `weaver single status` to view the status of all active Service

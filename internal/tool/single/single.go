@@ -49,6 +49,7 @@ var (
 	}
 
 	Commands = map[string]*tool.Command{
+		"deploy":    &deployCmd,
 		"status":    status.StatusCommand("weaver single", defaultRegistry),
 		"dashboard": status.DashboardCommand(dashboardSpec),
 		"metrics":   status.MetricsCommand("weaver single", defaultRegistry),
