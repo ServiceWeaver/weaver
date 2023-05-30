@@ -57,14 +57,16 @@ const (
 //
 // NOTE that version should be initialized with a hardcoded string that should
 // reflect the values of Major, Minor and Patch.
-//
-//nolint:unused
 var version string
 
 func init() {
 	// Make sure that the hardcoded string reflects the values of Major, Minor
 	// and Patch.
 	version = "⟦wEaVeRvErSiOn:0.13.0⟧"
+
+	// Disable unused linter errors. A nolint:unused annotation doesn't work
+	// because version is actually used by version_test.go.
+	_ = version
 }
 
 // ReadVersion reads version (major, minor, patch) from the specified binary.
