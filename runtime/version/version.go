@@ -62,8 +62,8 @@ const (
 var version string
 
 func init() {
-	// Make sure that the hardcoded string reflects the values of Major, Minor and
-	// Patch.
+	// Make sure that the hardcoded string reflects the values of Major, Minor
+	// and Patch.
 	version = "⟦wEaVeRvErSiOn:0.13.0⟧"
 }
 

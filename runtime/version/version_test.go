@@ -22,6 +22,23 @@ import (
 	"testing"
 )
 
+// Test that version matches Major, Minor, and Patch.
+func TestStaleVersion(t *testing.T) {
+	major, minor, patch, err := extractVersion([]byte(version))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if major != Major {
+		t.Errorf("major: got %d, want %d", major, Major)
+	}
+	if minor != Minor {
+		t.Errorf("minor: got %d, want %d", minor, Minor)
+	}
+	if patch != Patch {
+		t.Errorf("patch: got %d, want %d", patch, Patch)
+	}
+}
+
 func TestExtractVersion(t *testing.T) {
 	for _, test := range []struct{ major, minor, patch int }{
 		{0, 0, 0},
