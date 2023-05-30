@@ -59,6 +59,7 @@ $ weaver --help
 USAGE
 
   weaver generate                 // weaver code generator
+  weaver version                  // show weaver version
   weaver single    <command> ...  // for single process deployments
   weaver multi     <command> ...  // for multiprocess deployments
   ...
