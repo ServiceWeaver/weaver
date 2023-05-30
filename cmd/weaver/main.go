@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -34,6 +35,7 @@ import (
 const usage = `USAGE
 
   weaver generate                 // weaver code generator
+  weaver version                  // show weaver version
   weaver single    <command> ...  // for single process deployments
   weaver multi     <command> ...  // for multiprocess deployments
   weaver ssh       <command> ...  // for multimachine deployments
@@ -44,8 +46,8 @@ DESCRIPTION
 
   Use the "weaver" command to deploy and manage Weaver applications.
 
-  The "weaver generate", "weaver single", "weaver multi", and "weaver ssh"
-  subcommands are baked in, but all other subcommands of the form
+  The "weaver generate", "weaver version", "weaver single", "weaver multi", and
+  "weaver ssh" subcommands are baked in, but all other subcommands of the form
   "weaver <deployer>" dispatch to a binary called "weaver-<deployer>".
   "weaver gke status", for example, dispatches to "weaver-gke status".
 `
@@ -74,6 +76,14 @@ func main() {
 		}
 		generateFlags.Parse(flag.Args()[1:]) //nolint:errcheck // does os.Exit on error
 		if err := generate.Generate(".", flag.Args()[1:], generate.Options{}); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+
+	case "version":
+		cmd := tool.VersionCmd("weaver")
+		if err := cmd.Fn(context.Background(), flag.Args()[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

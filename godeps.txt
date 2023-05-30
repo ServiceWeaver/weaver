@@ -54,6 +54,7 @@ github.com/ServiceWeaver/weaver
     syscall
     time
 github.com/ServiceWeaver/weaver/cmd/weaver
+    context
     errors
     flag
     fmt
@@ -871,6 +872,7 @@ github.com/ServiceWeaver/weaver/runtime/tool
     errors
     flag
     fmt
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/version
