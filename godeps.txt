@@ -254,6 +254,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/google/uuid
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+    go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/slog
     html/template
@@ -705,10 +706,13 @@ github.com/ServiceWeaver/weaver/runtime/bin
     os
 github.com/ServiceWeaver/weaver/runtime/bin/testprogram
     context
+    errors
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
+    time
 github.com/ServiceWeaver/weaver/runtime/codegen
     bytes
     context
@@ -876,10 +880,13 @@ github.com/ServiceWeaver/weaver/runtime/version
     strconv
 github.com/ServiceWeaver/weaver/runtime/version/testprogram
     context
+    errors
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
+    time
 github.com/ServiceWeaver/weaver/weavertest
     context
     errors

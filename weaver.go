@@ -29,7 +29,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/private"
@@ -96,69 +95,46 @@ var healthzInit sync.Once
 // The application is composed of a set of components that include
 // weaver.Main as well as any components transitively needed by
 // weaver.Main. An instance that implement weaver.Main is
-// automatically created by weaver.Run and passed to app.  Note: other
-// replicas in which weaver.Run is called may also create instances of
-// weaver.Main.
-//
-// The type T must be a struct type that contains an embedded
-// `weaver.Implements[weaver.Main]` field. A value of type T is
-// created, initialized (by calling its Init method if any), and a
-// pointer to the value is passed to app. app contains the main body of
-// the application; it will typically fetch any other components that
-// are needed, run HTTP servers, etc.
+// automatically created by weaver.Run and its Main method called.
+// Note: other replicas in which weaver.Run is called may also create
+// instances of weaver.Main.
 //
 // If this process is hosting the `weaver.Main` component, Run will
-// call app and will return when app returns. If this process is
-// hosting other components, Run will start those components and never
+// call its Main method and will return when that method returns. If
+// this process is not hosting `weaver.Main`, it will never
 // return. Most callers of Run will not do anything (other than
 // possibly logging any returned error) after Run returns.
 //
 //	func main() {
-//	    if err := weaver.Run(context.Background(), app); err != nil {
+//	    if err := weaver.Run(context.Background()); err != nil {
 //	        log.Fatal(err)
 //	    }
 //	}
-func Run[T InstanceOf[Main]](ctx context.Context, app func(context.Context, T) error) error {
+func Run(ctx context.Context) error {
 	// Register HealthzHandler in the default ServerMux.
 	healthzInit.Do(func() {
 		http.HandleFunc(HealthzURL, HealthzHandler)
 	})
 
-	rootType := reflect.TypeOf((*Main)(nil)).Elem()
-	rootBody := func(ctx context.Context, impl any) error {
-		arg, ok := impl.(T)
-		if !ok {
-			var zero T
-			panic(fmt.Sprintf("internal error: object created for main component has type %T instead of expected type %T", impl, zero))
-		}
-		return app(ctx, arg)
+	app, err := internalStart(ctx, private.AppOptions{})
+	if err != nil {
+		return err
 	}
-	return internalRun(ctx, rootType, private.RunOptions{}, rootBody)
+	return app.Wait(ctx)
 }
 
-func internalRun(ctx context.Context, rootType reflect.Type, opts private.RunOptions, rootBody func(context.Context, any) error) error {
-	wlet, err := newWeavelet(ctx, opts, codegen.Registered())
+func internalStart(ctx context.Context, opts private.AppOptions) (private.App, error) {
+	w, err := newWeavelet(ctx, opts, codegen.Registered())
 	if err != nil {
-		return fmt.Errorf("error initializating application: %w", err)
+		return nil, fmt.Errorf("error initializating application: %w", err)
 	}
-	return wlet.start(rootType, rootBody)
-}
-
-func internalGet(requester any, compType reflect.Type) (any, error) {
-	rep := requester.(Instance).rep()
-	component, err := rep.wlet.getComponentByType(compType)
-	if err != nil {
+	if err := w.start(); err != nil {
 		return nil, err
 	}
-	result, _, err := rep.wlet.getInstance(component, rep.info.Name)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return w, nil
 }
 
 func init() {
-	// Provide weavertest with access to Run and Get.
-	private.Run = internalRun
-	private.Get = internalGet
+	// Provide weavertest with access to weavelet.
+	private.Start = internalStart
 }

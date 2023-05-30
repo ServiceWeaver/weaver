@@ -45,7 +45,7 @@ type server struct {
 	cache      weaver.Ref[LocalCache]
 }
 
-func serve(ctx context.Context, s *server) error {
+func (s *server) Main(ctx context.Context) error {
 	s.httpServer.Handler = instrument(s.label, s)
 	lis, err := s.Listener("chat", weaver.ListenerOptions{LocalAddress: *flagAddress})
 	if err != nil {

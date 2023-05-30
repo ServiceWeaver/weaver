@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// testprogram is used by version tests.
-package main
+// ERROR: reference to weaver.Main
+
+package foo
 
 import (
-	"context"
-
 	"github.com/ServiceWeaver/weaver"
 )
 
-//go:generate ../../../cmd/weaver/weaver generate
-
-type app struct {
-	weaver.Implements[weaver.Main]
+type foo interface {
 }
 
-func (*app) Main(context.Context) error { return nil }
-
-func main() {}
+type impl struct {
+	weaver.Implements[foo]
+	main weaver.Ref[weaver.Main]
+}

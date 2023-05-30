@@ -411,6 +411,10 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 		if isWeaverRef(t) {
 			// The field f has type weaver.Ref[T].
 			arg := t.(*types.Named).TypeArgs().At(0)
+			if isWeaverMain(arg) {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"components cannot contain a reference to weaver.Main")
+			}
 			named, ok := arg.(*types.Named)
 			if !ok {
 				return nil, errorf(pkg.Fset, f.Pos(),

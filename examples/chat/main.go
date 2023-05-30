@@ -25,5 +25,5 @@ import (
 
 func main() {
 	flag.Parse()
-	weaver.Run(context.Background(), serve)
+	weaver.Run(context.Background())
 }

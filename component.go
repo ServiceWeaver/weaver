@@ -15,6 +15,7 @@
 package weaver
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"sync"
@@ -116,8 +117,13 @@ type component struct {
 var _ Instance = &componentImpl{}
 
 // Main is interface implemented by an application's main component.
-// This component is created automatically by `weaver.Run`.
-type Main interface{}
+// This component is instantiated and its Main() method called by
+// `weaver.Run`.
+type Main interface {
+	// Main contains the application main. It typically loops
+	// forever, e.g., inside http.Serve.
+	Main(context.Context) error
+}
 
 // Implements[T] is a type that can be embedded inside a component implementation
 // struct to indicate that the struct implements a component of type T. E.g.,
@@ -174,17 +180,15 @@ func (r Ref[T]) isRef() {}
 // A Listener implements the net.Listener interface, so you can use a Listener
 // wherever you use a net.Listener. For example,
 //
-//	weaver.Run(..., func(..., s *server) {
-//	    lis, err := s.Listener("hello", weaver.ListenerOptions{})
-//	    if err != nil {
-//	        log.Fatal(err)
-//	    }
-//	    s.Logger().Info("Listener available at %v", lis)
-//	    http.HandleFunc("/a", func(http.ResponseWriter, *http.Request) {...})
-//	    http.HandleFunc("/b", func(http.ResponseWriter, *http.Request) {...})
-//	    http.HandleFunc("/c", func(http.ResponseWriter, *http.Request) {...})
-//	    http.Serve(lis, nil)
-//	})
+//	lis, err := s.Listener("hello", weaver.ListenerOptions{})
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	s.Logger().Info("Listener available at %v", lis)
+//	http.HandleFunc("/a", func(http.ResponseWriter, *http.Request) {...})
+//	http.HandleFunc("/b", func(http.ResponseWriter, *http.Request) {...})
+//	http.HandleFunc("/c", func(http.ResponseWriter, *http.Request) {...})
+//	http.Serve(lis, nil)
 type Listener struct {
 	net.Listener        // underlying listener
 	proxyAddr    string // address of proxy that forwards to the listener

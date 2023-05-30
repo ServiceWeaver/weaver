@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	if err := weaver.Run(context.Background(), serve); err != nil {
+	if err := weaver.Run(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -35,7 +35,7 @@ type app struct {
 	reverser weaver.Ref[Reverser]
 }
 
-func serve(ctx context.Context, app *app) error {
+func (app *app) Main(ctx context.Context) error {
 	// Get a network listener on address "localhost:12345".
 	opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
 	lis, err := app.Listener("hello", opts)

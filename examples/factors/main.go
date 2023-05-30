@@ -31,7 +31,7 @@ var localAddr = flag.String("local_addr", "localhost:9000", "Local address")
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	if err := weaver.Run(ctx, serve); err != nil {
+	if err := weaver.Run(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

@@ -16,6 +16,7 @@ package weavertest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -177,14 +178,14 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 		ctx = initSingleProcessLocal(ctx, r.Config)
 	} else {
 		logger := logging.NewTestLogger(t, testing.Verbose())
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t.Name(), isBench, r, logger.Log)
+		multiCtx, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, logger.Log)
 		if err != nil {
 			t.Fatal(err)
 		}
 		ctx, cleanup = multiCtx, multiCleanup
 	}
 
-	if err := runWeaver(ctx, r, runner); err != nil {
+	if err := runWeaver(ctx, t, r, runner); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -193,7 +194,7 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 // weavertest.Run is correct (its first argument matches t and its
 // remaining arguments are components). On success it returns a
 // function that gets the components and passes them to fn.
-func checkRunFunc(t testing.TB, fn any) (func(context.Context, any) error, error) {
+func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) error, error) {
 	fnType := reflect.TypeOf(fn)
 	if fnType == nil || fnType.Kind() != reflect.Func {
 		return nil, fmt.Errorf("not a func")
@@ -213,12 +214,12 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, any) error, error
 		return nil, fmt.Errorf("function first argument type %v does not match first weavertest.Run argument %T", fnType.In(0), t)
 	}
 
-	return func(ctx context.Context, impl any) error {
+	return func(ctx context.Context, app private.App) error {
 		args := make([]reflect.Value, n)
 		args[0] = reflect.ValueOf(t)
 		for i := 1; i < n; i++ {
 			argType := fnType.In(i)
-			comp, err := private.Get(impl, argType)
+			comp, err := app.Get("weavertest.testMainInterface", argType)
 			if err != nil {
 				return err
 			}
@@ -229,12 +230,39 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, any) error, error
 	}, nil
 }
 
-func runWeaver(ctx context.Context, runner Runner, body func(context.Context, any) error) error {
-	opts := private.RunOptions{Fakes: map[reflect.Type]any{}}
+func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(context.Context, private.App) error) error {
+	t.Helper()
+	opts := private.AppOptions{Fakes: map[reflect.Type]any{}}
 	for _, f := range runner.Fakes {
 		opts.Fakes[f.intf] = f.impl
 	}
-	return private.Run(ctx, reflect.TypeOf((*testMainInterface)(nil)).Elem(), opts, body)
+	app, err := private.Start(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	// Run wait() in a go routine.
+	sub, cancel := context.WithCancel(ctx)
+	defer cancel()
+	result := make(chan error)
+	go func() { result <- app.Wait(sub) }()
+
+	// Run the test code.
+	if err := body(ctx, app); err != nil {
+		return err
+	}
+
+	// Wait for wait() to finish, but give up after a while in case user Main hangs.
+	cancel()
+	select {
+	case err := <-result:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Fatalf("weaver.Main.Main failure: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Log("weaver.Main.Main not exiting after cancellation")
+	}
+	return nil
 }
 
 // logStacks prints the stacks of live goroutines. This functionality
