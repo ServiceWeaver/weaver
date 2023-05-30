@@ -597,12 +597,19 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     time
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
+    errors
+    flag
     fmt
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/tool
+    os
+    os/exec
+    os/signal
     path/filepath
+    syscall
 github.com/ServiceWeaver/weaver/internal/tool/ssh
     bufio
     context
