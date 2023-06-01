@@ -16,9 +16,11 @@
 name: Deploy website to GitHub Pages
 
 on:
-  # Runs on pushes targeting the main branch
+  # Runs when new semantic version tags are created.
   push:
-    branches: ["main"]
+    tags:
+      - 'v*.*.*'
+      - '!v*.*.*-*' # Ignore pre-release identifiers like 1.4.0-beta.
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
