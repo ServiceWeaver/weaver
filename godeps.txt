@@ -13,6 +13,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/private
+    github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/register
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/tool/single
@@ -466,6 +467,8 @@ github.com/ServiceWeaver/weaver/internal/queue
     context
     github.com/ServiceWeaver/weaver/internal/cond
     sync
+github.com/ServiceWeaver/weaver/internal/reflection
+    reflect
 github.com/ServiceWeaver/weaver/internal/register
     fmt
     sync
@@ -901,6 +904,7 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/private
+    github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/envelope
