@@ -362,5 +362,5 @@ func listen(info *protos.EnvelopeInfo) (net.Listener, error) {
 	}
 
 	// Create the listener
-	return net.Listen("tcp", fmt.Sprintf("%s:0", host))
+	return net.Listen("tcp", fmt.Sprintf("%s:%d", host, info.InternalPort))
 }
