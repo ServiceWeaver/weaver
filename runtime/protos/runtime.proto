@@ -160,6 +160,14 @@ message EnvelopeInfo {
 
   // Should weavelets establish mTLS connections with each other?
   bool mtls = 8;
+
+  // Port on which the internal network listener for the weavelet should listen on.
+  //
+  // Note that for some deployers, the internal network listener can listen on
+  // an arbitrary port (don't set the port number). However, for deployers where
+  // listeners are prestarted (e.g., Kubernetes deployers), the port number
+  // should be propagated from the deployer.
+  int32 internal_port = 9;
 }
 
 // WeaveletInfo is the information provided by a weavelet to an envelope during
