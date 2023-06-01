@@ -391,6 +391,8 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 		return nil, fmt.Errorf("getListener(%q): %s", name, reply.Error)
 	}
 
+	w.listenersMu.Lock()
+	defer w.listenersMu.Unlock()
 	ls := w.getListenerState(name)
 	ls.addr = l.Addr().String()
 	close(ls.initialized) // Mark as initialized
@@ -424,14 +426,16 @@ func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 }
 
 func (w *weavelet) ListenerAddress(name string) (string, error) {
+	w.listenersMu.Lock()
 	ls := w.getListenerState(name)
+	w.listenersMu.Unlock()
+
 	<-ls.initialized // Wait until initialized
 	return ls.addr, nil
 }
 
+// REQUIRES: w.listenersMu is held
 func (w *weavelet) getListenerState(name string) *listenerState {
-	w.listenersMu.Lock()
-	defer w.listenersMu.Unlock()
 	l := w.listeners[name]
 	if l != nil {
 		return l

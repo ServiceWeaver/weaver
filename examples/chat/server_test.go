@@ -62,12 +62,17 @@ func (db *db) CreatePost(ctx context.Context, creator string, when time.Time, th
 func (db *db) GetFeed(ctx context.Context, user string) ([]Thread, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	return db.threads, nil
+
+	// Deep copy results
+	threads := make([]Thread, len(db.threads))
+	for i, t := range db.threads {
+		t.Posts = append([]Post(nil), t.Posts...)
+		threads[i] = t
+	}
+	return threads, nil
 }
 
 func (db *db) GetImage(ctx context.Context, _ string, image ImageID) ([]byte, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
 	return nil, fmt.Errorf("no images")
 }
 
