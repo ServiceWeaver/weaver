@@ -254,10 +254,10 @@ func getID(str string) (int64, error) {
 func getImage(r *http.Request) ([]byte, error) {
 	img, fhdr, err := r.FormFile("image")
 	if err != nil {
-		if errors.Is(err, http.ErrMissingFile) {
+		if errors.Is(err, http.ErrMissingFile) || errors.Is(err, http.ErrNotMultipart) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("bad image form value")
+		return nil, fmt.Errorf("bad image form value %w", err)
 	}
 
 	// Validate by checking size and parsing the image.

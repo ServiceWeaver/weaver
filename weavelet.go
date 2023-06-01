@@ -24,6 +24,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
@@ -63,6 +64,14 @@ type weavelet struct {
 
 	componentsByName map[string]*component       // component name -> component
 	componentsByType map[reflect.Type]*component // component type -> component
+
+	listenersMu sync.Mutex
+	listeners   map[string]*listenerState
+}
+
+type listenerState struct {
+	addr        string
+	initialized chan struct{} // Closed when addr has been filled
 }
 
 type transport struct {
@@ -228,18 +237,32 @@ func (w *weavelet) start() error {
 	}
 
 	w.logRolodexCard()
+
+	// Make sure Main is initialized if local.
+	if _, err := w.getMainIfLocal(); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (w *weavelet) Wait(ctx context.Context) error {
+// getMainIfLocal returns the weaver.Main implementation if hosted in
+// this weavelet, or nil if weaver.Main is remote.
+func (w *weavelet) getMainIfLocal() (*componentImpl, error) {
 	// Note that a weavertest may have RunMain set to true, but no main
 	// component registered.
 	if m, ok := w.componentsByType[reflect.TypeOf((*Main)(nil)).Elem()]; ok && w.info.RunMain {
-		// This process is hosting weaver.Main, so call its Main() method.
-		impl, err := w.getImpl(ctx, m)
-		if err != nil {
-			return err
-		}
+		return w.getImpl(w.ctx, m)
+	}
+	return nil, nil
+}
+
+func (w *weavelet) Wait(ctx context.Context) error {
+	// Call weaver.Main.Main if weaver.Main is hosted locally.
+	impl, err := w.getMainIfLocal()
+	if err != nil {
+		return nil
+	}
+	if impl != nil {
 		return impl.impl.(Main).Main(ctx)
 	}
 
@@ -367,6 +390,13 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	if reply.Error != "" {
 		return nil, fmt.Errorf("getListener(%q): %s", name, reply.Error)
 	}
+
+	w.listenersMu.Lock()
+	defer w.listenersMu.Unlock()
+	ls := w.getListenerState(name)
+	ls.addr = l.Addr().String()
+	close(ls.initialized) // Mark as initialized
+
 	return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, nil
 }
 
@@ -393,6 +423,29 @@ func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 		}
 		handlers.Set(c.info.Name, mname, handler)
 	}
+}
+
+func (w *weavelet) ListenerAddress(name string) (string, error) {
+	w.listenersMu.Lock()
+	ls := w.getListenerState(name)
+	w.listenersMu.Unlock()
+
+	<-ls.initialized // Wait until initialized
+	return ls.addr, nil
+}
+
+// REQUIRES: w.listenersMu is held
+func (w *weavelet) getListenerState(name string) *listenerState {
+	l := w.listeners[name]
+	if l != nil {
+		return l
+	}
+	l = &listenerState{initialized: make(chan struct{})}
+	if w.listeners == nil {
+		w.listeners = map[string]*listenerState{}
+	}
+	w.listeners[name] = l
+	return l
 }
 
 // GetLoad implements the WeaveletHandler interface.
