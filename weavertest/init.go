@@ -27,6 +27,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/private"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 )
 
@@ -83,10 +84,11 @@ type FakeComponent struct {
 // The result is typically placed in Runner.Fakes.
 // REQUIRES: impl must implement T.
 func Fake[T any](impl any) FakeComponent {
+	t := reflection.Type[T]()
 	if _, ok := impl.(T); !ok {
-		panic(fmt.Sprintf("%T does not implement %v", impl, reflect.TypeOf((*T)(nil)).Elem()))
+		panic(fmt.Sprintf("%T does not implement %v", impl, t))
 	}
-	return FakeComponent{intf: reflect.TypeOf((*T)(nil)).Elem(), impl: impl}
+	return FakeComponent{intf: t, impl: impl}
 }
 
 // private.App object per live test or benchmark.

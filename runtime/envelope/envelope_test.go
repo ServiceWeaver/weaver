@@ -32,6 +32,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -549,7 +550,7 @@ func register[Intf, Impl any](name string) {
 	var zero Impl
 	codegen.Register(codegen.Registration{
 		Name:         name,
-		Iface:        reflect.TypeOf((*Intf)(nil)).Elem(),
+		Iface:        reflection.Type[Intf](),
 		Impl:         reflect.TypeOf(zero),
 		LocalStubFn:  func(any, trace.Tracer) any { return nil },
 		ClientStubFn: func(codegen.Stub, string) any { return nil },

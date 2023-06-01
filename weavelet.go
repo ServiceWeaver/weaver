@@ -31,6 +31,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/private"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -250,7 +251,7 @@ func (w *weavelet) start() error {
 func (w *weavelet) getMainIfLocal() (*componentImpl, error) {
 	// Note that a weavertest may have RunMain set to true, but no main
 	// component registered.
-	if m, ok := w.componentsByType[reflect.TypeOf((*Main)(nil)).Elem()]; ok && w.info.RunMain {
+	if m, ok := w.componentsByType[reflection.Type[Main]()]; ok && w.info.RunMain {
 		return w.getImpl(w.ctx, m)
 	}
 	return nil, nil
