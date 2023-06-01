@@ -33,7 +33,7 @@ func TestType(t *testing.T) {
 	} {
 		t.Run(test.want, func(t *testing.T) {
 			if got := fmt.Sprint(test.t); got != test.want {
-				t.Errorf("reflection.Type[io.Reader] = %s, expecting %s", got, test.want)
+				t.Errorf("reflection.Type() = %s, expecting %s", got, test.want)
 			}
 		})
 	}
