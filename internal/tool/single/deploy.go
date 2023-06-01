@@ -63,11 +63,11 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Set up the binary.
-	cmd := exec.Command(config.Binary)
-	cmd.Args = config.Args
+	cmd := exec.Command(config.Binary, config.Args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(cmd.Environ(), "SERVICEWEAVER_CONFIG="+configFile)
 
 	// Make sure that the subprocess dies when we die. This isn't perfect, as
 	// we can't catch a SIGKILL, but it's good in the common case.
