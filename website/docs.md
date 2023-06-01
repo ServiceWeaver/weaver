@@ -1314,11 +1314,6 @@ func TestArithmetic(t *testing.T) {
 }
 ```
 
-<div hidden class="todo">
-TODO(mwhittaker): Explain how you can unit test a component directly, but it's
-not as recommended.
-</div>
-
 # Versioning
 
 Serving systems evolve over time. Whether you're fixing bugs or adding new
