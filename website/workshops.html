@@ -1,0 +1,73 @@
+<!--
+ Copyright 2023 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<p>
+  We're hosting a number of workshops where you can get hands-on experience writing Service Weaver apps.
+  Use the links below to sign up.
+<p>
+
+<p>
+  <i>Please reach out to us if you're interested in hosting a Service Weaver workshop in your city or institution!</i>
+</p>
+
+<table id="workshops" class="workshops-table"></table>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const items = [
+      {
+        date: new Date('2023-06-27'),
+        location: 'Berlin',
+        link: '<a href="https://gdg.community.dev/events/details/google-gdg-berlin-golang-presents-service-weaver-workshop/">Register</a>',
+      },
+      {
+        date: new Date('2023-06-30'),
+        location: 'Zurich',
+        link: '<a href="https://gdg.community.dev/events/details/google-gdg-zurich-presents-service-weaver-workshop/">Register</a>',
+      },
+    ];
+
+    const table = document.getElementById('workshops');
+
+    // Create table header row.
+    const headerRow = document.createElement("tr")
+    table.appendChild(headerRow)
+    for (const key in items[0]) {
+      const headerCell = document.createElement("th");
+      headerCell.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+      headerRow.appendChild(headerCell);
+    }
+
+    // Create table data rows.
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    for (const item of items) {
+      const itemRow = document.createElement("tr");
+      table.appendChild(itemRow)
+
+      const itemCellDate = document.createElement("td")
+      itemCellDate.textContent = item.date.toLocaleDateString(undefined, options)
+      itemRow.appendChild(itemCellDate)
+
+      const itemCellLoc = document.createElement("td")
+      itemCellLoc.textContent = item.location
+      itemRow.appendChild(itemCellLoc)
+
+      const itemCellLink = document.createElement("td")
+      itemCellLink.innerHTML = item.link
+      itemRow.appendChild(itemCellLink)
+    }
+  });
+</script>
