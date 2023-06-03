@@ -97,6 +97,14 @@ header .news:hover:not(.active) {
   color: red;
   border-bottom: 2pt solid gray;
 }
+header .workshops {
+  color: #363434;
+}
+header .workshops:hover:not(.active) {
+  color:  black;
+  border-bottom: 2pt solid gray;
+}
+
 header ul {
   list-style-type: none;
   display: inline-block;

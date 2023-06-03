@@ -61,6 +61,7 @@ var files = []file{
 	{dst: "blog/index.html", html: "blog/index.html", template: "blog.html", license: true},
 	{dst: "blog/quick_intro.html", markdown: "blog/quick_intro.md", template: "blog_entry.html", title: "A Quick Introduction to Service Weaver", license: true},
 	{dst: "news.html", html: "news.html", template: "news.html", license: true},
+	{dst: "workshops.html", html: "workshops.html", template: "workshops.html", license: true},
 
 	{dst: "blog/deployers.html", markdown: "blog/deployers.md", template: "blog_entry.html", title: "How to Implement a Service Weaver Deployer", license: true},
 	staticFile("blog/deployers/assets/overview.svg"),
@@ -75,6 +76,7 @@ var files = []file{
 	staticFile("assets/css/docs.css"),
 	staticFile("assets/css/home.css"),
 	staticFile("assets/css/news.css"),
+	staticFile("assets/css/workshops.css"),
 	staticFile("assets/images/cloud_metrics_1.png"),
 	staticFile("assets/images/cloud_metrics_2.png"),
 	staticFile("assets/images/cloud_metrics_3.png"),
