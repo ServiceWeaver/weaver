@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -282,6 +283,9 @@ ORDER BY u.thread DESC;
 			ImageID: iid,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -293,19 +297,13 @@ FROM images
 WHERE images.id=?
 LIMIT 1
 `
-	rows, err := s.db.QueryContext(ctx, query, image)
+	var img []byte
+	err := s.db.QueryRowContext(ctx, query, image).Scan(&img)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("image not found")
+	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	if rows.Next() {
-		var image []byte
-		err := rows.Scan(&image)
-		if err != nil {
-			return nil, err
-		}
-		return image, nil
-	}
-	return nil, fmt.Errorf("image not found")
+	return img, nil
 }

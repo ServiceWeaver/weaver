@@ -401,10 +401,15 @@ func (d *DB) fetch(ctx context.Context, app, version string) ([]byte, error) {
 	}
 	defer rows.Close()
 	var traces []byte
-	if rows.Next() {
-		if err := rows.Scan(&traces); err != nil {
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
 			return nil, err
 		}
+		// no record
+		return traces, nil
+	}
+	if err := rows.Scan(&traces); err != nil {
+		return nil, err
 	}
 	return traces, nil
 }
