@@ -606,6 +606,16 @@ message Span {
   }
   Status status = 11;  // Span status
 
+  // Scope stores information about the instrumentation scope that created the span.
+  message Scope {
+    // Name of the instrumentation library, typically the package name of
+    // the library.
+    string name = 1;
+    string version = 2;     // The version of the instrumentation scope
+    string schema_url = 3;  // Schema url of the telemetry emitted by scope
+  }
+  Scope scope = 18;
+
   // Library stores information about the instrumentation library that
   // created the span.
   message Library {
