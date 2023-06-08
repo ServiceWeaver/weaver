@@ -30,16 +30,12 @@ import (
 	"os"
 
 	"github.com/ServiceWeaver/weaver"
-	"github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend"
 )
 
 //go:generate ../../cmd/weaver/weaver generate ./...
 
-var localAddr = flag.String("local_addr", ":12345", "Local address")
-
 func main() {
 	flag.Parse()
-	frontend.SetLocalAddress(*localAddr)
 	if err := weaver.Run(context.Background()); err != nil {
 		fmt.Fprintln(os.Stderr, "Error creating frontend: ", err)
 		os.Exit(1)

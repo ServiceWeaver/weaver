@@ -285,16 +285,13 @@ func main() {
 type app struct {
     weaver.Implements[weaver.Main]
     reverser weaver.Ref[Reverser]
+    hello    weaver.Listener
 }
 
 func (app *app) Main(ctx context.Context) error {
-    // Get a network listener on address "localhost:12345".
-    opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-    lis, err := app.Listener("hello", opts)
-    if err != nil {
-        return err
-    }
-    fmt.Printf("hello listener available on %v\n", lis)
+    // The hello listener will listen on a random port chosen by the operating
+    // system. This behavior can be changed in the config file.
+    fmt.Printf("hello listener available on %v\n", app.hello)
 
     // Serve the /hello endpoint.
     http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
@@ -309,25 +306,33 @@ func (app *app) Main(ctx context.Context) error {
         }
         fmt.Fprintf(w, "Hello, %s!\n", reversed)
     })
-    return http.Serve(lis, nil)
+    return http.Serve(app.hello, nil)
 }
 ```
 
 Here's an explanation of the code:
 
-- `app.Listener(...)` returns a network listener, similar to
-  [`net.Listen`][net_listen]. With Service Weaver, listeners are named. In this
-  case, we name the listener `"hello"`. A `weaver.ListenerOptions` configures
-  the listener. Here, we specify that the listener should listen on address
-  `localhost:12345`.
+- The `hello` field in the `app` struct declares a network listener, similar to
+  [`net.Listen`][net_listen].
 - `http.HandleFunc(...)` registers an HTTP handler for the `/hello?name=<name>`
   endpoint that returns a reversed greeting by calling the `Reverser.Reverse`
   method.
 - `http.Serve(lis, nil)` runs the HTTP server on the provided listener.
 
-Run `go mod tidy` and then `go run .`. The program should print out the name of
-the application and a unique deployment id. It should then block serving HTTP
-requests on `localhost:12345`.
+By default, all application listeners listen on a random port chosen by the
+operating system. Here, we want to change this default behavior and assign a
+fixed local listener port for the `hello` listener. To do so,
+we create a [TOML](https://toml.io) config file named `weaver.toml` with
+the following contents:
+
+```toml
+[listeners]
+hello = {local_address = "localhost:12345"}
+```
+
+Run `go mod tidy` and then `SERVICEWEAVER_CONFIG=weaver.toml go run .`.
+The program should print out the name of the application and a unique
+deployment id. It should then block serving HTTP requests on `localhost:12345`.
 
 ```console
 $ go mod tidy
@@ -388,10 +393,14 @@ config file named `weaver.toml` with the following contents:
 ```toml
 [serviceweaver]
 binary = "./hello"
+
+[listeners]
+hello = {local_address = "localhost:12345"}
 ```
 
-This config file specifies the binary of the Service Weaver application. Next,
-build and run the app using `weaver multi deploy`:
+This config file specifies the binary of the Service Weaver application, as
+well as a fixed address for the hello listener. Next, build and run the app
+using `weaver multi deploy`:
 
 ```console
 $ go build                        # build the ./hello binary
@@ -666,6 +675,52 @@ method calls that result in a `weaver.RemoteCallError`. Ensuring that all
 methods are either read-only or idempotent is one way to ensure safe retries,
 for example. Service Weaver does not automatically retry method calls that fail.
 
+## Listeners
+
+A component implementation may wish to use one or more network listeners, e.g.,
+to serve HTTP network traffic. To do so, named `weaver.Listener` fields must
+be added to the implementation struct. For example, the following component
+implementation creates two network listeners:
+
+```go
+type impl struct{
+    weaver.Implements[MyComponent]
+    foo weaver.Listener
+    Bar weaver.Listener
+}
+```
+
+With Service Weaver, listeners are named. By default, listeners are named
+after their corresponding struct fields (e.g., `"foo"` and `"bar"` in the
+above example). Alternatively, a special ````weaver:"name"```` struct tag
+can be added to the struct field to specify the listener name explicitly:
+
+```go
+type impl struct{
+    weaver.Implements[MyComponent]
+    foo weaver.Listener
+    lis weaver.Listener `weaver:"bar"`
+}
+```
+
+Listener names are always lowercased and must be unique inside a given
+application binary, regardless of which components they are specified in. For
+example, it is illegal to declare a Listener field `"foo"` in two different
+component implementations structs, unless one is renamed using the
+````weaver:"name"```` struct tag.
+
+By default, all application listeners will listen on a random port chosen
+by the operating system. This behavior, as well as other customization options,
+can be controlled in the [configuration file](#config-file). For example, the
+following config will assign addresses `"localhost:12345"` and
+`"localhost:12346"` to `"foo"` and `"bar"`, respectively.
+
+```toml
+[listeners]
+foo = {local_address = "localhost:12345"}
+bar = {local_address = "localhost:12346"}
+```
+
 ## Config
 
 Service Weaver uses [config files](#config-files), written in [TOML](#toml), to
@@ -677,7 +732,28 @@ lists the application binary:
 binary = "./hello"
 ```
 
-A config file may additionally contain component-specific configuration
+A config file may additionally contain listener-specific configuration sections,
+which allow you to configure the [network listeners](#components-listeners) in
+your application. For example, consider the listener `"foo"` declared in
+a component implementation.
+
+```go
+type impl struct{
+    weaver.Implements[MyComponent]
+    foo weaver.Listener
+}
+```
+
+By default, listener `"foo"` will listen on a random port chosen by the
+operating system. To configure it to listen on a specific local port, we can
+add the following section to the config file:
+
+```toml
+[listeners]
+foo = {local_address = "localhost:12345}
+```
+
+A config file may also contain component-specific configuration
 sections, which allow you to configure the components in your application. For
 example, consider the following `Greeter` component.
 
@@ -1019,16 +1095,11 @@ func main() {
 
 type app struct {
     weaver.Implements[weaver.Main]
+    lis weaver.Listener
 }
 
 func (app *app) Main(ctx context.Context) error {
-    // Get a network listener on address "localhost:12345".
-    opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-    lis, err := app.Listener("hello", opts)
-    if err != nil {
-        return err
-    }
-    fmt.Printf("hello listener available on %v\n", lis)
+    fmt.Printf("hello listener available on %v\n", app.lis)
 
     // Serve the /hello endpoint.
     http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
@@ -1423,19 +1494,21 @@ You can also run `weaver single dashboard` to open a dashboard in a web browser.
 
 ## Listeners
 
-You can call the `Listener` method on a `weaver.Instance` to get a network
-listener (see the [Step by Step Tutorial](#step-by-step-tutorial) section for
-context).
+You can add `weaver.Listener` fields to the component implementation to trigger
+creation of network listeners (see the
+[Step by Step Tutorial](#step-by-step-tutorial) section for context).
 
 ```go
-opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-lis, err := app.Listener("hello", opts)
+type app struct {
+    weaver.Implements[weaver.Main]
+    hello    weaver.Listener
+}
 ```
 
-When you deploy an application using `go run`, the `Listener` method returns a
-listener on the address specified by the `LocalAddress` field of the
-`ListenerOptions` struct. In this way, the `Listener` method behaves pretty much
-identically to the built-in [`net.Listen`](https://pkg.go.dev/net#Listen).
+When you deploy an application using `go run`, the network listeners will be
+automatically created by the Service Weaver runtime. Each listener will listen
+on a random port chosen by the operating system, unless concrete local addresses
+have been specified in the [config file](#components-config).
 
 ## Logging
 
@@ -1610,25 +1683,30 @@ You can also run `weaver multi dashboard` to open a dashboard in a web browser.
 
 ## Listeners
 
-You can call the `Listener` method on a `weaver.Instance` to get a network
-listener (see the [Step by Step Tutorial](#step-by-step-tutorial) section for
-context).
+You can add `weaver.Listener` fields to the component implementation to trigger
+creation of network listeners (see the
+[Step by Step Tutorial](#step-by-step-tutorial) section for context).
 
 ```go
-opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-lis, err := app.Listener("hello", opts)
+type app struct {
+    weaver.Implements[weaver.Main]
+    hello    weaver.Listener
+}
 ```
 
-When you deploy an application using `weaver multi deploy`, the `Listener`
-method does two things.
+When you deploy an application using `weaver multi deploy`, the network
+listeners will be automatically created by the Service Weaver runtime.
+In particular, for each listener specified in the application binary,
+the runtime:
 
-1. It returns a network listener listening on localhost on a random port chosen
+1. Creates a localhost network listener listening on a random port chosen
    by the operating system (i.e. listening on `localhost:0`).
-2. It ensures that an HTTP proxy is running on the address specified by the
-   `LocalAddress` field of the `ListenerOptions` struct. This proxy forwards
-   traffic to the listener returned by `Listener`. In fact, the proxy balances
-   traffic across every replica of the listener. (Recall that components may be
-   replicated, and `Listener` is called once per replica.)
+2. Ensures that an HTTP proxy is created. This proxy forwards traffic to the
+   listener. In fact, the proxy balances traffic across every replica of the
+   listener. (Recall that components may be replicated, and so every component
+   replica will have a different instance of the listener.)
+   The proxy address is by default `localhost:0`, or the local address assigned
+   to the listener in the config file, if any.
 
 ## Logging
 
@@ -2609,8 +2687,8 @@ the `weaver_gen.go` files in your module.
 
 # Config Files
 
-Service Weaver config files are written in [TOML](https://toml.io/en/) and look something
-like this:
+Service Weaver config files are written in [TOML](https://toml.io/en/) and look
+something like this:
 
 ```toml
 [serviceweaver]
@@ -2625,8 +2703,8 @@ colocate = [
 rollout = "1m"
 ```
 
-A config file includes a `[serviceweaver]` section followed by a subset of the following
-fields:
+A config file includes a `[serviceweaver]` section followed by a subset of the
+following fields:
 
 | Field | Required? | Description |
 | --- | --- | --- |
@@ -2637,8 +2715,9 @@ fields:
 | colocate | optional | List of colocation groups. When two components in the same colocation group are deployed, they are deployed in the same OS process, where all method calls between them are performed as regular Go method calls. To avoid ambiguity, components must be prefixed by their full package path (e.g., `github.com/example/sandy/`). Note that the full package path of the main package in an executable is `main`. |
 | rollout | optional | How long it will take to roll out a new version of the application. See the [GKE Deployments](#gke-multi-region) section for more information on rollouts. |
 
-A config file may also contain component-specific configuration. See the
-[Component Config](#components-config) section for details.
+A config file may additionally contain listener-specific and component-specific
+configuration sections. See the [Component Config](#components-config) section
+for details.
 
 <div hidden class="todo">
 Architecture

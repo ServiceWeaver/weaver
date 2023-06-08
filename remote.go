@@ -88,17 +88,16 @@ func (e *remoteEnv) ActivateComponent(_ context.Context, component string, route
 }
 
 // GetListenerAddress implements the Env interface.
-func (e *remoteEnv) GetListenerAddress(_ context.Context, name string, _ ListenerOptions) (*protos.GetListenerAddressReply, error) {
+func (e *remoteEnv) GetListenerAddress(_ context.Context, name string) (*protos.GetListenerAddressReply, error) {
 	request := &protos.GetListenerAddressRequest{Name: name}
 	return e.conn.GetListenerAddressRPC(request)
 }
 
 // ExportListener implements the Env interface.
-func (e *remoteEnv) ExportListener(_ context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error) {
+func (e *remoteEnv) ExportListener(_ context.Context, listener, addr string) (*protos.ExportListenerReply, error) {
 	request := &protos.ExportListenerRequest{
-		Listener:     listener,
-		Address:      addr,
-		LocalAddress: opts.LocalAddress,
+		Listener: listener,
+		Address:  addr,
 	}
 	return e.conn.ExportListenerRPC(request)
 }

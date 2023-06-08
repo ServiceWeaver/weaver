@@ -154,11 +154,15 @@ func (e *singleprocessEnv) ActivateComponent(_ context.Context, component string
 	return nil
 }
 
-func (e *singleprocessEnv) GetListenerAddress(_ context.Context, listener string, opts ListenerOptions) (*protos.GetListenerAddressReply, error) {
-	return &protos.GetListenerAddressReply{Address: opts.LocalAddress}, nil
+func (e *singleprocessEnv) GetListenerAddress(_ context.Context, listener string) (*protos.GetListenerAddressReply, error) {
+	var addr string
+	if opts, ok := e.config.ListenerOptions[listener]; ok {
+		addr = opts.LocalAddress
+	}
+	return &protos.GetListenerAddressReply{Address: addr}, nil
 }
 
-func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error) {
+func (e *singleprocessEnv) ExportListener(_ context.Context, listener, addr string) (*protos.ExportListenerReply, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.listeners[listener] = append(e.listeners[listener], addr)

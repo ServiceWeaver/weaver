@@ -30,17 +30,14 @@ type server struct {
 	mux  http.ServeMux
 	odd  weaver.Ref[Odd]
 	even weaver.Ref[Even]
+	lis  weaver.Listener `weaver:"collatz"`
 }
 
 func (s *server) Main(ctx context.Context) error {
 	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
 	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-	lis, err := s.Listener("collatz", weaver.ListenerOptions{LocalAddress: *localAddr})
-	if err != nil {
-		return err
-	}
-	s.Logger().Debug("Collatz service available", "address", lis)
-	return http.Serve(lis, otelhttp.NewHandler(&s.mux, "http"))
+	s.Logger().Debug("Collatz service available", "address", s.lis)
+	return http.Serve(s.lis, otelhttp.NewHandler(&s.mux, "http"))
 }
 
 func (s *server) handle(w http.ResponseWriter, r *http.Request) {

@@ -506,7 +506,14 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 		return &protos.ExportListenerReply{ProxyAddress: p.addr}, nil
 	}
 
-	lis, err := net.Listen("tcp", req.LocalAddress)
+	// Get the proxy address. It should be the same as the LocalAddress field
+	// in the options for this listener, if any was specified.
+	var proxyAddr string
+	if opts, ok := m.dep.App.ListenerOptions[req.Listener]; ok {
+		proxyAddr = opts.LocalAddress
+	}
+
+	lis, err := net.Listen("tcp", proxyAddr)
 	if errors.Is(err, syscall.EADDRINUSE) {
 		// Don't retry if the address is already in use.
 		return &protos.ExportListenerReply{Error: err.Error()}, nil
@@ -514,7 +521,7 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	if err != nil {
 		return nil, fmt.Errorf("proxy listen: %w", err)
 	}
-	addr := lis.Addr().String()
+	addr := lis.Addr().String() // actual proxy address
 	m.logger.Info("Proxy listening", "address", addr)
 	proxy := proxy.NewProxy(m.logger)
 	proxy.AddBackend(req.Address)

@@ -2,6 +2,9 @@
 binary = "./chat"
 rollout = "5m"
 
+[listeners]
+chat = {local_address = "localhost:9000"}
+
 [gke]
 regions = ["us-west1", "us-east1"]
 public_listener = [

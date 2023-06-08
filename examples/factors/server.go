@@ -26,17 +26,13 @@ import (
 type server struct {
 	weaver.Implements[weaver.Main]
 	factorer weaver.Ref[Factorer]
+	lis      weaver.Listener `weaver:"factors"`
 }
 
 func (s *server) Main(ctx context.Context) error {
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
-
-	lis, err := s.Listener("factors", weaver.ListenerOptions{LocalAddress: *localAddr})
-	if err != nil {
-		return err
-	}
-	s.Logger().Info("factors server running", "addr", lis)
-	return http.Serve(lis, nil)
+	s.Logger().Info("factors server running", "addr", s.lis)
+	return http.Serve(s.lis, nil)
 }
 
 // handleFactors handles the /?x=<number> endpoint.

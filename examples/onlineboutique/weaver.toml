@@ -2,6 +2,9 @@
 binary = "./onlineboutique"
 rollout = "5m"
 
+[listeners]
+boutique = {local_address = ":12345"}
+
 [gke]
 regions = ["us-west1"]
 public_listener = [

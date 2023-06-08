@@ -1,6 +1,9 @@
 [serviceweaver]
 binary = "./hello"
 
+[listeners]
+hello = {local_address = "localhost:12345"}
+
 [gke]
 regions = ["us-west1"]
 public_listener = [

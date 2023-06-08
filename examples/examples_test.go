@@ -71,28 +71,29 @@ func TestExamples(t *testing.T) {
 
 			// Build the example binary.
 			chdir(t, name)
-			cmd := startCmd(ctx, t, "go", "build", ".")
+			cmd := startCmd(ctx, t, nil, "go", "build", ".")
 			if err := cmd.Wait(); err != nil {
 				t.Fatalf("failed to build binary: %v", err)
 			}
 
 			// Run the application directly.
 			t.Run("single", func(t *testing.T) {
-				cmd := startCmd(ctx, t, "./"+name)
+				env := []string{"SERVICEWEAVER_CONFIG=weaver.toml"}
+				cmd := startCmd(ctx, t, env, "./"+name)
 				t.Cleanup(terminateCmdAndWait(t, cmd))
 				run(t, test)
 			})
 
 			// "weaver single deploy" the application.
 			t.Run("weaver-single", func(t *testing.T) {
-				cmd := startCmd(ctx, t, "../../cmd/weaver/weaver", "single", "deploy", "weaver.toml")
+				cmd := startCmd(ctx, t, nil, "../../cmd/weaver/weaver", "single", "deploy", "weaver.toml")
 				t.Cleanup(terminateCmdAndWait(t, cmd))
 				run(t, test)
 			})
 
 			// "weaver multi deploy" the application.
 			t.Run("weaver-multi", func(t *testing.T) {
-				cmd := startCmd(ctx, t, "../../cmd/weaver/weaver", "multi", "deploy", "weaver.toml")
+				cmd := startCmd(ctx, t, nil, "../../cmd/weaver/weaver", "multi", "deploy", "weaver.toml")
 				t.Cleanup(terminateCmdAndWait(t, cmd))
 				run(t, test)
 			})
@@ -157,12 +158,13 @@ func chdir(t *testing.T, path string) {
 	})
 }
 
-func startCmd(ctx context.Context, t *testing.T, name string, args ...string) *exec.Cmd {
+func startCmd(ctx context.Context, t *testing.T, env []string, name string, args ...string) *exec.Cmd {
 	t.Helper()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.WaitDelay = 2 * time.Second
+	cmd.Env = append(os.Environ(), env...)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

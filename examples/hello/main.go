@@ -33,16 +33,11 @@ func main() {
 type app struct {
 	weaver.Implements[weaver.Main]
 	reverser weaver.Ref[Reverser]
+	hello    weaver.Listener
 }
 
 func (app *app) Main(ctx context.Context) error {
-	// Get a network listener on address "localhost:12345".
-	opts := weaver.ListenerOptions{LocalAddress: "localhost:12345"}
-	lis, err := app.Listener("hello", opts)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("hello listener available on %v\n", lis)
+	fmt.Printf("hello listener available on %v\n", app.hello)
 
 	// Serve the /hello endpoint.
 	http.Handle("/hello", weaver.InstrumentHandlerFunc("hello",
@@ -58,5 +53,5 @@ func (app *app) Main(ctx context.Context) error {
 			}
 			fmt.Fprintf(w, "Hello, %s!\n", reversed)
 		}))
-	return http.Serve(lis, nil)
+	return http.Serve(app.hello, nil)
 }

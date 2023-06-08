@@ -2,6 +2,9 @@
 binary = "./reverser"
 rollout = "5m"
 
+[listeners]
+reverser = {local_address = ":9000"}
+
 [gke]
 regions = ["us-west1"]
 public_listener = [

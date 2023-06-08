@@ -23,6 +23,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestBinaryPath(t *testing.T) {
@@ -102,6 +103,70 @@ func TestParseConfigSection(t *testing.T) {
 	}
 }
 
+func TestParseListeners(t *testing.T) {
+	type testCase struct {
+		name     string
+		config   string
+		expected []string
+	}
+	for _, c := range []testCase{
+		{
+			name: "short_separate",
+			config: `
+[listeners.foo]
+local_address = ":1"
+
+[listeners.bar]
+local_address = ":2"
+`,
+			expected: []string{"foo :1", "bar :2"},
+		},
+		{
+			name: "short_together",
+			config: `
+[listeners]
+foo = {local_address = ":1"}
+bar = {local_address = ":2"}
+`,
+			expected: []string{"foo :1", "bar :2"},
+		},
+		{
+			name: "short_inlined",
+			config: `
+listeners.foo.local_address = ":1"
+listeners.bar.local_address = ":2"
+`,
+			expected: []string{"foo :1", "bar :2"},
+		},
+		{
+			name: "long",
+			config: `
+["github.com/ServiceWeaver/weaver/listeners".foo]
+local_address = ":1"
+
+["github.com/ServiceWeaver/weaver/listeners".bar]
+local_address = ":2"
+`,
+			expected: []string{"foo :1", "bar :2"},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			config, err := runtime.ParseConfig("", c.config, codegen.ComponentConfigValidator)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var actual []string
+			for name, opts := range config.ListenerOptions {
+				actual = append(actual, fmt.Sprintf("%s %s", name, opts.LocalAddress))
+			}
+			less := func(x, y string) bool { return x < y }
+			if diff := cmp.Diff(c.expected, actual, cmpopts.SortSlices(less)); diff != "" {
+				t.Fatalf("(-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestConfigErrors(t *testing.T) {
 	type testCase struct {
 		name          string
@@ -133,6 +198,17 @@ name = "foo"
 
 ["github.com/ServiceWeaver/weaver"]
 binary = "/tmp/foo"
+`,
+			expectedError: "conflicting",
+		},
+		{
+			name: "conflicting listener sections",
+			cfg: `
+[listeners]
+foo = {local_address = ":1"}
+
+["github.com/ServiceWeaver/weaver/listeners"]
+bar = {local_address = ":2"}
 `,
 			expectedError: "conflicting",
 		},
