@@ -19,8 +19,8 @@ import (
 	"context"
 	"net/http"
 
-	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	"golang.org/x/exp/slog"

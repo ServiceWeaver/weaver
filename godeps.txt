@@ -406,17 +406,10 @@ github.com/ServiceWeaver/weaver/internal/files
 github.com/ServiceWeaver/weaver/internal/heap
     container/heap
 github.com/ServiceWeaver/weaver/internal/metrics
-    bytes
     context
-    fmt
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
-    github.com/ServiceWeaver/weaver/runtime/protos
-    golang.org/x/exp/maps
-    math
-    sort
-    strconv
     strings
     sync
     time
@@ -489,12 +482,12 @@ github.com/ServiceWeaver/weaver/internal/status
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/files
-    github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/perfetto
+    github.com/ServiceWeaver/weaver/runtime/prometheus
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/tool
@@ -839,6 +832,17 @@ github.com/ServiceWeaver/weaver/runtime/profiling
     fmt
     github.com/google/pprof/profile
     sync
+github.com/ServiceWeaver/weaver/runtime/prometheus
+    bytes
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/protos
+    golang.org/x/exp/maps
+    math
+    sort
+    strconv
+    strings
 github.com/ServiceWeaver/weaver/runtime/protomsg
     bytes
     context

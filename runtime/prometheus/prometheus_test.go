@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics_test
+package prometheus_test
 
 import (
 	"bytes"
 	"regexp"
 	"testing"
 
-	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
