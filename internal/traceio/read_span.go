@@ -18,13 +18,13 @@ import (
 	"math"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 // ReadSpan is a wrapper around a Span that implements the sdk.ReadOnlySpan
@@ -65,6 +65,9 @@ func (s *ReadSpan) Events() []sdk.Event {
 }
 func (s *ReadSpan) Status() sdk.Status {
 	return fromProtoStatus(s.Span.Status)
+}
+func (s *ReadSpan) InstrumentationScope() instrumentation.Scope {
+	return fromProtoScope(s.Span.Scope)
 }
 func (s *ReadSpan) InstrumentationLibrary() instrumentation.Scope {
 	return fromProtoLibrary(s.Span.Library)
@@ -209,6 +212,17 @@ func fromProtoStatus(ps *protos.Span_Status) sdk.Status {
 		s.Code = codes.Unset
 	}
 	return s
+}
+
+func fromProtoScope(ps *protos.Span_Scope) instrumentation.Scope {
+	if ps == nil {
+		return instrumentation.Scope{}
+	}
+	return instrumentation.Scope{
+		Name:      ps.Name,
+		Version:   ps.Version,
+		SchemaURL: ps.SchemaUrl,
+	}
 }
 
 func fromProtoLibrary(pl *protos.Span_Library) instrumentation.Scope {

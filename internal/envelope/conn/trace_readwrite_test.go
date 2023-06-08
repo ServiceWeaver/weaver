@@ -257,6 +257,11 @@ func TestTracesReadWrite(t *testing.T) {
 			Code:  protos.Span_Status_ERROR,
 			Error: "serviceweaver",
 		},
+		Scope: &protos.Span_Scope{
+			Name:      "serviceweaver",
+			Version:   "v2",
+			SchemaUrl: "serviceweaver://service.weaver",
+		},
 		Library: &protos.Span_Library{
 			Name:      "serviceweaver",
 			Version:   "v2",

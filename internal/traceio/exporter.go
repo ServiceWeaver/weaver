@@ -73,6 +73,7 @@ func toProtoSpan(span sdk.ReadOnlySpan) *protos.Span {
 		Links:                 toProtoLinks(span.Links()),
 		Events:                toProtoEvents(span.Events()),
 		Status:                toProtoStatus(span.Status()),
+		Scope:                 toProtoScope(span.InstrumentationScope()),
 		Library:               toProtoLibrary(span.InstrumentationLibrary()),
 		Resource:              toProtoResource(span.Resource()),
 		DroppedAttributeCount: int64(span.DroppedAttributes()),
@@ -216,7 +217,15 @@ func toProtoStatus(s sdk.Status) *protos.Span_Status {
 	return ps
 }
 
-func toProtoLibrary(l instrumentation.Scope) *protos.Span_Library {
+func toProtoScope(s instrumentation.Scope) *protos.Span_Scope {
+	return &protos.Span_Scope{
+		Name:      s.Name,
+		Version:   s.Version,
+		SchemaUrl: s.SchemaURL,
+	}
+}
+
+func toProtoLibrary(l instrumentation.Library) *protos.Span_Library {
 	return &protos.Span_Library{
 		Name:      l.Name,
 		Version:   l.Version,
