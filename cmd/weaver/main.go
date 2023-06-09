@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -51,6 +52,9 @@ DESCRIPTION
   "weaver <deployer>" dispatch to a binary called "weaver-<deployer>".
   "weaver gke status", for example, dispatches to "weaver-gke status".
 `
+
+//go:embed weaver_completion.bash
+var completion string
 
 func main() {
 	// Parse flags.
@@ -87,6 +91,10 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+		return
+
+	case "completion":
+		fmt.Print(completion)
 		return
 
 	case "single", "multi", "ssh":
