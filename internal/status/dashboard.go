@@ -29,11 +29,11 @@ import (
 	"strings"
 	"time"
 
-	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
+	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	dtool "github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/pkg/browser"
