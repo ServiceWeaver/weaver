@@ -109,7 +109,7 @@ func Generate(dir string, pkgs []string, opt Options) error {
 	}
 	pkgList, err := packages.Load(cfg, pkgs...)
 	if err != nil {
-		return err
+		return fmt.Errorf("packages.Load: %w", err)
 	}
 
 	var automarshals typeutil.Map
@@ -864,7 +864,7 @@ func (g *generator) componentRef(comp *component) string {
 
 // generateImports generates code to import all the dependencies.
 func (g *generator) generateImports(p printFn) {
-	p("// go:build !ignoreWeaverGen")
+	p("//go:build !ignoreWeaverGen")
 	p("")
 	p("package %s", g.pkg.Name)
 	p("")
