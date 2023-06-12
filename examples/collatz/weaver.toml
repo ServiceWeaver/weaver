@@ -13,3 +13,6 @@ regions = ["us-west1"]
 public_listener = [
   {name = "collatz", hostname = "collatz.example.com"},
 ]
+
+[kube]
+public_listeners = [{name = "collatz"}]
