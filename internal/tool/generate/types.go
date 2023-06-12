@@ -849,6 +849,10 @@ func isWeaverRef(t types.Type) bool {
 	return isWeaverType(t, "Ref", 1)
 }
 
+func isWeaverListener(t types.Type) bool {
+	return isWeaverType(t, "Listener", 0)
+}
+
 func isWeaverMain(t types.Type) bool {
 	return isWeaverType(t, "Main", 0)
 }

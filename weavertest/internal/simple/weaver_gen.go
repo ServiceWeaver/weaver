@@ -43,7 +43,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return server_server_stub{impl: impl.(Server), addLoad: addLoad}
 		},
-		RefData: "",
+		RefData: "⟦1e2dce71:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server→hello⟧\n",
 	})
 	codegen.Register(codegen.Registration{
 		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",

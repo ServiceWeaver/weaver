@@ -29,7 +29,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
 		},
-		RefData: "⟦8d621687:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/hello/Reverser⟧\n",
+		RefData: "⟦8d621687:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/hello/Reverser⟧\n⟦17f36ff9:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→hello⟧\n",
 	})
 	codegen.Register(codegen.Registration{
 		Name:  "github.com/ServiceWeaver/weaver/examples/hello/Reverser",

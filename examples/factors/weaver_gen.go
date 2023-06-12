@@ -45,7 +45,7 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
 		},
-		RefData: "⟦4724da9b:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/factors/Factorer⟧\n",
+		RefData: "⟦4724da9b:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/factors/Factorer⟧\n⟦68699208:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→factors⟧\n",
 	})
 }
 
