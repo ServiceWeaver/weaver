@@ -41,6 +41,7 @@ const usage = `USAGE
   weaver ssh       <command> ...  // for multimachine deployments
   weaver gke       <command> ...  // for GKE deployments
   weaver gke-local <command> ...  // for simulated GKE deployments
+  weaver kube      <command> ...  // for vanilla Kubernetes deployments
 
 DESCRIPTION
 
