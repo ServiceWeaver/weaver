@@ -117,17 +117,14 @@ type server struct {
 	weaver.Implements[Server]
 	addr  string
 	proxy string
+	hello weaver.Listener
 	srv   *http.Server
 }
 
 func (s *server) Init(ctx context.Context) error {
 	//nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
-	lis, err := s.Listener("hello", weaver.ListenerOptions{})
-	if err != nil {
-		return err
-	}
-	s.addr = lis.String()
-	s.proxy = lis.ProxyAddr()
+	s.addr = s.hello.String()
+	s.proxy = s.hello.ProxyAddr()
 
 	// Run server on listener.
 	s.srv = &http.Server{
@@ -136,7 +133,7 @@ func (s *server) Init(ctx context.Context) error {
 		}),
 	}
 	go func() {
-		err := s.srv.Serve(lis)
+		err := s.srv.Serve(s.hello)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(err)
 		}

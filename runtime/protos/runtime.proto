@@ -476,7 +476,6 @@ message GetListenerAddressReply {
 message ExportListenerRequest {
   string listener = 1;
   string address = 2;
-  string local_address = 3;  // LocalAddress argument in ListenerOptions
 }
 
 // ExportListenerReply is a reply to an ExportListenerRequest.

@@ -360,22 +360,23 @@ func (w *weavelet) getInstance(ctx context.Context, c *component, requester stri
 	return c.info.ClientStubFn(stub, requester), nil, nil
 }
 
-// getListener returns a network listener with the given name.
-func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, error) {
+// getListener returns a network listener with the given name, along with its
+// proxy address.
+func (w *weavelet) getListener(name string) (net.Listener, string, error) {
 	if name == "" {
-		return nil, fmt.Errorf("getListener(%q): empty listener name", name)
+		return nil, "", fmt.Errorf("getListener(%q): empty listener name", name)
 	}
 
 	// Get the address to listen on.
-	addr, err := w.env.GetListenerAddress(w.ctx, name, opts)
+	addr, err := w.env.GetListenerAddress(w.ctx, name)
 	if err != nil {
-		return nil, fmt.Errorf("getListener(%q): %w", name, err)
+		return nil, "", fmt.Errorf("getListener(%q): %w", name, err)
 	}
 
 	// Listen on the address.
 	l, err := net.Listen("tcp", addr.Address)
 	if err != nil {
-		return nil, fmt.Errorf("getListener(%q): %w", name, err)
+		return nil, "", fmt.Errorf("getListener(%q): %w", name, err)
 	}
 
 	// Export the listener.
@@ -383,13 +384,13 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	var reply *protos.ExportListenerReply
 	if err := w.repeatedly(errMsg, func() error {
 		var err error
-		reply, err = w.env.ExportListener(w.ctx, name, l.Addr().String(), opts)
+		reply, err = w.env.ExportListener(w.ctx, name, l.Addr().String())
 		return err
 	}); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if reply.Error != "" {
-		return nil, fmt.Errorf("getListener(%q): %s", name, reply.Error)
+		return nil, "", fmt.Errorf("getListener(%q): %s", name, reply.Error)
 	}
 
 	w.listenersMu.Lock()
@@ -398,7 +399,7 @@ func (w *weavelet) getListener(name string, opts ListenerOptions) (*Listener, er
 	ls.addr = l.Addr().String()
 	close(ls.initialized) // Mark as initialized
 
-	return &Listener{Listener: l, proxyAddr: reply.ProxyAddress}, nil
+	return l, reply.ProxyAddress, nil
 }
 
 // addHandlers registers a component's methods as handlers in the given map.
@@ -642,6 +643,12 @@ func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 		r, _, err := w.getInstance(ctx, sub, c.info.Name)
 		return r, err
 	})
+	if err != nil {
+		return err
+	}
+
+	// Fill listener fields.
+	err = fillListeners(obj, w.getListener)
 	if err != nil {
 		return err
 	}

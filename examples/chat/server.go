@@ -18,7 +18,6 @@ import (
 	"context"
 	_ "embed"
 	"errors"
-	"flag"
 	"fmt"
 	"html/template"
 	"image"
@@ -35,24 +34,19 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
-var flagAddress = flag.String("http", ":0", "host:port to use for when running locally (picked automatically by default)")
-
 type server struct {
 	weaver.Implements[weaver.Main]
 	httpServer http.Server
 	store      weaver.Ref[SQLStore]
 	scaler     weaver.Ref[ImageScaler]
 	cache      weaver.Ref[LocalCache]
+	chat       weaver.Listener
 }
 
 func (s *server) Main(ctx context.Context) error {
 	s.httpServer.Handler = instrument(s.label, s)
-	lis, err := s.Listener("chat", weaver.ListenerOptions{LocalAddress: *flagAddress})
-	if err != nil {
-		return err
-	}
-	s.Logger().Debug("Chat service available", "address", lis)
-	return s.httpServer.Serve(lis)
+	s.Logger().Debug("Chat service available", "address", s.chat)
+	return s.httpServer.Serve(s.chat)
 }
 
 // instrument instruments the provided handler with weaver.InstrumentHandler.

@@ -45,18 +45,11 @@ func main() {
 type server struct {
 	weaver.Implements[weaver.Main]
 	reverser weaver.Ref[Reverser]
+	lis      weaver.Listener `weaver:"reverser"`
 }
 
 func (s *server) Main(ctx context.Context) error {
-	// Get a network listener.
-	opts := weaver.ListenerOptions{LocalAddress: *address}
-	lis, err := s.Listener("reverser", opts)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("hello listener available on %v\n", lis)
-
-	// Serve HTTP traffic.
+	// Setup the HTTP handler.
 	var mux http.ServeMux
 	mux.Handle("/", weaver.InstrumentHandlerFunc("reverser",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +65,8 @@ func (s *server) Main(ctx context.Context) error {
 			fmt.Fprintln(w, reversed)
 		}))
 	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-
 	handler := otelhttp.NewHandler(&mux, "http")
-	return http.Serve(lis, handler)
+
+	fmt.Printf("hello listener available on %v\n", s.lis)
+	return http.Serve(s.lis, handler)
 }

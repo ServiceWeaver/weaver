@@ -2,6 +2,9 @@
 binary = "./collatz"
 rollout = "5m"
 
+[listeners]
+collatz = {local_address = "localhost:9000"}
+
 [ssh]
 locations_file = "./ssh_locations.txt"
 

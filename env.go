@@ -31,14 +31,16 @@ type env interface {
 	// EnvelopeInfo returns the EnvelopeInfo sent by the envelope.
 	EnvelopeInfo() *protos.EnvelopeInfo
 
-	// ActivateComponent ensures that the provided component is running somewhere.
+	// ActivateComponent ensures that the provided component is running
+	// somewhere.
 	ActivateComponent(ctx context.Context, component string, routed bool) error
 
-	// GetListenerAddress returns the address a weavelet should listen on for a listener.
-	GetListenerAddress(ctx context.Context, listener string, opts ListenerOptions) (*protos.GetListenerAddressReply, error)
+	// GetListenerAddress returns the address a weavelet should listen on for
+	// a listener.
+	GetListenerAddress(ctx context.Context, listener string) (*protos.GetListenerAddressReply, error)
 
 	// ExportListener exports a listener.
-	ExportListener(ctx context.Context, listener, addr string, opts ListenerOptions) (*protos.ExportListenerReply, error)
+	ExportListener(ctx context.Context, listener, addr string) (*protos.ExportListenerReply, error)
 
 	// GetSelfCertificate returns the certificate and the private key the
 	// weavelet should use for network connection establishment.

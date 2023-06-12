@@ -45,22 +45,6 @@ type Instance interface {
 	// Logger returns a logger that associates its log entries with this component.
 	Logger() *slog.Logger
 
-	// Listener returns a network listener with the given name that is suitable
-	// for hosting an HTTP server.
-	//
-	// Name may be used by the Service Weaver framework to route client traffic
-	// to the corresponding network listener. As such, listener names should
-	// follow the DNS format for names.
-	//
-	// HTTP servers constructed using this listener are expected to perform
-	// health checks on the reserved HealthzURL path. (Note that this
-	// URL path is configured to never receive any user traffic.)
-	//
-	// If different processes in an application call Listener() multiple times
-	// with the same listener name but different options, the options value from
-	// one of those calls will be used when constructing the listener.
-	Listener(name string, options ListenerOptions) (*Listener, error)
-
 	// rep is for internal use.
 	rep() *component
 }
@@ -175,29 +159,63 @@ func (r Ref[T]) Get() T { return r.value }
 // used by the implementation to check that a value is of type Ref[T].
 func (r Ref[T]) isRef() {}
 
-// A Listener is Service Weaver's implementation of a net.Listener.
+// Listener is a network listener that can be placed as a field inside a
+// component implementation struct. Once placed, Service Weaver automatically
+// initializes the Listener and makes it suitable for receiving network traffic.
+// For example:
 //
-// A Listener implements the net.Listener interface, so you can use a Listener
-// wherever you use a net.Listener. For example,
-//
-//	lis, err := s.Listener("hello", weaver.ListenerOptions{})
-//	if err != nil {
-//	    log.Fatal(err)
+//	type myComponentImpl struct {
+//	  weaver.Implements[MyComponent]
+//	  myListener      weaver.Listener
+//	  myOtherListener weaver.Listener
 //	}
-//	s.Logger().Info("Listener available at %v", lis)
-//	http.HandleFunc("/a", func(http.ResponseWriter, *http.Request) {...})
-//	http.HandleFunc("/b", func(http.ResponseWriter, *http.Request) {...})
-//	http.HandleFunc("/c", func(http.ResponseWriter, *http.Request) {...})
-//	http.Serve(lis, nil)
+//
+// By default, all listeners listen on address ":0". This behavior can be
+// modified by passing options for individual listeners in the application
+// config. For example, to specify local addresses for the above two listeners,
+// the user can add the following lines to the application config file:
+//
+//	[listeners]
+//  mylistener      = {local_address = "localhost:9000"}
+//  myotherlistener = {local_address = "localhost:9001"}
+//
+// Listeners are identified by the lowercased form of their field names in the
+// component implementation structs (e.g., mylistener and myotherlistener).
+// If the user wishes to assign different names to their listeners, they may do
+// so by adding a `weaver:"name"` struct tag to their listener fields, e.g.:
+//
+//	type myComponentImpl struct {
+//	  weaver.Implements[MyComponent]
+//	  myListener      weaver.Listener
+//	  myOtherListener weaver.Listener `weaver:"mylistener2"`
+//	}
+//
+// Listener names must be unique inside a given application binary, regardless
+// of which components they are specified in. For example, it is illegal to
+// declare a Listener field "foo" in two different component implementation
+// structs, unless one is renamed using the `weaver:"name"` struct tag.
+// Because some deployers may use listener names to route client traffic
+// to the application, listener names should follow a DNS format for names [1]
+// (i.e., include only characters [-.a-zA-Z0-9]).
+//
+// HTTP servers constructed using this listener are expected to perform
+// health checks on the reserved HealthzURL path. (Note that this
+// URL path is configured to never receive any user traffic.)
+//
+// [1] https://en.wikipedia.org/wiki/Domain_name
 type Listener struct {
 	net.Listener        // underlying listener
 	proxyAddr    string // address of proxy that forwards to the listener
 }
 
+// isListener is an internal interface that is only implemented by Listener and
+// is used by the implementation to check that a value is of type Listener.
+func (l Listener) isListener() {}
+
 // String returns the address clients should dial to connect to the
 // listener; this will be the proxy address if available, otherwise
 // the <host>:<port> for this listener.
-func (l *Listener) String() string {
+func (l Listener) String() string {
 	if l.proxyAddr != "" {
 		return l.proxyAddr
 	}
@@ -214,38 +232,6 @@ func (c *componentImpl) rep() *component { return c.component }
 
 // Logger returns a logger that associates its log entries with this component.
 func (c *componentImpl) Logger() *slog.Logger { return c.component.logger }
-
-// Listener returns a network listener with the given name.
-func (c *componentImpl) Listener(name string, options ListenerOptions) (*Listener, error) {
-	return c.component.wlet.getListener(name, options)
-}
-
-// ListenerOptions specifies optional configuration for a listener.
-type ListenerOptions struct {
-	// LocalAddress will be used as the address where the listener is
-	// created for local executions (i.e., for single, multi, and weavertest
-	// deployments).
-	//
-	// The value must have the form :port or host:port, or it may
-	// be the empty string, which is treated as ":0".
-	//
-	// If the port number is zero, an unused port number is picked.
-	//
-	// If the host portion is missing, the listener is bound to all
-	// available addresses.
-	//
-	// Examples:
-	//
-	//	""                System picked port on all available addresses
-	//	:0                System picked port on all available addresses
-	//	:1234             Port 1234 on all available addresses
-	//	localhost:1234    Port 1234 on loopback address
-	//	example.com:1234  Port 1234 on external addresses for host
-	LocalAddress string
-
-	// dummy field to force users to use explicit field names
-	useNamedFieldInitialization struct{} //nolint:unused
-}
 
 // WithRouter[T] is a type that can be embedded inside a component implementation
 // struct to indicate that calls to a method M on the component must be routed according

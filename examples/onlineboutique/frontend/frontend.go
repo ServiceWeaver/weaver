@@ -54,13 +54,6 @@ var (
 	localAddr string
 )
 
-// SetLocalAddress sets the address to use for local serving.
-func SetLocalAddress(addr string) {
-	addrMu.Lock()
-	defer addrMu.Unlock()
-	localAddr = addr
-}
-
 type platformDetails struct {
 	css      string
 	provider string
@@ -91,6 +84,8 @@ type Server struct {
 	checkoutService       weaver.Ref[checkoutservice.T]
 	shippingService       weaver.Ref[shippingservice.T]
 	adService             weaver.Ref[adservice.T]
+
+	boutique weaver.Listener
 }
 
 func (s *Server) Main(ctx context.Context) error {
@@ -165,10 +160,6 @@ func (s *Server) Main(ctx context.Context) error {
 	handler = otelhttp.NewHandler(handler, "http") // add tracing
 	s.handler = handler
 
-	lis, err := s.Listener("boutique", weaver.ListenerOptions{LocalAddress: localAddr})
-	if err != nil {
-		return err
-	}
-	s.Logger().Debug("Frontend available", "addr", lis)
-	return http.Serve(lis, s.handler)
+	s.Logger().Debug("Frontend available", "addr", s.boutique)
+	return http.Serve(s.boutique, s.handler)
 }
