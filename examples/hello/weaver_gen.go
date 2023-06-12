@@ -1,4 +1,4 @@
-// go:build !ignoreWeaverGen
+//go:build !ignoreWeaverGen
 
 package main
 
