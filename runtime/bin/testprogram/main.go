@@ -29,22 +29,27 @@ type C interface{}
 
 type app struct {
 	weaver.Implements[weaver.Main]
-	a weaver.Ref[A] //nolint:unused // intentionally declared but not used
+	a      weaver.Ref[A]   //nolint:unused // intentionally declared but not used
+	appLis weaver.Listener //nolint:unused // intentionally declared but not used
 }
 
 func (*app) Main(context.Context) error { return nil }
 
 type a struct {
 	weaver.Implements[A]
-	b weaver.Ref[B] //nolint:unused // intentionally declared but not used
-	c weaver.Ref[C] //nolint:unused // intentionally declared but not used
+	b      weaver.Ref[B]   //nolint:unused // intentionally declared but not used
+	c      weaver.Ref[C]   //nolint:unused // intentionally declared but not used
+	aLis1  weaver.Listener //nolint:unused // intentionally declared but not used
+	unused weaver.Listener `weaver:"aLis2"` //nolint:unused // intentionally declared but not used
 }
 
 type b struct {
+	weaver.Listener
 	weaver.Implements[B]
 }
 
 type c struct {
+	weaver.Listener `weaver:"cLis"`
 	weaver.Implements[C]
 }
 

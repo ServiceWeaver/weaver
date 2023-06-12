@@ -82,3 +82,13 @@ func ReadComponentGraph(file string) ([][2]string, error) {
 	}
 	return codegen.ExtractEdges(data), nil
 }
+
+// ReadListeners reads the sets of listeners associated with each component
+// in the specified binary.
+func ReadListeners(file string) ([]codegen.ComponentListeners, error) {
+	data, err := ROData(file)
+	if err != nil {
+		return nil, err
+	}
+	return codegen.ExtractListeners(data), nil
+}

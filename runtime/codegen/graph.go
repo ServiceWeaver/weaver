@@ -36,7 +36,7 @@ import (
 // MakeEdgeString returns a string that should be emitted into generated
 // code to represent an edge from src to dst.
 func MakeEdgeString(src, dst string) string {
-	return fmt.Sprintf("⟦%s:wEaVeReDgE:%s→%s⟧\n", checksum(src, dst), src, dst)
+	return fmt.Sprintf("⟦%s:wEaVeReDgE:%s→%s⟧\n", checksumEdge(src, dst), src, dst)
 }
 
 // ExtractEdges returns the edges corresponding to MakeEdgeString() results
@@ -49,7 +49,7 @@ func ExtractEdges(data []byte) [][2]string {
 			continue
 		}
 		sum, src, dst := string(m[1]), string(m[2]), string(m[3])
-		if sum != checksum(src, dst) {
+		if sum != checksumEdge(src, dst) {
 			continue
 		}
 		result = append(result, [2]string{src, dst})
@@ -63,7 +63,7 @@ func ExtractEdges(data []byte) [][2]string {
 	return result
 }
 
-func checksum(src, dst string) string {
+func checksumEdge(src, dst string) string {
 	edge := fmt.Sprintf("wEaVeReDgE:%s→%s", src, dst)
 	sum := sha256.Sum256([]byte(edge))
 	return fmt.Sprintf("%0x", sum)[:8]

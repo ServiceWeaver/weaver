@@ -401,6 +401,7 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 	var router *types.Named // Router type (if any)
 	var isMain bool         // Is intf weaver.Main?
 	var refs []*types.Named // T for which weaver.Ref[T] exists in struct
+	var listeners []string  // Names of all listener fields declared in struct
 	for _, f := range s.Fields.List {
 		typeAndValue, ok := pkg.TypesInfo.Types[f.Type]
 		if !ok {
@@ -422,6 +423,27 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 					formatType(pkg, arg))
 			}
 			refs = append(refs, named)
+		} else if isWeaverListener(t) {
+			var lisName string
+			if f.Tag != nil {
+				tag := f.Tag.Value
+				const tagPrefix = "`weaver:\""
+				const tagSuffix = "\"`"
+				if !strings.HasPrefix(tag, tagPrefix) || !strings.HasSuffix(tag, tagSuffix) {
+					return nil, errorf(pkg.Fset, f.Pos(),
+						"Listener tag must be of the format `weaver:\"name\"`, got %s",
+						tag)
+				}
+				lisName = strings.TrimSuffix(strings.TrimPrefix(tag, tagPrefix), tagSuffix)
+			} else if f.Names == nil { // embedded field
+				lisName = "Listener"
+			} else if len(f.Names) > 1 { // should never happen?
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"Too many names %v for listener field", f.Names)
+			} else {
+				lisName = f.Names[0].Name
+			}
+			listeners = append(listeners, strings.ToLower(lisName))
 		}
 
 		if len(f.Names) != 0 {
@@ -511,11 +533,12 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 	}
 
 	comp := &component{
-		intf:   intf,
-		impl:   impl,
-		router: router,
-		isMain: isMain,
-		refs:   refs,
+		intf:      intf,
+		impl:      impl,
+		router:    router,
+		isMain:    isMain,
+		refs:      refs,
+		listeners: listeners,
 	}
 
 	// Find routing information if needed.
@@ -550,6 +573,7 @@ type component struct {
 	routedMethods map[string]bool // the set of methods with a routing function
 	isMain        bool            // intf is weaver.Main
 	refs          []*types.Named  // List of T where a weaver.Ref[T] field is in impl struct
+	listeners     []string        // Names of listener fields declared in impl struct
 }
 
 func fullName(t *types.Named) string {
@@ -1030,6 +1054,9 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		myName := comp.fullIntfName()
 		for _, ref := range comp.refs {
 			refData.WriteString(codegen.MakeEdgeString(myName, fullName(ref)))
+		}
+		if len(comp.listeners) > 0 {
+			refData.WriteString(codegen.MakeListenersString(myName, comp.listeners))
 		}
 
 		// E.g.,
