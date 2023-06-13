@@ -53,11 +53,6 @@ func ParseConfig(file string, input string, sectionValidator func(string, string
 		return nil, err
 	}
 
-	// Parse the listener sections.
-	if err := extractListeners(config); err != nil {
-		return nil, err
-	}
-
 	for key, val := range config.Sections {
 		if err := sectionValidator(key, val); err != nil {
 			return nil, err
@@ -71,34 +66,21 @@ func ParseConfig(file string, input string, sectionValidator func(string, string
 // If shortKey is not empty, either key or shortKey is accepted.
 // If the named section is not found, returns nil without changing dst.
 func ParseConfigSection(key, shortKey string, sections map[string]string, dst any) error {
-	key, section, ok, err := findSection(key, shortKey, sections)
-	if err != nil {
-		return err
-	}
-	if !ok { // not found
-		return nil
-	}
-	return parseConfigSection(key, section, dst)
-}
-
-// findSection returns the section keyed by either key or shortKey, but not
-// both.
-func findSection(key, shortKey string, sections map[string]string) (string, string, bool, error) {
 	section, ok := sections[key]
 	if shortKey != "" {
-		// Fetch section listed for shortKey, if any
+		// Fetch section listed for shortKey, if any.
 		if shortKeySection, ok2 := sections[shortKey]; ok2 {
 			if ok {
-				return "", "", false, fmt.Errorf("conflicting sections %q and %q", shortKey, key)
+				return fmt.Errorf("conflicting sections %q and %q", shortKey, key)
 			}
 			key, section, ok = shortKey, shortKeySection, ok2
 		}
 	}
-	return key, section, ok, nil
-}
+	if !ok { // not found
+		return nil
+	}
 
-// parseConfigSection parses the given key's config section into dst.
-func parseConfigSection(key, section string, dst any) error {
+	// Parse and validate the section.
 	md, err := toml.Decode(section, dst)
 	if err != nil {
 		return err
@@ -193,49 +175,6 @@ func checkSameProcess(c *protos.AppConfig) error {
 				return fmt.Errorf("component %q placed multiple times", component)
 			}
 			seen[component] = struct{}{}
-		}
-	}
-	return nil
-}
-
-// extractListeners parses all of the listener sections from the config,
-// and stores the resulting options into config.ListenerOptions.
-func extractListeners(config *protos.AppConfig) error {
-	const listenersKey = "github.com/ServiceWeaver/weaver/listeners"
-	const listenersShortKey = "listeners"
-	type listenerOptions struct {
-		LocalAddress string `toml:"local_address"`
-	}
-
-	// Extract listener subsections, where key is the listener name, and
-	// the value are listener options
-	_, section, ok, err := findSection(listenersKey, listenersShortKey, config.Sections)
-	if err != nil {
-		return err
-	}
-	if !ok { // not found
-		return nil
-	}
-	var subsections map[string]toml.Primitive
-	if _, err := toml.Decode(section, &subsections); err != nil {
-		return err
-	}
-
-	for k, v := range subsections {
-		var buf strings.Builder
-		err := toml.NewEncoder(&buf).Encode(v)
-		if err != nil {
-			return fmt.Errorf("encoding listener subsection %q: %w", k, err)
-		}
-		parsed := &listenerOptions{}
-		if err := parseConfigSection(k, buf.String(), parsed); err != nil {
-			return err
-		}
-		if config.ListenerOptions == nil {
-			config.ListenerOptions = map[string]*protos.AppConfig_ListenerOptions{}
-		}
-		config.ListenerOptions[k] = &protos.AppConfig_ListenerOptions{
-			LocalAddress: parsed.LocalAddress,
 		}
 	}
 	return nil

@@ -29,6 +29,11 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
+const (
+	ConfigKey      = "github.com/ServiceWeaver/weaver/single"
+	ShortConfigKey = "single"
+)
+
 var deployCmd = tool.Command{
 	Name:        "deploy",
 	Description: "Deploy a Service Weaver app",
@@ -54,16 +59,25 @@ func deploy(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
-	config, err := runtime.ParseConfig(configFile, string(bytes), codegen.ComponentConfigValidator)
+
+	// Parse and sanity-check the application section of the config.
+	app, err := runtime.ParseConfig(configFile, string(bytes), codegen.ComponentConfigValidator)
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
-	if _, err := os.Stat(config.Binary); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("binary %q doesn't exist", config.Binary)
+	if _, err := os.Stat(app.Binary); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("binary %q doesn't exist", app.Binary)
 	}
 
+	// Parse the single section of the config.
+	config := &SingleConfig{}
+	if err := runtime.ParseConfigSection(ConfigKey, ShortConfigKey, app.Sections, config); err != nil {
+		return fmt.Errorf("parse single config: %w", err)
+	}
+	config.App = app
+
 	// Set up the binary.
-	cmd := exec.Command(config.Binary, config.Args...)
+	cmd := exec.Command(app.Binary, app.Args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

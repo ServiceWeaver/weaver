@@ -56,8 +56,7 @@ type deployer struct {
 	ctx          context.Context
 	ctxCancel    context.CancelFunc
 	deploymentId string
-	config       *protos.AppConfig
-	multiConfig  *config
+	config       *MultiConfig
 	started      time.Time
 	logger       *slog.Logger
 	caCert       *x509.Certificate
@@ -109,7 +108,7 @@ var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer creates a new deployer. The deployer can be stopped at any
 // time by canceling the passed-in context.
-func newDeployer(ctx context.Context, deploymentId string, config *protos.AppConfig, multiConfig *config) (*deployer, error) {
+func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig) (*deployer, error) {
 	// Create the log saver.
 	logsDB, err := logging.NewFileStore(logDir)
 	if err != nil {
@@ -117,7 +116,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 	}
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
-			App:       config.Name,
+			App:       config.App.Name,
 			Component: "deployer",
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
@@ -126,7 +125,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 	})
 	var caCert *x509.Certificate
 	var caKey crypto.PrivateKey
-	if multiConfig.MTLS {
+	if config.Mtls {
 		caCert, caKey, err = certs.GenerateCACert()
 		if err != nil {
 			return nil, fmt.Errorf("cannot generate signing certificate: %w", err)
@@ -151,7 +150,6 @@ func newDeployer(ctx context.Context, deploymentId string, config *protos.AppCon
 		statsProcessor: imetrics.NewStatsProcessor(),
 		deploymentId:   deploymentId,
 		config:         config,
-		multiConfig:    multiConfig,
 		started:        time.Now(),
 		proxies:        map[string]*proxyInfo{},
 	}
@@ -200,7 +198,7 @@ func (d *deployer) computeGroups() error {
 			return g, nil
 		}
 		var certPEM, keyPEM []byte
-		if d.multiConfig.MTLS {
+		if d.config.Mtls {
 			cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, component)
 			if err != nil {
 				return nil, fmt.Errorf("cannot generate cert: %w", err)
@@ -227,7 +225,7 @@ func (d *deployer) computeGroups() error {
 
 	// Use the colocation information to place multiple components
 	// in the same group.
-	for _, grp := range d.config.Colocate {
+	for _, grp := range d.config.App.Colocate {
 		if len(grp.Components) == 0 {
 			continue
 		}
@@ -243,7 +241,7 @@ func (d *deployer) computeGroups() error {
 	// Use the call graph information to (1) identify all components in the
 	// application binary and create groups for them, and (2) compute the
 	// set of components a given group is allowed to invoke methods on.
-	callGraph, err := bin.ReadComponentGraph(d.config.Binary)
+	callGraph, err := bin.ReadComponentGraph(d.config.App.Binary)
 	if err != nil {
 		return fmt.Errorf("cannot read the call graph from the application binary: %w", err)
 	}
@@ -320,16 +318,16 @@ func (d *deployer) startColocationGroup(g *group) error {
 	for r := 0; r < defaultReplication; r++ {
 		// Start the weavelet and capture its logs, traces, and metrics.
 		info := &protos.EnvelopeInfo{
-			App:           d.config.Name,
+			App:           d.config.App.Name,
 			DeploymentId:  d.deploymentId,
 			Id:            uuid.New().String(),
-			Sections:      d.config.Sections,
+			Sections:      d.config.App.Sections,
 			SingleProcess: false,
 			SingleMachine: true,
 			RunMain:       g.started[runtime.Main],
-			Mtls:          d.multiConfig.MTLS,
+			Mtls:          d.config.Mtls,
 		}
-		e, err := envelope.NewEnvelope(d.ctx, info, d.config)
+		e, err := envelope.NewEnvelope(d.ctx, info, d.config.App)
 		if err != nil {
 			return err
 		}
@@ -542,7 +540,7 @@ func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) err
 
 // HandleTraceSpans implements the envelope.EnvelopeHandler interface.
 func (d *deployer) HandleTraceSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
-	return d.traceDB.Store(ctx, d.config.Name, d.deploymentId, spans)
+	return d.traceDB.Store(ctx, d.config.App.Name, d.deploymentId, spans)
 }
 
 // GetListenerAddress implements the envelope.EnvelopeHandler interface.
@@ -561,11 +559,11 @@ func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerR
 		return &protos.ExportListenerReply{ProxyAddress: p.addr}, nil
 	}
 
-	// Get the proxy address. It should be the same as the LocalAddress field
+	// Get the proxy address. It should be the same as the Address field
 	// in the options for this listener, if any was specified.
 	var proxyAddr string
-	if opts, ok := d.config.ListenerOptions[req.Listener]; ok {
-		proxyAddr = opts.LocalAddress
+	if opts, ok := d.config.Listeners[req.Listener]; ok {
+		proxyAddr = opts.Address
 	}
 
 	lis, err := net.Listen("tcp", proxyAddr)
@@ -684,12 +682,12 @@ func (d *deployer) Status(context.Context) (*status.Status, error) {
 	}
 
 	return &status.Status{
-		App:            d.config.Name,
+		App:            d.config.App.Name,
 		DeploymentId:   d.deploymentId,
 		SubmissionTime: timestamppb.New(d.started),
 		Components:     components,
 		Listeners:      listeners,
-		Config:         d.config,
+		Config:         d.config.App,
 	}, nil
 }
 

@@ -1,11 +1,15 @@
 [serviceweaver]
 binary = "./hello"
 
-[listeners]
-hello = {local_address = "localhost:12345"}
+[single]
+listeners.hello = {address = "localhost:12345"}
+
+[multi]
+listeners.hello = {address = "localhost:12345"}
 
 [gke]
 regions = ["us-west1"]
+# TODO(spetrovic): Rewrite to match the single/multi listeners format.
 public_listener = [
   {name = "hello", hostname = "hello.com"},
 ]

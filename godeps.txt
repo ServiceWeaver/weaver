@@ -583,6 +583,8 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     golang.org/x/exp/slices
     golang.org/x/exp/slog
     golang.org/x/sync/errgroup
+    google.golang.org/protobuf/reflect/protoreflect
+    google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
     io
     net
@@ -590,6 +592,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     os
     os/signal
     path/filepath
+    reflect
     sync
     syscall
     time
@@ -602,11 +605,16 @@ github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/tool
+    google.golang.org/protobuf/reflect/protoreflect
+    google.golang.org/protobuf/runtime/protoimpl
     os
     os/exec
     os/signal
     path/filepath
+    reflect
+    sync
     syscall
 github.com/ServiceWeaver/weaver/internal/tool/ssh
     bufio

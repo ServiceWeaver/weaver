@@ -41,6 +41,11 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
+const (
+	configKey      = "github.com/ServiceWeaver/weaver/ssh"
+	shortConfigKey = "ssh"
+)
+
 var deployCmd = tool.Command{
 	Name:        "deploy",
 	Description: "Deploy a Service Weaver app",
@@ -66,14 +71,24 @@ func deploy(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w", cfgFile, err)
 	}
+
+	// Parse and sanity-check the app config.
 	app, err := runtime.ParseConfig(cfgFile, string(cfg), codegen.ComponentConfigValidator)
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w", cfgFile, err)
 	}
-
-	// Sanity check the config.
 	if _, err := os.Stat(app.Binary); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("binary %q doesn't exist", app.Binary)
+	}
+
+	// Parse and finalize the SSH config.
+	config := &impl.SshConfig{}
+	if err := runtime.ParseConfigSection(configKey, shortConfigKey, app.Sections, config); err != nil {
+		return fmt.Errorf("parse ssh config: %w", err)
+	}
+	config.Deployment = &protos.Deployment{
+		Id:  uuid.New().String(),
+		App: app,
 	}
 
 	// Retrieve the list of locations to deploy.
@@ -82,20 +97,14 @@ func deploy(ctx context.Context, args []string) error {
 		return err
 	}
 
-	// Create a deployment.
-	dep := &protos.Deployment{
-		Id:  uuid.New().String(),
-		App: app,
-	}
-
 	// Copy the binaries to each location.
-	locations, err := copyBinaries(locs, dep)
+	locations, err := copyBinaries(locs, config.Deployment)
 	if err != nil {
 		return err
 	}
 
 	// Run the manager.
-	stopFn, err := impl.RunManager(ctx, dep, locations)
+	stopFn, err := impl.RunManager(ctx, config, locations)
 	if err != nil {
 		return fmt.Errorf("cannot instantiate the manager: %w", err)
 	}
@@ -105,7 +114,7 @@ func deploy(ctx context.Context, args []string) error {
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-done // Will block here until user hits ctrl+c
-		if err := terminateDeployment(locs, dep); err != nil {
+		if err := terminateDeployment(locs, config.Deployment); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to terminate deployment: %v\n", err)
 		}
 		fmt.Fprintf(os.Stderr, "Application %s terminated\n", app.Name)
@@ -117,7 +126,7 @@ func deploy(ctx context.Context, args []string) error {
 
 	// Follow the logs.
 	source := logging.FileSource(impl.LogDir)
-	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, dep.Id)
+	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, config.Deployment.Id)
 	r, err := source.Query(ctx, query, true)
 	if err != nil {
 		return err

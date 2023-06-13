@@ -36,11 +36,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// config contains the options in the [multi] section of a weaver config file.
-type config struct {
-	MTLS bool `toml:"mtls"` // enable mTLS?
-}
-
 const (
 	configKey      = "github.com/ServiceWeaver/weaver/multi"
 	shortConfigKey = "multi"
@@ -71,25 +66,26 @@ func deploy(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
+
+	// Parse and sanity-check the application section of the config.
 	appConfig, err := runtime.ParseConfig(configFile, string(bytes), codegen.ComponentConfigValidator)
 	if err != nil {
 		return fmt.Errorf("load config file %q: %w\n", configFile, err)
 	}
-
-	// Sanity check the config.
 	if _, err := os.Stat(appConfig.Binary); errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("binary %q doesn't exist", appConfig.Binary)
 	}
 
 	// Parse the multi section of the config.
-	multiConfig := config{}
-	if err := runtime.ParseConfigSection(configKey, shortConfigKey, appConfig.Sections, &multiConfig); err != nil {
+	multiConfig := &MultiConfig{}
+	if err := runtime.ParseConfigSection(configKey, shortConfigKey, appConfig.Sections, multiConfig); err != nil {
 		return fmt.Errorf("parse multi config: %w", err)
 	}
+	multiConfig.App = appConfig
 
 	// Create the deployer.
 	deploymentId := uuid.New().String()
-	d, err := newDeployer(ctx, deploymentId, appConfig, &multiConfig)
+	d, err := newDeployer(ctx, deploymentId, multiConfig)
 	if err != nil {
 		return fmt.Errorf("create deployer: %w", err)
 	}

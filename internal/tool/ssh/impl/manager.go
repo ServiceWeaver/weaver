@@ -85,7 +85,7 @@ var (
 // duplicated code.
 type manager struct {
 	ctx        context.Context
-	dep        *protos.Deployment
+	config     *SshConfig
 	logger     *slog.Logger
 	mgrAddress string // manager address
 	registry   *status.Registry
@@ -150,7 +150,8 @@ type groupReplicaInfo struct {
 var _ status.Server = &manager{}
 
 // RunManager creates and runs a new manager.
-func RunManager(ctx context.Context, dep *protos.Deployment, locations map[string]string) (func() error, error) {
+func RunManager(ctx context.Context, config *SshConfig, locations map[string]string) (func() error, error) {
+	dep := config.Deployment
 	// Create log saver.
 	fs, err := logging.NewFileStore(LogDir)
 	if err != nil {
@@ -192,7 +193,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations map[strin
 	// Create the manager.
 	m := &manager{
 		ctx:            ctx,
-		dep:            dep,
+		config:         config,
 		locations:      locations,
 		logger:         logger,
 		logSaver:       logSaver,
@@ -233,7 +234,7 @@ func RunManager(ctx context.Context, dep *protos.Deployment, locations map[strin
 	}()
 
 	return func() error {
-		return m.registry.Unregister(m.ctx, m.dep.Id)
+		return m.registry.Unregister(m.ctx, dep.Id)
 	}, nil
 }
 
@@ -284,8 +285,8 @@ func (m *manager) run() error {
 	}
 	m.registry = registry
 	reg := status.Registration{
-		DeploymentId: m.dep.Id,
-		App:          m.dep.App.Name,
+		DeploymentId: m.config.Deployment.Id,
+		App:          m.config.Deployment.App.Name,
 		Addr:         lis.Addr().String(),
 	}
 	fmt.Fprint(os.Stderr, reg.Rolodex())
@@ -371,13 +372,14 @@ func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 			Addr: proxy.addr,
 		})
 	}
+	dep := m.config.Deployment
 	return &status.Status{
-		App:            m.dep.App.Name,
-		DeploymentId:   m.dep.Id,
+		App:            dep.App.Name,
+		DeploymentId:   dep.Id,
 		SubmissionTime: timestamppb.New(m.started),
 		Components:     components,
 		Listeners:      listeners,
-		Config:         m.dep.App,
+		Config:         dep.App,
 	}, nil
 }
 
@@ -509,8 +511,8 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	// Get the proxy address. It should be the same as the LocalAddress field
 	// in the options for this listener, if any was specified.
 	var proxyAddr string
-	if opts, ok := m.dep.App.ListenerOptions[req.Listener]; ok {
-		proxyAddr = opts.LocalAddress
+	if opts, ok := m.config.ListenerOptions[req.Listener]; ok {
+		proxyAddr = opts.Address
 	}
 
 	lis, err := net.Listen("tcp", proxyAddr)
@@ -593,7 +595,7 @@ func (m *manager) startColocationGroup(g *group, runMain bool) error {
 	for loc := range m.locations {
 		info := &BabysitterInfo{
 			ManagerAddr: m.mgrAddress,
-			Deployment:  m.dep,
+			Deployment:  m.config.Deployment,
 			Group:       g.name,
 			ReplicaId:   int32(replicaId),
 			LogDir:      LogDir,
