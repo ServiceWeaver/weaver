@@ -121,7 +121,7 @@ func TestReadListeners(t *testing.T) {
 			main := "github.com/ServiceWeaver/weaver/Main"
 			want := []codegen.ComponentListeners{
 				{Component: main, Listeners: []string{"applis"}},
-				{Component: pkg("A"), Listeners: []string{"alis1", "alis2"}},
+				{Component: pkg("A"), Listeners: []string{"alis1", "alis2", "alis3"}},
 				{Component: pkg("B"), Listeners: []string{"listener"}},
 				{Component: pkg("C"), Listeners: []string{"clis"}},
 			}

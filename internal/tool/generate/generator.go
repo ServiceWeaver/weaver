@@ -28,6 +28,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -424,26 +425,11 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 			}
 			refs = append(refs, named)
 		} else if isWeaverListener(t) {
-			var lisName string
-			if f.Tag != nil {
-				tag := f.Tag.Value
-				const tagPrefix = "`weaver:\""
-				const tagSuffix = "\"`"
-				if !strings.HasPrefix(tag, tagPrefix) || !strings.HasSuffix(tag, tagSuffix) {
-					return nil, errorf(pkg.Fset, f.Pos(),
-						"Listener tag must be of the format `weaver:\"name\"`, got %s",
-						tag)
-				}
-				lisName = strings.TrimSuffix(strings.TrimPrefix(tag, tagPrefix), tagSuffix)
-			} else if f.Names == nil { // embedded field
-				lisName = "Listener"
-			} else if len(f.Names) > 1 { // should never happen?
-				return nil, errorf(pkg.Fset, f.Pos(),
-					"Too many names %v for listener field", f.Names)
-			} else {
-				lisName = f.Names[0].Name
+			lis, err := getListenerNamesFromStructField(pkg, f)
+			if err != nil {
+				return nil, err
 			}
-			listeners = append(listeners, strings.ToLower(lisName))
+			listeners = append(listeners, lis...)
 		}
 
 		if len(f.Names) != 0 {
@@ -551,6 +537,38 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 	}
 
 	return comp, nil
+}
+
+// getListenerNamesFromStructField extracts listener names from the given
+// weaver.Listener field in the component implementation struct.
+func getListenerNamesFromStructField(pkg *packages.Package, f *ast.Field) ([]string, error) {
+	// Try to get the listener name from the struct tag.
+	if f.Tag != nil {
+		tag := reflect.StructTag(strings.TrimPrefix(
+			strings.TrimSuffix(f.Tag.Value, "`"), "`"))
+		if len(f.Names) > 1 {
+			return nil, errorf(pkg.Fset, f.Pos(),
+				"Tag %s repeated for multiple fields", tag)
+		}
+		if name, ok := tag.Lookup("weaver"); ok {
+			if !token.IsIdentifier(name) {
+				return nil, errorf(pkg.Fset, f.Pos(),
+					"Listener tag %s is not a valid Go identifier", tag)
+			}
+			return []string{strings.ToLower(name)}, nil
+		}
+		// fallthrough
+	}
+
+	// Get the listener name(s) from the struct field name(s).
+	if f.Names == nil { // embedded field
+		return []string{"listener"}, nil
+	}
+	var ret []string
+	for _, fname := range f.Names {
+		ret = append(ret, strings.ToLower(fname.Name))
+	}
+	return ret, nil
 }
 
 // component represents a Service Weaver component.

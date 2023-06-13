@@ -59,7 +59,7 @@ type ComponentListeners struct {
 // MakeListenersString() in data.
 func ExtractListeners(data []byte) []ComponentListeners {
 	var results []ComponentListeners
-	re := regexp.MustCompile(`⟦([0-9a-fA-F]+):wEaVeRlIsTeNeRs:([a-zA-Z0-9\-.~_/]*?)→([a-zA-Z0-9\-.~_/,]*?)⟧`)
+	re := regexp.MustCompile(`⟦([0-9a-fA-F]+):wEaVeRlIsTeNeRs:([a-zA-Z0-9\-.~_/]*?)→([\p{L}\p{Nd}_,]+)⟧`)
 	for _, m := range re.FindAllSubmatch(data, -1) {
 		if len(m) != 4 {
 			continue

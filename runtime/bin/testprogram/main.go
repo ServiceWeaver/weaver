@@ -37,10 +37,10 @@ func (*app) Main(context.Context) error { return nil }
 
 type a struct {
 	weaver.Implements[A]
-	b      weaver.Ref[B]   //nolint:unused // intentionally declared but not used
-	c      weaver.Ref[C]   //nolint:unused // intentionally declared but not used
-	aLis1  weaver.Listener //nolint:unused // intentionally declared but not used
-	unused weaver.Listener `weaver:"aLis2"` //nolint:unused // intentionally declared but not used
+	b            weaver.Ref[B]   //nolint:unused // intentionally declared but not used
+	c            weaver.Ref[C]   //nolint:unused // intentionally declared but not used
+	aLis1, aLis2 weaver.Listener //nolint:unused // intentionally declared but not used
+	unused       weaver.Listener `weaver:"aLis3"` //nolint:unused // intentionally declared but not used
 }
 
 type b struct {
