@@ -18,77 +18,89 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  const JANUARY = 0;
+  const FEBRUARY = 1;
+  const MARCH = 2;
+  const APRIL = 3;
+  const MAY = 4;
+  const JUNE = 5;
+  const JULY = 6;
+  const AUGUST = 7;
+  const SEPTEMBER = 8;
+  const OCTOBER = 9;
+  const NOVEMBER = 10;
+  const DECEMBER = 11;
   const items = [
     {
-      date: new Date('2023-06-14'),
+      date: new Date(2023, JUNE, 14),
       text: 'Join us on a <a href="https://www.youtube.com/watch?v=KFN-P84YZfk&ab_channel=Changelog">K8s vs serverless for distributed systems</a> podcast today.',
     },
     {
-      date: new Date('2023-06-09'),
+      date: new Date(2023, JUNE, 9),
       text: 'Service Weaver talk at <a href="https://gdg.community.dev/events/details/google-gdg-san-francisco-presents-google-io-extended-san-francisco-in-person/">Google I/O Extended San Francisco</a> on June 21st.',
     },
     {
-      date: new Date('2023-06-02'),
+      date: new Date(2023, JUNE, 2),
       text: 'We are starting a series of Service Weaver workshops. Please check <a href="./workshops.html">here</a> for details.',
     },
     {
-      date: new Date('2023-05-20'),
+      date: new Date(2023, MAY, 20),
       text: 'Service Weaver at <a href="https://devopspro.lt/">DevOps Pro Europe</a> on May 24th.',
     },
     {
-      date: new Date('2023-05-17'),
+      date: new Date(2023, MAY, 17),
       text: 'Vision paper on modern cloud development to appear at <a href="https://sigops.org/s/conferences/hotos/2023/">HotOS\'23</a>. You can read the draft <a href="./assets/docs/hotos23_vision_paper.pdf">here</a>.',
     },
     {
-      date: new Date('2023-05-04'),
+      date: new Date(2023, MAY, 4),
       text: 'Service Weaver at the <a href="https://foci.uw.edu/event_may-2023_workshop-an.html">Workshop on Application Networking</a>, organized by the University of Washington on May 8th.',
     },
     {
-      date: new Date('2023-04-18'),
+      date: new Date(2023, APRIL, 18),
       text: 'We will present Service Weaver at <a href="https://inthecloud.withgoogle.com/cloud-developer-days-warsaw-23/register.html">Warsaw Cloud Developer Day</a> next Tuesday. You can register for the event <a href="https://inthecloud.withgoogle.com/cloud-developer-days-warsaw-23/register.html">here</a>.',
     },
     {
-      date: new Date('2023-04-17'),
+      date: new Date(2023, APRIL, 17),
       text: 'New blog post on <a href="./blog/corba.html">remote method calls, the fallacies of distributed computing, and CORBA</a>.',
     },
     {
-      date: new Date('2023-04-12'),
+      date: new Date(2023, APRIL, 12),
       text: 'We will be at <a href="https://events.linuxfoundation.org/kubecon-cloudnativecon-europe">KubeCon</a> in Amsterdam next week. You can find us in the Google booth.',
     },
     {
-      date: new Date('2023-04-05'),
+      date: new Date(2023, APRIL, 5),
       text: 'New blog post on <a href="./blog/deployers.html">how to implement a Service Weaver deployer</a>.',
     },
     {
-      date: new Date('2023-04-03'),
+      date: new Date(2023, APRIL, 3),
       text: 'Service Weaver at Container Day in Amsterdam. <a href="https://rsvp.withgoogle.com/events/google-container-day">Register</a> if you want to learn more.',
     },
     {
-      date: new Date('2023-03-30'),
+      date: new Date(2023, MARCH, 30),
       text: 'We are now on Discord. Follow us <a href="https://discord.gg/p36aYaaN">here</a>.',
     },
     {
-      date: new Date('2023-03-29'),
+      date: new Date(2023, MARCH, 29),
       text: '<a href="https://uk.linkedin.com/in/matthewmcgibbon1">Matthew</a> presented Service Weaver at <a href="https://twitter.com/womenwhogolndn/status/1641147116683657242">Women Who Go London</a>.',
     },
     {
-      date: new Date('2023-03-24'),
+      date: new Date(2023, MARCH, 24),
       text: 'We will present Service Weaver at <a href="https://www.conf42.com/Cloud_Native_2023_Robert_Grandl_modern_development_distributed_service_weaver">Cloud Native 2023</a>.',
     },
     {
-      date: new Date('2023-03-11'),
+      date: new Date(2023, MARCH, 11),
       text: '<a href="https://www.infoq.com">InfoQ</a> wrote a blog <a href="https://www.infoq.com/news/2023/03/google-weaver-framework">post</a> about Service Weaver.',
     },
     {
-      date: new Date('2023-03-03'),
+      date: new Date(2023, MARCH, 3),
       text: '<a href="https://betterprogramming.pub/service-weaver-a-framework-from-google-for-balancing-monoliths-and-microservices-583e69b274dd">Article</a> on <a href="https://medium.com">Medium</a> about Service Weaver.',
     },
     {
-      date: new Date('2023-03-02'),
+      date: new Date(2023, MARCH, 2),
       text: 'We had a great time <a href="https://twitter.com/kelseyhightower/status/1631352524157648896">talking</a> about Service Weaver with <a href="https://twitter.com/kelseyhightower">Kelsey Hightower</a>.',
     },
     {
-      date: new Date('2023-03-01'),
+      date: new Date(2023, MARCH, 1),
       text: 'We are <a href="https://opensource.googleblog.com/2023/03/introducing-service-weaver-framework-for-writing-distributed-applications.html">live</a>! Thanks <a href="https://twitter.com/kelseyhightower">Kelsey Hightower</a> and <a href="https://twitter.com/JeffDean">Jeff Dean</a> for spreading the word <a href="https://twitter.com/kelseyhightower/status/1630995723956412420">1</a>, <a href="https://twitter.com/JeffDean/status/1631379386476953600">2</a>.',
     },
   ];
