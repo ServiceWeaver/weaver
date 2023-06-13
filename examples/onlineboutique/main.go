@@ -30,6 +30,7 @@ import (
 	"os"
 
 	"github.com/ServiceWeaver/weaver"
+	_ "github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend"
 )
 
 //go:generate ../../cmd/weaver/weaver generate ./...
