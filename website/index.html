@@ -147,9 +147,7 @@ binary = "./example"
 
 [gke]
 regions = ["us-west1", "us-east1"]
-public_listener = [
-  {name = "example", hostname = "example.com"},
-]
+listeners.example = {public_hostname = "example.com"},
 </markdown>
     </div>
   </div>

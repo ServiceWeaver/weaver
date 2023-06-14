@@ -1935,9 +1935,7 @@ binary = "./hello"
 
 [gke]
 regions = ["us-west1"]
-public_listener = [
-  {name = "hello", hostname = "hello.com"},
-]
+listeners.hello = {public_hostname = "hello.com"}
 ```
 
 The `[serviceweaver]` section of the config file specifies the compiled Service
@@ -2328,10 +2326,8 @@ You can configure `weaver gke` using the `[gke]` section of a
 project = "my-google-cloud-project"
 account = "my_account@gmail.com"
 regions = ["us-west1", "us-east1"]
-public_listener = [
-    {name = "cat", hostname = "cat.com"},
-    {name = "hat", hostname = "hat.gg"},
-]
+listeners.cat = {public_hostname = "cat.com"}
+listeners.hat = {public_hostname = "hat.gg"}
 ```
 
 | Field | Required? | Description |
@@ -2339,7 +2335,7 @@ public_listener = [
 | project | optional | Name of the Google Cloud Project in which to deploy the Service Weaver application. If absent, the currently active project is used (i.e. `gcloud config get-value project`) |
 | account | required | Google Cloud account used to deploy the Service Weaver application. If absent, the currently active account is used (i.e. `gcloud config get-value account`). |
 | regions | optional | Regions in which the Service Weaver application should be deployed. Defaults to `["us-west1"]`. |
-| public_listener | optional | The application's public listeners along with their corresponding hostnames. |
+| listeners | optional | The application's listener options, e.g., the listeners' public hostnames. |
 
 # Local GKE
 
@@ -2376,9 +2372,7 @@ binary = "./hello"
 
 [gke]
 regions = ["us-west1"]
-public_listener = [
-  {name = "hello", hostname = "hello.com"},
-]
+listeners.hello = {public_hostname = "hello.com"}
 
 $ weaver gke-local deploy weaver.toml
 Deploying the application... Done

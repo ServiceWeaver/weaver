@@ -10,10 +10,7 @@ listeners.chat = {address = "localhost:9000"}
 
 [gke]
 regions = ["us-west1", "us-east1"]
-# TODO(spetrovic): Rewrite to match the single/multi listeners format.
-public_listener = [
-  {name = "chat", hostname = "chat.example.com"},
-]
+listeners.chat = {public_hostname = "chat.example.com"}
 
 ["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
 db_driver = "mysql"

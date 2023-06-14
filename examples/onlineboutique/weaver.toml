@@ -10,8 +10,4 @@ listeners.boutique = {address = "localhost:12345"}
 
 [gke]
 regions = ["us-west1"]
-# TODO(spetrovic): Rewrite to match the single/multi listeners format.
-public_listener = [
-  {name = "boutique", hostname = "onlineboutique.example.com"},
-]
-
+listeners.boutique = {public_hostname = "onlineboutique.example.com"}
