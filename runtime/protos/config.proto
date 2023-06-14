@@ -77,32 +77,6 @@ message AppConfig {
   // If not specified, Service Weaver will pick a default value.
   int64 rollout_nanos = 6;
 
-  // Options for the application listeners, keyed by listener name.
-  // If a listener isn't specified in the map, default options will be used.
-  message ListenerOptions {
-    // LocalAddress will be used as the address where the listener is
-    // created for local executions (i.e., for single, multi, and weavertest
-    // deployments).
-    //
-    // The value must have the form :port or host:port, or it may
-    // be the empty string, which is treated as ":0".
-    //
-    // If the port number is zero, an unused port number is picked.
-    //
-    // If the host portion is missing, the listener is bound to all
-    // available addresses.
-    //
-    // Examples:
-    //
-    //	""                System picked port on all available addresses
-    //	:0                System picked port on all available addresses
-    //	:1234             Port 1234 on all available addresses
-    //	localhost:1234    Port 1234 on loopback address
-    //	example.com:1234  Port 1234 on external addresses for host
-  	string local_address = 1;
-  }
-  map<string, ListenerOptions> listener_options = 8;
-
   // All config sections (includes [serviceweaver], [<deployer>], and
   // [<component>] sections).
   map<string, string> sections = 7;

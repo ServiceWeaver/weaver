@@ -20,6 +20,22 @@ package impl;
 import "runtime/protos/config.proto";
 import "runtime/protos/runtime.proto";
 
+// SshConfig stores the configuration information for one execution of a
+// Service Weaver application using the SSH deployer.
+message SshConfig {
+  // Information about the application deployment.
+  runtime.Deployment deployment = 1;
+
+  // Options for the application listeners, keyed by listener name.
+  // If a listener isn't specified in the map, default options will be used.
+  message ListenerOptions {
+      // Address of the listener. The value must have the form :port or
+      // host:port, or it may be the empty string, which is treated as ":0".
+      string address = 1;
+  }
+  map<string, ListenerOptions> listener_options = 3;
+}
+
 // BabysitterInfo contains app deployment information that is needed by a
 // babysitter started using SSH to manage a colocation group.
 message BabysitterInfo {

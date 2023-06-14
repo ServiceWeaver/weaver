@@ -2,17 +2,23 @@
 binary = "./collatz"
 rollout = "5m"
 
-[listeners]
-collatz = {local_address = "localhost:9000"}
+[single]
+listeners.collatz = {address = "localhost:9000"}
+
+[multi]
+listeners.collatz = {address = "localhost:9000"}
 
 [ssh]
+listeners.collatz = {address = "localhost:9000"}
 locations_file = "./ssh_locations.txt"
 
 [gke]
 regions = ["us-west1"]
+# TODO(spetrovic): Rewrite to match the single/multi listeners format.
 public_listener = [
   {name = "collatz", hostname = "collatz.example.com"},
 ]
 
 [kube]
+# TODO(spetrovic): Rewrite to match the single/multi listeners format.
 public_listeners = [{name = "collatz"}]

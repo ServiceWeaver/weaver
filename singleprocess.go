@@ -52,7 +52,7 @@ type singleprocessEnv struct {
 	ctx       context.Context
 	bootstrap runtime.Bootstrap
 	info      *protos.EnvelopeInfo
-	config    *protos.AppConfig
+	config    *single.SingleConfig
 
 	submissionTime time.Time
 	statsProcessor *imetrics.StatsProcessor // tracks and computes stats to be rendered on the /statusz page.
@@ -71,8 +71,8 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 
 	// Get the config to use.
 	configFile := "[testconfig]"
-	config := bootstrap.TestConfig
-	if config == "" {
+	configData := bootstrap.TestConfig
+	if configData == "" {
 		// Try to read from the file named by SERVICEWEAVER_CONFIG
 		configFile = os.Getenv("SERVICEWEAVER_CONFIG")
 		if configFile != "" {
@@ -80,29 +80,32 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 			if err != nil {
 				return nil, fmt.Errorf("config file: %w", err)
 			}
-			config = string(contents)
+			configData = string(contents)
 		}
 	}
 
-	appConfig := &protos.AppConfig{}
-	if config != "" {
-		var err error
-		appConfig, err = runtime.ParseConfig(configFile, config, codegen.ComponentConfigValidator)
+	config := &single.SingleConfig{App: &protos.AppConfig{}}
+	if configData != "" {
+		app, err := runtime.ParseConfig(configFile, configData, codegen.ComponentConfigValidator)
 		if err != nil {
 			return nil, err
 		}
+		if err := runtime.ParseConfigSection(single.ConfigKey, single.ShortConfigKey, app.Sections, config); err != nil {
+			return nil, fmt.Errorf("parse single config: %w", err)
+		}
+		config.App = app
 	}
 
 	// Overwrite app config with the true command line used.
-	appConfig.Name = filepath.Base(os.Args[0])
-	appConfig.Binary = os.Args[0]
-	appConfig.Args = os.Args[1:]
+	config.App.Name = filepath.Base(os.Args[0])
+	config.App.Binary = os.Args[0]
+	config.App.Args = os.Args[1:]
 
 	wlet := &protos.EnvelopeInfo{
-		App:           appConfig.Name,
+		App:           config.App.Name,
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
-		Sections:      appConfig.Sections,
+		Sections:      config.App.Sections,
 		SingleProcess: true,
 		SingleMachine: true,
 		RunMain:       true,
@@ -120,14 +123,14 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		for i, span := range spans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
 		}
-		return traceDB.Store(ctx, appConfig.Name, wlet.DeploymentId, traces)
+		return traceDB.Store(ctx, config.App.Name, wlet.DeploymentId, traces)
 	}
 
 	env := &singleprocessEnv{
 		ctx:            ctx,
 		bootstrap:      bootstrap,
 		info:           wlet,
-		config:         appConfig,
+		config:         config,
 		submissionTime: time.Now(),
 		listeners:      map[string][]string{},
 		statsProcessor: imetrics.NewStatsProcessor(),
@@ -156,8 +159,8 @@ func (e *singleprocessEnv) ActivateComponent(_ context.Context, component string
 
 func (e *singleprocessEnv) GetListenerAddress(_ context.Context, listener string) (*protos.GetListenerAddressReply, error) {
 	var addr string
-	if opts, ok := e.config.ListenerOptions[listener]; ok {
-		addr = opts.LocalAddress
+	if opts, ok := e.config.Listeners[listener]; ok {
+		addr = opts.Address
 	}
 	return &protos.GetListenerAddressReply{Address: addr}, nil
 }
@@ -303,7 +306,7 @@ func (e *singleprocessEnv) Status(ctx context.Context) (*status.Status, error) {
 		SubmissionTime: timestamppb.New(e.submissionTime),
 		Components:     components,
 		Listeners:      listeners,
-		Config:         e.config,
+		Config:         e.config.App,
 	}, nil
 }
 

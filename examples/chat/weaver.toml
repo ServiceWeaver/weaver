@@ -2,11 +2,15 @@
 binary = "./chat"
 rollout = "5m"
 
-[listeners]
-chat = {local_address = "localhost:9000"}
+[single]
+listeners.chat = {address = "localhost:9000"}
+
+[multi]
+listeners.chat = {address = "localhost:9000"}
 
 [gke]
 regions = ["us-west1", "us-east1"]
+# TODO(spetrovic): Rewrite to match the single/multi listeners format.
 public_listener = [
   {name = "chat", hostname = "chat.example.com"},
 ]

@@ -36,6 +36,8 @@ import (
 )
 
 //go:generate ./dev/protoc.sh internal/status/status.proto
+//go:generate ./dev/protoc.sh internal/tool/single/single.proto
+//go:generate ./dev/protoc.sh internal/tool/multi/multi.proto
 //go:generate ./dev/protoc.sh internal/tool/ssh/impl/ssh.proto
 //go:generate ./dev/protoc.sh runtime/protos/runtime.proto
 //go:generate ./dev/protoc.sh runtime/protos/config.proto

@@ -326,8 +326,8 @@ we create a [TOML](https://toml.io) config file named `weaver.toml` with
 the following contents:
 
 ```toml
-[listeners]
-hello = {local_address = "localhost:12345"}
+[single]
+listeners.hello = {address = "localhost:12345"}
 ```
 
 Run `go mod tidy` and then `SERVICEWEAVER_CONFIG=weaver.toml go run .`.
@@ -394,8 +394,8 @@ config file named `weaver.toml` with the following contents:
 [serviceweaver]
 binary = "./hello"
 
-[listeners]
-hello = {local_address = "localhost:12345"}
+[multi]
+listeners.hello = {address = "localhost:12345"}
 ```
 
 This config file specifies the binary of the Service Weaver application, as
@@ -711,14 +711,15 @@ component implementations structs, unless one is renamed using the
 
 By default, all application listeners will listen on a random port chosen
 by the operating system. This behavior, as well as other customization options,
-can be controlled in the [configuration file](#config-file). For example, the
-following config will assign addresses `"localhost:12345"` and
-`"localhost:12346"` to `"foo"` and `"bar"`, respectively.
+can be modified in the respective deployers' configuration file. For example,
+the following config file will assign addresses `"localhost:12345"` and
+`"localhost:12346"` to `"foo"` and `"bar"`, respectively, when the application
+is deployed using the [multiprocess](#multiprocess) deployer.
 
 ```toml
-[listeners]
-foo = {local_address = "localhost:12345"}
-bar = {local_address = "localhost:12346"}
+[multi]
+listeners.foo = {address = "localhost:12345"}
+listeners.bar = {address = "localhost:12346"}
 ```
 
 ## Config
@@ -732,25 +733,15 @@ lists the application binary:
 binary = "./hello"
 ```
 
-A config file may additionally contain listener-specific configuration sections,
-which allow you to configure the [network listeners](#components-listeners) in
-your application. For example, consider the listener `"foo"` declared in
-a component implementation.
-
-```go
-type impl struct{
-    weaver.Implements[MyComponent]
-    foo weaver.Listener
-}
-```
-
-By default, listener `"foo"` will listen on a random port chosen by the
-operating system. To configure it to listen on a specific local port, we can
-add the following section to the config file:
+A config file may additionally contain deployer-specific configuration sections,
+which allow you to configure the execution when a given deployer is used.
+For example, the following multiprocess config will enable `mTLS`
+communication between components when the application is deployed using the
+[multiprocess](#multiprocess) deployer:
 
 ```toml
-[listeners]
-foo = {local_address = "localhost:12345}
+[multi]
+mtls = true
 ```
 
 A config file may also contain component-specific configuration
@@ -1507,8 +1498,14 @@ type app struct {
 
 When you deploy an application using `go run`, the network listeners will be
 automatically created by the Service Weaver runtime. Each listener will listen
-on a random port chosen by the operating system, unless concrete local addresses
-have been specified in the [config file](#components-config).
+on a random port chosen by the operating system, unless a concrete address
+has been specified in the singleprocess section of the
+[config file](#components-config), e.g.:
+
+```toml
+[single]
+listeners.hello = { address = "localhost:12345" }
+```
 
 ## Logging
 
@@ -1705,8 +1702,15 @@ the runtime:
    listener. In fact, the proxy balances traffic across every replica of the
    listener. (Recall that components may be replicated, and so every component
    replica will have a different instance of the listener.)
-   The proxy address is by default `localhost:0`, or the local address assigned
-   to the listener in the config file, if any.
+
+The proxy address is by default `:0`, unless a concrete address has been
+specified in the multiprocess section of the [config file](#components-config),
+e.g.:
+
+```toml
+[multi]
+listeners.hello = { address = "localhost:12345" }
+```
 
 ## Logging
 
