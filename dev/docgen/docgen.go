@@ -56,6 +56,7 @@ var watch = flag.Bool("watch", false, "Automatically rebuild website on change")
 var files = []file{
 	{dst: "index.html", html: "index.html", template: "home.html", license: true},
 	{dst: "docs.html", markdown: "docs.md", template: "docs.html", license: true},
+	{dst: "examples.html", html: "examples.html", template: "examples.html", license: true},
 	{dst: "contact.html", markdown: "contact.md", template: "contact.html", license: true},
 
 	{dst: "blog/index.html", html: "blog/index.html", template: "blog.html", license: true},
@@ -74,6 +75,7 @@ var files = []file{
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
 	staticFile("assets/css/docs.css"),
+	staticFile("assets/css/examples.css"),
 	staticFile("assets/css/home.css"),
 	staticFile("assets/css/news.css"),
 	staticFile("assets/css/workshops.css"),
@@ -94,6 +96,8 @@ var files = []file{
 	staticFile("assets/js/snap.svg-min.js"),
 	staticFile("assets/js/toc.js"),
 	staticFile("assets/docs/hotos23_vision_paper.pdf"),
+	staticFile("assets/videos/emoji_search_demo.webm"),
+	staticFile("assets/videos/online_boutique_demo.webm"),
 	// TODO: Add todo.js? It is currently not useful since our goldmark
 	// configuration drops unknown HTML.
 }
