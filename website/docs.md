@@ -330,6 +330,18 @@ the following contents:
 listeners.hello = {address = "localhost:12345"}
 ```
 
+Note that the name of the listener, `hello` in this case, is derived from the
+field name. You can override this behavior and specify a specific listener name
+using a `"weaver"` field tag like this:
+
+```go
+type app struct {
+    weaver.Implements[weaver.Main]
+    reverser weaver.Ref[Reverser]
+    hello    weaver.Listener `weaver:"my_custom_listener_name"`
+}
+```
+
 Run `go mod tidy` and then `SERVICEWEAVER_CONFIG=weaver.toml go run .`.
 The program should print out the name of the application and a unique
 deployment id. It should then block serving HTTP requests on `localhost:12345`.
