@@ -222,9 +222,7 @@ rollout = "6h"
 
 [gke]
 regions = ["us-west1", "us-east2"]
-public_listener = [
-  {name = "boutique", hostname = "online-boutique.net"},
-]
+listeners.boutique = {public_hostname = "online-boutique.net"}
 ```
 
 We just need to specify the application binary, the duration of the rollout,

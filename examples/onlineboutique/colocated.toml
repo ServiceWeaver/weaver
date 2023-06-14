@@ -19,7 +19,4 @@ colocate = [
 
 [gke]
 regions = ["us-west1"]
-public_listener = [
-  {name = "boutique", hostname = "onlineboutique.example.com"},
-]
-
+listeners.boutique = {public_hostname = "onlineboutique.example.com"}
