@@ -26,8 +26,7 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
+	"log"
 
 	"github.com/ServiceWeaver/weaver"
 	_ "github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend"
@@ -38,7 +37,6 @@ import (
 func main() {
 	flag.Parse()
 	if err := weaver.Run(context.Background()); err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating frontend: ", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }
