@@ -106,6 +106,7 @@ github.com/ServiceWeaver/weaver/examples/chat
     image/jpeg
     image/png
     io
+    log
     math
     modernc.org/sqlite
     net/http
@@ -142,6 +143,7 @@ github.com/ServiceWeaver/weaver/examples/factors
     github.com/hashicorp/golang-lru/v2
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    log
     net/http
     os
     reflect
@@ -162,10 +164,9 @@ github.com/ServiceWeaver/weaver/examples/hello
 github.com/ServiceWeaver/weaver/examples/onlineboutique
     context
     flag
-    fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
-    os
+    log
 github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice
     context
     errors

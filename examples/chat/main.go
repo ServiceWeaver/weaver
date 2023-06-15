@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 
 	"github.com/ServiceWeaver/weaver"
 )
@@ -25,5 +26,7 @@ import (
 
 func main() {
 	flag.Parse()
-	weaver.Run(context.Background())
+	if err := weaver.Run(context.Background()); err != nil {
+		log.Fatal(err)
+	}
 }

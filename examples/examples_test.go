@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -36,15 +37,23 @@ func TestExamples(t *testing.T) {
 	testCases := map[string]test{
 		"hello": {
 			url:  "http://localhost:12345/hello?name=something",
-			want: "Hello, gnihtemos!\n",
+			want: "Hello, gnihtemos!",
 		},
 		"collatz": {
 			url:  "http://127.0.0.1:9000?x=8",
-			want: "8\n4\n2\n1\n",
+			want: "8\n4\n2\n1",
 		},
 		"reverser": {
 			url:  "http://127.0.0.1:9000/reverse?s=abcdef",
-			want: "fedcba\n",
+			want: "fedcba",
+		},
+		"factors": {
+			url:  "http://127.0.0.1:9000?x=10",
+			want: "[1 2 5 10]",
+		},
+		"onlineboutique": {
+			url:  "http://127.0.0.1:12345",
+			want: "Online Boutique",
 		},
 	}
 
@@ -135,7 +144,7 @@ func run(t *testing.T, test test) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if actual := string(body); actual != test.want {
+	if actual := string(body); !strings.Contains(actual, test.want) {
 		t.Fatalf("response body is %v, expected %v", actual, test.want)
 	}
 }
@@ -161,8 +170,10 @@ func chdir(t *testing.T, path string) {
 func startCmd(ctx context.Context, t *testing.T, env []string, name string, args ...string) *exec.Cmd {
 	t.Helper()
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if testing.Verbose() {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = append(os.Environ(), env...)
 	if err := cmd.Start(); err != nil {
