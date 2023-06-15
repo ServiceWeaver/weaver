@@ -24,6 +24,19 @@ This Service Weaver application has three components: `main`, `Odd` and `Even`. 
 positive number `x`, main repeatedly calls `Odd` (if `x` is odd) or `Even` (if
 `x` is even) to receive the next number in the hailstone sequence.
 
+```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+graph TD
+    %% Nodes.
+    github.com/ServiceWeaver/weaver/Main(weaver.Main)
+    github.com/ServiceWeaver/weaver/examples/collatz/Even(collatz.Even)
+    github.com/ServiceWeaver/weaver/examples/collatz/Odd(collatz.Odd)
+
+    %% Edges.
+    github.com/ServiceWeaver/weaver/Main --> github.com/ServiceWeaver/weaver/examples/collatz/Even
+    github.com/ServiceWeaver/weaver/Main --> github.com/ServiceWeaver/weaver/examples/collatz/Odd
+```
+
 This application highlights the benefits of colocation. The performance of the
 application improves significantly when `main`, `Odd`, and `Even` are colocated
 in the same OS process.

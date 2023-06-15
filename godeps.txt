@@ -60,6 +60,7 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     errors
     flag
     fmt
+    github.com/ServiceWeaver/weaver/internal/tool/callgraph
     github.com/ServiceWeaver/weaver/internal/tool/generate
     github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/tool/single
@@ -517,6 +518,13 @@ github.com/ServiceWeaver/weaver/internal/status
     syscall
     text/template
     time
+github.com/ServiceWeaver/weaver/internal/tool/callgraph
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/bin
+    github.com/ServiceWeaver/weaver/runtime/logging
+    golang.org/x/exp/maps
+    sort
+    strings
 github.com/ServiceWeaver/weaver/internal/tool/certs
     bytes
     crypto

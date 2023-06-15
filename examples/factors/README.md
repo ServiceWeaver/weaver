@@ -10,6 +10,17 @@ provided integer. Repeated calls to the `Factor` method with the same integer
 will tend to route to the same component replica. This improves the cache hit
 rate of the `Factorer` component.
 
+```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+graph TD
+    %% Nodes.
+    github.com/ServiceWeaver/weaver/Main(weaver.Main)
+    github.com/ServiceWeaver/weaver/examples/factors/Factorer(factors.Factorer)
+
+    %% Edges.
+    github.com/ServiceWeaver/weaver/Main --> github.com/ServiceWeaver/weaver/examples/factors/Factorer
+```
+
 ## Running Locally
 
 To run this app locally, run `go run .`:
