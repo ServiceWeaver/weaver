@@ -35,10 +35,8 @@ func VersionCmd(tool string) *Command {
 		Fn: func(context.Context, []string) error {
 			deployerAPI := fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
 			codegenAPI := fmt.Sprintf("%d.%d.0", codegen.Major, codegen.Minor)
-			release := "?"
 			commit := "?"
 			if info, ok := debug.ReadBuildInfo(); ok {
-				release = info.Main.Version
 				for _, setting := range info.Settings {
 					// vcs.revision stores the commit at which the weaver tool
 					// was built. See [1] for more information.
@@ -50,9 +48,9 @@ func VersionCmd(tool string) *Command {
 					}
 				}
 			}
-			fmt.Printf("%s %s\n", tool, release)
-			fmt.Printf("target: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+			fmt.Printf("tool: %s\n", tool)
 			fmt.Printf("commit: %s\n", commit)
+			fmt.Printf("target: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 			fmt.Printf("deployer API: %s\n", deployerAPI)
 			fmt.Printf("codegen API: %s\n", codegenAPI)
 			return nil
