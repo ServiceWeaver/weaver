@@ -2,6 +2,21 @@
 
 An example chat application.
 
+```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+graph TD
+    %% Nodes.
+    github.com/ServiceWeaver/weaver/Main(weaver.Main)
+    github.com/ServiceWeaver/weaver/examples/chat/ImageScaler(chat.ImageScaler)
+    github.com/ServiceWeaver/weaver/examples/chat/LocalCache(chat.LocalCache)
+    github.com/ServiceWeaver/weaver/examples/chat/SQLStore(chat.SQLStore)
+
+    %% Edges.
+    github.com/ServiceWeaver/weaver/Main --> github.com/ServiceWeaver/weaver/examples/chat/ImageScaler
+    github.com/ServiceWeaver/weaver/Main --> github.com/ServiceWeaver/weaver/examples/chat/LocalCache
+    github.com/ServiceWeaver/weaver/Main --> github.com/ServiceWeaver/weaver/examples/chat/SQLStore
+```
+
 ## How to Run Locally
 
 ```sh

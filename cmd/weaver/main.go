@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/ServiceWeaver/weaver/internal/tool/callgraph"
 	"github.com/ServiceWeaver/weaver/internal/tool/generate"
 	"github.com/ServiceWeaver/weaver/internal/tool/multi"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
@@ -88,6 +89,33 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+
+	case "callgraph":
+		const usage = `Generate component callgraphs.
+
+Usage:
+  weaver callgraph <binary>
+
+Flags:
+  -h, --help           Print this help message.
+
+Description:
+  "weaver callgraph <file>" outputs a component callgraph in mermaid format
+  [1]. These graphs can be included in GitHub README files [2].
+
+[1]: https://mermaid.js.org/
+[2]: https://github.blog/2022-02-14-include-diagrams-markdown-files-mermaid/`
+		flags := flag.NewFlagSet("callgraph", flag.ExitOnError)
+		flags.Usage = func() { fmt.Fprintln(os.Stderr, usage) }
+		flags.Parse(flag.Args()[1:]) //nolint:errcheck
+		if flags.NArg() == 0 {
+			fmt.Fprintln(os.Stderr, "ERROR: no binary provided.")
+		}
+		s, err := callgraph.Mermaid(flags.Arg(0))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		fmt.Println(s)
 		return
 
 	case "single", "multi", "ssh":
