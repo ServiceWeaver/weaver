@@ -42,9 +42,4 @@ type App interface {
 
 	// Get fetches the component with type t from wlet.
 	Get(requester string, t reflect.Type) (any, error)
-
-	// ListenerAddress returns the address (host:port) of the
-	// named listener, waiting for the listener to be created
-	// if necessary.
-	ListenerAddress(name string) (string, error)
 }
