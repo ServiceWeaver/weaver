@@ -927,7 +927,6 @@ github.com/ServiceWeaver/weaver/weavertest
     context
     errors
     fmt
-    github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/private
     github.com/ServiceWeaver/weaver/internal/reflection
@@ -938,7 +937,6 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
-    go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
     golang.org/x/sync/errgroup
     os

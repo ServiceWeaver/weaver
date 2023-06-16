@@ -122,9 +122,6 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		log:        logWriter,
 	}
 
-	// Force testMain to be local.
-	d.local["github.com/ServiceWeaver/weaver/weavertest/testMainInterface"] = true
-
 	// Fakes need to be local as well.
 	for _, fake := range runner.Fakes {
 		name := fmt.Sprintf("%s/%s", fake.intf.PkgPath(), fake.intf.Name())
@@ -159,7 +156,6 @@ func (d *deployer) start() error {
 		Sections:      d.wlet.Sections,
 		SingleProcess: d.wlet.SingleProcess,
 		SingleMachine: d.wlet.SingleMachine,
-		RunMain:       true,
 	}
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,

@@ -16,16 +16,13 @@ package weavertest
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/private"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
@@ -91,58 +88,8 @@ func Fake[T any](impl any) FakeComponent {
 	return FakeComponent{intf: t, impl: impl}
 }
 
-// private.App object per live test or benchmark.
-var (
-	appMu sync.Mutex
-	apps  map[testing.TB]private.App
-)
-
-func registerApp(t testing.TB, app private.App) {
-	appMu.Lock()
-	defer appMu.Unlock()
-	if apps == nil {
-		apps = map[testing.TB]private.App{}
-	}
-	apps[t] = app
-}
-
-func unregisterApp(t testing.TB, app private.App) {
-	appMu.Lock()
-	defer appMu.Unlock()
-	delete(apps, t)
-}
-
-func getApp(t testing.TB) private.App {
-	appMu.Lock()
-	defer appMu.Unlock()
-	return apps[t]
-}
-
-// ListenerAddress returns the address (of the form host:port) for the
-// listener with the specified name. This call will block waiting for
-// the listener to be initialized if necessary.
-func ListenerAddress(t testing.TB, name string) (string, error) {
-	app := getApp(t)
-	if app == nil {
-		return "", fmt.Errorf("Service Weaver application is not running")
-	}
-	return app.ListenerAddress(name)
-}
-
-//go:generate ../cmd/weaver/weaver generate
-
-// testMain is the component implementation used in tests.
-type testMain struct {
-	weaver.Implements[testMainInterface]
-}
-
-// testMainInterface is the alternative to weaver.Main we use so that
-// we do not conflict with any application provided implementation of
-// weaver.Main.
-type testMainInterface interface{}
-
-// Test runs a sub-test of t that tests supplied Service Weaver
-// application code.  It fails at runtime if body is not a function
+// Test runs a sub-test of t that tests the supplied Service Weaver
+// application code. It fails at runtime if body is not a function
 // whose signature looks like:
 //
 //	func(*testing.T, ComponentType1)
@@ -154,17 +101,20 @@ type testMainInterface interface{}
 // followed by a the list of components.
 //
 //	func TestFoo(t *testing.T) {
-//	    weavertest.Local.Test(t, func(t *testing.T, foo Foo, bar Bar) {
-//		// Test foo and bar ...
-//	    })
+//		weavertest.Local.Test(t, func(t *testing.T, foo Foo, bar Bar) {
+//			// Test foo and bar ...
+//		})
 //	}
+//
+// In contrast with weaver.Run, the Test method does not run the Main method of
+// any registered weaver.Main component.
 func (r Runner) Test(t *testing.T, body any) {
 	t.Helper()
 	t.Run(r.Name, func(t *testing.T) { r.sub(t, false, body) })
 }
 
-// Bench runs a sub-benchmark of b that benchmarks supplied Service
-// Weaver application code.  It fails at runtime if body is not a
+// Bench runs a sub-benchmark of b that benchmarks the supplied Service
+// Weaver application code. It fails at runtime if body is not a
 // function whose signature looks like:
 //
 //	func(*testing.B, ComponentType1)
@@ -176,12 +126,15 @@ func (r Runner) Test(t *testing.T, body any) {
 // followed by a the list of components.
 //
 //	func BenchmarkFoo(b *testing.B) {
-//	    weavertest.Local.Bench(b, func(b *testing.B, foo Foo) {
-//		for i := 0; i < b.N; i++ {
-//		    ... use foo ...
-//		}
-//	    })
+//		weavertest.Local.Bench(b, func(b *testing.B, foo Foo) {
+//			for i := 0; i < b.N; i++ {
+//				// Benchmark foo ...
+//			}
+//		})
 //	}
+//
+// In contrast with weaver.Run, the Bench method does not run the Main method of
+// any registered weaver.Main component.
 func (r Runner) Bench(b *testing.B, testBody any) {
 	b.Helper()
 	b.Run(r.Name, func(b *testing.B) { r.sub(b, true, testBody) })
@@ -260,7 +213,7 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) erro
 		args[0] = reflect.ValueOf(t)
 		for i := 1; i < n; i++ {
 			argType := fnType.In(i)
-			comp, err := app.Get("weavertest.testMainInterface", argType)
+			comp, err := app.Get(t.Name(), argType)
 			if err != nil {
 				return err
 			}
@@ -281,31 +234,7 @@ func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(conte
 	if err != nil {
 		return err
 	}
-	registerApp(t, app)
-	t.Cleanup(func() { unregisterApp(t, app) })
-
-	// Run wait() in a go routine.
-	sub, cancel := context.WithCancel(ctx)
-	defer cancel()
-	result := make(chan error)
-	go func() { result <- app.Wait(sub) }()
-
-	// Run the test code.
-	if err := body(ctx, app); err != nil {
-		return err
-	}
-
-	// Wait for wait() to finish, but give up after a while in case user Main hangs.
-	cancel()
-	select {
-	case err := <-result:
-		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Fatalf("weaver.Main.Main failure: %v", err)
-		}
-	case <-time.After(time.Millisecond * 100):
-		t.Log("weaver.Main.Main not exiting after cancellation")
-	}
-	return nil
+	return body(ctx, app)
 }
 
 // logStacks prints the stacks of live goroutines. This functionality
