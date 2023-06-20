@@ -33,7 +33,7 @@ message SshConfig {
       // host:port, or it may be the empty string, which is treated as ":0".
       string address = 1;
   }
-  map<string, ListenerOptions> listener_options = 3;
+  map<string, ListenerOptions> listeners = 3;
 }
 
 // BabysitterInfo contains app deployment information that is needed by a

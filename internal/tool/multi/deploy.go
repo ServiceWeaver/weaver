@@ -27,6 +27,7 @@ import (
 	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
@@ -77,9 +78,9 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Parse the multi section of the config.
-	multiConfig := &MultiConfig{}
-	if err := runtime.ParseConfigSection(configKey, shortConfigKey, appConfig.Sections, multiConfig); err != nil {
-		return fmt.Errorf("parse multi config: %w", err)
+	multiConfig, err := config.GetDeployerConfig[MultiConfig, MultiConfig_ListenerOptions](configKey, shortConfigKey, appConfig)
+	if err != nil {
+		return err
 	}
 	multiConfig.App = appConfig
 

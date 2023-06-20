@@ -16,6 +16,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/register
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/metrics
@@ -529,6 +530,12 @@ github.com/ServiceWeaver/weaver/internal/tool/certs
     fmt
     math/big
     time
+github.com/ServiceWeaver/weaver/internal/tool/config
+    fmt
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/bin
+    github.com/ServiceWeaver/weaver/runtime/protos
+    google.golang.org/protobuf/proto
 github.com/ServiceWeaver/weaver/internal/tool/generate
     bytes
     crypto/sha256
@@ -567,6 +574,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/tool/certs
+    github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -605,6 +613,7 @@ github.com/ServiceWeaver/weaver/internal/tool/single
     fmt
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -625,6 +634,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen

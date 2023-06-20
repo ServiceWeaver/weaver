@@ -26,7 +26,7 @@ type testListener struct {
 }
 
 func getListener(lis string) (net.Listener, string, error) {
-	if lis != "a" && lis != "b" && lis != "cname" && lis != "dname" {
+	if lis != "A" && lis != "b" && lis != "cname" && lis != "DName" {
 		return nil, "", fmt.Errorf("unexpected listener %q", lis)
 	}
 	return &testListener{}, lis, nil
@@ -42,8 +42,8 @@ func TestFillListeners(t *testing.T) {
 	if err := fillListeners(&x, getListener); err != nil {
 		t.Fatal(err)
 	}
-	if x.A.proxyAddr != "a" {
-		t.Errorf(`expecting x.A.proxyAddr to be "a", got %q`, x.A.proxyAddr)
+	if x.A.proxyAddr != "A" {
+		t.Errorf(`expecting x.A.proxyAddr to be "A", got %q`, x.A.proxyAddr)
 	}
 	if x.b.proxyAddr != "b" {
 		t.Errorf(`expecting x.b.proxyAddr to be "b", got %q`, x.b.proxyAddr)
@@ -51,8 +51,8 @@ func TestFillListeners(t *testing.T) {
 	if x.C.proxyAddr != "cname" {
 		t.Errorf(`expecting x.C.proxyAddr to be "cname", got %q`, x.C.proxyAddr)
 	}
-	if x.d.proxyAddr != "dname" {
-		t.Errorf(`expecting x.d.proxyAddr to be "dname", got %q`, x.d.proxyAddr)
+	if x.d.proxyAddr != "DName" {
+		t.Errorf(`expecting x.d.proxyAddr to be "Dname", got %q`, x.d.proxyAddr)
 	}
 }
 

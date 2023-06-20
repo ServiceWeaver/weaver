@@ -176,11 +176,11 @@ func (r Ref[T]) isRef() {}
 // the user can add the following lines to the application config file:
 //
 //	[listeners]
-//  mylistener      = {local_address = "localhost:9000"}
-//  myotherlistener = {local_address = "localhost:9001"}
+//	  myListener      = {local_address = "localhost:9000"}
+//	  myOtherListener = {local_address = "localhost:9001"}
 //
-// Listeners are identified by the lowercased form of their field names in the
-// component implementation structs (e.g., mylistener and myotherlistener).
+// Listeners are identified by their field names in the component implementation
+// structs (e.g., myListener and myOtherListener).
 // If the user wishes to assign different names to their listeners, they may do
 // so by adding a `weaver:"name"` struct tag to their listener fields, e.g.:
 //
@@ -194,9 +194,6 @@ func (r Ref[T]) isRef() {}
 // of which components they are specified in. For example, it is illegal to
 // declare a Listener field "foo" in two different component implementation
 // structs, unless one is renamed using the `weaver:"name"` struct tag.
-// Because some deployers may use listener names to route client traffic
-// to the application, listener names should follow a DNS format for names [1]
-// (i.e., include only characters [-.a-zA-Z0-9]).
 //
 // HTTP servers constructed using this listener are expected to perform
 // health checks on the reserved HealthzURL path. (Note that this
