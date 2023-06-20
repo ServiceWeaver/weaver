@@ -26,6 +26,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/private"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"golang.org/x/exp/slices"
 )
 
 // Runner runs user-supplied testing code as a weaver application.
@@ -101,10 +102,13 @@ func Fake[T any](impl any) FakeComponent {
 // followed by a the list of components.
 //
 //	func TestFoo(t *testing.T) {
-//		weavertest.Local.Test(t, func(t *testing.T, foo Foo, bar Bar) {
+//		weavertest.Local.Test(t, func(t *testing.T, foo Foo, bar *bar) {
 //			// Test foo and bar ...
 //		})
 //	}
+//
+// Component arguments can either be component interface types (e.g., Foo) or
+// component implementation pointer types (e.g., *bar).
 //
 // In contrast with weaver.Run, the Test method does not run the Main method of
 // any registered weaver.Main component.
@@ -126,12 +130,15 @@ func (r Runner) Test(t *testing.T, body any) {
 // followed by a the list of components.
 //
 //	func BenchmarkFoo(b *testing.B) {
-//		weavertest.Local.Bench(b, func(b *testing.B, foo Foo) {
+//		weavertest.Local.Bench(b, func(b *testing.B, foo Foo, bar *bar) {
 //			for i := 0; i < b.N; i++ {
-//				// Benchmark foo ...
+//				// Benchmark foo and bar ...
 //			}
 //		})
 //	}
+//
+// Component arguments can either be component interface types (e.g., Foo) or
+// component implementation pointer types (e.g., *bar).
 //
 // In contrast with weaver.Run, the Bench method does not run the Main method of
 // any registered weaver.Main component.
@@ -142,9 +149,21 @@ func (r Runner) Bench(b *testing.B, testBody any) {
 
 func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 	t.Helper()
-	runner, err := checkRunFunc(t, testBody)
+	body, intfs, err := checkRunFunc(t, testBody)
 	if err != nil {
 		t.Fatal(fmt.Errorf("weavertest.Run argument: %v", err))
+	}
+
+	// Assume a component Foo implementing struct foo. We disallow tests
+	// like the one below where the user provides a fake and a component
+	// implementation pointer for the same component.
+	//
+	//     runner.Fakes = append(runner.Fakes, weavertest.Fake[Foo](...))
+	//     runner.Test(t, func(t *testing.T, f *foo) {...})
+	for _, intf := range intfs {
+		if slices.ContainsFunc(r.Fakes, func(f FakeComponent) bool { return f.intf == intf }) {
+			t.Fatalf("Component %v has both fake and component implementation pointer", intf)
+		}
 	}
 
 	var cleanup func() error
@@ -172,40 +191,55 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 		ctx = initSingleProcessLocal(ctx, r.Config)
 	} else {
 		logger := logging.NewTestLogger(t, testing.Verbose())
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, logger.Log)
+		multiCtx, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, intfs, logger.Log)
 		if err != nil {
 			t.Fatal(err)
 		}
 		ctx, cleanup = multiCtx, multiCleanup
 	}
 
-	if err := runWeaver(ctx, t, r, runner); err != nil {
+	if err := runWeaver(ctx, t, r, body); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// checkRunFunc checks that the type of the function passed to
-// weavertest.Run is correct (its first argument matches t and its
-// remaining arguments are components). On success it returns a
-// function that gets the components and passes them to fn.
-func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) error, error) {
+// checkRunFunc checks that the type of the function passed to weavertest.Run
+// is correct (its first argument matches t and its remaining arguments are
+// either component interfaces or pointer to component implementations). On
+// success it returns (1) a function that gets the components and passes them
+// to fn and (2) the interface types of the component implementation arguments.
+func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) error, []reflect.Type, error) {
 	fnType := reflect.TypeOf(fn)
 	if fnType == nil || fnType.Kind() != reflect.Func {
-		return nil, fmt.Errorf("not a func")
+		return nil, nil, fmt.Errorf("not a func")
 	}
 	if fnType.IsVariadic() {
-		return nil, fmt.Errorf("must not be variadic")
+		return nil, nil, fmt.Errorf("must not be variadic")
 	}
 	n := fnType.NumIn()
 	if n < 2 {
-		return nil, fmt.Errorf("must have at least two args")
+		return nil, nil, fmt.Errorf("must have at least two args")
 	}
 	if fnType.NumOut() > 0 {
-		return nil, fmt.Errorf("must have no return outputs")
+		return nil, nil, fmt.Errorf("must have no return outputs")
 	}
-
 	if fnType.In(0) != reflect.TypeOf(t) {
-		return nil, fmt.Errorf("function first argument type %v does not match first weavertest.Run argument %T", fnType.In(0), t)
+		return nil, nil, fmt.Errorf("function first argument type %v does not match first weavertest.Run argument %T", fnType.In(0), t)
+	}
+	var intfs []reflect.Type
+	for i := 1; i < n; i++ {
+		switch fnType.In(i).Kind() {
+		case reflect.Interface:
+			// Do nothing.
+		case reflect.Pointer:
+			intf, err := extractComponentInterfaceType(fnType.In(i).Elem())
+			if err != nil {
+				return nil, nil, err
+			}
+			intfs = append(intfs, intf)
+		default:
+			return nil, nil, fmt.Errorf("function argument %d type %v must be a component interface or pointer to component implementation", i, fnType.In(i))
+		}
 	}
 
 	return func(ctx context.Context, app private.App) error {
@@ -213,15 +247,45 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) erro
 		args[0] = reflect.ValueOf(t)
 		for i := 1; i < n; i++ {
 			argType := fnType.In(i)
-			comp, err := app.Get(t.Name(), argType)
-			if err != nil {
-				return err
+			switch argType.Kind() {
+			case reflect.Interface:
+				comp, err := app.Get(t.Name(), argType)
+				if err != nil {
+					return err
+				}
+				args[i] = reflect.ValueOf(comp)
+			case reflect.Pointer:
+				comp, err := app.GetImpl(t.Name(), argType.Elem())
+				if err != nil {
+					return err
+				}
+				args[i] = reflect.ValueOf(comp)
+			default:
+				return fmt.Errorf("argument %v has unexpected type %v", i, argType)
 			}
-			args[i] = reflect.ValueOf(comp)
 		}
 		reflect.ValueOf(fn).Call(args)
 		return nil
-	}, nil
+	}, intfs, nil
+}
+
+// extractComponentInterfaceType extracts the component interface type from the
+// provided component implementation. For example, calling
+// extractComponentInterfaceType on a struct that embeds weaver.Implements[Foo]
+// returns Foo.
+//
+// extractComponentInterfaceType returns an error if the provided type is not a
+// component implementation.
+func extractComponentInterfaceType(t reflect.Type) (reflect.Type, error) {
+	if t.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("type %v is not a struct", t)
+	}
+	// See the definition of weaver.Implements.
+	f, ok := t.FieldByName("component_interface_type")
+	if !ok {
+		return nil, fmt.Errorf("type %v does not embed weaver.Implements", t)
+	}
+	return f.Type, nil
 }
 
 func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(context.Context, private.App) error) error {

@@ -40,6 +40,9 @@ type App interface {
 	// Wait returns when the application has ended.
 	Wait(context.Context) error
 
-	// Get fetches the component with type t from wlet.
+	// Get fetches the component with interface type t from wlet.
 	Get(requester string, t reflect.Type) (any, error)
+
+	// GetImpl fetches the component implementation with type t from wlet.
+	GetImpl(requester string, t reflect.Type) (any, error)
 }

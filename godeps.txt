@@ -938,6 +938,7 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/google/uuid
     go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
+    golang.org/x/exp/slices
     golang.org/x/sync/errgroup
     os
     reflect
@@ -946,6 +947,16 @@ github.com/ServiceWeaver/weaver/weavertest
     strings
     sync
     testing
+    time
+github.com/ServiceWeaver/weaver/weavertest/internal/chain
+    context
+    errors
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+    sync
     time
 github.com/ServiceWeaver/weaver/weavertest/internal/deploy
     context

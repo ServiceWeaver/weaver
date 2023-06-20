@@ -131,6 +131,13 @@ type Main interface {
 // implementation type instance.
 type Implements[T any] struct {
 	*componentImpl
+
+	// Given a component implementation type, there is currently no nice way,
+	// using reflection, to get the corresponding component interface type [1].
+	// The component_interface_type field exists to make it possible.
+	//
+	// [1]: https://github.com/golang/go/issues/54393.
+	component_interface_type T //nolint:unused
 }
 
 // setInstance is used during component initialization to fill Implements.component.
@@ -176,8 +183,8 @@ func (r Ref[T]) isRef() {}
 // the user can add the following lines to the application config file:
 //
 //	[listeners]
-//	  myListener      = {local_address = "localhost:9000"}
-//	  myOtherListener = {local_address = "localhost:9001"}
+//	myListener      = {local_address = "localhost:9000"}
+//	myOtherListener = {local_address = "localhost:9001"}
 //
 // Listeners are identified by their field names in the component implementation
 // structs (e.g., myListener and myOtherListener).
