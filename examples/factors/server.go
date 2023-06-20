@@ -29,7 +29,7 @@ type server struct {
 	lis      weaver.Listener `weaver:"factors"`
 }
 
-func (s *server) Main(ctx context.Context) error {
+func serve(ctx context.Context, s *server) error {
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
 	s.Logger().Info("factors server running", "addr", s.lis)
 	return http.Serve(s.lis, nil)

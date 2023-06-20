@@ -37,7 +37,7 @@ var (
 func main() {
 	// Initialize the Service Weaver application.
 	flag.Parse()
-	if err := weaver.Run(context.Background()); err != nil {
+	if err := weaver.Run(context.Background(), serve); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -48,7 +48,7 @@ type server struct {
 	lis      weaver.Listener `weaver:"reverser"`
 }
 
-func (s *server) Main(ctx context.Context) error {
+func serve(ctx context.Context, s *server) error {
 	// Setup the HTTP handler.
 	var mux http.ServeMux
 	mux.Handle("/", weaver.InstrumentHandlerFunc("reverser",

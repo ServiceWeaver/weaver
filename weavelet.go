@@ -260,21 +260,6 @@ func (w *weavelet) getMainIfLocal() (*componentImpl, error) {
 	return nil, nil
 }
 
-func (w *weavelet) Wait(ctx context.Context) error {
-	// Call weaver.Main.Main if weaver.Main is hosted locally.
-	impl, err := w.getMainIfLocal()
-	if err != nil {
-		return nil
-	}
-	if impl != nil {
-		return impl.impl.(Main).Main(ctx)
-	}
-
-	// Run until cancelled.
-	<-ctx.Done()
-	return ctx.Err()
-}
-
 func (w *weavelet) Get(requester string, compType reflect.Type) (any, error) {
 	component, err := w.getComponentByType(compType)
 	if err != nil {

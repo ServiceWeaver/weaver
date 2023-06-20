@@ -117,27 +117,27 @@ import (
 )
 
 func main() {
-    if err := weaver.Run(context.Background()); err != nil {
+    if err := weaver.Run(context.Background(), serve); err != nil {
         log.Fatal(err)
     }
 }
 
 // app is the main component of the application. weaver.Run creates
-// it and calls its Main method.
+// it and passes it to serve.
 type app struct{
     weaver.Implements[weaver.Main]
 }
 
-// Main is called by weaver.Run and contains the body of the application.
-func (*app) Main(context.Context) error {
+// serve is called by weaver.Run and contains the body of the application.
+func serve(context.Context, *app) error {
     fmt.Println("Hello")
     return nil
 }
 ```
 
-`weaver.Run` initializes and runs the Service Weaver application.  In
-particular, `weaver.Run` finds the main component, creates it, and calls its
-Main method. In this example,`app` is the main component since it
+`weaver.Run(...)` initializes and runs the Service Weaver application. In
+particular, `weaver.Run` finds the main component, creates it, and passes it to
+a supplied function. In this example,`app` is the main component since it
 contains a `weaver.Implements[weaver.Main]` field.
 
 Before we build and run the app, we need to run Service Weaver's code generator,
@@ -221,7 +221,7 @@ import (
 )
 
 func main() {
-    if err := weaver.Run(context.Background()); err != nil {
+    if err := weaver.Run(context.Background(), serve); err != nil {
         log.Fatal(err)
     }
 }
@@ -231,7 +231,7 @@ type app struct{
     reverser weaver.Ref[Reverser]
 }
 
-func (app *app) Main(ctx context.Context) error {
+func serve(ctx context.Context, app *app) error {
     // Call the Reverse method.
     var r Reverser = app.reverser.Get()
     reversed, err := r.Reverse(ctx, "!dlroW ,olleH")
@@ -277,7 +277,7 @@ import (
 )
 
 func main() {
-    if err := weaver.Run(context.Background()); err != nil {
+    if err := weaver.Run(context.Background(), serve); err != nil {
         log.Fatal(err)
     }
 }
@@ -288,7 +288,7 @@ type app struct {
     hello    weaver.Listener
 }
 
-func (app *app) Main(ctx context.Context) error {
+func serve(ctx context.Context, app *app) error {
     // The hello listener will listen on a random port chosen by the operating
     // system. This behavior can be changed in the config file.
     fmt.Printf("hello listener available on %v\n", app.hello)
@@ -1090,7 +1090,7 @@ import (
 )
 
 func main() {
-    if err := weaver.Run(context.Background()); err != nil {
+    if err := weaver.Run(context.Background(), serve); err != nil {
         log.Fatal(err)
     }
 }
@@ -1100,7 +1100,7 @@ type app struct {
     lis weaver.Listener
 }
 
-func (app *app) Main(ctx context.Context) error {
+func serve(ctx context.Context, app *app) error {
     fmt.Printf("hello listener available on %v\n", app.lis)
 
     // Serve the /hello endpoint.

@@ -29,14 +29,14 @@ import (
 	"log"
 
 	"github.com/ServiceWeaver/weaver"
-	_ "github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend"
+	"github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend"
 )
 
 //go:generate ../../cmd/weaver/weaver generate ./...
 
 func main() {
 	flag.Parse()
-	if err := weaver.Run(context.Background()); err != nil {
+	if err := weaver.Run(context.Background(), frontend.Serve); err != nil {
 		log.Fatal(err)
 	}
 }

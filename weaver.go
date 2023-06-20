@@ -32,6 +32,7 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/private"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
 
@@ -92,40 +93,60 @@ const (
 
 var healthzInit sync.Once
 
+// PointerToMain is a type constraint that asserts *T is an instance of Main
+// (i.e. T is a struct that embeds weaver.Implements[weaver.Main]).
+type PointerToMain[T any] interface {
+	*T
+	InstanceOf[Main]
+}
+
 // Run runs app as a Service Weaver application.
 //
 // The application is composed of a set of components that include
 // weaver.Main as well as any components transitively needed by
-// weaver.Main. An instance that implement weaver.Main is
-// automatically created by weaver.Run and its Main method called.
-// Note: other replicas in which weaver.Run is called may also create
-// instances of weaver.Main.
+// weaver.Main. An instance that implement weaver.Main is automatically created
+// by weaver.Run and passed to app. Note: other replicas in which weaver.Run
+// is called may also create instances of weaver.Main.
+//
+// The type T must be a struct type that contains an embedded
+// `weaver.Implements[weaver.Main]` field. A value of type T is
+// created, initialized (by calling its Init method if any), and a
+// pointer to the value is passed to app. app contains the main body of
+// the application; it will typically run HTTP servers, etc.
 //
 // If this process is hosting the `weaver.Main` component, Run will
-// call its Main method and will return when that method returns. If
-// this process is not hosting `weaver.Main`, it will never
+// call app and will return when app returns. If this process is
+// hosting other components, Run will start those components and never
 // return. Most callers of Run will not do anything (other than
 // possibly logging any returned error) after Run returns.
 //
 //	func main() {
-//	    if err := weaver.Run(context.Background()); err != nil {
+//	    if err := weaver.Run(context.Background(), app); err != nil {
 //	        log.Fatal(err)
 //	    }
 //	}
-func Run(ctx context.Context) error {
+func Run[T any, _ PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error) error {
 	// Register HealthzHandler in the default ServerMux.
 	healthzInit.Do(func() {
 		http.HandleFunc(HealthzURL, HealthzHandler)
 	})
 
-	app, err := internalStart(ctx, private.AppOptions{})
+	wlet, err := internalStart(ctx, private.AppOptions{})
 	if err != nil {
 		return err
 	}
-	return app.Wait(ctx)
+	if wlet.info.RunMain {
+		main, err := wlet.GetImpl("weaver.Run", reflection.Type[T]())
+		if err != nil {
+			return err
+		}
+		return app(ctx, main.(*T))
+	}
+	<-ctx.Done()
+	return ctx.Err()
 }
 
-func internalStart(ctx context.Context, opts private.AppOptions) (private.App, error) {
+func internalStart(ctx context.Context, opts private.AppOptions) (*weavelet, error) {
 	w, err := newWeavelet(ctx, opts, codegen.Registered())
 	if err != nil {
 		return nil, fmt.Errorf("error initializating application: %w", err)
@@ -138,5 +159,7 @@ func internalStart(ctx context.Context, opts private.AppOptions) (private.App, e
 
 func init() {
 	// Provide weavertest with access to weavelet.
-	private.Start = internalStart
+	private.Start = func(ctx context.Context, opts private.AppOptions) (private.App, error) {
+		return internalStart(ctx, opts)
+	}
 }

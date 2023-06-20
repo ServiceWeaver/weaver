@@ -32,14 +32,10 @@ type AppOptions struct {
 }
 
 // Starts starts a Service Weaver application.
-// Callers are required to call app.Wait().
 var Start func(ctx context.Context, options AppOptions) (App, error)
 
 // App is an internal handle to a Service Weaver application.
 type App interface {
-	// Wait returns when the application has ended.
-	Wait(context.Context) error
-
 	// Get fetches the component with interface type t from wlet.
 	Get(requester string, t reflect.Type) (any, error)
 
