@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
 )
 
@@ -77,20 +77,20 @@ func (db *db) GetImage(ctx context.Context, _ string, image ImageID) ([]byte, er
 }
 
 func TestServer(t *testing.T) {
-	t.Skip("TODO(mwhittaker): Enable testing of main.")
 	for _, r := range weavertest.AllRunners() {
 		// Use a fake DB since normal implementation does not work with multiple replicas
 		db := &db{}
 		r.Fakes = []weavertest.FakeComponent{weavertest.Fake[SQLStore](db)}
-		r.Test(t, func(t *testing.T, store weaver.Main) {
-			addr := "TODO(mwhittaker): Enable testing of main"
+		r.Test(t, func(t *testing.T, main *server) {
+			server := httptest.NewServer(main)
+			defer server.Close()
 
 			// Login
-			expect(t, "login", httpGet(t, addr, "/"), "Login")
-			expect(t, "feed", httpGet(t, addr, "/?name=user"), "/newthread")
+			expect(t, "login", httpGet(t, server.URL, "/"), "Login")
+			expect(t, "feed", httpGet(t, server.URL, "/?name=user"), "/newthread")
 
 			// Create a new thread
-			r := httpGet(t, addr, "/newthread?name=user&recipients=bar,baz&message=Hello&image=")
+			r := httpGet(t, server.URL, "/newthread?name=user&recipients=bar,baz&message=Hello&image=")
 			expect(t, "new thread", r, "Hello")
 			m := regexp.MustCompile(`id="tid(\d+)"`).FindStringSubmatch(r)
 			if m == nil {
@@ -99,7 +99,7 @@ func TestServer(t *testing.T) {
 			tid := m[1]
 
 			// Reply to thread
-			r = httpGet(t, addr, fmt.Sprintf("/newpost?name=user&tid=%s&post=Hi!", tid))
+			r = httpGet(t, server.URL, fmt.Sprintf("/newpost?name=user&tid=%s&post=Hi!", tid))
 			expect(t, "reply", r, `Hello`)
 			expect(t, "reply", r, `Hi!`)
 		})
@@ -108,7 +108,7 @@ func TestServer(t *testing.T) {
 
 func httpGet(t *testing.T, addr, path string) string {
 	t.Helper()
-	response, err := http.Get("http://" + addr + path)
+	response, err := http.Get(addr + path)
 	if err != nil {
 		t.Fatal(err)
 	}

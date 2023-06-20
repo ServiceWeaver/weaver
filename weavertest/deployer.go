@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -101,8 +102,10 @@ type connection struct {
 
 var _ envelope.EnvelopeHandler = &handler{}
 
-// newDeployer returns a new weavertest multiprocess deployer.
-func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, logWriter func(*protos.LogEntry)) *deployer {
+// newDeployer returns a new weavertest multiprocess deployer. locals contains
+// components that should be co-located with the main component and not
+// replicated.
+func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, locals []reflect.Type, logWriter func(*protos.LogEntry)) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
 		for _, c := range group.Components {
@@ -120,6 +123,11 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		groups:     map[string]*group{},
 		local:      map[string]bool{},
 		log:        logWriter,
+	}
+
+	for _, local := range locals {
+		name := fmt.Sprintf("%s/%s", local.PkgPath(), local.Name())
+		d.local[name] = true
 	}
 
 	// Fakes need to be local as well.

@@ -63,8 +63,9 @@ type weavelet struct {
 	tracer    trace.Tracer         // Tracer for this weavelet
 	overrides map[reflect.Type]any // Component implementation overrides
 
-	componentsByName map[string]*component       // component name -> component
-	componentsByType map[reflect.Type]*component // component type -> component
+	componentsByName     map[string]*component       // component name -> component
+	componentsByType     map[reflect.Type]*component // component interface type -> component
+	componentsByImplType map[reflect.Type]*component // component impl type -> component
 
 	listenersMu sync.Mutex
 	listeners   map[string]*listenerState
@@ -99,10 +100,11 @@ var _ private.App = &weavelet{}
 // newWeavelet returns a new weavelet.
 func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos []*codegen.Registration) (*weavelet, error) {
 	w := &weavelet{
-		ctx:              ctx,
-		overrides:        options.Fakes,
-		componentsByName: make(map[string]*component, len(componentInfos)),
-		componentsByType: make(map[reflect.Type]*component, len(componentInfos)),
+		ctx:                  ctx,
+		overrides:            options.Fakes,
+		componentsByName:     make(map[string]*component, len(componentInfos)),
+		componentsByType:     make(map[reflect.Type]*component, len(componentInfos)),
+		componentsByImplType: make(map[reflect.Type]*component, len(componentInfos)),
 	}
 
 	// TODO(mwhittaker): getEnv starts the WeaveletConn handler which calls
@@ -129,6 +131,7 @@ func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos
 		}
 		w.componentsByName[info.Name] = c
 		w.componentsByType[info.Iface] = c
+		w.componentsByImplType[info.Impl] = c
 	}
 
 	if info.Mtls {
@@ -278,10 +281,19 @@ func (w *weavelet) Get(requester string, compType reflect.Type) (any, error) {
 		return nil, err
 	}
 	result, _, err := w.getInstance(w.ctx, component, requester)
+	return result, err
+}
+
+func (w *weavelet) GetImpl(requester string, compType reflect.Type) (any, error) {
+	component, err := w.getComponentByImplType(compType)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	impl, err := w.getImpl(w.ctx, component)
+	if err != nil {
+		return nil, err
+	}
+	return impl.impl, nil
 }
 
 // logRolodexCard pretty prints a card that includes basic information about
@@ -556,13 +568,27 @@ func (w *weavelet) getComponent(name string) (*component, error) {
 	return c, nil
 }
 
-// getComponentByType returns the component with the given type.
+// getComponentByType returns the component with the given interface type.
 func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
-	// Note that we don't need to lock d.byType because, while the components
-	// referenced by d.byType are modified, d.byType itself is read-only.
+	// Note that we don't need to lock d.componentsByType because, while the
+	// components referenced by d.componentsByType are modified,
+	// d.componentsByType itself is read-only.
 	c, ok := w.componentsByType[t]
 	if !ok {
 		return nil, fmt.Errorf("component of type %v was not registered; maybe you forgot to run weaver generate", t)
+	}
+	return c, nil
+}
+
+// getComponentByImplType returns the component with the given implementation
+// type.
+func (w *weavelet) getComponentByImplType(t reflect.Type) (*component, error) {
+	// Note that we don't need to lock d.componentsByImplType because, while
+	// the components referenced by d.componentsByImplType are modified,
+	// d.componentsByImplType itself is read-only.
+	c, ok := w.componentsByImplType[t]
+	if !ok {
+		return nil, fmt.Errorf("component impl of type %v was not registered; maybe you forgot to run weaver generate", t)
 	}
 	return c, nil
 }
