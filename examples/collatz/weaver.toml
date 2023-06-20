@@ -10,7 +10,7 @@ listeners.collatz = {address = "localhost:9000"}
 
 [ssh]
 listeners.collatz = {address = "localhost:9000"}
-locations_file = "./ssh_locations.txt"
+locations = "./ssh_locations.txt"
 
 [gke]
 regions = ["us-west1"]
