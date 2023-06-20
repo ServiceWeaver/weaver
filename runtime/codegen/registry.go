@@ -148,15 +148,15 @@ func ComponentConfigValidator(path, cfg string) error {
 		// Not for a known component.
 		return nil
 	}
-	objConfig := config.Config(reflect.New(info.Impl))
-	if objConfig == nil {
+	componentConfig := config.Config(reflect.New(info.Impl))
+	if componentConfig == nil {
 		return fmt.Errorf("unexpected configuration for component %v "+
 			"that does not support configuration (add a "+
 			"weaver.WithConfig[configType] embedded field to %v)",
 			info.Name, info.Iface)
 	}
 	config := &protos.AppConfig{Sections: map[string]string{path: cfg}}
-	if err := runtime.ParseConfigSection(path, "", config.Sections, objConfig); err != nil {
+	if err := runtime.ParseConfigSection(path, "", config.Sections, componentConfig); err != nil {
 		return fmt.Errorf("%v: bad config: %w", info.Iface, err)
 	}
 	return nil

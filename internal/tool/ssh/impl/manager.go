@@ -511,7 +511,7 @@ func (m *manager) exportListener(_ context.Context, req *protos.ExportListenerRe
 	// Get the proxy address. It should be the same as the LocalAddress field
 	// in the options for this listener, if any was specified.
 	var proxyAddr string
-	if opts, ok := m.config.ListenerOptions[req.Listener]; ok {
+	if opts, ok := m.config.Listeners[req.Listener]; ok {
 		proxyAddr = opts.Address
 	}
 

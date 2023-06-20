@@ -32,6 +32,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/exp/maps"
 
+	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -82,9 +83,9 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Parse and finalize the SSH config.
-	config := &impl.SshConfig{}
-	if err := runtime.ParseConfigSection(configKey, shortConfigKey, app.Sections, config); err != nil {
-		return fmt.Errorf("parse ssh config: %w", err)
+	config, err := config.GetDeployerConfig[impl.SshConfig, impl.SshConfig_ListenerOptions](configKey, shortConfigKey, app)
+	if err != nil {
+		return err
 	}
 	config.Deployment = &protos.Deployment{
 		Id:  uuid.New().String(),
@@ -196,6 +197,7 @@ func getLocations(app *protos.AppConfig) ([]string, error) {
 	const sshKey = "github.com/ServiceWeaver/weaver/ssh"
 	const shortSSHKey = "ssh"
 
+	// TODO(spetrovic): Avoid parsing the config twice.
 	type sshConfigSchema struct {
 		LocationsFile string `toml:"locations_file"`
 	}

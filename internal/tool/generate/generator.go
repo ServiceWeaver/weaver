@@ -555,18 +555,18 @@ func getListenerNamesFromStructField(pkg *packages.Package, f *ast.Field) ([]str
 				return nil, errorf(pkg.Fset, f.Pos(),
 					"Listener tag %s is not a valid Go identifier", tag)
 			}
-			return []string{strings.ToLower(name)}, nil
+			return []string{name}, nil
 		}
 		// fallthrough
 	}
 
 	// Get the listener name(s) from the struct field name(s).
 	if f.Names == nil { // embedded field
-		return []string{"listener"}, nil
+		return []string{"Listener"}, nil
 	}
 	var ret []string
 	for _, fname := range f.Names {
-		ret = append(ret, strings.ToLower(fname.Name))
+		ret = append(ret, fname.Name)
 	}
 	return ret, nil
 }

@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
@@ -70,9 +71,9 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Parse the single section of the config.
-	config := &SingleConfig{}
-	if err := runtime.ParseConfigSection(ConfigKey, ShortConfigKey, app.Sections, config); err != nil {
-		return fmt.Errorf("parse single config: %w", err)
+	config, err := config.GetDeployerConfig[SingleConfig, SingleConfig_ListenerOptions](ConfigKey, ShortConfigKey, app)
+	if err != nil {
+		return err
 	}
 	config.App = app
 

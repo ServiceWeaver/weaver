@@ -715,11 +715,10 @@ type impl struct{
 }
 ```
 
-Listener names are always lowercased and must be unique inside a given
-application binary, regardless of which components they are specified in. For
-example, it is illegal to declare a Listener field `"foo"` in two different
-component implementations structs, unless one is renamed using the
-````weaver:"name"```` struct tag.
+Listener names must be unique inside a given application binary, regardless of
+which components they are specified in. For example, it is illegal to declare a
+Listener field `"foo"` in two different component implementations structs,
+unless one is renamed using the ````weaver:"name"```` struct tag.
 
 By default, all application listeners will listen on a random port chosen
 by the operating system. This behavior, as well as other customization options,

@@ -31,6 +31,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -84,28 +85,28 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		}
 	}
 
-	config := &single.SingleConfig{App: &protos.AppConfig{}}
+	singleConfig := &single.SingleConfig{App: &protos.AppConfig{}}
 	if configData != "" {
 		app, err := runtime.ParseConfig(configFile, configData, codegen.ComponentConfigValidator)
 		if err != nil {
 			return nil, err
 		}
-		if err := runtime.ParseConfigSection(single.ConfigKey, single.ShortConfigKey, app.Sections, config); err != nil {
-			return nil, fmt.Errorf("parse single config: %w", err)
+		if singleConfig, err = config.GetDeployerConfig[single.SingleConfig, single.SingleConfig_ListenerOptions](single.ConfigKey, single.ShortConfigKey, app); err != nil {
+			return nil, err
 		}
-		config.App = app
+		singleConfig.App = app
 	}
 
 	// Overwrite app config with the true command line used.
-	config.App.Name = filepath.Base(os.Args[0])
-	config.App.Binary = os.Args[0]
-	config.App.Args = os.Args[1:]
+	singleConfig.App.Name = filepath.Base(os.Args[0])
+	singleConfig.App.Binary = os.Args[0]
+	singleConfig.App.Args = os.Args[1:]
 
 	wlet := &protos.EnvelopeInfo{
-		App:           config.App.Name,
+		App:           singleConfig.App.Name,
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
-		Sections:      config.App.Sections,
+		Sections:      singleConfig.App.Sections,
 		SingleProcess: true,
 		SingleMachine: true,
 		RunMain:       true,
@@ -123,14 +124,14 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		for i, span := range spans.Span {
 			traces[i] = &traceio.ReadSpan{Span: span}
 		}
-		return traceDB.Store(ctx, config.App.Name, wlet.DeploymentId, traces)
+		return traceDB.Store(ctx, singleConfig.App.Name, wlet.DeploymentId, traces)
 	}
 
 	env := &singleprocessEnv{
 		ctx:            ctx,
 		bootstrap:      bootstrap,
 		info:           wlet,
-		config:         config,
+		config:         singleConfig,
 		submissionTime: time.Now(),
 		listeners:      map[string][]string{},
 		statsProcessor: imetrics.NewStatsProcessor(),

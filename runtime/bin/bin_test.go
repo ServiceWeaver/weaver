@@ -120,10 +120,10 @@ func TestReadListeners(t *testing.T) {
 			}
 			main := "github.com/ServiceWeaver/weaver/Main"
 			want := []codegen.ComponentListeners{
-				{Component: main, Listeners: []string{"applis"}},
-				{Component: pkg("A"), Listeners: []string{"alis1", "alis2", "alis3"}},
-				{Component: pkg("B"), Listeners: []string{"listener"}},
-				{Component: pkg("C"), Listeners: []string{"clis"}},
+				{Component: main, Listeners: []string{"appLis"}},
+				{Component: pkg("A"), Listeners: []string{"aLis1", "aLis2", "aLis3"}},
+				{Component: pkg("B"), Listeners: []string{"Listener"}},
+				{Component: pkg("C"), Listeners: []string{"cLis"}},
 			}
 			if diff := cmp.Diff(want, actual); diff != "" {
 				t.Fatalf("unexpected listeners (-want +got):\n%s", diff)

@@ -19,7 +19,6 @@ import (
 	"go/token"
 	"net"
 	"reflect"
-	"strings"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
@@ -60,12 +59,12 @@ func fillListeners(impl any, get func(field string) (net.Listener, string, error
 		}
 
 		// Listener name is a field name, unless a tag is present.
-		lisName := strings.ToLower(s.Type().Field(i).Name)
+		lisName := s.Type().Field(i).Name
 		if tag := s.Type().Field(i).Tag.Get("weaver"); tag != "" {
 			if !token.IsIdentifier(tag) {
 				return fmt.Errorf("listener tag %s is not a valid Go identifier", tag)
 			}
-			lisName = strings.ToLower(tag)
+			lisName = tag
 		}
 		listener, proxyAddr, err := get(lisName)
 		if err != nil {
