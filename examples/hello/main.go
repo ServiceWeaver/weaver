@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	if err := weaver.Run(context.Background()); err != nil {
+	if err := weaver.Run(context.Background(), serve); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -36,7 +36,7 @@ type app struct {
 	hello    weaver.Listener
 }
 
-func (app *app) Main(ctx context.Context) error {
+func serve(ctx context.Context, app *app) error {
 	fmt.Printf("hello listener available on %v\n", app.hello)
 
 	// Serve the /hello endpoint.

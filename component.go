@@ -15,7 +15,6 @@
 package weaver
 
 import (
-	"context"
 	"crypto/tls"
 	"net"
 	"sync"
@@ -101,13 +100,7 @@ type component struct {
 var _ Instance = &componentImpl{}
 
 // Main is interface implemented by an application's main component.
-// This component is instantiated and its Main() method called by
-// `weaver.Run`.
-type Main interface {
-	// Main contains the application main. It typically loops
-	// forever, e.g., inside http.Serve.
-	Main(context.Context) error
-}
+type Main interface{}
 
 // Implements[T] is a type that can be embedded inside a component implementation
 // struct to indicate that the struct implements a component of type T. E.g.,

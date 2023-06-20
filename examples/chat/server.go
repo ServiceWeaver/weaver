@@ -43,7 +43,7 @@ type server struct {
 	chat       weaver.Listener
 }
 
-func (s *server) Main(ctx context.Context) error {
+func serve(ctx context.Context, s *server) error {
 	s.httpServer.Handler = instrument(s.label, s)
 	s.Logger().Debug("Chat service available", "address", s.chat)
 	return s.httpServer.Serve(s.chat)
