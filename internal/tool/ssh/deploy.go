@@ -93,7 +93,7 @@ func deploy(ctx context.Context, args []string) error {
 	}
 
 	// Retrieve the list of locations to deploy.
-	locs, err := getLocations(app)
+	locs, err := getLocations(config)
 	if err != nil {
 		return err
 	}
@@ -192,21 +192,8 @@ func terminateDeployment(locs []string, dep *protos.Deployment) error {
 }
 
 // getLocations returns the list of locations at which to deploy the application.
-func getLocations(app *protos.AppConfig) ([]string, error) {
-	// SSH config as found in TOML config file.
-	const sshKey = "github.com/ServiceWeaver/weaver/ssh"
-	const shortSSHKey = "ssh"
-
-	// TODO(spetrovic): Avoid parsing the config twice.
-	type sshConfigSchema struct {
-		LocationsFile string `toml:"locations_file"`
-	}
-	parsed := &sshConfigSchema{}
-	if err := runtime.ParseConfigSection(sshKey, shortSSHKey, app.Sections, parsed); err != nil {
-		return nil, fmt.Errorf("unable to parse ssh config: %w", err)
-	}
-
-	file, err := getAbsoluteFilePath(parsed.LocationsFile)
+func getLocations(config *impl.SshConfig) ([]string, error) {
+	file, err := getAbsoluteFilePath(config.Locations)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +209,7 @@ func getLocations(app *protos.AppConfig) ([]string, error) {
 	for fileScanner.Scan() {
 		loc := fileScanner.Text()
 		if _, ok := locations[loc]; ok {
-			return nil, fmt.Errorf("no duplicate locations allowed to deploy using the ssh deployer")
+			return nil, fmt.Errorf("duplicate locations in the locations file")
 		}
 		locations[loc] = true
 	}
