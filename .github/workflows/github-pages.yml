@@ -67,6 +67,14 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v3
 
+      # Set the right file permissions, based on https://github.com/actions/upload-pages-artifact#file-permissions. 
+      - shell: sh
+        run: |
+          chmod -c -R +rX "website/public" |
+          while read line; do
+              echo "::warning title=Invalid file permissions automatically fixed::$line"
+          done
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
