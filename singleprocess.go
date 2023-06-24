@@ -91,6 +91,12 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		if err != nil {
 			return nil, err
 		}
+		// TODO(mwhittaker): We need to rewrite the binary so that
+		// GetDeployerConfig can parse listeners from the correct binary. Tidy
+		// up these abstractions
+		//
+		// TODO(mwhittaker): Inspect binary even when no config file is given.
+		app.Binary = os.Args[0]
 		if singleConfig, err = config.GetDeployerConfig[single.SingleConfig, single.SingleConfig_ListenerOptions](single.ConfigKey, single.ShortConfigKey, app); err != nil {
 			return nil, err
 		}
