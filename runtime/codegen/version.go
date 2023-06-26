@@ -53,7 +53,7 @@ const (
 	// TODO(mwhittaker): Write a doc explaining this version as well as the
 	// module version and deployer API version.
 	Major = 0
-	Minor = 11
+	Minor = 17
 	// NOTE: Patch is omitted because all API changes should bump the major or
 	// minor version. Patch is assumed to be 0.
 )

@@ -1093,6 +1093,13 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		if comp.router != nil {
 			p(`		Routed: true,`)
 		}
+		if len(comp.listeners) > 0 {
+			listeners := make([]string, len(comp.listeners))
+			for i, lis := range comp.listeners {
+				listeners[i] = fmt.Sprintf("%q", lis)
+			}
+			p(`		Listeners: []string{%s},`, strings.Join(listeners, ", "))
+		}
 		p(`		LocalStubFn: %s,`, localStubFn)
 		p(`		ClientStubFn: %s,`, clientStubFn)
 		p(`		ServerStubFn: %s,`, serverStubFn)

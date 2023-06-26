@@ -11,7 +11,7 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 // weaver.Instance checks.
 
