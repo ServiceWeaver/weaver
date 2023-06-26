@@ -507,11 +507,12 @@ Cloud Tracing][cloud_trace], etc.
 
 ## Next Steps
 
-- Continue reading to get a better understanding of [components](#components)
-  and learn about other fundamental features of Service Weaver like
-  [logging](#logging), [metrics](#metrics), [routing](#routing), and so on.
-- Walk through [a more comprehensive Service Weaver tutorial][workshop] where
-  you implement an emoji search engine backed by ChatGPT.
+- Work through the exercises in our [codelab](#codelab) to get experience
+  writing Service Weaver apps.
+- Continue reading the docs to get a better understanding of
+  [components](#components) and learn about other fundamental features of
+  Service Weaver like [logging](#logging), [metrics](#metrics),
+  [routing](#routing), and so on.
 - Read [our blog](/blog).
 - Read through [example Service Weaver applications][weaver_examples] that
   demonstrate what Service Weaver has to offer.
@@ -521,6 +522,16 @@ Cloud Tracing][cloud_trace], etc.
 - Check out [Service Weaver's source code on GitHub][weaver_github].
 - Chat with us on [Discord](https://discord.gg/FzbQ3SM8R5) or send us an
   [email](serviceweaver@google.com).
+
+# Codelab
+
+Check out the [Service Weaver codelab][workshop] hosted on GitHub. The codelab
+includes a set of exercises (with solutions) that walk you through the
+implementation of [an emoji search engine application][emojis] backed by
+ChatGPT. The [Step by Step Tutorial](#step-by-step-tutorial) section walked you
+through the fundamentals of Service Weaver, and the codelab puts these
+fundamentals to practice, giving you hands-on experience writing fully fledged
+Service Weaver applications.
 
 # Components
 
@@ -2875,6 +2886,7 @@ runtime benefits of microservices.
 [cloud_metrics]: https://cloud.google.com/monitoring/api/metrics_gcp
 [cloud_trace]: https://cloud.google.com/trace
 [db_engines]: https://db-engines.com/en/ranking
+[emojis]: https://emojis.serviceweaver.dev/
 [gcloud_billing]: https://console.cloud.google.com/billing
 [gcloud_billing_projects]: https://console.cloud.google.com/billing/projects
 [gcloud_install]: https://cloud.google.com/sdk/docs/install
