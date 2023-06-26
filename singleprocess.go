@@ -31,7 +31,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/status"
-	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -91,16 +90,23 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		if err != nil {
 			return nil, err
 		}
-		// TODO(mwhittaker): We need to rewrite the binary so that
-		// GetDeployerConfig can parse listeners from the correct binary. Tidy
-		// up these abstractions
-		//
-		// TODO(mwhittaker): Inspect binary even when no config file is given.
-		app.Binary = os.Args[0]
-		if singleConfig, err = config.GetDeployerConfig[single.SingleConfig, single.SingleConfig_ListenerOptions](single.ConfigKey, single.ShortConfigKey, app); err != nil {
-			return nil, err
+		if err := runtime.ParseConfigSection(single.ConfigKey, single.ShortConfigKey, app.Sections, singleConfig); err != nil {
+			return nil, fmt.Errorf("parse config: %w", err)
 		}
 		singleConfig.App = app
+	}
+
+	// Validate listeners in the config.
+	listeners := map[string]struct{}{}
+	for _, reg := range codegen.Registered() {
+		for _, listener := range reg.Listeners {
+			listeners[listener] = struct{}{}
+		}
+	}
+	for listener := range singleConfig.Listeners {
+		if _, ok := listeners[listener]; !ok {
+			return nil, fmt.Errorf("listener %s (in the config) not found", listener)
+		}
 	}
 
 	// Overwrite app config with the true command line used.

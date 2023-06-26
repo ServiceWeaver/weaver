@@ -10,13 +10,14 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][11]struct{}]("You used 'weaver generate' codegen version 0.11.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
 		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A",
 		Iface:        reflect.TypeOf((*A)(nil)).Elem(),
 		Impl:         reflect.TypeOf(a{}),
+		Listeners:    []string{"aLis1", "aLis2", "aLis3"},
 		LocalStubFn:  func(impl any, tracer trace.Tracer) any { return a_local_stub{impl: impl.(A), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return a_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
@@ -28,6 +29,7 @@ func init() {
 		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B",
 		Iface:        reflect.TypeOf((*B)(nil)).Elem(),
 		Impl:         reflect.TypeOf(b{}),
+		Listeners:    []string{"Listener"},
 		LocalStubFn:  func(impl any, tracer trace.Tracer) any { return b_local_stub{impl: impl.(B), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return b_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
@@ -39,6 +41,7 @@ func init() {
 		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C",
 		Iface:        reflect.TypeOf((*C)(nil)).Elem(),
 		Impl:         reflect.TypeOf(c{}),
+		Listeners:    []string{"cLis"},
 		LocalStubFn:  func(impl any, tracer trace.Tracer) any { return c_local_stub{impl: impl.(C), tracer: tracer} },
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return c_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
@@ -47,9 +50,10 @@ func init() {
 		RefData: "⟦105ddfd4:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C→cLis⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/Main",
-		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
-		Impl:  reflect.TypeOf(app{}),
+		Name:      "github.com/ServiceWeaver/weaver/Main",
+		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
+		Impl:      reflect.TypeOf(app{}),
+		Listeners: []string{"appLis"},
 		LocalStubFn: func(impl any, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},

@@ -53,10 +53,11 @@ type registry struct {
 
 // Registration is the configuration needed to register a Service Weaver component.
 type Registration struct {
-	Name   string       // full package-prefixed component name
-	Iface  reflect.Type // interface type for the component
-	Impl   reflect.Type // implementation type (struct)
-	Routed bool         // True if calls to this component should be routed
+	Name      string       // full package-prefixed component name
+	Iface     reflect.Type // interface type for the component
+	Impl      reflect.Type // implementation type (struct)
+	Routed    bool         // True if calls to this component should be routed
+	Listeners []string     // the names of any weaver.Listeners
 
 	// Functions that return different types of stubs.
 	LocalStubFn  func(impl any, tracer trace.Tracer) any
