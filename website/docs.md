@@ -510,13 +510,15 @@ Cloud Tracing][cloud_trace], etc.
 - Continue reading to get a better understanding of [components](#components)
   and learn about other fundamental features of Service Weaver like
   [logging](#logging), [metrics](#metrics), [routing](#routing), and so on.
+- Walk through [a more comprehensive Service Weaver tutorial][workshop] where
+  you implement an emoji search engine backed by ChatGPT.
+- Read [our blog](/blog).
+- Read through [example Service Weaver applications][weaver_examples] that
+  demonstrate what Service Weaver has to offer.
 - Dive deeper into the various ways you can deploy a Service Weaver application,
   including [single process](#single-process), [multiprocess](#multiprocess),
   and [GKE](#gke) deployers.
-- Read through [example Service Weaver applications][weaver_examples] that
-  demonstrate what Service Weaver has to offer.
 - Check out [Service Weaver's source code on GitHub][weaver_github].
-- Read [our blog](/blog).
 - Chat with us on [Discord](https://discord.gg/FzbQ3SM8R5) or send us an
   [email](serviceweaver@google.com).
 
@@ -2906,4 +2908,5 @@ runtime benefits of microservices.
 [weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
 [weaver_examples]: https://github.com/ServiceWeaver/weaver/tree/main/examples
 [weaver_github]: https://github.com/ServiceWeaver/weaver
+[workshop]: https://github.com/serviceweaver/workshops
 [xdg]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
