@@ -89,7 +89,7 @@ tutorial can be found [here][hello_app].
 ## Components
 
 Service Weaver's core abstraction is the **component**. A component is like an
-[actor][actors], and a Service Weaver application is implemented of a set of
+[actor][actors], and a Service Weaver application is implemented as a set of
 components. Concretely, a component is represented with a regular Go
 [interface][go_interfaces], and components interact with each other by calling
 the methods defined by these interfaces.
