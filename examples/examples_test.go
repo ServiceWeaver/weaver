@@ -35,6 +35,7 @@ type test struct {
 
 func TestExamples(t *testing.T) {
 	testCases := map[string]test{
+		// TODO(mwhittaker): Add helloworld example.
 		"hello": {
 			url:  "http://localhost:12345/hello?name=something",
 			want: "Hello, gnihtemos!",
