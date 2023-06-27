@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package bin contains code to extract data from a Service Weaver binary.
 package bin
 
 import (
@@ -21,12 +22,30 @@ import (
 	"debug/pe"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
-// ROData returns the read-only data section of the provided binary.
-func ROData(file string) ([]byte, error) {
+// deployerVersion exists to embed the deployer API version into a Service
+// Weaver binary. We split declaring and assigning version to prevent the
+// compiler from erasing it.
+//
+//nolint:unused
+var deployerVersion string
+
+func init() {
+	// NOTE that deployerVersion must be assigned a string constant that
+	// reflects the values of version.DeployerMajor and version.DeployerMinor.
+	// If the string is not a constant---if we try to use fmt.Sprintf, for
+	// example---it will not be embedded in a Service Weaver binary.
+	deployerVersion = "⟦wEaVeRdEpLoYeRvErSiOn:v0.14.0⟧"
+}
+
+// rodata returns the read-only data section of the provided binary.
+func rodata(file string) ([]byte, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -76,7 +95,7 @@ func ROData(file string) ([]byte, error) {
 //
 //	github.com/ServiceWeaver/weaver/Main
 func ReadComponentGraph(file string) ([][2]string, error) {
-	data, err := ROData(file)
+	data, err := rodata(file)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +105,44 @@ func ReadComponentGraph(file string) ([][2]string, error) {
 // ReadListeners reads the sets of listeners associated with each component
 // in the specified binary.
 func ReadListeners(file string) ([]codegen.ComponentListeners, error) {
-	data, err := ROData(file)
+	data, err := rodata(file)
 	if err != nil {
 		return nil, err
 	}
 	return codegen.ExtractListeners(data), nil
+}
+
+// ReadDeployerVersion reads the deployer API version from the specified binary.
+func ReadDeployerVersion(filename string) (version.SemVer, error) {
+	data, err := rodata(filename)
+	if err != nil {
+		return version.SemVer{}, err
+	}
+	return extractDeployerVersion(data)
+}
+
+// extractDeployerVersion returns the deployer API version embedded in data.
+func extractDeployerVersion(data []byte) (version.SemVer, error) {
+	re := regexp.MustCompile(`⟦wEaVeRdEpLoYeRvErSiOn:v([0-9]*?)\.([0-9]*?)\.([0-9]*?)⟧`)
+	m := re.FindSubmatch(data)
+	if m == nil {
+		return version.SemVer{}, fmt.Errorf("embedded deployer API version not found")
+	}
+	major, minor, patch := string(m[1]), string(m[2]), string(m[3])
+
+	v := version.SemVer{}
+	var err error
+	v.Major, err = strconv.Atoi(major)
+	if err != nil {
+		return version.SemVer{}, fmt.Errorf("invalid embedded deployer API major %q: %w", major, err)
+	}
+	v.Minor, err = strconv.Atoi(minor)
+	if err != nil {
+		return version.SemVer{}, fmt.Errorf("invalid embedded deployer API minor %q: %w", minor, err)
+	}
+	v.Patch, err = strconv.Atoi(patch)
+	if err != nil {
+		return version.SemVer{}, fmt.Errorf("invalid embedded deployer API patch %q: %w", patch, err)
+	}
+	return v, nil
 }

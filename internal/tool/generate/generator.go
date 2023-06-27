@@ -37,6 +37,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/files"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"golang.org/x/exp/maps"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
@@ -928,8 +929,8 @@ func (g *generator) generateVersionCheck(p printFn) {
 	//     var _ codegen.LatestVersion = codegen.Version[[0][1]struct{}]("You used ...")
 	p(`var _ %s = %s[[%d][%d]struct{}](%q)`,
 		g.codegen().qualify("LatestVersion"), g.codegen().qualify("Version"),
-		codegen.Major, codegen.Minor,
-		fmt.Sprintf(`You used 'weaver generate' codegen version %d.%d.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.`, codegen.Major, codegen.Minor),
+		version.CodegenMajor, version.CodegenMinor,
+		fmt.Sprintf(`You used 'weaver generate' codegen version %d.%d.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.`, version.CodegenMajor, version.CodegenMinor),
 	)
 }
 

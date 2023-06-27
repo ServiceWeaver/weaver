@@ -59,6 +59,7 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     errors
     flag
     fmt
+    github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/internal/tool/callgraph
     github.com/ServiceWeaver/weaver/internal/tool/generate
     github.com/ServiceWeaver/weaver/internal/tool/multi
@@ -517,6 +518,13 @@ github.com/ServiceWeaver/weaver/internal/status
     syscall
     text/template
     time
+github.com/ServiceWeaver/weaver/internal/tool
+    context
+    flag
+    fmt
+    github.com/ServiceWeaver/weaver/runtime/tool
+    github.com/ServiceWeaver/weaver/runtime/version
+    runtime
 github.com/ServiceWeaver/weaver/internal/tool/callgraph
     fmt
     github.com/ServiceWeaver/weaver/runtime/bin
@@ -550,6 +558,7 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/version
     go/ast
     go/format
     go/parser
@@ -589,6 +598,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/internal/tool/certs
     github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/runtime
@@ -629,6 +639,7 @@ github.com/ServiceWeaver/weaver/internal/tool/single
     fmt
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -650,6 +661,7 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/status
+    github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime
@@ -743,7 +755,10 @@ github.com/ServiceWeaver/weaver/runtime/bin
     debug/pe
     fmt
     github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/version
     os
+    regexp
+    strconv
 github.com/ServiceWeaver/weaver/runtime/bin/testprogram
     context
     github.com/ServiceWeaver/weaver
@@ -762,6 +777,7 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/ServiceWeaver/weaver/runtime/version
     go.opentelemetry.io/otel/trace
     google.golang.org/protobuf/proto
     math
@@ -909,30 +925,17 @@ github.com/ServiceWeaver/weaver/runtime/tool
     errors
     flag
     fmt
-    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/version
     io
     os
     os/exec
-    runtime
-    runtime/debug
     sort
     strings
     text/template
     time
 github.com/ServiceWeaver/weaver/runtime/version
     fmt
-    github.com/ServiceWeaver/weaver/runtime/bin
-    regexp
-    strconv
-github.com/ServiceWeaver/weaver/runtime/version/testprogram
-    context
-    github.com/ServiceWeaver/weaver
-    github.com/ServiceWeaver/weaver/runtime/codegen
-    go.opentelemetry.io/otel/trace
-    reflect
 github.com/ServiceWeaver/weaver/weavertest
     context
     errors

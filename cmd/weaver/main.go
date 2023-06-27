@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"strings"
 
+	itool "github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/internal/tool/callgraph"
 	"github.com/ServiceWeaver/weaver/internal/tool/generate"
 	"github.com/ServiceWeaver/weaver/internal/tool/multi"
@@ -84,11 +85,12 @@ func main() {
 		return
 
 	case "version":
-		cmd := tool.VersionCmd("weaver")
+		cmd := itool.VersionCmd("weaver")
 		if err := cmd.Fn(context.Background(), flag.Args()[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+		return
 
 	case "callgraph":
 		const usage = `Generate component callgraphs.
