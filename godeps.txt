@@ -163,6 +163,14 @@ github.com/ServiceWeaver/weaver/examples/hello
     net/http
     reflect
     time
+github.com/ServiceWeaver/weaver/examples/helloworld
+    context
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/trace
+    log
+    reflect
 github.com/ServiceWeaver/weaver/examples/onlineboutique
     context
     flag
