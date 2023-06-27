@@ -267,9 +267,12 @@ func (c *componentImpl) Logger() *slog.Logger { return c.component.logger }
 // # Routing Keys
 //
 // A routing key can be any integer (e.g., int, int32), float (i.e. float32,
-// float64), or string; or a struct where every field is an integer, float, or
-// string (e.g., struct{x int; y string}). Every router method must return the
-// same routing key type. The following, for example, is invalid:
+// float64), or string; or a struct that may optionaly embed the
+// weaver.AutoMarshal struct and rest of the fields must be either integers,
+// floats, or strings (e.g., struct{weaver.AutoMarshal; x int; y string},
+// struct{x int; y string}).
+// Every router method must return the same routing key type. The following,
+// for example, is invalid:
 //
 //	// ERROR: Get returns a string, but Put returns an int.
 //	func (cacheRouter) Get(_ context.Context, key string) string { return key }
