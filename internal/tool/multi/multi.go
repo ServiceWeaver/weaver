@@ -21,6 +21,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	itool "github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
@@ -66,6 +67,6 @@ var (
 		"metrics":   status.MetricsCommand("weaver multi", defaultRegistry),
 		"profile":   status.ProfileCommand("weaver multi", defaultRegistry),
 		"purge":     tool.PurgeCmd(purgeSpec),
-		"version":   tool.VersionCmd("weaver multi"),
+		"version":   itool.VersionCmd("weaver multi"),
 	}
 )

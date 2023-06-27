@@ -12,22 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ssh
+package tool
 
 import (
-	"github.com/ServiceWeaver/weaver/internal/status"
-	itool "github.com/ServiceWeaver/weaver/internal/tool"
+	"context"
+	"flag"
+	"fmt"
+	"runtime"
+
 	"github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
-var (
-	Commands = map[string]*tool.Command{
-		"deploy":    &deployCmd,
-		"logs":      tool.LogsCmd(&logsSpec),
-		"dashboard": status.DashboardCommand(dashboardSpec),
-		"version":   itool.VersionCmd("weaver ssh"),
-
-		// Hidden commands.
-		"babysitter": &babysitterCmd,
+// VersionCmd returns a command to show a deployer's version.
+func VersionCmd(toolname string) *tool.Command {
+	return &tool.Command{
+		Name:        "version",
+		Flags:       flag.NewFlagSet("version", flag.ContinueOnError),
+		Description: fmt.Sprintf("Show %q version", toolname),
+		Help:        fmt.Sprintf("Usage:\n  %s version", toolname),
+		Fn: func(context.Context, []string) error {
+			fmt.Printf("%s %s %s/%s\n", toolname, version.ModuleVersion, runtime.GOOS, runtime.GOARCH)
+			return nil
+		},
 	}
-)
+}

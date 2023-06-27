@@ -102,9 +102,9 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 		DialAddr: dialAddr,
 		Pid:      int64(os.Getpid()),
 		Version: &protos.SemVer{
-			Major: version.Major,
-			Minor: version.Minor,
-			Patch: version.Patch,
+			Major: version.DeployerMajor,
+			Minor: version.DeployerMinor,
+			Patch: 0,
 		},
 	}
 	if err := wc.conn.send(&protos.WeaveletMsg{WeaveletInfo: wc.winfo}); err != nil {

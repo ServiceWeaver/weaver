@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bin_test
+package bin
 
 import (
 	"fmt"
@@ -21,18 +21,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestReadComponentGraph(t *testing.T) {
-	type testCase struct {
-		os   string
-		arch string
-	}
-
-	for _, test := range []testCase{
+	for _, test := range []struct{ os, arch string }{
 		{"linux", "amd64"},
 		{"windows", "amd64"},
 		{"darwin", "arm64"},
@@ -43,13 +38,12 @@ func TestReadComponentGraph(t *testing.T) {
 			binary := filepath.Join(d, "bin")
 			cmd := exec.Command("go", "build", "-o", binary, "./testprogram")
 			cmd.Env = append(os.Environ(), "GOOS="+test.os, "GOARCH="+test.arch)
-			err := cmd.Run()
-			if err != nil {
+			if err := cmd.Run(); err != nil {
 				t.Fatal(err)
 			}
 
 			// Read edges.
-			edges, err := bin.ReadComponentGraph(binary)
+			edges, err := ReadComponentGraph(binary)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -87,12 +81,7 @@ func TestReadComponentGraph(t *testing.T) {
 }
 
 func TestReadListeners(t *testing.T) {
-	type testCase struct {
-		os   string
-		arch string
-	}
-
-	for _, test := range []testCase{
+	for _, test := range []struct{ os, arch string }{
 		{"linux", "amd64"},
 		{"windows", "amd64"},
 		{"darwin", "arm64"},
@@ -109,7 +98,7 @@ func TestReadListeners(t *testing.T) {
 			}
 
 			// Read listeners.
-			actual, err := bin.ReadListeners(binary)
+			actual, err := ReadListeners(binary)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -127,6 +116,58 @@ func TestReadListeners(t *testing.T) {
 			}
 			if diff := cmp.Diff(want, actual); diff != "" {
 				t.Fatalf("unexpected listeners (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExtractDeployerVersion(t *testing.T) {
+	for _, want := range []version.SemVer{
+		{Major: 0, Minor: 0, Patch: 0},
+		{Major: 10, Minor: 10, Patch: 10},
+		{Major: 123, Minor: 4567, Patch: 891011},
+	} {
+		t.Run(want.String(), func(t *testing.T) {
+			// Embed the version string inside a big array of bytes.
+			var bytes [10000]byte
+			embedded := fmt.Sprintf("⟦wEaVeRdEpLoYeRvErSiOn:%s⟧", want)
+			copy(bytes[1234:], []byte(embedded))
+
+			// Extract the version string.
+			got, err := extractDeployerVersion(bytes[:])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != want {
+				t.Fatalf("bad deployer API version: got %s, want %s", got, want)
+			}
+		})
+	}
+}
+
+func TestReadVersion(t *testing.T) {
+	for _, test := range []struct{ os, arch string }{
+		{"linux", "amd64"},
+		{"windows", "amd64"},
+		{"darwin", "arm64"},
+	} {
+		t.Run(fmt.Sprintf("%s/%s", test.os, test.arch), func(t *testing.T) {
+			// Build the binary for os/arch.
+			d := t.TempDir()
+			binary := filepath.Join(d, "bin")
+			cmd := exec.Command("go", "build", "-o", binary, "./testprogram")
+			cmd.Env = append(os.Environ(), "GOOS="+test.os, "GOARCH="+test.arch)
+			if err := cmd.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			// Read version.
+			got, err := ReadDeployerVersion(binary)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != version.DeployerVersion {
+				t.Fatalf("bad dipe version: got %s, want %s", got, version.DeployerVersion)
 			}
 		})
 	}
