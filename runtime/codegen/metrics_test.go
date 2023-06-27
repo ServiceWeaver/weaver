@@ -59,7 +59,8 @@ func BenchmarkMetrics(b *testing.B) {
 
 	b.Run("Bytes", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			metrics.Latency.Put(100)
+			metrics.BytesRequest.Put(100)
+			metrics.BytesReply.Put(100)
 		}
 	})
 }
