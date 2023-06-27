@@ -264,6 +264,43 @@ type target A`, false},
 	}
 }
 
+func TestIsValidRouterType(t *testing.T) {
+	type testCase struct {
+		label    string
+		contents string
+		want     bool
+	}
+	for _, c := range []testCase{
+		{"int", "type target int", true},
+		{"bool", "type target bool", false},
+		{"array", "type target [42]byte", false},
+		{"empty struct", "type target struct{}", true},
+		{"simple struct", "type target struct{x int; y string}", true},
+		{"embedded weaver.AutoMarshal", `
+import "github.com/ServiceWeaver/weaver"
+type target struct{
+	weaver.AutoMarshal
+	foo int
+	bar string
+}`, true},
+		{"embedded with something else", `
+import "github.com/ServiceWeaver/weaver"
+type foo struct {}
+type target struct {
+	foo
+	x int
+	y int
+}`, false},
+	} {
+		t.Run(c.label, func(t *testing.T) {
+			_, target := compile(t, c.contents)
+			if got := isValidRouterType(target); got != c.want {
+				t.Fatalf("isValidRouterType: got %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
 func compile(t *testing.T, contents string) (*typeSet, types.Type) {
 	t.Helper()
 
@@ -274,7 +311,7 @@ func compile(t *testing.T, contents string) (*typeSet, types.Type) {
 			t.Fatalf("error writing %s: %v", f, err)
 		}
 	}
-	save("go.mod", "module foo\ngo 1.16\n")
+	save("go.mod", goModFile)
 	save("contents.go", "package foo\n"+contents)
 	fset := token.NewFileSet()
 	cfg := &packages.Config{

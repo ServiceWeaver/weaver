@@ -1880,6 +1880,9 @@ func (g *generator) generateRouterMethodsFor(p printFn, comp *component, t types
 		s := t.Underlying().(*types.Struct)
 		for i := 0; i < s.NumFields(); i++ {
 			f := s.Field(i)
+			if isWeaverAutoMarshal(f.Type()) {
+				continue
+			}
 			tname := f.Type().Underlying().String()
 			p(`	h.Write%s(%s(r.%s))`, exported(tname), tname, f.Name())
 		}
@@ -1897,6 +1900,9 @@ func (g *generator) generateRouterMethodsFor(p printFn, comp *component, t types
 		s := t.Underlying().(*types.Struct)
 		for i := 0; i < s.NumFields(); i++ {
 			f := s.Field(i)
+			if isWeaverAutoMarshal(f.Type()) {
+				continue
+			}
 			p(`	enc.Write%s(r.%s)`, exported(f.Type().String()), f.Name())
 		}
 	}

@@ -899,8 +899,10 @@ func isPrimitiveRouter(t types.Type) bool {
 }
 
 // isValidRouterType returns whether the provided type is a valid router type.
-// A router can be an integer (signed or unsigned), a float, or a string. Or,
-// it can be a struct where every field is an integer, float, or string.
+// A router type can be one of the following: an integer (signed or unsigned),
+// a float, or a string. Alternatively, it can be a struct that may optioanly
+// embed the weaver.AutoMarshal struct and rest of the fields must be either
+// integers, floats, or strings.
 func isValidRouterType(t types.Type) bool {
 	t = t.Underlying()
 	if isPrimitiveRouter(t) {
@@ -911,7 +913,8 @@ func isValidRouterType(t types.Type) bool {
 		return false
 	}
 	for i := 0; i < s.NumFields(); i++ {
-		if !isPrimitiveRouter(s.Field(i).Type()) {
+		ft := s.Field(i).Type()
+		if !isPrimitiveRouter(ft) && !isWeaverAutoMarshal(ft) {
 			return false
 		}
 	}

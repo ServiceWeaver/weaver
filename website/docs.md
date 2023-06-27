@@ -1216,8 +1216,9 @@ A routing key can be
 
 -   any integer (e.g., `int`, `int32`), float (i.e. `float32`, `float64`), or
     string; or
--   a struct where every field is an integer, float, or string (e.g., `struct{x
-    int; y string}`).
+-   a struct that may optionaly embed `weaver.AutoMarshal`, and all remaining 
+    fields must be either integers, floats, or strings. (e.g. 
+    `struct{weaver.AutoMarshal; x int; y string}`, `struct{x int; y string}`, etc )
 
 Every router method must return the same routing key type. The following, for
 example, is invalid:
