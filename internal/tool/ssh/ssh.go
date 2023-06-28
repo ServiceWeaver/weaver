@@ -15,15 +15,31 @@
 package ssh
 
 import (
+	"path/filepath"
+
+	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
 var (
+	purgeSpec = &tool.PurgeSpec{
+		Tool: "weaver ssh",
+		Kill: "weaver ssh (dashboard|deploy|logs|profile)",
+		Paths: []string{filepath.Join(runtime.LogsDir(), "ssh"),
+			filepath.Join(must.Must(runtime.DataDir()), "ssh")},
+	}
+
 	Commands = map[string]*tool.Command{
 		"deploy":    &deployCmd,
 		"logs":      tool.LogsCmd(&logsSpec),
 		"dashboard": status.DashboardCommand(dashboardSpec),
+		"metrics":   status.MetricsCommand("weaver ssh", impl.DefaultRegistry),
+		"profile":   status.ProfileCommand("weaver ssh", impl.DefaultRegistry),
+		"purge":     tool.PurgeCmd(purgeSpec),
+		"status":    status.StatusCommand("weaver ssh", impl.DefaultRegistry),
 		"version":   tool.VersionCmd("weaver ssh"),
 
 		// Hidden commands.
