@@ -22,6 +22,8 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
+//go:generate ../../../../cmd/weaver/weaver generate
+
 type message struct {
 	weaver.AutoMarshal
 	a int

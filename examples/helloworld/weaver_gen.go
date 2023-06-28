@@ -17,7 +17,7 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/Main",
 		Iface: reflect.TypeOf((*weaver.Main)(nil)).Elem(),
 		Impl:  reflect.TypeOf(app{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },

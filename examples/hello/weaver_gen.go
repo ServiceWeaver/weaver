@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
@@ -21,7 +20,7 @@ func init() {
 		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
 		Impl:      reflect.TypeOf(app{}),
 		Listeners: []string{"hello"},
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
@@ -34,11 +33,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/examples/hello/Reverser",
 		Iface: reflect.TypeOf((*Reverser)(nil)).Elem(),
 		Impl:  reflect.TypeOf(reverser{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return reverser_local_stub{impl: impl.(Reverser), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return reverser_local_stub{impl: impl.(Reverser), tracer: tracer, reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/hello/Reverser", Method: "Reverse", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return reverser_client_stub{stub: stub, reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/hello/Reverser", Method: "Reverse"})}
+			return reverser_client_stub{stub: stub, reverseMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/hello/Reverser", Method: "Reverse", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return reverser_server_stub{impl: impl.(Reverser), addLoad: addLoad}
@@ -66,14 +65,18 @@ type main_local_stub struct {
 var _ weaver.Main = (*main_local_stub)(nil)
 
 type reverser_local_stub struct {
-	impl   Reverser
-	tracer trace.Tracer
+	impl           Reverser
+	tracer         trace.Tracer
+	reverseMetrics *codegen.MethodMetrics
 }
 
 // Check that reverser_local_stub implements the Reverser interface.
 var _ Reverser = (*reverser_local_stub)(nil)
 
 func (s reverser_local_stub) Reverse(ctx context.Context, a0 string) (r0 string, err error) {
+	// Update metrics.
+	begin := s.reverseMetrics.Begin()
+	defer func() { s.reverseMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -109,8 +112,9 @@ var _ Reverser = (*reverser_client_stub)(nil)
 
 func (s reverser_client_stub) Reverse(ctx context.Context, a0 string) (r0 string, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.reverseMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.reverseMetrics.Begin()
+	defer func() { s.reverseMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -130,11 +134,9 @@ func (s reverser_client_stub) Reverse(ctx context.Context, a0 string) (r0 string
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.reverseMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.reverseMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -148,14 +150,14 @@ func (s reverser_client_stub) Reverse(ctx context.Context, a0 string) (r0 string
 	var shardKey uint64
 
 	// Call the remote method.
-	s.reverseMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.reverseMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

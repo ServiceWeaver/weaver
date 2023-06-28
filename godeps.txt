@@ -134,7 +134,6 @@ github.com/ServiceWeaver/weaver/examples/collatz
     reflect
     strconv
     strings
-    time
 github.com/ServiceWeaver/weaver/examples/factors
     context
     errors
@@ -150,7 +149,6 @@ github.com/ServiceWeaver/weaver/examples/factors
     os
     reflect
     strconv
-    time
 github.com/ServiceWeaver/weaver/examples/hello
     context
     errors
@@ -162,7 +160,6 @@ github.com/ServiceWeaver/weaver/examples/hello
     log
     net/http
     reflect
-    time
 github.com/ServiceWeaver/weaver/examples/helloworld
     context
     fmt
@@ -190,7 +187,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice
     math/rand
     reflect
     strings
-    time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice
     context
     errors
@@ -201,7 +197,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
-    time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice
     context
     errors
@@ -220,7 +215,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
-    time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice
     context
     embed
@@ -236,7 +230,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice
     math
     reflect
     strconv
-    time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/emailservice
     bytes
     context
@@ -250,7 +243,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/emailservice
     go.opentelemetry.io/otel/trace
     html/template
     reflect
-    time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     context
     embed
@@ -325,7 +317,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice
     go.opentelemetry.io/otel/trace
     math/rand
     reflect
-    time
 github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice
     context
     errors
@@ -367,7 +358,6 @@ github.com/ServiceWeaver/weaver/examples/reverser
     log
     net/http
     reflect
-    time
 github.com/ServiceWeaver/weaver/internal/benchmarks
     context
     errors
@@ -380,7 +370,6 @@ github.com/ServiceWeaver/weaver/internal/benchmarks
     google.golang.org/protobuf/runtime/protoimpl
     reflect
     sync
-    time
 github.com/ServiceWeaver/weaver/internal/cond
     context
     sync
@@ -593,7 +582,6 @@ github.com/ServiceWeaver/weaver/internal/tool/generate/example
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
-    time
 github.com/ServiceWeaver/weaver/internal/tool/multi
     context
     crypto
@@ -794,6 +782,7 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     sort
     strings
     sync
+    time
 github.com/ServiceWeaver/weaver/runtime/colors
     fmt
     golang.org/x/term
@@ -978,7 +967,6 @@ github.com/ServiceWeaver/weaver/weavertest/internal/chain
     go.opentelemetry.io/otel/trace
     reflect
     sync
-    time
 github.com/ServiceWeaver/weaver/weavertest/internal/deploy
     context
     errors
@@ -991,7 +979,6 @@ github.com/ServiceWeaver/weaver/weavertest/internal/deploy
     os
     path/filepath
     reflect
-    time
 github.com/ServiceWeaver/weaver/weavertest/internal/diverge
     context
     errors
@@ -1001,7 +988,6 @@ github.com/ServiceWeaver/weaver/weavertest/internal/diverge
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
-    time
 github.com/ServiceWeaver/weaver/weavertest/internal/generate
     context
     errors
@@ -1011,7 +997,6 @@ github.com/ServiceWeaver/weaver/weavertest/internal/generate
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
-    time
 github.com/ServiceWeaver/weaver/weavertest/internal/protos
     context
     errors
@@ -1023,7 +1008,6 @@ github.com/ServiceWeaver/weaver/weavertest/internal/protos
     google.golang.org/protobuf/runtime/protoimpl
     reflect
     sync
-    time
 github.com/ServiceWeaver/weaver/weavertest/internal/simple
     context
     errors
@@ -1037,7 +1021,6 @@ github.com/ServiceWeaver/weaver/weavertest/internal/simple
     reflect
     strings
     sync
-    time
 github.com/ServiceWeaver/weaver/website/blog/deployers/multi
     context
     flag

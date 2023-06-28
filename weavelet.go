@@ -347,7 +347,7 @@ func (w *weavelet) getInstance(ctx context.Context, c *component, requester stri
 		if err != nil {
 			return nil, nil, err
 		}
-		return c.info.LocalStubFn(impl.impl, impl.component.tracer), impl.impl, nil
+		return c.info.LocalStubFn(impl.impl, requester, impl.component.tracer), impl.impl, nil
 	}
 
 	stub, err := w.getStub(c)

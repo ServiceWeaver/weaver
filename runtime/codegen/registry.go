@@ -60,7 +60,7 @@ type Registration struct {
 	Listeners []string     // the names of any weaver.Listeners
 
 	// Functions that return different types of stubs.
-	LocalStubFn  func(impl any, tracer trace.Tracer) any
+	LocalStubFn  func(impl any, caller string, tracer trace.Tracer) any
 	ClientStubFn func(stub Stub, caller string) any
 	ServerStubFn func(impl any, load func(key uint64, load float64)) Server
 

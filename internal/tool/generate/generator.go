@@ -1045,22 +1045,39 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 	p(`func init() {`)
 	for _, comp := range g.components {
 		name := comp.intfName()
+		var b strings.Builder
+
+		// Emits initializer for a single method's MethodMetrics object.
+		emitMetricInitializer := func(m *types.Func, remote bool) {
+			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q, Remote: %v})",
+				notExported(m.Name()),
+				g.codegen().qualify("MethodMetricsFor"),
+				g.codegen().qualify("MethodLabels"),
+				comp.fullIntfName(),
+				m.Name(),
+				remote,
+			)
+		}
 
 		// E.g.,
 		//   func(impl any, caller string, tracer trace.Tracer) any {
-		//       return foo_local_stub{imple: impl.(Foo), tracer: tracer, ...}
+		//       return foo_local_stub{impl: impl.(Foo), tracer: tracer, ...}
 		//   }
-		localStubFn := fmt.Sprintf(`func(impl any, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer } }`, g.trace().qualify("Tracer"), notExported(name), g.componentRef(comp))
+		b.Reset()
+		for _, m := range comp.methods() {
+			emitMetricInitializer(m, false)
+		}
+		localStubFn := fmt.Sprintf(`func(impl any, caller string, tracer %v) any { return %s_local_stub{impl: impl.(%s), tracer: tracer%s } }`, g.trace().qualify("Tracer"), notExported(name), g.componentRef(comp), b.String())
 
 		// E.g.,
 		//   func(stub *codegen.Stub, caller string) any {
 		//       return Foo_stub{stub: stub, ...}
 		//   }
-		var b strings.Builder
+		b.Reset()
 		for _, m := range comp.methods() {
-			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q})", notExported(m.Name()), g.codegen().qualify("MethodMetricsFor"), g.codegen().qualify("MethodLabels"), comp.fullIntfName(), m.Name())
+			emitMetricInitializer(m, true)
 		}
-		clientStubFn := fmt.Sprintf(`func(stub %s, caller string) any { return %s_client_stub{stub: stub %s } }`,
+		clientStubFn := fmt.Sprintf(`func(stub %s, caller string) any { return %s_client_stub{stub: stub%s } }`,
 			g.codegen().qualify("Stub"), notExported(name), b.String())
 
 		// E.g.,
@@ -1123,6 +1140,9 @@ func (g *generator) generateLocalStubs(p printFn) {
 		p(`type %s struct{`, stub)
 		p(`	impl %s`, g.componentRef(comp))
 		p(`	tracer %s`, g.trace().qualify("Tracer"))
+		for _, m := range comp.methods() {
+			p(`	%sMetrics *%s`, notExported(m.Name()), g.codegen().qualify("MethodMetrics"))
+		}
 		p(`}`)
 
 		p(``)
@@ -1134,6 +1154,10 @@ func (g *generator) generateLocalStubs(p printFn) {
 			mt := m.Type().(*types.Signature)
 			p(``)
 			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
+
+			p(`	// Update metrics.`)
+			p(`	begin := s.%sMetrics.Begin()`, notExported(m.Name()))
+			p(`	defer func() { s.%sMetrics.End(begin, err != nil, 0, 0) }()`, notExported(m.Name()))
 
 			// Create a child span iff tracing is enabled in ctx.
 			p(`	span := %s(ctx)`, g.trace().qualify("SpanFromContext"))
@@ -1205,10 +1229,10 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(``)
 			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
 
-			// Update metrics.
 			p(`	// Update metrics.`)
-			p(`	start := %s()`, g.time().qualify("Now"))
-			p(`	s.%sMetrics.Count.Add(1)`, notExported(m.Name()))
+			p(`	var requestBytes, replyBytes int`)
+			p(`	begin := s.%sMetrics.Begin()`, notExported(m.Name()))
+			p(`	defer func() { s.%sMetrics.End(begin, err != nil, requestBytes, replyBytes) }()`, notExported(m.Name()))
 			p(``)
 
 			// Create a child span iff tracing is enabled in ctx.
@@ -1232,11 +1256,9 @@ func (g *generator) generateClientStubs(p printFn) {
 			p(`		if err != nil {`)
 			p(`			span.RecordError(err)`)
 			p(`			span.SetStatus(%s, err.Error())`, g.codes().qualify("Error"))
-			p(`			s.%sMetrics.ErrorCount.Add(1)`, notExported(m.Name()))
 			p(`		}`)
 			p(`		span.End()`)
 			p(``)
-			p(`		s.%sMetrics.Latency.Put(float64(time.Since(start).Microseconds()))`, notExported(m.Name()))
 			p(`	}()`)
 			p(``)
 
@@ -1301,17 +1323,15 @@ func (g *generator) generateClientStubs(p printFn) {
 			data := "nil"
 			if mt.Params().Len() > 1 {
 				data = "enc.Data()"
-				p(`	s.%sMetrics.BytesRequest.Put(float64(len(enc.Data())))`, notExported(m.Name()))
-			} else {
-				p(`	s.%sMetrics.BytesRequest.Put(0)`, notExported(m.Name()))
+				p(`	requestBytes = len(enc.Data())`)
 			}
 			p(`	var results []byte`)
 			p(`	results, err = s.stub.Run(ctx, %d, %s, shardKey)`, methodIndex[m.Name()], data)
+			p(`	replyBytes = len(results)`)
 			p(`	if err != nil {`)
 			p(`		err = %s(%s, err)`, g.errorsPackage().qualify("Join"), g.weaver().qualify("RemoteCallError"))
 			p(`		return`)
 			p(`	}`)
-			p(`	s.%sMetrics.BytesReply.Put(float64(len(results)))`, notExported(m.Name()))
 
 			// Invoke call.Decode.
 			b.Reset()
@@ -2276,11 +2296,6 @@ func (g *generator) weaver() importPkg {
 func (g *generator) codegen() importPkg {
 	path := fmt.Sprintf("%s/runtime/codegen", weaverPackagePath)
 	return g.tset.importPackage(path, "codegen")
-}
-
-// time imports and returns the time package.
-func (g *generator) time() importPkg {
-	return g.tset.importPackage("time", "time")
 }
 
 // trace imports and returns the otel trace package.

@@ -15,18 +15,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T",
-		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		Impl:        reflect.TypeOf(impl{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T",
+		Iface: reflect.TypeOf((*T)(nil)).Elem(),
+		Impl:  reflect.TypeOf(impl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return t_local_stub{impl: impl.(T), tracer: tracer, placeOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T", Method: "PlaceOrder", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, placeOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T", Method: "PlaceOrder"})}
+			return t_client_stub{stub: stub, placeOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T", Method: "PlaceOrder", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
@@ -44,14 +45,18 @@ var _ weaver.Unrouted = (*impl)(nil)
 // Local stub implementations.
 
 type t_local_stub struct {
-	impl   T
-	tracer trace.Tracer
+	impl              T
+	tracer            trace.Tracer
+	placeOrderMetrics *codegen.MethodMetrics
 }
 
 // Check that t_local_stub implements the T interface.
 var _ T = (*t_local_stub)(nil)
 
 func (s t_local_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 types.Order, err error) {
+	// Update metrics.
+	begin := s.placeOrderMetrics.Begin()
+	defer func() { s.placeOrderMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -80,8 +85,9 @@ var _ T = (*t_client_stub)(nil)
 
 func (s t_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0 types.Order, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.placeOrderMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.placeOrderMetrics.Begin()
+	defer func() { s.placeOrderMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -101,11 +107,9 @@ func (s t_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.placeOrderMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.placeOrderMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -114,14 +118,14 @@ func (s t_client_stub) PlaceOrder(ctx context.Context, a0 PlaceOrderRequest) (r0
 	var shardKey uint64
 
 	// Call the remote method.
-	s.placeOrderMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.placeOrderMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

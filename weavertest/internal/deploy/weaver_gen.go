@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
@@ -20,11 +19,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started",
 		Iface: reflect.TypeOf((*Started)(nil)).Elem(),
 		Impl:  reflect.TypeOf(started{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return started_local_stub{impl: impl.(Started), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return started_local_stub{impl: impl.(Started), tracer: tracer, markStartedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started", Method: "MarkStarted", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return started_client_stub{stub: stub, markStartedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started", Method: "MarkStarted"})}
+			return started_client_stub{stub: stub, markStartedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started", Method: "MarkStarted", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return started_server_stub{impl: impl.(Started), addLoad: addLoad}
@@ -32,12 +31,14 @@ func init() {
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
-		Iface:       reflect.TypeOf((*Widget)(nil)).Elem(),
-		Impl:        reflect.TypeOf(widget{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return widget_local_stub{impl: impl.(Widget), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget",
+		Iface: reflect.TypeOf((*Widget)(nil)).Elem(),
+		Impl:  reflect.TypeOf(widget{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return widget_local_stub{impl: impl.(Widget), tracer: tracer, useMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget", Method: "Use", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return widget_client_stub{stub: stub, useMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget", Method: "Use"})}
+			return widget_client_stub{stub: stub, useMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget", Method: "Use", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return widget_server_stub{impl: impl.(Widget), addLoad: addLoad}
@@ -57,14 +58,18 @@ var _ weaver.Unrouted = (*widget)(nil)
 // Local stub implementations.
 
 type started_local_stub struct {
-	impl   Started
-	tracer trace.Tracer
+	impl               Started
+	tracer             trace.Tracer
+	markStartedMetrics *codegen.MethodMetrics
 }
 
 // Check that started_local_stub implements the Started interface.
 var _ Started = (*started_local_stub)(nil)
 
 func (s started_local_stub) MarkStarted(ctx context.Context, a0 string) (err error) {
+	// Update metrics.
+	begin := s.markStartedMetrics.Begin()
+	defer func() { s.markStartedMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -82,14 +87,18 @@ func (s started_local_stub) MarkStarted(ctx context.Context, a0 string) (err err
 }
 
 type widget_local_stub struct {
-	impl   Widget
-	tracer trace.Tracer
+	impl       Widget
+	tracer     trace.Tracer
+	useMetrics *codegen.MethodMetrics
 }
 
 // Check that widget_local_stub implements the Widget interface.
 var _ Widget = (*widget_local_stub)(nil)
 
 func (s widget_local_stub) Use(ctx context.Context, a0 string) (err error) {
+	// Update metrics.
+	begin := s.useMetrics.Begin()
+	defer func() { s.useMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -118,8 +127,9 @@ var _ Started = (*started_client_stub)(nil)
 
 func (s started_client_stub) MarkStarted(ctx context.Context, a0 string) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.markStartedMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.markStartedMetrics.Begin()
+	defer func() { s.markStartedMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -139,11 +149,9 @@ func (s started_client_stub) MarkStarted(ctx context.Context, a0 string) (err er
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.markStartedMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.markStartedMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -157,14 +165,14 @@ func (s started_client_stub) MarkStarted(ctx context.Context, a0 string) (err er
 	var shardKey uint64
 
 	// Call the remote method.
-	s.markStartedMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.markStartedMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -182,8 +190,9 @@ var _ Widget = (*widget_client_stub)(nil)
 
 func (s widget_client_stub) Use(ctx context.Context, a0 string) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.useMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.useMetrics.Begin()
+	defer func() { s.useMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -203,11 +212,9 @@ func (s widget_client_stub) Use(ctx context.Context, a0 string) (err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.useMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.useMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -221,14 +228,14 @@ func (s widget_client_stub) Use(ctx context.Context, a0 string) (err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.useMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.useMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

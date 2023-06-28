@@ -13,13 +13,11 @@
 // limitations under the License.
 
 // EXPECTED
-// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method"})
+// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method", Remote: false})
+// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method", Remote: true})
 // methodMetrics *codegen.MethodMetrics
-// start := time.Now()
-// s.methodMetrics.Count.Add(1)
-// s.methodMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
-// s.methodMetrics.BytesRequest.Put(float64(len(enc.Data())))
-// s.methodMetrics.BytesReply.Put(float64(len(results)))
+// begin := s.methodMetrics.Begin(
+// s.methodMetrics.End(begin
 
 package foo
 

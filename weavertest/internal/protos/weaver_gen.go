@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
@@ -20,11 +19,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger",
 		Iface: reflect.TypeOf((*PingPonger)(nil)).Elem(),
 		Impl:  reflect.TypeOf(impl{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return pingPonger_local_stub{impl: impl.(PingPonger), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return pingPonger_local_stub{impl: impl.(PingPonger), tracer: tracer, pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger", Method: "Ping", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return pingPonger_client_stub{stub: stub, pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger", Method: "Ping"})}
+			return pingPonger_client_stub{stub: stub, pingMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/protos/PingPonger", Method: "Ping", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pingPonger_server_stub{impl: impl.(PingPonger), addLoad: addLoad}
@@ -42,14 +41,18 @@ var _ weaver.Unrouted = (*impl)(nil)
 // Local stub implementations.
 
 type pingPonger_local_stub struct {
-	impl   PingPonger
-	tracer trace.Tracer
+	impl        PingPonger
+	tracer      trace.Tracer
+	pingMetrics *codegen.MethodMetrics
 }
 
 // Check that pingPonger_local_stub implements the PingPonger interface.
 var _ PingPonger = (*pingPonger_local_stub)(nil)
 
 func (s pingPonger_local_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
+	// Update metrics.
+	begin := s.pingMetrics.Begin()
+	defer func() { s.pingMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -78,8 +81,9 @@ var _ PingPonger = (*pingPonger_client_stub)(nil)
 
 func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingMetrics.Begin()
+	defer func() { s.pingMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -99,11 +103,9 @@ func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, e
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -112,14 +114,14 @@ func (s pingPonger_client_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, e
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

@@ -12,18 +12,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
-		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		Impl:        reflect.TypeOf(impl{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T",
+		Iface: reflect.TypeOf((*T)(nil)).Elem(),
+		Impl:  reflect.TypeOf(impl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return t_local_stub{impl: impl.(T), tracer: tracer, addItemMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "AddItem", Remote: false}), emptyCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "EmptyCart", Remote: false}), getCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "GetCart", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, addItemMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "AddItem"}), emptyCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "EmptyCart"}), getCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "GetCart"})}
+			return t_client_stub{stub: stub, addItemMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "AddItem", Remote: true}), emptyCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "EmptyCart", Remote: true}), getCartMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T", Method: "GetCart", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
@@ -35,11 +36,11 @@ func init() {
 		Iface:  reflect.TypeOf((*cartCache)(nil)).Elem(),
 		Impl:   reflect.TypeOf(cartCacheImpl{}),
 		Routed: true,
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return cartCache_local_stub{impl: impl.(cartCache), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return cartCache_local_stub{impl: impl.(cartCache), tracer: tracer, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Add", Remote: false}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Get", Remote: false}), removeMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Remove", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return cartCache_client_stub{stub: stub, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Add"}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Get"}), removeMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Remove"})}
+			return cartCache_client_stub{stub: stub, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Add", Remote: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Get", Remote: true}), removeMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/cartCache", Method: "Remove", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return cartCache_server_stub{impl: impl.(cartCache), addLoad: addLoad}
@@ -64,14 +65,20 @@ var _ func(_ context.Context, key string) string = (&cartCacheRouter{}).Remove  
 // Local stub implementations.
 
 type t_local_stub struct {
-	impl   T
-	tracer trace.Tracer
+	impl             T
+	tracer           trace.Tracer
+	addItemMetrics   *codegen.MethodMetrics
+	emptyCartMetrics *codegen.MethodMetrics
+	getCartMetrics   *codegen.MethodMetrics
 }
 
 // Check that t_local_stub implements the T interface.
 var _ T = (*t_local_stub)(nil)
 
 func (s t_local_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err error) {
+	// Update metrics.
+	begin := s.addItemMetrics.Begin()
+	defer func() { s.addItemMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -89,6 +96,9 @@ func (s t_local_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err 
 }
 
 func (s t_local_stub) EmptyCart(ctx context.Context, a0 string) (err error) {
+	// Update metrics.
+	begin := s.emptyCartMetrics.Begin()
+	defer func() { s.emptyCartMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -106,6 +116,9 @@ func (s t_local_stub) EmptyCart(ctx context.Context, a0 string) (err error) {
 }
 
 func (s t_local_stub) GetCart(ctx context.Context, a0 string) (r0 []CartItem, err error) {
+	// Update metrics.
+	begin := s.getCartMetrics.Begin()
+	defer func() { s.getCartMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -123,14 +136,20 @@ func (s t_local_stub) GetCart(ctx context.Context, a0 string) (r0 []CartItem, er
 }
 
 type cartCache_local_stub struct {
-	impl   cartCache
-	tracer trace.Tracer
+	impl          cartCache
+	tracer        trace.Tracer
+	addMetrics    *codegen.MethodMetrics
+	getMetrics    *codegen.MethodMetrics
+	removeMetrics *codegen.MethodMetrics
 }
 
 // Check that cartCache_local_stub implements the cartCache interface.
 var _ cartCache = (*cartCache_local_stub)(nil)
 
 func (s cartCache_local_stub) Add(ctx context.Context, a0 string, a1 []CartItem) (err error) {
+	// Update metrics.
+	begin := s.addMetrics.Begin()
+	defer func() { s.addMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -148,6 +167,9 @@ func (s cartCache_local_stub) Add(ctx context.Context, a0 string, a1 []CartItem)
 }
 
 func (s cartCache_local_stub) Get(ctx context.Context, a0 string) (r0 []CartItem, err error) {
+	// Update metrics.
+	begin := s.getMetrics.Begin()
+	defer func() { s.getMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -165,6 +187,9 @@ func (s cartCache_local_stub) Get(ctx context.Context, a0 string) (r0 []CartItem
 }
 
 func (s cartCache_local_stub) Remove(ctx context.Context, a0 string) (r0 bool, err error) {
+	// Update metrics.
+	begin := s.removeMetrics.Begin()
+	defer func() { s.removeMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -195,8 +220,9 @@ var _ T = (*t_client_stub)(nil)
 
 func (s t_client_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.addItemMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.addItemMetrics.Begin()
+	defer func() { s.addItemMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -216,11 +242,9 @@ func (s t_client_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.addItemMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.addItemMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -236,14 +260,14 @@ func (s t_client_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err
 	var shardKey uint64
 
 	// Call the remote method.
-	s.addItemMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.addItemMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -253,8 +277,9 @@ func (s t_client_stub) AddItem(ctx context.Context, a0 string, a1 CartItem) (err
 
 func (s t_client_stub) EmptyCart(ctx context.Context, a0 string) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.emptyCartMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.emptyCartMetrics.Begin()
+	defer func() { s.emptyCartMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -274,11 +299,9 @@ func (s t_client_stub) EmptyCart(ctx context.Context, a0 string) (err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.emptyCartMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.emptyCartMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -292,14 +315,14 @@ func (s t_client_stub) EmptyCart(ctx context.Context, a0 string) (err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.emptyCartMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.emptyCartMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -309,8 +332,9 @@ func (s t_client_stub) EmptyCart(ctx context.Context, a0 string) (err error) {
 
 func (s t_client_stub) GetCart(ctx context.Context, a0 string) (r0 []CartItem, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getCartMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getCartMetrics.Begin()
+	defer func() { s.getCartMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -330,11 +354,9 @@ func (s t_client_stub) GetCart(ctx context.Context, a0 string) (r0 []CartItem, e
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getCartMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getCartMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -348,14 +370,14 @@ func (s t_client_stub) GetCart(ctx context.Context, a0 string) (r0 []CartItem, e
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getCartMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getCartMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -376,8 +398,9 @@ var _ cartCache = (*cartCache_client_stub)(nil)
 
 func (s cartCache_client_stub) Add(ctx context.Context, a0 string, a1 []CartItem) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.addMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.addMetrics.Begin()
+	defer func() { s.addMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -397,11 +420,9 @@ func (s cartCache_client_stub) Add(ctx context.Context, a0 string, a1 []CartItem
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.addMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.addMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -414,14 +435,14 @@ func (s cartCache_client_stub) Add(ctx context.Context, a0 string, a1 []CartItem
 	shardKey := _hashCartCache(r.Add(ctx, a0, a1))
 
 	// Call the remote method.
-	s.addMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.addMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -431,8 +452,9 @@ func (s cartCache_client_stub) Add(ctx context.Context, a0 string, a1 []CartItem
 
 func (s cartCache_client_stub) Get(ctx context.Context, a0 string) (r0 []CartItem, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getMetrics.Begin()
+	defer func() { s.getMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -452,11 +474,9 @@ func (s cartCache_client_stub) Get(ctx context.Context, a0 string) (r0 []CartIte
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -473,14 +493,14 @@ func (s cartCache_client_stub) Get(ctx context.Context, a0 string) (r0 []CartIte
 	shardKey := _hashCartCache(r.Get(ctx, a0))
 
 	// Call the remote method.
-	s.getMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -491,8 +511,9 @@ func (s cartCache_client_stub) Get(ctx context.Context, a0 string) (r0 []CartIte
 
 func (s cartCache_client_stub) Remove(ctx context.Context, a0 string) (r0 bool, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.removeMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.removeMetrics.Begin()
+	defer func() { s.removeMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -512,11 +533,9 @@ func (s cartCache_client_stub) Remove(ctx context.Context, a0 string) (r0 bool, 
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.removeMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.removeMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -533,14 +552,14 @@ func (s cartCache_client_stub) Remove(ctx context.Context, a0 string) (r0 bool, 
 	shardKey := _hashCartCache(r.Remove(ctx, a0))
 
 	// Call the remote method.
-	s.removeMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.removeMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
