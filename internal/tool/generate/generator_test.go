@@ -17,8 +17,10 @@ package generate
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -431,5 +433,34 @@ type target struct{
 				t.Fatalf("uniqueName(%v): got %q, want %q", typ, got, test.want)
 			}
 		})
+	}
+}
+
+// TestExampleVersion is designed to make it hard to forget to update the
+// codegen version when changes are made to the codegen API. Concretely,
+// TestExampleVersion detects any changes to example/weaver_gen.go. If the file
+// does change, the test fails and reminds you to update the codegen version.
+//
+// This is tedious, but codegen changes should be rare and should be
+// increasingly rare as time goes on. Plus, forgetting to update the codegen
+// version can be very annoying to users.
+func TestExampleVersion(t *testing.T) {
+	// Compute the SHA-256 hash of example/weaver_gen.go.
+	f, err := os.Open("example/weaver_gen.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		t.Fatal(err)
+	}
+	got := fmt.Sprintf("%x", h.Sum(nil))
+
+	// If weaver_gen.go has changed, the codegen version may need updating.
+	const want = "b7b49b4f18514342edea9f1fbca422692b8f0f91c4258eb3b3ca45661b02e2c1"
+	if got != want {
+		t.Fatalf(`Unexpected SHA-256 hash of examples/weaver_gen.go: got %s, want %s. If this change is meaningful, REMEMBER TO UPDATE THE CODEGEN VERSION in runtime/version/version.go.`, got, want)
 	}
 }
