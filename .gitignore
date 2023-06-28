@@ -5,3 +5,6 @@ examples/factors/factors
 examples/onlineboutique/onlineboutique
 examples/hello/hello
 website/public/
+
+# Binaries produced by [go test] when passed -c or a profiling option.
+*.test

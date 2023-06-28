@@ -169,7 +169,10 @@ func (d *DB) storeEncoded(ctx context.Context, app, version string, encoded []by
 		VALUES (?,?,?);
 	`
 	_, err := d.execDB(ctx, stmt, app, version, string(encoded))
-	return err
+	if err != nil {
+		return fmt.Errorf("write trace to %s: %w", d.fname, err)
+	}
+	return nil
 }
 
 func (d *DB) encodeSpans(ctx context.Context, app, version string, spans []sdktrace.ReadOnlySpan) ([]byte, error) {
@@ -316,12 +319,18 @@ func (d *DB) getReplicaNumber(ctx context.Context, app, version, weaveletId stri
 		return replicaNum, nil
 	}
 
-	// Get the replica number from the database.
-	replicaNum, err := d.getReplicaNumberUncached(ctx, app, version, weaveletId)
-	if err == nil {
-		d.replicaNumCache.Add(cacheKey, replicaNum)
+	for r := retry.Begin(); r.Continue(ctx); {
+		// Get the replica number from the database.
+		replicaNum, err := d.getReplicaNumberUncached(ctx, app, version, weaveletId)
+		if isLocked(err) {
+			continue
+		}
+		if err == nil {
+			d.replicaNumCache.Add(cacheKey, replicaNum)
+		}
+		return replicaNum, err
 	}
-	return replicaNum, err
+	return -1, ctx.Err()
 }
 
 func (d *DB) getReplicaNumberUncached(ctx context.Context, app, version, weaveletId string) (int, error) {

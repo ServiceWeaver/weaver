@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/simple"
 	"github.com/google/uuid"
@@ -187,12 +188,36 @@ func TestRoutedCall(t *testing.T) {
 func BenchmarkCall(b *testing.B) {
 	for _, runner := range weavertest.AllRunners() {
 		runner.Bench(b, func(b *testing.B, dst simple.Destination) {
+			ctx := context.Background()
 			for i := 0; i < b.N; i++ {
-				_, err := dst.Getpid(context.Background())
+				_, err := dst.Getpid(ctx)
 				if err != nil {
 					b.Fatal(err)
 				}
 			}
 		})
 	}
+}
+
+func BenchmarkTracedCall(b *testing.B) {
+	weavertest.Local.Bench(b, func(b *testing.B, dst simple.Destination) {
+		ctx, span := traceio.TestTracer().Start(context.Background(), "foo")
+
+		// Make a new span every 100 calls.
+		const k = 100
+		for i := 0; i < b.N; {
+			batch := b.N - i
+			if batch > k {
+				batch = k // Bound trace length
+			}
+			i += batch
+			for j := 0; j < batch; j++ {
+				_, err := dst.Getpid(ctx)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+			span.End()
+		}
+	})
 }
