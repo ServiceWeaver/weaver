@@ -105,7 +105,7 @@ func echo(args ...string) error {
 		return fmt.Errorf("unable to open fd %d", rHandle)
 	}
 	w := os.NewFile(uintptr(wHandle), "wfd")
-	if r == nil {
+	if w == nil {
 		return fmt.Errorf("unable to open fd %d", wHandle)
 	}
 	msg, err := io.ReadAll(r)
