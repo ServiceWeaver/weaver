@@ -59,18 +59,18 @@ type B interface {
 
 type a struct {
 	weaver.Implements[A]
-	b    weaver.Ref[B]
-	lis1 weaver.Listener `weaver:"renamed_listener"`
-	lis2 weaver.Listener
+	b    weaver.Ref[B]   //nolint:unused
+	lis1 weaver.Listener `weaver:"renamed_listener"` //nolint:unused
+	lis2 weaver.Listener //nolint:unused
 	weaver.WithConfig[config]
 	weaver.WithRouter[router]
 }
 
 type b struct {
 	weaver.Implements[B]
-	a    weaver.Ref[A]
-	lis1 weaver.Listener `weaver:"renamed_listener"`
-	lis2 weaver.Listener
+	a    weaver.Ref[A]   //nolint:unused
+	lis1 weaver.Listener `weaver:"renamed_listener"` //nolint:unused
+	lis2 weaver.Listener //nolint:unused
 	weaver.WithConfig[config]
 	weaver.WithRouter[router]
 }
