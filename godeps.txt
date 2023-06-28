@@ -567,6 +567,16 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     strconv
     strings
     unicode
+github.com/ServiceWeaver/weaver/internal/tool/generate/example
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+    time
 github.com/ServiceWeaver/weaver/internal/tool/multi
     context
     crypto
