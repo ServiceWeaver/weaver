@@ -56,6 +56,7 @@ github.com/ServiceWeaver/weaver
     time
 github.com/ServiceWeaver/weaver/cmd/weaver
     context
+    embed
     errors
     flag
     fmt
