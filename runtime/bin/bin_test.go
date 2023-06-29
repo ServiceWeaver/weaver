@@ -121,20 +121,26 @@ func TestReadListeners(t *testing.T) {
 	}
 }
 
-func TestExtractDeployerVersion(t *testing.T) {
-	for _, want := range []version.SemVer{
-		{Major: 0, Minor: 0, Patch: 0},
-		{Major: 10, Minor: 10, Patch: 10},
-		{Major: 123, Minor: 4567, Patch: 891011},
+func TestExtractVersion(t *testing.T) {
+	for _, want := range []Versions{
+		{
+			ModuleVersion:   version.SemVer{Major: 1, Minor: 2, Patch: 3},
+			DeployerVersion: version.SemVer{Major: 4, Minor: 5, Patch: 6},
+		},
+		{
+			ModuleVersion:   version.SemVer{Major: 100, Minor: 100, Patch: 234},
+			DeployerVersion: version.SemVer{Major: 0, Minor: 567, Patch: 8910},
+		},
 	} {
-		t.Run(want.String(), func(t *testing.T) {
+		name := fmt.Sprintf("%s-%s", want.ModuleVersion, want.DeployerVersion)
+		t.Run(name, func(t *testing.T) {
 			// Embed the version string inside a big array of bytes.
 			var bytes [10000]byte
-			embedded := fmt.Sprintf("⟦wEaVeRdEpLoYeRvErSiOn:%s⟧", want)
+			embedded := fmt.Sprintf("⟦wEaVeRvErSiOn:module=%s;deployer=%s⟧", want.ModuleVersion, want.DeployerVersion)
 			copy(bytes[1234:], []byte(embedded))
 
 			// Extract the version string.
-			got, err := extractDeployerVersion(bytes[:])
+			got, err := extractVersions(bytes[:])
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -162,12 +168,15 @@ func TestReadVersion(t *testing.T) {
 			}
 
 			// Read version.
-			got, err := ReadDeployerVersion(binary)
+			got, err := ReadVersions(binary)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != version.DeployerVersion {
-				t.Fatalf("bad dipe version: got %s, want %s", got, version.DeployerVersion)
+			if got.ModuleVersion != version.ModuleVersion {
+				t.Fatalf("bad module version: got %s, want %s", got.ModuleVersion, version.ModuleVersion)
+			}
+			if got.DeployerVersion != version.DeployerVersion {
+				t.Fatalf("bad deployer version: got %s, want %s", got.DeployerVersion, version.DeployerVersion)
 			}
 		})
 	}

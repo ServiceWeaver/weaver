@@ -24,16 +24,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/uuid"
 )
 
@@ -83,6 +86,37 @@ func deploy(ctx context.Context, args []string) error {
 		return err
 	}
 	multiConfig.App = appConfig
+
+	// Check version compatibility.
+	versions, err := bin.ReadVersions(appConfig.Binary)
+	if err != nil {
+		return fmt.Errorf("read versions: %w", err)
+	}
+	if versions.DeployerVersion != version.DeployerVersion {
+		// Try to relativize the binary, defaulting to the absolute path if
+		// there are any errors..
+		binary := appConfig.Binary
+		if cwd, err := os.Getwd(); err == nil {
+			if rel, err := filepath.Rel(cwd, appConfig.Binary); err == nil {
+				binary = rel
+			}
+		}
+		return fmt.Errorf(`
+ERROR: The binary you're trying to deploy (%q) was built with
+github.com/ServiceWeaver/weaver module version %s. However, the 'weaver
+multi' binary you're using was built with weaver module version %s.
+These versions are incompatible.
+
+We recommend updating both the weaver module your application is built with and
+updating the 'weaver multi' command by running the following.
+
+    go get github.com/ServiceWeaver/weaver@latest
+    go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
+
+Then, re-build your code and re-run 'weaver multi deploy'. If the problem
+persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues.`,
+			binary, versions.ModuleVersion, version.ModuleVersion)
+	}
 
 	// Create the deployer.
 	deploymentId := uuid.New().String()
