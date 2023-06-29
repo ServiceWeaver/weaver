@@ -13,18 +13,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T",
-		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		Impl:        reflect.TypeOf(impl{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T",
+		Iface: reflect.TypeOf((*T)(nil)).Elem(),
+		Impl:  reflect.TypeOf(impl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return t_local_stub{impl: impl.(T), tracer: tracer, getProductMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "GetProduct", Remote: false}), listProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "ListProducts", Remote: false}), searchProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "SearchProducts", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, getProductMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "GetProduct"}), listProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "ListProducts"}), searchProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "SearchProducts"})}
+			return t_client_stub{stub: stub, getProductMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "GetProduct", Remote: true}), listProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "ListProducts", Remote: true}), searchProductsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T", Method: "SearchProducts", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
@@ -42,14 +43,20 @@ var _ weaver.Unrouted = (*impl)(nil)
 // Local stub implementations.
 
 type t_local_stub struct {
-	impl   T
-	tracer trace.Tracer
+	impl                  T
+	tracer                trace.Tracer
+	getProductMetrics     *codegen.MethodMetrics
+	listProductsMetrics   *codegen.MethodMetrics
+	searchProductsMetrics *codegen.MethodMetrics
 }
 
 // Check that t_local_stub implements the T interface.
 var _ T = (*t_local_stub)(nil)
 
 func (s t_local_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, err error) {
+	// Update metrics.
+	begin := s.getProductMetrics.Begin()
+	defer func() { s.getProductMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -67,6 +74,9 @@ func (s t_local_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, er
 }
 
 func (s t_local_stub) ListProducts(ctx context.Context) (r0 []Product, err error) {
+	// Update metrics.
+	begin := s.listProductsMetrics.Begin()
+	defer func() { s.listProductsMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -84,6 +94,9 @@ func (s t_local_stub) ListProducts(ctx context.Context) (r0 []Product, err error
 }
 
 func (s t_local_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Product, err error) {
+	// Update metrics.
+	begin := s.searchProductsMetrics.Begin()
+	defer func() { s.searchProductsMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -114,8 +127,9 @@ var _ T = (*t_client_stub)(nil)
 
 func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getProductMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getProductMetrics.Begin()
+	defer func() { s.getProductMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -135,11 +149,9 @@ func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, e
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getProductMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getProductMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -153,14 +165,14 @@ func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, e
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getProductMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getProductMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -171,8 +183,9 @@ func (s t_client_stub) GetProduct(ctx context.Context, a0 string) (r0 Product, e
 
 func (s t_client_stub) ListProducts(ctx context.Context) (r0 []Product, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.listProductsMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.listProductsMetrics.Begin()
+	defer func() { s.listProductsMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -192,24 +205,21 @@ func (s t_client_stub) ListProducts(ctx context.Context) (r0 []Product, err erro
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.listProductsMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.listProductsMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	var shardKey uint64
 
 	// Call the remote method.
-	s.listProductsMetrics.BytesRequest.Put(0)
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, nil, shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.listProductsMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -220,8 +230,9 @@ func (s t_client_stub) ListProducts(ctx context.Context) (r0 []Product, err erro
 
 func (s t_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Product, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.searchProductsMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.searchProductsMetrics.Begin()
+	defer func() { s.searchProductsMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -241,11 +252,9 @@ func (s t_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Prod
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.searchProductsMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.searchProductsMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -259,14 +268,14 @@ func (s t_client_stub) SearchProducts(ctx context.Context, a0 string) (r0 []Prod
 	var shardKey uint64
 
 	// Call the remote method.
-	s.searchProductsMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.searchProductsMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

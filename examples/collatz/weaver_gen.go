@@ -11,18 +11,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Even",
-		Iface:       reflect.TypeOf((*Even)(nil)).Elem(),
-		Impl:        reflect.TypeOf(even{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return even_local_stub{impl: impl.(Even), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/collatz/Even",
+		Iface: reflect.TypeOf((*Even)(nil)).Elem(),
+		Impl:  reflect.TypeOf(even{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return even_local_stub{impl: impl.(Even), tracer: tracer, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even", Method: "Do", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return even_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even", Method: "Do"})}
+			return even_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Even", Method: "Do", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return even_server_stub{impl: impl.(Even), addLoad: addLoad}
@@ -34,7 +35,7 @@ func init() {
 		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
 		Impl:      reflect.TypeOf(server{}),
 		Listeners: []string{"collatz"},
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
@@ -44,12 +45,14 @@ func init() {
 		RefData: "⟦f95ad2dd:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/collatz/Odd⟧\n⟦987c175b:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/collatz/Even⟧\n⟦f3b62957:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→collatz⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
-		Iface:       reflect.TypeOf((*Odd)(nil)).Elem(),
-		Impl:        reflect.TypeOf(odd{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return odd_local_stub{impl: impl.(Odd), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/collatz/Odd",
+		Iface: reflect.TypeOf((*Odd)(nil)).Elem(),
+		Impl:  reflect.TypeOf(odd{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return odd_local_stub{impl: impl.(Odd), tracer: tracer, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Odd", Method: "Do", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return odd_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Odd", Method: "Do"})}
+			return odd_client_stub{stub: stub, doMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/collatz/Odd", Method: "Do", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return odd_server_stub{impl: impl.(Odd), addLoad: addLoad}
@@ -71,14 +74,18 @@ var _ weaver.Unrouted = (*odd)(nil)
 // Local stub implementations.
 
 type even_local_stub struct {
-	impl   Even
-	tracer trace.Tracer
+	impl      Even
+	tracer    trace.Tracer
+	doMetrics *codegen.MethodMetrics
 }
 
 // Check that even_local_stub implements the Even interface.
 var _ Even = (*even_local_stub)(nil)
 
 func (s even_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
+	// Update metrics.
+	begin := s.doMetrics.Begin()
+	defer func() { s.doMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -104,14 +111,18 @@ type main_local_stub struct {
 var _ weaver.Main = (*main_local_stub)(nil)
 
 type odd_local_stub struct {
-	impl   Odd
-	tracer trace.Tracer
+	impl      Odd
+	tracer    trace.Tracer
+	doMetrics *codegen.MethodMetrics
 }
 
 // Check that odd_local_stub implements the Odd interface.
 var _ Odd = (*odd_local_stub)(nil)
 
 func (s odd_local_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
+	// Update metrics.
+	begin := s.doMetrics.Begin()
+	defer func() { s.doMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -140,8 +151,9 @@ var _ Even = (*even_client_stub)(nil)
 
 func (s even_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.doMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.doMetrics.Begin()
+	defer func() { s.doMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -161,11 +173,9 @@ func (s even_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.doMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.doMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -179,14 +189,14 @@ func (s even_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.doMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.doMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -212,8 +222,9 @@ var _ Odd = (*odd_client_stub)(nil)
 
 func (s odd_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.doMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.doMetrics.Begin()
+	defer func() { s.doMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -233,11 +244,9 @@ func (s odd_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.doMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.doMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -251,14 +260,14 @@ func (s odd_client_stub) Do(ctx context.Context, a0 int) (r0 int, err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.doMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.doMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

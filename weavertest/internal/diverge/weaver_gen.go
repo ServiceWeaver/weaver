@@ -12,18 +12,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer",
-		Iface:       reflect.TypeOf((*Errer)(nil)).Elem(),
-		Impl:        reflect.TypeOf(errer{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return errer_local_stub{impl: impl.(Errer), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer",
+		Iface: reflect.TypeOf((*Errer)(nil)).Elem(),
+		Impl:  reflect.TypeOf(errer{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return errer_local_stub{impl: impl.(Errer), tracer: tracer, errMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer", Method: "Err", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return errer_client_stub{stub: stub, errMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer", Method: "Err"})}
+			return errer_client_stub{stub: stub, errMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Errer", Method: "Err", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return errer_server_stub{impl: impl.(Errer), addLoad: addLoad}
@@ -34,11 +35,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer",
 		Iface: reflect.TypeOf((*Pointer)(nil)).Elem(),
 		Impl:  reflect.TypeOf(pointer{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return pointer_local_stub{impl: impl.(Pointer), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return pointer_local_stub{impl: impl.(Pointer), tracer: tracer, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer", Method: "Get", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return pointer_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer", Method: "Get"})}
+			return pointer_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/diverge/Pointer", Method: "Get", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pointer_server_stub{impl: impl.(Pointer), addLoad: addLoad}
@@ -58,14 +59,18 @@ var _ weaver.Unrouted = (*pointer)(nil)
 // Local stub implementations.
 
 type errer_local_stub struct {
-	impl   Errer
-	tracer trace.Tracer
+	impl       Errer
+	tracer     trace.Tracer
+	errMetrics *codegen.MethodMetrics
 }
 
 // Check that errer_local_stub implements the Errer interface.
 var _ Errer = (*errer_local_stub)(nil)
 
 func (s errer_local_stub) Err(ctx context.Context, a0 int) (err error) {
+	// Update metrics.
+	begin := s.errMetrics.Begin()
+	defer func() { s.errMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -83,14 +88,18 @@ func (s errer_local_stub) Err(ctx context.Context, a0 int) (err error) {
 }
 
 type pointer_local_stub struct {
-	impl   Pointer
-	tracer trace.Tracer
+	impl       Pointer
+	tracer     trace.Tracer
+	getMetrics *codegen.MethodMetrics
 }
 
 // Check that pointer_local_stub implements the Pointer interface.
 var _ Pointer = (*pointer_local_stub)(nil)
 
 func (s pointer_local_stub) Get(ctx context.Context) (r0 Pair, err error) {
+	// Update metrics.
+	begin := s.getMetrics.Begin()
+	defer func() { s.getMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -119,8 +128,9 @@ var _ Errer = (*errer_client_stub)(nil)
 
 func (s errer_client_stub) Err(ctx context.Context, a0 int) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.errMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.errMetrics.Begin()
+	defer func() { s.errMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -140,11 +150,9 @@ func (s errer_client_stub) Err(ctx context.Context, a0 int) (err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.errMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.errMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -158,14 +166,14 @@ func (s errer_client_stub) Err(ctx context.Context, a0 int) (err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.errMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.errMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -183,8 +191,9 @@ var _ Pointer = (*pointer_client_stub)(nil)
 
 func (s pointer_client_stub) Get(ctx context.Context) (r0 Pair, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getMetrics.Begin()
+	defer func() { s.getMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -204,24 +213,21 @@ func (s pointer_client_stub) Get(ctx context.Context) (r0 Pair, err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getMetrics.BytesRequest.Put(0)
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, nil, shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

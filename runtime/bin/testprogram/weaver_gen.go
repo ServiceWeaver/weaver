@@ -14,11 +14,13 @@ var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A",
-		Iface:        reflect.TypeOf((*A)(nil)).Elem(),
-		Impl:         reflect.TypeOf(a{}),
-		Listeners:    []string{"aLis1", "aLis2", "aLis3"},
-		LocalStubFn:  func(impl any, tracer trace.Tracer) any { return a_local_stub{impl: impl.(A), tracer: tracer} },
+		Name:      "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A",
+		Iface:     reflect.TypeOf((*A)(nil)).Elem(),
+		Impl:      reflect.TypeOf(a{}),
+		Listeners: []string{"aLis1", "aLis2", "aLis3"},
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return a_local_stub{impl: impl.(A), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return a_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(A), addLoad: addLoad}
@@ -26,11 +28,13 @@ func init() {
 		RefData: "⟦193f6c94:wEaVeReDgE:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A→github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B⟧\n⟦8cd483a3:wEaVeReDgE:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A→github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C⟧\n⟦93cd9612:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A→aLis1,aLis2,aLis3⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B",
-		Iface:        reflect.TypeOf((*B)(nil)).Elem(),
-		Impl:         reflect.TypeOf(b{}),
-		Listeners:    []string{"Listener"},
-		LocalStubFn:  func(impl any, tracer trace.Tracer) any { return b_local_stub{impl: impl.(B), tracer: tracer} },
+		Name:      "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B",
+		Iface:     reflect.TypeOf((*B)(nil)).Elem(),
+		Impl:      reflect.TypeOf(b{}),
+		Listeners: []string{"Listener"},
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return b_local_stub{impl: impl.(B), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return b_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(B), addLoad: addLoad}
@@ -38,11 +42,13 @@ func init() {
 		RefData: "⟦7551e870:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B→Listener⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:         "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C",
-		Iface:        reflect.TypeOf((*C)(nil)).Elem(),
-		Impl:         reflect.TypeOf(c{}),
-		Listeners:    []string{"cLis"},
-		LocalStubFn:  func(impl any, tracer trace.Tracer) any { return c_local_stub{impl: impl.(C), tracer: tracer} },
+		Name:      "github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C",
+		Iface:     reflect.TypeOf((*C)(nil)).Elem(),
+		Impl:      reflect.TypeOf(c{}),
+		Listeners: []string{"cLis"},
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return c_local_stub{impl: impl.(C), tracer: tracer}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return c_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return c_server_stub{impl: impl.(C), addLoad: addLoad}
@@ -54,7 +60,7 @@ func init() {
 		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
 		Impl:      reflect.TypeOf(app{}),
 		Listeners: []string{"appLis"},
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },

@@ -14,18 +14,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T",
-		Iface:       reflect.TypeOf((*T)(nil)).Elem(),
-		Impl:        reflect.TypeOf(impl{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return t_local_stub{impl: impl.(T), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T",
+		Iface: reflect.TypeOf((*T)(nil)).Elem(),
+		Impl:  reflect.TypeOf(impl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return t_local_stub{impl: impl.(T), tracer: tracer, getQuoteMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "GetQuote", Remote: false}), shipOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "ShipOrder", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, getQuoteMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "GetQuote"}), shipOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "ShipOrder"})}
+			return t_client_stub{stub: stub, getQuoteMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "GetQuote", Remote: true}), shipOrderMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T", Method: "ShipOrder", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
@@ -43,14 +44,19 @@ var _ weaver.Unrouted = (*impl)(nil)
 // Local stub implementations.
 
 type t_local_stub struct {
-	impl   T
-	tracer trace.Tracer
+	impl             T
+	tracer           trace.Tracer
+	getQuoteMetrics  *codegen.MethodMetrics
+	shipOrderMetrics *codegen.MethodMetrics
 }
 
 // Check that t_local_stub implements the T interface.
 var _ T = (*t_local_stub)(nil)
 
 func (s t_local_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 money.T, err error) {
+	// Update metrics.
+	begin := s.getQuoteMetrics.Begin()
+	defer func() { s.getQuoteMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -68,6 +74,9 @@ func (s t_local_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice
 }
 
 func (s t_local_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 string, err error) {
+	// Update metrics.
+	begin := s.shipOrderMetrics.Begin()
+	defer func() { s.shipOrderMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -97,8 +106,9 @@ var _ T = (*t_client_stub)(nil)
 
 func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 money.T, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getQuoteMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getQuoteMetrics.Begin()
+	defer func() { s.getQuoteMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -118,11 +128,9 @@ func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservic
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getQuoteMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getQuoteMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -132,14 +140,14 @@ func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservic
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getQuoteMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getQuoteMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -150,8 +158,9 @@ func (s t_client_stub) GetQuote(ctx context.Context, a0 Address, a1 []cartservic
 
 func (s t_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservice.CartItem) (r0 string, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.shipOrderMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.shipOrderMetrics.Begin()
+	defer func() { s.shipOrderMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -171,11 +180,9 @@ func (s t_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservi
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.shipOrderMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.shipOrderMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -185,14 +192,14 @@ func (s t_client_stub) ShipOrder(ctx context.Context, a0 Address, a1 []cartservi
 	var shardKey uint64
 
 	// Call the remote method.
-	s.shipOrderMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.shipOrderMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

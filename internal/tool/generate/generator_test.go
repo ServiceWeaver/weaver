@@ -459,7 +459,7 @@ func TestExampleVersion(t *testing.T) {
 	got := fmt.Sprintf("%x", h.Sum(nil))
 
 	// If weaver_gen.go has changed, the codegen version may need updating.
-	const want = "b7b49b4f18514342edea9f1fbca422692b8f0f91c4258eb3b3ca45661b02e2c1"
+	const want = "986a14a9d781135207eafe3ed41448db62ba0c8e25c8a2bef28706bc83c41fe8"
 	if got != want {
 		t.Fatalf(`Unexpected SHA-256 hash of examples/weaver_gen.go: got %s, want %s. If this change is meaningful, REMEMBER TO UPDATE THE CODEGEN VERSION in runtime/version/version.go.`, got, want)
 	}

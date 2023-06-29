@@ -21,11 +21,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler",
 		Iface: reflect.TypeOf((*ImageScaler)(nil)).Elem(),
 		Impl:  reflect.TypeOf(scaler{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return imageScaler_local_stub{impl: impl.(ImageScaler), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return imageScaler_local_stub{impl: impl.(ImageScaler), tracer: tracer, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return imageScaler_client_stub{stub: stub, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale"})}
+			return imageScaler_client_stub{stub: stub, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return imageScaler_server_stub{impl: impl.(ImageScaler), addLoad: addLoad}
@@ -36,11 +36,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/examples/chat/LocalCache",
 		Iface: reflect.TypeOf((*LocalCache)(nil)).Elem(),
 		Impl:  reflect.TypeOf(localCache{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return localCache_local_stub{impl: impl.(LocalCache), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return localCache_local_stub{impl: impl.(LocalCache), tracer: tracer, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get", Remote: false}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return localCache_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get"}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put"})}
+			return localCache_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get", Remote: true}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return localCache_server_stub{impl: impl.(LocalCache), addLoad: addLoad}
@@ -52,7 +52,7 @@ func init() {
 		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
 		Impl:      reflect.TypeOf(server{}),
 		Listeners: []string{"chat"},
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
@@ -65,11 +65,11 @@ func init() {
 		Name:  "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
 		Iface: reflect.TypeOf((*SQLStore)(nil)).Elem(),
 		Impl:  reflect.TypeOf(sqlStore{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: false}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: false}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: false}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return sQLStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost"}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread"}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed"}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage"})}
+			return sQLStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: true}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: true}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: true}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return sQLStore_server_stub{impl: impl.(SQLStore), addLoad: addLoad}
@@ -93,14 +93,18 @@ var _ weaver.Unrouted = (*sqlStore)(nil)
 // Local stub implementations.
 
 type imageScaler_local_stub struct {
-	impl   ImageScaler
-	tracer trace.Tracer
+	impl         ImageScaler
+	tracer       trace.Tracer
+	scaleMetrics *codegen.MethodMetrics
 }
 
 // Check that imageScaler_local_stub implements the ImageScaler interface.
 var _ ImageScaler = (*imageScaler_local_stub)(nil)
 
 func (s imageScaler_local_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
+	// Update metrics.
+	begin := s.scaleMetrics.Begin()
+	defer func() { s.scaleMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -118,14 +122,19 @@ func (s imageScaler_local_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2
 }
 
 type localCache_local_stub struct {
-	impl   LocalCache
-	tracer trace.Tracer
+	impl       LocalCache
+	tracer     trace.Tracer
+	getMetrics *codegen.MethodMetrics
+	putMetrics *codegen.MethodMetrics
 }
 
 // Check that localCache_local_stub implements the LocalCache interface.
 var _ LocalCache = (*localCache_local_stub)(nil)
 
 func (s localCache_local_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
+	// Update metrics.
+	begin := s.getMetrics.Begin()
+	defer func() { s.getMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -143,6 +152,9 @@ func (s localCache_local_stub) Get(ctx context.Context, a0 string) (r0 string, e
 }
 
 func (s localCache_local_stub) Put(ctx context.Context, a0 string, a1 string) (err error) {
+	// Update metrics.
+	begin := s.putMetrics.Begin()
+	defer func() { s.putMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -168,14 +180,21 @@ type main_local_stub struct {
 var _ weaver.Main = (*main_local_stub)(nil)
 
 type sQLStore_local_stub struct {
-	impl   SQLStore
-	tracer trace.Tracer
+	impl                SQLStore
+	tracer              trace.Tracer
+	createPostMetrics   *codegen.MethodMetrics
+	createThreadMetrics *codegen.MethodMetrics
+	getFeedMetrics      *codegen.MethodMetrics
+	getImageMetrics     *codegen.MethodMetrics
 }
 
 // Check that sQLStore_local_stub implements the SQLStore interface.
 var _ SQLStore = (*sQLStore_local_stub)(nil)
 
 func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
+	// Update metrics.
+	begin := s.createPostMetrics.Begin()
+	defer func() { s.createPostMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -193,6 +212,9 @@ func (s sQLStore_local_stub) CreatePost(ctx context.Context, a0 string, a1 time.
 }
 
 func (s sQLStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
+	// Update metrics.
+	begin := s.createThreadMetrics.Begin()
+	defer func() { s.createThreadMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -210,6 +232,9 @@ func (s sQLStore_local_stub) CreateThread(ctx context.Context, a0 string, a1 tim
 }
 
 func (s sQLStore_local_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
+	// Update metrics.
+	begin := s.getFeedMetrics.Begin()
+	defer func() { s.getFeedMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -227,6 +252,9 @@ func (s sQLStore_local_stub) GetFeed(ctx context.Context, a0 string) (r0 []Threa
 }
 
 func (s sQLStore_local_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
+	// Update metrics.
+	begin := s.getImageMetrics.Begin()
+	defer func() { s.getImageMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -255,8 +283,9 @@ var _ ImageScaler = (*imageScaler_client_stub)(nil)
 
 func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.scaleMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.scaleMetrics.Begin()
+	defer func() { s.scaleMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -276,11 +305,9 @@ func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.scaleMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.scaleMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -298,14 +325,14 @@ func (s imageScaler_client_stub) Scale(ctx context.Context, a0 []byte, a1 int, a
 	var shardKey uint64
 
 	// Call the remote method.
-	s.scaleMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.scaleMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -325,8 +352,9 @@ var _ LocalCache = (*localCache_client_stub)(nil)
 
 func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getMetrics.Begin()
+	defer func() { s.getMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -346,11 +374,9 @@ func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, 
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -364,14 +390,14 @@ func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, 
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -382,8 +408,9 @@ func (s localCache_client_stub) Get(ctx context.Context, a0 string) (r0 string, 
 
 func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.putMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.putMetrics.Begin()
+	defer func() { s.putMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -403,11 +430,9 @@ func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.putMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.putMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -423,14 +448,14 @@ func (s localCache_client_stub) Put(ctx context.Context, a0 string, a1 string) (
 	var shardKey uint64
 
 	// Call the remote method.
-	s.putMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.putMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -458,8 +483,9 @@ var _ SQLStore = (*sQLStore_client_stub)(nil)
 
 func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.createPostMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.createPostMetrics.Begin()
+	defer func() { s.createPostMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -479,11 +505,9 @@ func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.createPostMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.createPostMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -495,14 +519,14 @@ func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time
 	var shardKey uint64
 
 	// Call the remote method.
-	s.createPostMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.createPostMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -512,8 +536,9 @@ func (s sQLStore_client_stub) CreatePost(ctx context.Context, a0 string, a1 time
 
 func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.createThreadMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.createThreadMetrics.Begin()
+	defer func() { s.createThreadMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -533,11 +558,9 @@ func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 ti
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.createThreadMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.createThreadMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -550,14 +573,14 @@ func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 ti
 	var shardKey uint64
 
 	// Call the remote method.
-	s.createThreadMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.createThreadMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -568,8 +591,9 @@ func (s sQLStore_client_stub) CreateThread(ctx context.Context, a0 string, a1 ti
 
 func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getFeedMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getFeedMetrics.Begin()
+	defer func() { s.getFeedMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -589,11 +613,9 @@ func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thre
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getFeedMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getFeedMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -607,14 +629,14 @@ func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thre
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getFeedMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getFeedMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -625,8 +647,9 @@ func (s sQLStore_client_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thre
 
 func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.getImageMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.getImageMetrics.Begin()
+	defer func() { s.getImageMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -646,11 +669,9 @@ func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageI
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.getImageMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.getImageMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -666,14 +687,14 @@ func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageI
 	var shardKey uint64
 
 	// Call the remote method.
-	s.getImageMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 3, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.getImageMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

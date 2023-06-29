@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
@@ -21,11 +20,11 @@ func init() {
 		Iface:  reflect.TypeOf((*Factorer)(nil)).Elem(),
 		Impl:   reflect.TypeOf(factorer{}),
 		Routed: true,
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
-			return factorer_local_stub{impl: impl.(Factorer), tracer: tracer}
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return factorer_local_stub{impl: impl.(Factorer), tracer: tracer, factorsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/factors/Factorer", Method: "Factors", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return factorer_client_stub{stub: stub, factorsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/factors/Factorer", Method: "Factors"})}
+			return factorer_client_stub{stub: stub, factorsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/factors/Factorer", Method: "Factors", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return factorer_server_stub{impl: impl.(Factorer), addLoad: addLoad}
@@ -37,7 +36,7 @@ func init() {
 		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
 		Impl:      reflect.TypeOf(server{}),
 		Listeners: []string{"factors"},
-		LocalStubFn: func(impl any, tracer trace.Tracer) any {
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
@@ -62,14 +61,18 @@ var _ func(_ context.Context, x int) int = (&router{}).Factors // routed
 // Local stub implementations.
 
 type factorer_local_stub struct {
-	impl   Factorer
-	tracer trace.Tracer
+	impl           Factorer
+	tracer         trace.Tracer
+	factorsMetrics *codegen.MethodMetrics
 }
 
 // Check that factorer_local_stub implements the Factorer interface.
 var _ Factorer = (*factorer_local_stub)(nil)
 
 func (s factorer_local_stub) Factors(ctx context.Context, a0 int) (r0 []int, err error) {
+	// Update metrics.
+	begin := s.factorsMetrics.Begin()
+	defer func() { s.factorsMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -106,8 +109,9 @@ var _ Factorer = (*factorer_client_stub)(nil)
 
 func (s factorer_client_stub) Factors(ctx context.Context, a0 int) (r0 []int, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.factorsMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.factorsMetrics.Begin()
+	defer func() { s.factorsMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -127,11 +131,9 @@ func (s factorer_client_stub) Factors(ctx context.Context, a0 int) (r0 []int, er
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.factorsMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.factorsMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -148,14 +150,14 @@ func (s factorer_client_stub) Factors(ctx context.Context, a0 int) (r0 []int, er
 	shardKey := _hashFactorer(r.Factors(ctx, a0))
 
 	// Call the remote method.
-	s.factorsMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.factorsMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

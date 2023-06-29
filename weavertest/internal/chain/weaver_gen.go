@@ -11,18 +11,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A",
-		Iface:       reflect.TypeOf((*A)(nil)).Elem(),
-		Impl:        reflect.TypeOf(a{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return a_local_stub{impl: impl.(A), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A",
+		Iface: reflect.TypeOf((*A)(nil)).Elem(),
+		Impl:  reflect.TypeOf(a{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return a_local_stub{impl: impl.(A), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return a_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate"})}
+			return a_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(A), addLoad: addLoad}
@@ -30,12 +31,14 @@ func init() {
 		RefData: "⟦d3d93f6e:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/chain/A→github.com/ServiceWeaver/weaver/weavertest/internal/chain/B⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B",
-		Iface:       reflect.TypeOf((*B)(nil)).Elem(),
-		Impl:        reflect.TypeOf(b{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return b_local_stub{impl: impl.(B), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B",
+		Iface: reflect.TypeOf((*B)(nil)).Elem(),
+		Impl:  reflect.TypeOf(b{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return b_local_stub{impl: impl.(B), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return b_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate"})}
+			return b_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(B), addLoad: addLoad}
@@ -43,12 +46,14 @@ func init() {
 		RefData: "⟦08d612ad:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/chain/B→github.com/ServiceWeaver/weaver/weavertest/internal/chain/C⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C",
-		Iface:       reflect.TypeOf((*C)(nil)).Elem(),
-		Impl:        reflect.TypeOf(c{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return c_local_stub{impl: impl.(C), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C",
+		Iface: reflect.TypeOf((*C)(nil)).Elem(),
+		Impl:  reflect.TypeOf(c{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return c_local_stub{impl: impl.(C), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return c_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate"})}
+			return c_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return c_server_stub{impl: impl.(C), addLoad: addLoad}
@@ -70,14 +75,18 @@ var _ weaver.Unrouted = (*c)(nil)
 // Local stub implementations.
 
 type a_local_stub struct {
-	impl   A
-	tracer trace.Tracer
+	impl             A
+	tracer           trace.Tracer
+	propagateMetrics *codegen.MethodMetrics
 }
 
 // Check that a_local_stub implements the A interface.
 var _ A = (*a_local_stub)(nil)
 
 func (s a_local_stub) Propagate(ctx context.Context, a0 int) (err error) {
+	// Update metrics.
+	begin := s.propagateMetrics.Begin()
+	defer func() { s.propagateMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -95,14 +104,18 @@ func (s a_local_stub) Propagate(ctx context.Context, a0 int) (err error) {
 }
 
 type b_local_stub struct {
-	impl   B
-	tracer trace.Tracer
+	impl             B
+	tracer           trace.Tracer
+	propagateMetrics *codegen.MethodMetrics
 }
 
 // Check that b_local_stub implements the B interface.
 var _ B = (*b_local_stub)(nil)
 
 func (s b_local_stub) Propagate(ctx context.Context, a0 int) (err error) {
+	// Update metrics.
+	begin := s.propagateMetrics.Begin()
+	defer func() { s.propagateMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -120,14 +133,18 @@ func (s b_local_stub) Propagate(ctx context.Context, a0 int) (err error) {
 }
 
 type c_local_stub struct {
-	impl   C
-	tracer trace.Tracer
+	impl             C
+	tracer           trace.Tracer
+	propagateMetrics *codegen.MethodMetrics
 }
 
 // Check that c_local_stub implements the C interface.
 var _ C = (*c_local_stub)(nil)
 
 func (s c_local_stub) Propagate(ctx context.Context, a0 int) (err error) {
+	// Update metrics.
+	begin := s.propagateMetrics.Begin()
+	defer func() { s.propagateMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -156,8 +173,9 @@ var _ A = (*a_client_stub)(nil)
 
 func (s a_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.propagateMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.propagateMetrics.Begin()
+	defer func() { s.propagateMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -177,11 +195,9 @@ func (s a_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.propagateMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.propagateMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -195,14 +211,14 @@ func (s a_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.propagateMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.propagateMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -220,8 +236,9 @@ var _ B = (*b_client_stub)(nil)
 
 func (s b_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.propagateMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.propagateMetrics.Begin()
+	defer func() { s.propagateMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -241,11 +258,9 @@ func (s b_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.propagateMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.propagateMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -259,14 +274,14 @@ func (s b_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.propagateMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.propagateMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -284,8 +299,9 @@ var _ C = (*c_client_stub)(nil)
 
 func (s c_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 	// Update metrics.
-	start := time.Now()
-	s.propagateMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.propagateMetrics.Begin()
+	defer func() { s.propagateMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -305,11 +321,9 @@ func (s c_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.propagateMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.propagateMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -323,14 +337,14 @@ func (s c_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 	var shardKey uint64
 
 	// Call the remote method.
-	s.propagateMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.propagateMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

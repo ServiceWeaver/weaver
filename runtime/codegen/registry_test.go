@@ -123,7 +123,7 @@ func register[Intf, Impl any](name string) {
 		Name:         name,
 		Iface:        reflection.Type[Intf](),
 		Impl:         reflect.TypeOf(zero),
-		LocalStubFn:  func(any, trace.Tracer) any { return nil },
+		LocalStubFn:  func(any, string, trace.Tracer) any { return nil },
 		ClientStubFn: func(codegen.Stub, string) any { return nil },
 		ServerStubFn: func(any, func(uint64, float64)) codegen.Server { return nil },
 	})

@@ -14,7 +14,11 @@
 
 package codegen
 
-import "github.com/ServiceWeaver/weaver/metrics"
+import (
+	"time"
+
+	"github.com/ServiceWeaver/weaver/metrics"
+)
 
 var (
 	// The following metrics are automatically populated for the user.
@@ -22,25 +26,25 @@ var (
 	// TODO(mwhittaker): Allow the user to disable these metrics.
 	// It adds ~169ns of latency per method call.
 	MethodCounts = metrics.NewCounterMap[MethodLabels](
-		"serviceweaver_remote_method_count",
+		"serviceweaver_method_count",
 		"Count of Service Weaver component method invocations",
 	)
 	MethodErrors = metrics.NewCounterMap[MethodLabels](
-		"serviceweaver_remote_method_error_count",
+		"serviceweaver_method_error_count",
 		"Count of Service Weaver component method invocations that result in an error",
 	)
 	MethodLatencies = metrics.NewHistogramMap[MethodLabels](
-		"serviceweaver_remote_method_latency_micros",
+		"serviceweaver_method_latency_micros",
 		"Duration, in microseconds, of Service Weaver component method execution",
 		metrics.NonNegativeBuckets,
 	)
 	MethodBytesRequest = metrics.NewHistogramMap[MethodLabels](
-		"serviceweaver_remote_method_bytes_request",
+		"serviceweaver_method_bytes_request",
 		"Number of bytes in Service Weaver component method requests",
 		metrics.NonNegativeBuckets,
 	)
 	MethodBytesReply = metrics.NewHistogramMap[MethodLabels](
-		"serviceweaver_remote_method_bytes_reply",
+		"serviceweaver_method_bytes_reply",
 		"Number of bytes in Service Weaver component method replies",
 		metrics.NonNegativeBuckets,
 	)
@@ -50,10 +54,12 @@ type MethodLabels struct {
 	Caller    string // full calling component name
 	Component string // full callee component name
 	Method    string // callee component method's name
+	Remote    bool   // Is this a remote call?
 }
 
 // MethodMetrics contains metrics for a single Service Weaver component method.
 type MethodMetrics struct {
+	remote       bool
 	Count        *metrics.Counter   // See MethodCounts.
 	ErrorCount   *metrics.Counter   // See MethodErrors.
 	Latency      *metrics.Histogram // See MethodLatencies.
@@ -64,10 +70,36 @@ type MethodMetrics struct {
 // MethodMetricsFor returns metrics for the specified method.
 func MethodMetricsFor(labels MethodLabels) *MethodMetrics {
 	return &MethodMetrics{
+		remote:       labels.Remote,
 		Count:        MethodCounts.Get(labels),
 		ErrorCount:   MethodErrors.Get(labels),
 		Latency:      MethodLatencies.Get(labels),
 		BytesRequest: MethodBytesRequest.Get(labels),
 		BytesReply:   MethodBytesReply.Get(labels),
+	}
+}
+
+// MethodCallHandle holds information needed to finalize metric
+// updates for a method call.
+type MethodCallHandle struct {
+	start int64 // Microsecond timestamp
+}
+
+// Begin starts metric update recording for a call to method m.
+func (m *MethodMetrics) Begin() MethodCallHandle {
+	return MethodCallHandle{time.Now().UnixMicro()}
+}
+
+// End ends metric update recording for a call to method m.
+func (m *MethodMetrics) End(h MethodCallHandle, failed bool, requestBytes, replyBytes int) {
+	latency := time.Now().UnixMicro() - h.start
+	m.Count.Add(1)
+	if failed {
+		m.ErrorCount.Add(1)
+	}
+	m.Latency.Put(float64(latency))
+	if m.remote {
+		m.BytesRequest.Put(float64(requestBytes))
+		m.BytesReply.Put(float64(replyBytes))
 	}
 }

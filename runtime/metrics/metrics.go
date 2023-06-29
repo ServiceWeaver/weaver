@@ -24,10 +24,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 var (

@@ -12,18 +12,19 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
-	"time"
 )
 var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1",
-		Iface:       reflect.TypeOf((*Ping1)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping1{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping1_local_stub{impl: impl.(Ping1), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1",
+		Iface: reflect.TypeOf((*Ping1)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping1{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping1_local_stub{impl: impl.(Ping1), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping1_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingS"})}
+			return ping1_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping1_server_stub{impl: impl.(Ping1), addLoad: addLoad}
@@ -31,12 +32,14 @@ func init() {
 		RefData: "⟦544443c5:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10",
-		Iface:       reflect.TypeOf((*Ping10)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping10{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping10_local_stub{impl: impl.(Ping10), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10",
+		Iface: reflect.TypeOf((*Ping10)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping10{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping10_local_stub{impl: impl.(Ping10), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping10_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingS"})}
+			return ping10_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping10_server_stub{impl: impl.(Ping10), addLoad: addLoad}
@@ -44,12 +47,14 @@ func init() {
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2",
-		Iface:       reflect.TypeOf((*Ping2)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping2{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping2_local_stub{impl: impl.(Ping2), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2",
+		Iface: reflect.TypeOf((*Ping2)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping2{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping2_local_stub{impl: impl.(Ping2), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping2_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingS"})}
+			return ping2_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping2_server_stub{impl: impl.(Ping2), addLoad: addLoad}
@@ -57,12 +62,14 @@ func init() {
 		RefData: "⟦b42b173c:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3",
-		Iface:       reflect.TypeOf((*Ping3)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping3{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping3_local_stub{impl: impl.(Ping3), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3",
+		Iface: reflect.TypeOf((*Ping3)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping3{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping3_local_stub{impl: impl.(Ping3), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping3_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingS"})}
+			return ping3_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping3_server_stub{impl: impl.(Ping3), addLoad: addLoad}
@@ -70,12 +77,14 @@ func init() {
 		RefData: "⟦8c498b47:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4",
-		Iface:       reflect.TypeOf((*Ping4)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping4{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping4_local_stub{impl: impl.(Ping4), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4",
+		Iface: reflect.TypeOf((*Ping4)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping4{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping4_local_stub{impl: impl.(Ping4), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping4_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingS"})}
+			return ping4_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping4_server_stub{impl: impl.(Ping4), addLoad: addLoad}
@@ -83,12 +92,14 @@ func init() {
 		RefData: "⟦90669915:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5",
-		Iface:       reflect.TypeOf((*Ping5)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping5{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping5_local_stub{impl: impl.(Ping5), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5",
+		Iface: reflect.TypeOf((*Ping5)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping5{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping5_local_stub{impl: impl.(Ping5), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping5_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingS"})}
+			return ping5_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping5_server_stub{impl: impl.(Ping5), addLoad: addLoad}
@@ -96,12 +107,14 @@ func init() {
 		RefData: "⟦a38d1914:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6",
-		Iface:       reflect.TypeOf((*Ping6)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping6{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping6_local_stub{impl: impl.(Ping6), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6",
+		Iface: reflect.TypeOf((*Ping6)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping6{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping6_local_stub{impl: impl.(Ping6), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping6_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingS"})}
+			return ping6_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping6_server_stub{impl: impl.(Ping6), addLoad: addLoad}
@@ -109,12 +122,14 @@ func init() {
 		RefData: "⟦ebf8b6d3:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7",
-		Iface:       reflect.TypeOf((*Ping7)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping7{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping7_local_stub{impl: impl.(Ping7), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7",
+		Iface: reflect.TypeOf((*Ping7)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping7{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping7_local_stub{impl: impl.(Ping7), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping7_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingS"})}
+			return ping7_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping7_server_stub{impl: impl.(Ping7), addLoad: addLoad}
@@ -122,12 +137,14 @@ func init() {
 		RefData: "⟦88d68418:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8",
-		Iface:       reflect.TypeOf((*Ping8)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping8{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping8_local_stub{impl: impl.(Ping8), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8",
+		Iface: reflect.TypeOf((*Ping8)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping8{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping8_local_stub{impl: impl.(Ping8), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping8_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingS"})}
+			return ping8_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping8_server_stub{impl: impl.(Ping8), addLoad: addLoad}
@@ -135,12 +152,14 @@ func init() {
 		RefData: "⟦ed98271d:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:        "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9",
-		Iface:       reflect.TypeOf((*Ping9)(nil)).Elem(),
-		Impl:        reflect.TypeOf(ping9{}),
-		LocalStubFn: func(impl any, tracer trace.Tracer) any { return ping9_local_stub{impl: impl.(Ping9), tracer: tracer} },
+		Name:  "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9",
+		Iface: reflect.TypeOf((*Ping9)(nil)).Elem(),
+		Impl:  reflect.TypeOf(ping9{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return ping9_local_stub{impl: impl.(Ping9), tracer: tracer, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingC", Remote: false}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingS", Remote: false})}
+		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return ping9_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingC"}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingS"})}
+			return ping9_client_stub{stub: stub, pingCMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingC", Remote: true}), pingSMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9", Method: "PingS", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping9_server_stub{impl: impl.(Ping9), addLoad: addLoad}
@@ -176,14 +195,19 @@ var _ weaver.Unrouted = (*ping9)(nil)
 // Local stub implementations.
 
 type ping1_local_stub struct {
-	impl   Ping1
-	tracer trace.Tracer
+	impl         Ping1
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping1_local_stub implements the Ping1 interface.
 var _ Ping1 = (*ping1_local_stub)(nil)
 
 func (s ping1_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -201,6 +225,9 @@ func (s ping1_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping1_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -218,14 +245,19 @@ func (s ping1_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping10_local_stub struct {
-	impl   Ping10
-	tracer trace.Tracer
+	impl         Ping10
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping10_local_stub implements the Ping10 interface.
 var _ Ping10 = (*ping10_local_stub)(nil)
 
 func (s ping10_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -243,6 +275,9 @@ func (s ping10_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 }
 
 func (s ping10_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -260,14 +295,19 @@ func (s ping10_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 }
 
 type ping2_local_stub struct {
-	impl   Ping2
-	tracer trace.Tracer
+	impl         Ping2
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping2_local_stub implements the Ping2 interface.
 var _ Ping2 = (*ping2_local_stub)(nil)
 
 func (s ping2_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -285,6 +325,9 @@ func (s ping2_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping2_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -302,14 +345,19 @@ func (s ping2_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping3_local_stub struct {
-	impl   Ping3
-	tracer trace.Tracer
+	impl         Ping3
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping3_local_stub implements the Ping3 interface.
 var _ Ping3 = (*ping3_local_stub)(nil)
 
 func (s ping3_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -327,6 +375,9 @@ func (s ping3_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping3_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -344,14 +395,19 @@ func (s ping3_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping4_local_stub struct {
-	impl   Ping4
-	tracer trace.Tracer
+	impl         Ping4
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping4_local_stub implements the Ping4 interface.
 var _ Ping4 = (*ping4_local_stub)(nil)
 
 func (s ping4_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -369,6 +425,9 @@ func (s ping4_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping4_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -386,14 +445,19 @@ func (s ping4_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping5_local_stub struct {
-	impl   Ping5
-	tracer trace.Tracer
+	impl         Ping5
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping5_local_stub implements the Ping5 interface.
 var _ Ping5 = (*ping5_local_stub)(nil)
 
 func (s ping5_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -411,6 +475,9 @@ func (s ping5_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping5_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -428,14 +495,19 @@ func (s ping5_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping6_local_stub struct {
-	impl   Ping6
-	tracer trace.Tracer
+	impl         Ping6
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping6_local_stub implements the Ping6 interface.
 var _ Ping6 = (*ping6_local_stub)(nil)
 
 func (s ping6_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -453,6 +525,9 @@ func (s ping6_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping6_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -470,14 +545,19 @@ func (s ping6_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping7_local_stub struct {
-	impl   Ping7
-	tracer trace.Tracer
+	impl         Ping7
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping7_local_stub implements the Ping7 interface.
 var _ Ping7 = (*ping7_local_stub)(nil)
 
 func (s ping7_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -495,6 +575,9 @@ func (s ping7_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping7_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -512,14 +595,19 @@ func (s ping7_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping8_local_stub struct {
-	impl   Ping8
-	tracer trace.Tracer
+	impl         Ping8
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping8_local_stub implements the Ping8 interface.
 var _ Ping8 = (*ping8_local_stub)(nil)
 
 func (s ping8_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -537,6 +625,9 @@ func (s ping8_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping8_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -554,14 +645,19 @@ func (s ping8_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 pa
 }
 
 type ping9_local_stub struct {
-	impl   Ping9
-	tracer trace.Tracer
+	impl         Ping9
+	tracer       trace.Tracer
+	pingCMetrics *codegen.MethodMetrics
+	pingSMetrics *codegen.MethodMetrics
 }
 
 // Check that ping9_local_stub implements the Ping9 interface.
 var _ Ping9 = (*ping9_local_stub)(nil)
 
 func (s ping9_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	// Update metrics.
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -579,6 +675,9 @@ func (s ping9_local_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 pa
 }
 
 func (s ping9_local_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	// Update metrics.
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
@@ -608,8 +707,9 @@ var _ Ping1 = (*ping1_client_stub)(nil)
 
 func (s ping1_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -629,11 +729,9 @@ func (s ping1_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -649,14 +747,14 @@ func (s ping1_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -667,8 +765,9 @@ func (s ping1_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping1_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -688,11 +787,9 @@ func (s ping1_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -702,14 +799,14 @@ func (s ping1_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -729,8 +826,9 @@ var _ Ping10 = (*ping10_client_stub)(nil)
 
 func (s ping10_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -750,11 +848,9 @@ func (s ping10_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -770,14 +866,14 @@ func (s ping10_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -788,8 +884,9 @@ func (s ping10_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 
 
 func (s ping10_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -809,11 +906,9 @@ func (s ping10_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -823,14 +918,14 @@ func (s ping10_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -850,8 +945,9 @@ var _ Ping2 = (*ping2_client_stub)(nil)
 
 func (s ping2_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -871,11 +967,9 @@ func (s ping2_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -891,14 +985,14 @@ func (s ping2_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -909,8 +1003,9 @@ func (s ping2_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping2_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -930,11 +1025,9 @@ func (s ping2_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -944,14 +1037,14 @@ func (s ping2_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -971,8 +1064,9 @@ var _ Ping3 = (*ping3_client_stub)(nil)
 
 func (s ping3_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -992,11 +1086,9 @@ func (s ping3_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1012,14 +1104,14 @@ func (s ping3_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1030,8 +1122,9 @@ func (s ping3_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping3_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1051,11 +1144,9 @@ func (s ping3_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1065,14 +1156,14 @@ func (s ping3_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1092,8 +1183,9 @@ var _ Ping4 = (*ping4_client_stub)(nil)
 
 func (s ping4_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1113,11 +1205,9 @@ func (s ping4_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1133,14 +1223,14 @@ func (s ping4_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1151,8 +1241,9 @@ func (s ping4_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping4_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1172,11 +1263,9 @@ func (s ping4_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1186,14 +1275,14 @@ func (s ping4_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1213,8 +1302,9 @@ var _ Ping5 = (*ping5_client_stub)(nil)
 
 func (s ping5_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1234,11 +1324,9 @@ func (s ping5_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1254,14 +1342,14 @@ func (s ping5_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1272,8 +1360,9 @@ func (s ping5_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping5_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1293,11 +1382,9 @@ func (s ping5_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1307,14 +1394,14 @@ func (s ping5_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1334,8 +1421,9 @@ var _ Ping6 = (*ping6_client_stub)(nil)
 
 func (s ping6_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1355,11 +1443,9 @@ func (s ping6_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1375,14 +1461,14 @@ func (s ping6_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1393,8 +1479,9 @@ func (s ping6_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping6_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1414,11 +1501,9 @@ func (s ping6_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1428,14 +1513,14 @@ func (s ping6_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1455,8 +1540,9 @@ var _ Ping7 = (*ping7_client_stub)(nil)
 
 func (s ping7_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1476,11 +1562,9 @@ func (s ping7_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1496,14 +1580,14 @@ func (s ping7_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1514,8 +1598,9 @@ func (s ping7_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping7_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1535,11 +1620,9 @@ func (s ping7_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1549,14 +1632,14 @@ func (s ping7_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1576,8 +1659,9 @@ var _ Ping8 = (*ping8_client_stub)(nil)
 
 func (s ping8_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1597,11 +1681,9 @@ func (s ping8_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1617,14 +1699,14 @@ func (s ping8_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1635,8 +1717,9 @@ func (s ping8_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping8_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1656,11 +1739,9 @@ func (s ping8_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1670,14 +1751,14 @@ func (s ping8_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1697,8 +1778,9 @@ var _ Ping9 = (*ping9_client_stub)(nil)
 
 func (s ping9_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingCMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingCMetrics.Begin()
+	defer func() { s.pingCMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1718,11 +1800,9 @@ func (s ping9_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingCMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingCMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Preallocate a buffer of the right size.
@@ -1738,14 +1818,14 @@ func (s ping9_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingCMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingCMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
@@ -1756,8 +1836,9 @@ func (s ping9_client_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 p
 
 func (s ping9_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
 	// Update metrics.
-	start := time.Now()
-	s.pingSMetrics.Count.Add(1)
+	var requestBytes, replyBytes int
+	begin := s.pingSMetrics.Begin()
+	defer func() { s.pingSMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
@@ -1777,11 +1858,9 @@ func (s ping9_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			s.pingSMetrics.ErrorCount.Add(1)
 		}
 		span.End()
 
-		s.pingSMetrics.Latency.Put(float64(time.Since(start).Microseconds()))
 	}()
 
 	// Encode arguments.
@@ -1791,14 +1870,14 @@ func (s ping9_client_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 p
 	var shardKey uint64
 
 	// Call the remote method.
-	s.pingSMetrics.BytesRequest.Put(float64(len(enc.Data())))
+	requestBytes = len(enc.Data())
 	var results []byte
 	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
 		return
 	}
-	s.pingSMetrics.BytesReply.Put(float64(len(results)))
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)

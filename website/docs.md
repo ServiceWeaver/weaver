@@ -1037,24 +1037,21 @@ type labels struct {
 
 ## Auto-Generated Metrics
 
-Service Weaver automatically creates and maintains the following set of metrics, which
-measure the count, latency, and chattiness of every remote component method
+Service Weaver automatically creates and maintains the following set of metrics,
+which measure the count, latency, and chattiness of every component method
 invocation. Every metric is labeled by the calling component as well as the
-invoked component and method.
+invoked component and method, and whether or not the call was local or remote.
 
--   `serviceweaver_remote_method_count`: Count of Service Weaver component
+-   `serviceweaver_method_count`: Count of Service Weaver component
     method invocations.
--   `serviceweaver_remote_method_error_count`: Count of Service Weaver component
+-   `serviceweaver_method_error_count`: Count of Service Weaver component
     method invocations that result in an error.
--   `serviceweaver_remote_method_latency_micros`: Duration, in microseconds, of
+-   `serviceweaver_method_latency_micros`: Duration, in microseconds, of
     Service Weaver component method execution.
--   `serviceweaver_remote_method_bytes_request`: Number of bytes in Service
-    Weaver component method requests.
--   `serviceweaver_remote_method_bytes_reply`: Number of bytes in Service Weaver
-    component method replies.
-
-**Note**: These metrics only measure *remote* method calls. Local method calls,
-like those between two co-located components, are not measured.
+-   `serviceweaver_method_bytes_request`: Number of bytes in Service
+    Weaver remote component method requests.
+-   `serviceweaver_method_bytes_reply`: Number of bytes in Service Weaver
+    remote component method replies.
 
 ## HTTP Metrics
 
