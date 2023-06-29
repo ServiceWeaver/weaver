@@ -29,19 +29,19 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
-// deployerVersion exists to embed the deployer API version into a Service
-// Weaver binary. We split declaring and assigning version to prevent the
-// compiler from erasing it.
+// versionData exists to embed the weaver module version and deployer API
+// version into a Service Weaver binary. We split declaring and assigning
+// versionData to prevent the compiler from erasing it.
 //
 //nolint:unused
-var deployerVersion string
+var versionData string
 
 func init() {
-	// NOTE that deployerVersion must be assigned a string constant that
-	// reflects the values of version.DeployerMajor and version.DeployerMinor.
-	// If the string is not a constant---if we try to use fmt.Sprintf, for
+	// NOTE that versionData must be assigned a string constant that reflects
+	// the values of version.ModuleVersion and version.DeployerVersion. If the
+	// string is not a constant---if we try to use fmt.Sprintf, for
 	// example---it will not be embedded in a Service Weaver binary.
-	deployerVersion = "⟦wEaVeRdEpLoYeRvErSiOn:v0.14.0⟧"
+	versionData = "⟦wEaVeRvErSiOn:module=v0.17.0;deployer=v0.14.0⟧"
 }
 
 // rodata returns the read-only data section of the provided binary.
@@ -112,37 +112,49 @@ func ReadListeners(file string) ([]codegen.ComponentListeners, error) {
 	return codegen.ExtractListeners(data), nil
 }
 
-// ReadDeployerVersion reads the deployer API version from the specified binary.
-func ReadDeployerVersion(filename string) (version.SemVer, error) {
-	data, err := rodata(filename)
-	if err != nil {
-		return version.SemVer{}, err
-	}
-	return extractDeployerVersion(data)
+type Versions struct {
+	ModuleVersion   version.SemVer // see version.ModuleVersion
+	DeployerVersion version.SemVer // see version.DeployerVersion
 }
 
-// extractDeployerVersion returns the deployer API version embedded in data.
-func extractDeployerVersion(data []byte) (version.SemVer, error) {
-	re := regexp.MustCompile(`⟦wEaVeRdEpLoYeRvErSiOn:v([0-9]*?)\.([0-9]*?)\.([0-9]*?)⟧`)
+// ReadVersions reads the module version and deployer API version from the
+// specified binary.
+func ReadVersions(filename string) (Versions, error) {
+	data, err := rodata(filename)
+	if err != nil {
+		return Versions{}, err
+	}
+	return extractVersions(data)
+}
+
+// extractVersions returns the module version and deployer API version embedded
+// in data.
+func extractVersions(data []byte) (Versions, error) {
+	re := regexp.MustCompile(`⟦wEaVeRvErSiOn:module=v([0-9]*?)\.([0-9]*?)\.([0-9]*?);deployer=v([0-9]*?)\.([0-9]*?)\.([0-9]*?)⟧`)
 	m := re.FindSubmatch(data)
 	if m == nil {
-		return version.SemVer{}, fmt.Errorf("embedded deployer API version not found")
+		return Versions{}, fmt.Errorf("embedded versions not found")
 	}
-	major, minor, patch := string(m[1]), string(m[2]), string(m[3])
 
-	v := version.SemVer{}
-	var err error
-	v.Major, err = strconv.Atoi(major)
-	if err != nil {
-		return version.SemVer{}, fmt.Errorf("invalid embedded deployer API major %q: %w", major, err)
-	}
-	v.Minor, err = strconv.Atoi(minor)
-	if err != nil {
-		return version.SemVer{}, fmt.Errorf("invalid embedded deployer API minor %q: %w", minor, err)
-	}
-	v.Patch, err = strconv.Atoi(patch)
-	if err != nil {
-		return version.SemVer{}, fmt.Errorf("invalid embedded deployer API patch %q: %w", patch, err)
+	v := Versions{}
+	for _, segment := range []struct {
+		name string
+		data []byte
+		dst  *int
+	}{
+		{"module major version", m[1], &v.ModuleVersion.Major},
+		{"module minor version", m[2], &v.ModuleVersion.Minor},
+		{"module patch version", m[3], &v.ModuleVersion.Patch},
+		{"deployer major version", m[4], &v.DeployerVersion.Major},
+		{"deployer minor version", m[5], &v.DeployerVersion.Minor},
+		{"deployer patch version", m[6], &v.DeployerVersion.Patch},
+	} {
+		s := string(segment.data)
+		x, err := strconv.Atoi(s)
+		if err != nil {
+			return Versions{}, fmt.Errorf("invalid embedded %s %q: %w", segment.name, s, err)
+		}
+		*segment.dst = x
 	}
 	return v, nil
 }
