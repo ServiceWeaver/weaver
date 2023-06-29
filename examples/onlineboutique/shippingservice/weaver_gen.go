@@ -15,7 +15,26 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"reflect"
 )
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}]("You used 'weaver generate' codegen version 0.17.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.")
+
+var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+
+ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
+version v0.17.0). The generated code is incompatible with the version of the
+github.com/ServiceWeaver/weaver module that you're using. The weaver module
+version can be found in your go.mod file or by running the following command.
+
+    go list -m github.com/ServiceWeaver/weaver
+
+We recommend updating the weaver module and the 'weaver generate' command by
+running the following.
+
+    go get github.com/ServiceWeaver/weaver@latest
+    go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
+
+Then, re-run 'weaver generate' and re-build your code. If the problem persists,
+please file an issue at https://github.com/ServiceWeaver/weaver/issues.
+
+`)
 
 func init() {
 	codegen.Register(codegen.Registration{

@@ -927,10 +927,30 @@ func (g *generator) generateVersionCheck(p printFn) {
 	// Example output when 'weaver generate' has codegen API version 0.1.0:
 	//
 	//     var _ codegen.LatestVersion = codegen.Version[[0][1]struct{}]("You used ...")
-	p(`var _ %s = %s[[%d][%d]struct{}](%q)`,
+	p(``)
+	p(`var _ %s = %s[[%d][%d]struct{}](%s)`,
 		g.codegen().qualify("LatestVersion"), g.codegen().qualify("Version"),
 		version.CodegenMajor, version.CodegenMinor,
-		fmt.Sprintf(`You used 'weaver generate' codegen version %d.%d.0, but you built your code with an incompatible weaver module version. Try upgrading 'weaver generate' and re-running it.`, version.CodegenMajor, version.CodegenMinor),
+
+		fmt.Sprintf("`"+`
+
+ERROR: You generated this file with 'weaver generate' %s (codegen
+version %s). The generated code is incompatible with the version of the
+github.com/ServiceWeaver/weaver module that you're using. The weaver module
+version can be found in your go.mod file or by running the following command.
+
+    go list -m github.com/ServiceWeaver/weaver
+
+We recommend updating the weaver module and the 'weaver generate' command by
+running the following.
+
+    go get github.com/ServiceWeaver/weaver@latest
+    go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
+
+Then, re-run 'weaver generate' and re-build your code. If the problem persists,
+please file an issue at https://github.com/ServiceWeaver/weaver/issues.
+
+`+"`", version.ModuleVersion, version.CodegenVersion),
 	)
 }
 
