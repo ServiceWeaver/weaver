@@ -12,90 +12,72 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package version contains code related to deployer API versioning.
+// Package version contains the version of the weaver module and its
+// constituent APIs (e.g., the pipe API, the codegen API).
 package version
 
 import (
 	"fmt"
-	"regexp"
-	"strconv"
-
-	"github.com/ServiceWeaver/weaver/runtime/bin"
 )
 
+// TODO(mwhittaker): Write a doc explaining versioning in detail. Include
+// Srdjan's comments in PR #219.
+
 const (
-	// The version of the deployer API---aka pipe API---in semantic version
-	// format (Major.Minor.Patch).
+	// The weaver module semantic version [1].
 	//
-	// Every time we make a change to deployer API, we assign it a new version.
-	// When an envelope spawns a weavelet, the weavelet reports this version to
-	// the envelope. The envelope then errors out if it is not compatible with
-	// the reported version.
+	// [1]: https://go.dev/doc/modules/version-numbers
+	ModuleMajor = 0
+	ModuleMinor = 17
+	ModulePatch = 0
+
+	// Note that there is currently no way to programmatically get the version
+	// of the current module [1], so we have to manually update the module
+	// version here whenever we release a new version.
 	//
-	// We could assign the deployer API versions v1, v2, v3, and so on.
-	// However, this makes it hard to understand the relationship between the
-	// deployer API version and the version of the Service Weaver module. (What
-	// version of Service Weaver do I need to install to get version 7 of the
-	// pipe?)
+	// [1]: https://github.com/golang/go/issues/29228
+
+	// The version of the deployer API.
+	//
+	// Every time we make a change to the deployer API, we assign it a new
+	// version. We could assign the deployer API versions v1, v2, v3, and so
+	// on. However, this makes it hard to understand the relationship between
+	// the deployer API version and the version of the Service Weaver module.
 	//
 	// Instead, we use Service Weaver module versions as deployer API versions.
 	// For example, if we change the deployer API in v0.12.0 of Service Weaver,
 	// then we update the deployer API version to v0.12.0. If we don't change
 	// the deployer API in v0.13.0 of Service Weaver, then we leave the
 	// deployer API at v0.12.0.
-	//
-	// TODO(mwhittaker): Write a doc explaining versioning in detail. Include
-	// Srdjan's comments in PR #219.
-	Major = 0
-	Minor = 14
-	Patch = 0
+	DeployerMajor = 0
+	DeployerMinor = 14
+
+	// The version of the codegen API. As with the deployer API, we assign a
+	// new version every time we change how code is generated, and we use
+	// weaver module versions.
+	CodegenMajor = 0
+	CodegenMinor = 17
 )
 
-// version exists to embed the deployer API version into a Service Weaver
-// binary. We split declaring and assigning version to prevent the compiler
-// from erasing it.
-//
-// NOTE that version should be initialized with a hardcoded string that should
-// reflect the values of Major, Minor and Patch.
-//
-//nolint:unused
-var version string
+var (
+	// The weaver module version.
+	ModuleVersion = SemVer{ModuleMajor, ModuleMinor, ModulePatch}
 
-func init() {
-	// Make sure that the hardcoded string reflects the values of Major, Minor and
-	// Patch.
-	version = "⟦wEaVeRvErSiOn:0.14.0⟧"
+	// The deployer API version.
+	DeployerVersion = SemVer{DeployerMajor, DeployerMinor, 0}
+
+	// The codegen API version.
+	CodegenVersion = SemVer{CodegenMajor, CodegenMinor, 0}
+)
+
+// SemVer is a semantic version. See https://go.dev/doc/modules/version-numbers
+// for details.
+type SemVer struct {
+	Major int
+	Minor int
+	Patch int
 }
 
-// ReadVersion reads version (major, minor, patch) from the specified binary.
-func ReadVersion(filename string) (int, int, int, error) {
-	data, err := bin.ROData(filename)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	return extractVersion(data)
-}
-
-// extractVersion returns the version (major, minor, patch) corresponding to
-// MakeVersionString() embedded in data.
-func extractVersion(data []byte) (int, int, int, error) {
-	re := regexp.MustCompile(`⟦wEaVeRvErSiOn:([0-9]*?)\.([0-9]*?)\.([0-9]*?)⟧`)
-	m := re.FindSubmatch(data)
-	if m == nil {
-		return 0, 0, 0, fmt.Errorf("version not found")
-	}
-	major, minor, patch := string(m[1]), string(m[2]), string(m[3])
-	ma, err := strconv.Atoi(major)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("invalid major %q: %w", major, err)
-	}
-	mi, err := strconv.Atoi(minor)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("invalid minor %q: %w", minor, err)
-	}
-	pa, err := strconv.Atoi(patch)
-	if err != nil {
-		return 0, 0, 0, fmt.Errorf("invalid patch %q: %w", patch, err)
-	}
-	return ma, mi, pa, nil
+func (s SemVer) String() string {
+	return fmt.Sprintf("v%d.%d.%d", s.Major, s.Minor, s.Patch)
 }

@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// testprogram is used by version tests.
 package main
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/ServiceWeaver/weaver"
 )
 
-//go:generate ../../../cmd/weaver/weaver generate
+//go:generate ../../cmd/weaver/weaver generate ./...
+
+func main() {
+	if err := weaver.Run(context.Background(), run); err != nil {
+		log.Fatal(err)
+	}
+}
 
 type app struct {
 	weaver.Implements[weaver.Main]
 }
 
-func (*app) Main(context.Context) error { return nil }
-
-func main() {}
+func run(_ context.Context, app *app) error {
+	fmt.Println("Hello, World!")
+	return nil
+}

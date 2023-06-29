@@ -96,6 +96,7 @@ var files = []file{
 	staticFile("assets/js/snap.svg-min.js"),
 	staticFile("assets/js/toc.js"),
 	staticFile("assets/docs/hotos23_vision_paper.pdf"),
+	staticFile("assets/docs/hotos23_vision_paper_slides.pdf"),
 	staticFile("assets/videos/emoji_search_demo.webm"),
 	staticFile("assets/videos/online_boutique_demo.webm"),
 	// TODO: Add todo.js? It is currently not useful since our goldmark

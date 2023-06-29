@@ -19,6 +19,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/must"
 	"github.com/ServiceWeaver/weaver/internal/status"
+	itool "github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
@@ -40,7 +41,7 @@ var (
 		"profile":   status.ProfileCommand("weaver ssh", impl.DefaultRegistry),
 		"purge":     tool.PurgeCmd(purgeSpec),
 		"status":    status.StatusCommand("weaver ssh", impl.DefaultRegistry),
-		"version":   tool.VersionCmd("weaver ssh"),
+		"version":   itool.VersionCmd("weaver ssh"),
 
 		// Hidden commands.
 		"babysitter": &babysitterCmd,

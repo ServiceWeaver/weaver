@@ -257,6 +257,12 @@ func (d *deployer) computeGroups() error {
 		}
 		srcGroup.callable = append(srcGroup.callable, dst)
 	}
+
+	// Ensure we have a group for the main component.
+	if _, err := ensureGroup(runtime.Main); err != nil {
+		return err
+	}
+
 	d.groups = groups
 	return nil
 }
