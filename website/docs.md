@@ -1213,8 +1213,8 @@ A routing key can be
 
 -   any integer (e.g., `int`, `int32`), float (i.e. `float32`, `float64`), or
     string; or
--   a struct that may optionaly embed `weaver.AutoMarshal`, and all remaining 
-    fields must be either integers, floats, or strings. (e.g. 
+-   a struct that may optionally embed `weaver.AutoMarshal`, and all remaining
+    fields must be either integers, floats, or strings. (e.g.
     `struct{weaver.AutoMarshal; x int; y string}`, `struct{x int; y string}`, etc )
 
 Every router method must return the same routing key type. The following, for
@@ -1369,6 +1369,8 @@ func TestArithmetic(t *testing.T) {
 }
 ```
 
+## Runners
+
 `weavertest` provides a set of builtin Runners that differ in how they partition
 components across processes and how the components communicate with each other:
 
@@ -1395,6 +1397,57 @@ func TestAdd(t *testing.T) {
     }
 }
 ```
+
+## Fakes
+
+You can replace a component implementation with a fake implementation in a test
+using [`weavertest.Fake`][weavertest.Fake]. Here's an example where we replace
+the real implementation of a `Clock` component with a fake implementation that
+always returns a fixed time.
+
+```go
+// fakeClock is a fake implementation of the Clock component.
+type fakeClock struct {
+    now int64
+}
+
+// Now implements the Clock component interface. It returns the current time, in
+// microseconds, since the unix epoch.
+func (f *fakeClock) Now(context.Context) (int64, error) {
+    return f.now, nil
+}
+
+func TestClock(t *testing.T) {
+    for _, runner := range weavertest.AllRunners() {
+        // Register a fake Clock implementation with the runner.
+        fake := &fakeClock{100}
+        runner.Fakes = append(runner.Fakes, weavertest.Fake[Clock](fake))
+
+        // When a fake is registered for a component, all instances of that
+        // component dispatch to the fake.
+        runner.Test(t, func(t *testing.T, clock Clock) {
+            now, err := clock.UnixMicro(context.Background())
+            if err != nil {
+                t.Fatal(err)
+            }
+            if now != 100 {
+                t.Fatalf("bad time: got %d, want %d", now, 100)
+            }
+
+            fake.now = 200
+            now, err = clock.UnixMicro(context.Background())
+            if err != nil {
+                t.Fatal(err)
+            }
+            if now != 200 {
+                t.Fatalf("bad time: got %d, want %d", now, 200)
+            }
+        })
+    }
+}
+```
+
+## Config
 
 You can also provide the contents of a [config file](#config-files) to a runner
 by setting the `Runner.Config` field:
@@ -2918,5 +2971,6 @@ runtime benefits of microservices.
 [weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
 [weaver_examples]: https://github.com/ServiceWeaver/weaver/tree/main/examples
 [weaver_github]: https://github.com/ServiceWeaver/weaver
+[weavertest.Fake]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/weavertest#Fake
 [workshop]: https://github.com/serviceweaver/workshops
 [xdg]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
