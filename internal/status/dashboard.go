@@ -133,7 +133,7 @@ Flags:
 			}
 			url := "http://" + lis.Addr().String()
 
-			traceDB, err := perfetto.Open(ctx, spec.PerfettoFile)
+			traceDB, err := perfetto.Open(ctx, spec.PerfettoFile, perfetto.DBOptions{})
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
 			} else {

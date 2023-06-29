@@ -127,7 +127,11 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		return nil, err
 	}
 
-	traceDB, err := perfetto.Open(ctx, single.PerfettoFile)
+	traceDB, err := perfetto.Open(ctx, single.PerfettoFile, perfetto.DBOptions{
+		// 100MB limit, which allows for storage of upto 200k traces at 500
+		// bytes each.
+		MaxTraceBytes: 100 * 1024 * 1024,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}

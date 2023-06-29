@@ -81,12 +81,12 @@ type replicaCacheKey struct {
 // [1] https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#
 // [2] https://ui.perfetto.dev/
 type DB struct {
+	opts DBOptions
+
 	// Trace data is stored in a sqlite DB spread across three tables:
 	// (1) traces:           trace data in a Perfetto-UI-compattible JSON format
 	// (2) replica_num:      map from colocation group replica id to a replica
 	//                       number
-	// (3) next_replica_num: the next replica number to use for a given
-	//                       colocation group
 	fname string
 	db    *sql.DB
 
@@ -94,9 +94,19 @@ type DB struct {
 	replicaNumCache *lru.Cache[replicaCacheKey, int]
 }
 
+// DBOptions specifies options for the database.
+type DBOptions struct {
+	// MaxTraceBytes, if non-zero, specifies the maximum size of trace
+	// data stored in DB.
+	//
+	// Once the trace data exceeds this limit, the DB will start deleting
+	// its oldest traces.
+	MaxTraceBytes int64
+}
+
 // Open opens the default trace database on the local machine, which is
 // persisted in the provided file.
-func Open(ctx context.Context, fname string) (*DB, error) {
+func Open(ctx context.Context, fname string, opts DBOptions) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(fname), 0700); err != nil {
 		return nil, err
 	}
@@ -120,6 +130,7 @@ func Open(ctx context.Context, fname string) (*DB, error) {
 	}
 
 	t := &DB{
+		opts:            opts,
 		fname:           fname,
 		db:              db,
 		replicaNumCache: cache,
@@ -142,6 +153,7 @@ CREATE TABLE IF NOT EXISTS replica_num (
 	PRIMARY KEY(app,version,weavelet_id)
 );
 `
+
 	if _, err := t.execDB(ctx, initTables); err != nil {
 		return nil, fmt.Errorf("open trace DB %s: %w", fname, err)
 	}
@@ -154,6 +166,16 @@ func (d *DB) Close() error {
 	return d.db.Close()
 }
 
+// size returns the size of the database file. It returns 0 if the size
+// cannot be determined.
+func (d *DB) size() int64 {
+	info, err := os.Stat(d.fname)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
+}
+
 // Store stores the given traces in the database.
 func (d *DB) Store(ctx context.Context, app, version string, spans []sdktrace.ReadOnlySpan) error {
 	encoded, err := d.encodeSpans(ctx, app, version, spans)
@@ -164,14 +186,35 @@ func (d *DB) Store(ctx context.Context, app, version string, spans []sdktrace.Re
 }
 
 func (d *DB) storeEncoded(ctx context.Context, app, version string, encoded []byte) error {
-	const stmt = `
-		INSERT INTO traces(app, version, events)
-		VALUES (?,?,?);
+	const insertStmt = `
+INSERT INTO traces(app, version, events)
+VALUES (?,?,?);
 	`
-	_, err := d.execDB(ctx, stmt, app, version, string(encoded))
-	if err != nil {
+	if _, err := d.execDB(ctx, insertStmt, app, version, string(encoded)); err != nil {
 		return fmt.Errorf("write trace to %s: %w", d.fname, err)
 	}
+
+	if d.opts.MaxTraceBytes <= 0 || d.size() < d.opts.MaxTraceBytes {
+		return nil
+	}
+
+	// Delete the (single) oldest row. This may not keep the DB size in full
+	// check (e.g., if the deleted row is smaller than the newly inserted row),
+	// but it has a nice property that the deletion work is bounded.
+	//
+	// Note also that since the size() check and the deletion don't happen
+	// atomically, the approach of deleting a single row also protects against
+	// severe over-deletion of the DB (e.g., multiple DB clients decide the
+	// DB has crossed the size threshold, and then end up deleting the overflow
+	// rows multiple times).
+	const deleteStmt = `
+DELETE FROM traces WHERE rowid IN
+	(SELECT rowid FROM traces ORDER BY rowid LIMIT 1)
+`
+	if _, err := d.execDB(ctx, deleteStmt); err != nil {
+		return fmt.Errorf("delete traces in %s: %w", d.fname, err)
+	}
+
 	return nil
 }
 
