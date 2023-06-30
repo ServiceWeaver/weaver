@@ -17,7 +17,6 @@ package metrics
 
 import (
 	"encoding/binary"
-	"expvar"
 	"fmt"
 	"math"
 	"sort"
@@ -68,11 +67,13 @@ type Metric struct {
 	once   sync.Once         // used to initialize id and labels
 	id     uint64            // globally unique metric id
 	labels map[string]string // materialized labels from calling labelsThunk
+	fvalue atomicFloat64     // value for Counter and Gauge, sum for Histogram
+	ivalue atomic.Uint64     // integer increments for Counter (separated for speed)
 
-	version atomic.Uint64   // incremented on every update, for change detection
-	value   expvar.Float    // value for Counter and Gauge, sum for Histogram
-	bounds  []float64       // histogram bounds
-	counts  []atomic.Uint64 // histogram counts
+	version atomic.Uint64 // incremented on every update, for change detection
+
+	bounds []float64       // histogram bounds
+	counts []atomic.Uint64 // histogram counts
 }
 
 // A MetricSnapshot is a snapshot of a metric.
@@ -185,32 +186,48 @@ func (m *Metric) Name() string {
 	return m.name
 }
 
+// Inc adds one to the metric value.
+func (m *Metric) Inc() {
+	m.ivalue.Add(1)
+}
+
 // Add adds the provided delta to the metric's value.
 func (m *Metric) Add(delta float64) {
-	m.value.Add(delta)
+	m.fvalue.add(delta)
 	m.version.Add(1)
 }
 
 // Sub subtracts the provided delta from the metric's value.
 func (m *Metric) Sub(delta float64) {
-	m.value.Add(-delta)
+	m.fvalue.add(-delta)
 	m.version.Add(1)
 }
 
 // Set sets the metric's value.
 func (m *Metric) Set(val float64) {
-	m.value.Set(val)
+	m.fvalue.set(val)
 	m.version.Add(1)
 }
 
 // Put adds the provided value to the metric's histogram.
 func (m *Metric) Put(val float64) {
-	idx := sort.SearchFloat64s(m.bounds, val)
-	if idx < len(m.bounds) && val == m.bounds[idx] {
-		idx++
+	var idx int
+	if len(m.bounds) == 0 || val < m.bounds[0] {
+		// Skip binary search for values that fall in the first bucket
+		// (often true for short latency operations).
+	} else {
+		idx = sort.SearchFloat64s(m.bounds, val)
+		if idx < len(m.bounds) && val == m.bounds[idx] {
+			idx++
+		}
 	}
 	m.counts[idx].Add(1)
-	m.value.Add(val)
+
+	// Microsecond latencies are often zero for very fast functions.
+	if val != 0 {
+		m.fvalue.add(val)
+	}
+
 	m.version.Add(1)
 }
 
@@ -225,9 +242,9 @@ func (m *Metric) Init() {
 	})
 }
 
-// Version returns the metric's version.
-func (m *Metric) Version() uint64 {
-	return m.version.Load()
+// get returns the current value (sum of all added values for histograms).
+func (m *Metric) get() float64 {
+	return m.fvalue.get() + float64(m.ivalue.Load())
 }
 
 // Snapshot returns a snapshot of the metric. You must call Init at least once
@@ -246,7 +263,7 @@ func (m *Metric) Snapshot() *MetricSnapshot {
 		Type:   m.typ,
 		Help:   m.help,
 		Labels: maps.Clone(m.labels),
-		Value:  m.value.Value(),
+		Value:  m.get(),
 		Bounds: slices.Clone(m.bounds),
 		Counts: counts,
 	}
@@ -276,7 +293,7 @@ func (m *Metric) MetricValue() *protos.MetricValue {
 	}
 	return &protos.MetricValue{
 		Id:     m.id,
-		Value:  m.value.Value(),
+		Value:  m.get(),
 		Counts: counts,
 	}
 }
