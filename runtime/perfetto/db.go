@@ -81,6 +81,8 @@ type replicaCacheKey struct {
 // [1] https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#
 // [2] https://ui.perfetto.dev/
 type DB struct {
+	opts DBOptions
+
 	// Trace data is stored in a sqlite DB spread across three tables:
 	// (1) traces:           trace data in a Perfetto-UI-compattible JSON format
 	// (2) replica_num:      map from colocation group replica id to a replica
@@ -94,9 +96,17 @@ type DB struct {
 	replicaNumCache *lru.Cache[replicaCacheKey, int]
 }
 
+// DBOptions specifies options for the database.
+type DBOptions struct {
+	// MaxTraceAge, if non-zero, specifies the maximum age of any trace stored
+	// in the database. Once older than this parameter, traces will be
+	// automatically deleted.
+	MaxTraceAge time.Duration
+}
+
 // Open opens the default trace database on the local machine, which is
 // persisted in the provided file.
-func Open(ctx context.Context, fname string) (*DB, error) {
+func Open(ctx context.Context, fname string, opts DBOptions) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(fname), 0700); err != nil {
 		return nil, err
 	}
@@ -120,14 +130,16 @@ func Open(ctx context.Context, fname string) (*DB, error) {
 	}
 
 	t := &DB{
+		opts:            opts,
 		fname:           fname,
 		db:              db,
 		replicaNumCache: cache,
 	}
 
-	const initTables = `
+	initTables := `
 -- Trace data.
 CREATE TABLE IF NOT EXISTS traces (
+	insertion_time INTEGER NOT NULL,
 	app TEXT NOT NULL,
 	version TEXT NOT NULL,
 	events TEXT NOT NULL
@@ -142,6 +154,15 @@ CREATE TABLE IF NOT EXISTS replica_num (
 	PRIMARY KEY(app,version,weavelet_id)
 );
 `
+	if opts.MaxTraceAge > 0 {
+		initTables += fmt.Sprintf(`
+CREATE TRIGGER IF NOT EXISTS delete_expired AFTER INSERT ON traces
+BEGIN
+	DELETE FROM traces
+	WHERE insertion_time < unixepoch('now','-%d seconds');
+END;
+	`, opts.MaxTraceAge/time.Second)
+	}
 	if _, err := t.execDB(ctx, initTables); err != nil {
 		return nil, fmt.Errorf("open trace DB %s: %w", fname, err)
 	}
@@ -165,10 +186,10 @@ func (d *DB) Store(ctx context.Context, app, version string, spans []sdktrace.Re
 
 func (d *DB) storeEncoded(ctx context.Context, app, version string, encoded []byte) error {
 	const stmt = `
-		INSERT INTO traces(app, version, events)
-		VALUES (?,?,?);
+		INSERT INTO traces(insertion_time, app, version, events)
+		VALUES (?,?,?,?);
 	`
-	_, err := d.execDB(ctx, stmt, app, version, string(encoded))
+	_, err := d.execDB(ctx, stmt, time.Now().Unix(), app, version, string(encoded))
 	if err != nil {
 		return fmt.Errorf("write trace to %s: %w", d.fname, err)
 	}

@@ -63,7 +63,7 @@ func TestStoreFetch(t *testing.T) {
 	// those application versions and validate they are as expected.
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
-	db, err := Open(ctx, fname)
+	db, err := Open(ctx, fname, DBOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestReplicaNum(t *testing.T) {
 	// get assigned sequential replica numbers, starting with zero.
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
-	db, err := Open(ctx, fname)
+	db, err := Open(ctx, fname, DBOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,4 +155,71 @@ func TestReplicaNum(t *testing.T) {
 	expect("app2", "v2", "w1", 0)
 	expect("app2", "v2", "w2", 1)
 	expect("app2", "v2", "w3", 2)
+}
+
+func BenchmarkStore(b *testing.B) {
+	ctx := context.Background()
+	encData := []byte("xxx")
+	for _, bm := range []struct {
+		name    string
+		limit   bool
+		numRows int
+	}{
+		{
+			name:    "nolimit_small",
+			numRows: 10,
+		},
+		{
+			name:    "limit_small",
+			limit:   true,
+			numRows: 10,
+		},
+		{
+			name:    "nolimit_medium",
+			numRows: 100,
+		},
+		{
+			name:    "limit_medium",
+			limit:   true,
+			numRows: 100,
+		},
+		{
+			name:    "nolimit_big",
+			numRows: 500,
+		},
+		{
+			name:    "limit_big",
+			limit:   true,
+			numRows: 500,
+		},
+	} {
+		b.Run(bm.name, func(b *testing.B) {
+			fname := filepath.Join(b.TempDir(), "tracedb.db_bench.db")
+			var opts DBOptions
+			if bm.limit {
+				opts.MaxTraceAge = time.Minute // Noop for now
+			}
+			db, err := Open(ctx, fname, opts)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.Cleanup(func() { db.Close() })
+
+			store := func() {
+				if err := db.storeEncoded(ctx, "app", "v0", encData); err != nil {
+					b.Fatal(err)
+				}
+			}
+
+			// Fill up the DB with traces.
+			for i := 0; i < bm.numRows; i++ {
+				store()
+			}
+
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				store()
+			}
+		})
+	}
 }
