@@ -1,0 +1,108 @@
+<!--
+Copyright 2022 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+
+      {{if .CymbalLogo}}
+      <title>CymbalBank</title>
+      {{else}}
+      <title>{{.BankName}}</title>
+      {{end}}
+
+      <link rel="icon" href=”/static/img/favicon.png”/>
+      <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
+      <link rel="preconnect" href="https://fonts.gstatic.com">
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="/static/styles/cymbal.css">
+      <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+   </head>
+    <body>
+      <!-- Bank of Anthos Navigation Bar -->
+      <header>
+        <nav class="navbar navbar-expand-lg navbar-top">
+          <div class="container">
+            {{if .CymbalLogo}}
+            <div class="logo-container">
+              <a href="/"><img id="cymbal-logo" src="/static/img/cymbal.svg"></a>
+            </div>
+            {{else}}
+            <a class="navbar-brand">
+            {{.BankName}}
+          </a>
+            {{end}}
+          </div>
+
+
+
+        </nav>
+      </header>
+
+      <!-- Main Content -->
+      <main class="container">
+        <!-- Sign-in card -->
+        <div class="row mt-5 mb-5">
+          <div class="col-lg-6 offset-lg-3">
+              <div class="card">
+                <div class="card-title header-body">
+                  <div class="text-center col-10 offset-1">
+                    <p class="text-muted secondary-text">"{{.AppName}}" is requesting access to your account information</p>
+                    <h2 class="mb-4 header-title">Do you consent?</h2>
+                  </div>
+                </div>
+                <div class="card-body sign-in">
+                  <div class="row align-items-center mt-2">
+                    <div class="col-10 offset-1 mb-4">
+                      <form id="consent-form" class="needs-validation" novalidate="" method="POST">
+                        </div>
+                        <button class="btn btn-sign-in btn-block mb-4" type="submit" formaction="/consent?consent=true&state={{.State}}&redirect_uri={{.RedirectURI}}">Approve</button>
+                        <button class="btn btn-deny btn-block mb-4" type="submit" formaction="/consent?consent=false&state={{.State}}&redirect_uri={{.RedirectURI}}">Deny</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Page Footer -->
+      <footer class="footer">
+        <div class="container">
+            <div class="row mb-2" class="footer-google-inc">© 2022 Google Inc</div>
+            <div class="row mb-3">
+              <small class="footer-disclaimer">
+                <b>Cluster: </b>{{.ClusterName}}, <b>Pod: </b>{{.PodName}}<b>, Zone: </b>{{.PodZone}}
+              </small>
+            </div>
+            <div class="row mb-3">
+              <small class="footer-disclaimer">
+                This website is hosted for demo purposes only. It is not an
+                actual bank. This is not an official Google project.
+              </small>
+            </div>
+        </div>
+      </footer>
+      <!-- JavaScript Libs -->
+      <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/popper.js@1.12.6/dist/umd/popper.js" integrity="sha384-fA23ZRQ3G/J53mElWqVJEGJzU0sTs+SvzG8fXVWP+kJQ1lwFAOkcUOysnlKJC33U" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/bootstrap-material-design@4.1.1/dist/js/bootstrap-material-design.js" integrity="sha384-CauSuKpEqAFajSpkdjv3z9t8E7RlpJ1UP0lKM/+NdtSarroVKu069AlsRPKkFBz9" crossorigin="anonymous"></script>
+    </body>
+</html>

@@ -1,10 +1,11 @@
 cmd/weaver/weaver
+examples/bankofanthos/bankofanthos
 examples/chat/chat
 examples/collatz/collatz
 examples/factors/factors
-examples/onlineboutique/onlineboutique
 examples/hello/hello
 examples/helloworld/helloworld
+examples/onlineboutique/onlineboutique
 website/public/
 
 # Binaries produced by [go test] when passed -c or a profiling option.
