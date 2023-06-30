@@ -337,11 +337,13 @@ func (AutoMarshal) WeaverMarshal(*codegen.Encoder)   {}
 func (AutoMarshal) WeaverUnmarshal(*codegen.Decoder) {}
 
 // WithConfig[T] is a type that can be embedded inside a component
-// implementation. Service Weaver runtime will take per-component configuration
-// information found in the application config file and use it
-// to initialize the contents of T.
+// implementation. The Service Weaver runtime will take per-component
+// configuration information found in the application config file and use it to
+// initialize the contents of T.
 //
-// For example: consider a cache component where the cache size should be configurable.
+// ## Example
+//
+// Consider a cache component where the cache size should be configurable.
 // Define a struct that includes the size, associate it with the component
 // implementation, and use it inside the component methods.
 //
@@ -350,7 +352,7 @@ func (AutoMarshal) WeaverUnmarshal(*codegen.Decoder) {}
 //	}
 //
 //	type cache struct {
-//	    weaver.Implements[...]
+//	    weaver.Implements[Cache]
 //	    weaver.WithConfig[cacheConfig]
 //	    ..
 //	}
@@ -363,8 +365,23 @@ func (AutoMarshal) WeaverUnmarshal(*codegen.Decoder) {}
 // The application config file can specify these values as keys under the
 // full component path.
 //
-//	["example.com/mypkg/MyComponent"]
+//	["example.com/mypkg/Cache"]
 //	Size = 1000
+//
+// ## Field Names
+//
+// You can use `toml` struct tags to specify the name that should be used for a
+// field in a config file. For example, we can change the cacheConfig struct to
+// the following:
+//
+//	type cacheConfig struct
+//	    Size int `toml:"my_custom_name"`
+//	}
+//
+// And change the config file accordingly:
+//
+//	["example.com/mypkg/Cache"]
+//	my_custom_name = 1000
 type WithConfig[T any] struct {
 	config T
 }

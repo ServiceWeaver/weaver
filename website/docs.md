@@ -828,9 +828,22 @@ func (g *greeter) Greet(_ context.Context, name string) (string, error) {
 }
 ```
 
-<div hidden class="todo">
-    Move the next part to the Single Process section and forward link.
-</div>
+You can use `toml` struct tags to specify the name that should be used for a
+field in a config file. For example, we can change the `greeterOptions` struct
+to the following.
+
+```go
+type greeterOptions struct {
+    Greeting string `toml:"my_custom_name"`
+}
+```
+
+And change the config file accordingly:
+
+```toml
+["example.com/mypkg/Greeter"]
+my_custom_name = "Bonjour"
+```
 
 If you run an application directly (i.e. using `go run`), you can pass the
 config file using the `SERVICEWEAVER_CONFIG` environment variable:
