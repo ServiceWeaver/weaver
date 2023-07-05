@@ -14,6 +14,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/lightstep/varopt v1.3.0
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/yuin/goldmark v1.4.15
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20220924101305-151362477c87
