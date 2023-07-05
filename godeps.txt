@@ -847,7 +847,6 @@ github.com/ServiceWeaver/weaver/runtime/logging
     time
 github.com/ServiceWeaver/weaver/runtime/metrics
     encoding/binary
-    expvar
     fmt
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid

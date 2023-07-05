@@ -39,6 +39,11 @@ func (c *Counter) Name() string {
 	return c.impl.Name()
 }
 
+// Inc increases the counter by one.
+func (c *Counter) Inc() {
+	c.impl.Inc()
+}
+
 // Add increases the counter by delta. It panics if the delta is negative.
 func (c *Counter) Add(delta float64) {
 	c.impl.Add(delta)

@@ -93,9 +93,9 @@ func (m *MethodMetrics) Begin() MethodCallHandle {
 // End ends metric update recording for a call to method m.
 func (m *MethodMetrics) End(h MethodCallHandle, failed bool, requestBytes, replyBytes int) {
 	latency := time.Now().UnixMicro() - h.start
-	m.Count.Add(1)
+	m.Count.Inc()
 	if failed {
-		m.ErrorCount.Add(1)
+		m.ErrorCount.Inc()
 	}
 	m.Latency.Put(float64(latency))
 	if m.remote {

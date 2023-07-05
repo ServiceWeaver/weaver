@@ -17,8 +17,8 @@ package metrics
 import (
 	"fmt"
 
-	"golang.org/x/exp/maps"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"golang.org/x/exp/maps"
 )
 
 // An Exporter produces MetricUpdates summarizing the change in metrics over
@@ -42,13 +42,13 @@ func (e *Exporter) Export() *protos.MetricUpdate {
 		metric.Init()
 		latest, ok := e.versions[metric.id]
 		if !ok {
-			e.versions[metric.id] = metric.Version()
+			e.versions[metric.id] = metric.version.Load()
 			update.Defs = append(update.Defs, metric.MetricDef())
 			update.Values = append(update.Values, metric.MetricValue())
 			continue
 		}
 
-		version := metric.Version()
+		version := metric.version.Load()
 		if version == latest {
 			continue
 		}

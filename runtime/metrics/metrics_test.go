@@ -22,9 +22,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 const (
@@ -287,7 +287,7 @@ func BenchmarkCounter(b *testing.B) {
 	c := Register(counterType, "BenchmarkCounter/count", "", nil)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Add(1)
+		c.Inc()
 	}
 }
 
@@ -323,7 +323,7 @@ func BenchmarkCounterMap1(b *testing.B) {
 	c := l.Get(labels1{"xxxxxxxxxx"})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Add(1)
+		c.Inc()
 	}
 }
 
@@ -333,7 +333,7 @@ func BenchmarkCounterMap2(b *testing.B) {
 	c := l.Get(labels2{"xxxxxxxxxx", "xxxxxxxxxx"})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Add(1)
+		c.Inc()
 	}
 }
 
@@ -346,7 +346,7 @@ func BenchmarkCounterMap5(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Add(1)
+		c.Inc()
 	}
 }
 
@@ -361,7 +361,7 @@ func BenchmarkCounterMap10(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Add(1)
+		c.Inc()
 	}
 }
 
@@ -389,7 +389,7 @@ func BenchmarkCounterMap50(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.Add(1)
+		c.Inc()
 	}
 }
 
@@ -399,7 +399,7 @@ func BenchmarkCounterGet1(b *testing.B) {
 	labels := labels1{"xxxxxxxxxx"}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		l.Get(labels).Add(1)
+		l.Get(labels).Inc()
 	}
 }
 
@@ -409,7 +409,7 @@ func BenchmarkCounterGet2(b *testing.B) {
 	labels := labels2{"xxxxxxxxxx", "xxxxxxxxxx"}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		l.Get(labels).Add(1)
+		l.Get(labels).Inc()
 	}
 }
 
@@ -422,7 +422,7 @@ func BenchmarkCounterGet5(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		l.Get(labels).Add(1)
+		l.Get(labels).Inc()
 	}
 }
 
@@ -437,7 +437,7 @@ func BenchmarkCounterGet10(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		l.Get(labels).Add(1)
+		l.Get(labels).Inc()
 	}
 }
 
@@ -465,7 +465,7 @@ func BenchmarkCounterGet50(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		l.Get(labels).Add(1)
+		l.Get(labels).Inc()
 	}
 }
 
