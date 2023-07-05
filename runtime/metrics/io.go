@@ -16,6 +16,7 @@ package metrics
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"golang.org/x/exp/maps"
@@ -24,14 +25,16 @@ import (
 // An Exporter produces MetricUpdates summarizing the change in metrics over
 // time.
 type Exporter struct {
-	versions map[uint64]uint64
+	// For non-histograms: the last exported value (as math.Float64bits).
+	// For histograms: the last putCount.
+	last map[uint64]uint64
 }
 
 // Export produces a MetricUpdate that summarizes the changes to all metrics
 // since the last call to MetricUpdate.
 func (e *Exporter) Export() *protos.MetricUpdate {
-	if e.versions == nil {
-		e.versions = map[uint64]uint64{}
+	if e.last == nil {
+		e.last = map[uint64]uint64{}
 	}
 
 	metricsMu.RLock()
@@ -40,19 +43,28 @@ func (e *Exporter) Export() *protos.MetricUpdate {
 	update := &protos.MetricUpdate{}
 	for _, metric := range metrics {
 		metric.Init()
-		latest, ok := e.versions[metric.id]
+
+		// Send metric definition first time we are exporting metric.
+		last, ok := e.last[metric.id]
 		if !ok {
-			e.versions[metric.id] = metric.version.Load()
+			// Send the definition since it is the first time we are exporting metric.
 			update.Defs = append(update.Defs, metric.MetricDef())
-			update.Values = append(update.Values, metric.MetricValue())
+		}
+
+		// Check to see if metric has changed.
+		v := metric.get()
+		var current uint64
+		if metric.typ != protos.MetricType_HISTOGRAM {
+			current = math.Float64bits(v)
+		} else {
+			current = metric.putCount.Load()
+		}
+		if ok && current == last {
+			// No change in metric
 			continue
 		}
 
-		version := metric.version.Load()
-		if version == latest {
-			continue
-		}
-		e.versions[metric.id] = version
+		e.last[metric.id] = current
 		update.Values = append(update.Values, metric.MetricValue())
 	}
 	return update

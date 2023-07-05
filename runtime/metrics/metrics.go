@@ -70,10 +70,10 @@ type Metric struct {
 	fvalue atomicFloat64     // value for Counter and Gauge, sum for Histogram
 	ivalue atomic.Uint64     // integer increments for Counter (separated for speed)
 
-	version atomic.Uint64 // incremented on every update, for change detection
-
-	bounds []float64       // histogram bounds
-	counts []atomic.Uint64 // histogram counts
+	// For histograms only:
+	putCount atomic.Uint64   // incremented on every Put, for change detection
+	bounds   []float64       // histogram bounds
+	counts   []atomic.Uint64 // histogram counts
 }
 
 // A MetricSnapshot is a snapshot of a metric.
@@ -194,19 +194,16 @@ func (m *Metric) Inc() {
 // Add adds the provided delta to the metric's value.
 func (m *Metric) Add(delta float64) {
 	m.fvalue.add(delta)
-	m.version.Add(1)
 }
 
 // Sub subtracts the provided delta from the metric's value.
 func (m *Metric) Sub(delta float64) {
 	m.fvalue.add(-delta)
-	m.version.Add(1)
 }
 
 // Set sets the metric's value.
 func (m *Metric) Set(val float64) {
 	m.fvalue.set(val)
-	m.version.Add(1)
 }
 
 // Put adds the provided value to the metric's histogram.
@@ -227,8 +224,7 @@ func (m *Metric) Put(val float64) {
 	if val != 0 {
 		m.fvalue.add(val)
 	}
-
-	m.version.Add(1)
+	m.putCount.Add(1)
 }
 
 // Init initializes the id and labels of a metric.
