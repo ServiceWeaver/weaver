@@ -82,17 +82,17 @@ func MethodMetricsFor(labels MethodLabels) *MethodMetrics {
 // MethodCallHandle holds information needed to finalize metric
 // updates for a method call.
 type MethodCallHandle struct {
-	start int64 // Microsecond timestamp
+	start time.Time
 }
 
 // Begin starts metric update recording for a call to method m.
 func (m *MethodMetrics) Begin() MethodCallHandle {
-	return MethodCallHandle{time.Now().UnixMicro()}
+	return MethodCallHandle{time.Now()}
 }
 
 // End ends metric update recording for a call to method m.
 func (m *MethodMetrics) End(h MethodCallHandle, failed bool, requestBytes, replyBytes int) {
-	latency := time.Now().UnixMicro() - h.start
+	latency := time.Since(h.start).Microseconds()
 	m.Count.Inc()
 	if failed {
 		m.ErrorCount.Inc()

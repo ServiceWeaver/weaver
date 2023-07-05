@@ -18,10 +18,37 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
+
+func TestIncExport(t *testing.T) {
+	clear()
+
+	var exporter Exporter
+	var importer Importer
+	importExport := func() {
+		if _, err := importer.Import(exporter.Export()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Initialize counter so we get its def
+	counter := Register(counterType, "TestIncExport/counter", "", nil)
+	counter.Inc()
+	importExport()
+	if v := importer.metrics[counter.id].Value; v != 1 {
+		t.Fatalf("expecting counter %v, got %v", v, 1)
+	}
+
+	// Export after Inc should generate an update.
+	counter.Inc()
+	importExport()
+	if v := importer.metrics[counter.id].Value; v != 2 {
+		t.Fatalf("expecting counter %v, got %v", v, 2)
+	}
+}
 
 func TestExportImport(t *testing.T) {
 	clear()
