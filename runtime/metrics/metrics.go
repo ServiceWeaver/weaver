@@ -67,8 +67,9 @@ type Metric struct {
 	once   sync.Once         // used to initialize id and labels
 	id     uint64            // globally unique metric id
 	labels map[string]string // materialized labels from calling labelsThunk
-	fvalue atomicFloat64     // value for Counter and Gauge, sum for Histogram
-	ivalue atomic.Uint64     // integer increments for Counter (separated for speed)
+
+	fvalue atomicFloat64 // value for Counter and Gauge, sum for Histogram
+	ivalue atomic.Uint64 // integer increments for Counter (separated for speed)
 
 	// For histograms only:
 	putCount atomic.Uint64   // incremented on every Put, for change detection
@@ -227,8 +228,10 @@ func (m *Metric) Put(val float64) {
 	m.putCount.Add(1)
 }
 
-// Init initializes the id and labels of a metric.
-func (m *Metric) Init() {
+// initIdAndLabels initializes the id and labels of a metric.
+// We delay this initialization until the first time we export a
+// metric to avoid slowing down a Get() call.
+func (m *Metric) initIdAndLabels() {
 	m.once.Do(func() {
 		if labels := m.labelsThunk(); len(labels) > 0 {
 			m.labels = labels
@@ -371,7 +374,7 @@ func Snapshot() []*MetricSnapshot {
 	defer metricsMu.RUnlock()
 	snapshots := make([]*MetricSnapshot, 0, len(metrics))
 	for _, metric := range metrics {
-		metric.Init()
+		metric.initIdAndLabels()
 		snapshots = append(snapshots, metric.Snapshot())
 	}
 	return snapshots

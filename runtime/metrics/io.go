@@ -42,7 +42,7 @@ func (e *Exporter) Export() *protos.MetricUpdate {
 
 	update := &protos.MetricUpdate{}
 	for _, metric := range metrics {
-		metric.Init()
+		metric.initIdAndLabels()
 
 		// Send metric definition first time we are exporting metric.
 		last, ok := e.last[metric.id]
