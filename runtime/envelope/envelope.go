@@ -19,11 +19,13 @@ package envelope
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
@@ -164,7 +166,17 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	// Create the connection, now that the weavelet is running.
 	conn, err := conn.NewEnvelopeConn(e.ctx, toEnvelope, toWeavelet, e.weavelet)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, syscall.EPIPE) || errors.Is(err, io.EOF) {
+			// The weavelet died before it could connect to the envelope.
+			// Capture its stderr and return it as the error.
+			if msg, errRead := io.ReadAll(errpipe); errRead != nil {
+				err = fmt.Errorf("weavelet died: %w, unable to read error: %w", err, errRead)
+			} else {
+				err = fmt.Errorf("weavelet died: stderr %s", msg)
+			}
+			return nil, err
+		}
+		return nil, fmt.Errorf("create connection: %w", err)
 	}
 
 	e.cmd = cmd

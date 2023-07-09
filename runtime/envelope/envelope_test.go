@@ -192,6 +192,18 @@ func (*handlerForTest) VerifyServerCertificate(context.Context, *protos.VerifySe
 	panic("unused")
 }
 
+func TestWeaveletExit(t *testing.T) {
+	ctx := context.Background()
+	wlet, config := wlet("/usr/bin/env", "bash", "-c", `echo "foo error" >&2 && exit 1`)
+	_, err := NewEnvelope(ctx, wlet, config)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "foo error") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestStartStop(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "file.txt")
 	if _, err := os.Create(filename); err != nil {
