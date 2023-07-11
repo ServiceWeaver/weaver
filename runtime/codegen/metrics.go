@@ -20,31 +20,37 @@ import (
 	"github.com/ServiceWeaver/weaver/metrics"
 )
 
+// Names of automatically populated metrics.
+const (
+	MethodCountsName       = "serviceweaver_method_count"
+	MethodErrorsName       = "serviceweaver_method_error_count"
+	MethodLatenciesName    = "serviceweaver_method_latency_micros"
+	MethodBytesRequestName = "serviceweaver_method_bytes_request"
+	MethodBytesReplyName   = "serviceweaver_method_bytes_reply"
+)
+
 var (
 	// The following metrics are automatically populated for the user.
-	//
-	// TODO(mwhittaker): Allow the user to disable these metrics.
-	// It adds ~169ns of latency per method call.
-	MethodCounts = metrics.NewCounterMap[MethodLabels](
-		"serviceweaver_method_count",
+	methodCounts = metrics.NewCounterMap[MethodLabels](
+		MethodCountsName,
 		"Count of Service Weaver component method invocations",
 	)
-	MethodErrors = metrics.NewCounterMap[MethodLabels](
-		"serviceweaver_method_error_count",
+	methodErrors = metrics.NewCounterMap[MethodLabels](
+		MethodErrorsName,
 		"Count of Service Weaver component method invocations that result in an error",
 	)
-	MethodLatencies = metrics.NewHistogramMap[MethodLabels](
-		"serviceweaver_method_latency_micros",
+	methodLatencies = metrics.NewHistogramMap[MethodLabels](
+		MethodLatenciesName,
 		"Duration, in microseconds, of Service Weaver component method execution",
 		metrics.NonNegativeBuckets,
 	)
-	MethodBytesRequest = metrics.NewHistogramMap[MethodLabels](
-		"serviceweaver_method_bytes_request",
+	methodBytesRequest = metrics.NewHistogramMap[MethodLabels](
+		MethodBytesRequestName,
 		"Number of bytes in Service Weaver component method requests",
 		metrics.NonNegativeBuckets,
 	)
-	MethodBytesReply = metrics.NewHistogramMap[MethodLabels](
-		"serviceweaver_method_bytes_reply",
+	methodBytesReply = metrics.NewHistogramMap[MethodLabels](
+		MethodBytesReplyName,
 		"Number of bytes in Service Weaver component method replies",
 		metrics.NonNegativeBuckets,
 	)
@@ -71,11 +77,11 @@ type MethodMetrics struct {
 func MethodMetricsFor(labels MethodLabels) *MethodMetrics {
 	return &MethodMetrics{
 		remote:       labels.Remote,
-		Count:        MethodCounts.Get(labels),
-		ErrorCount:   MethodErrors.Get(labels),
-		Latency:      MethodLatencies.Get(labels),
-		BytesRequest: MethodBytesRequest.Get(labels),
-		BytesReply:   MethodBytesReply.Get(labels),
+		Count:        methodCounts.Get(labels),
+		ErrorCount:   methodErrors.Get(labels),
+		Latency:      methodLatencies.Get(labels),
+		BytesRequest: methodBytesRequest.Get(labels),
+		BytesReply:   methodBytesReply.Get(labels),
 	}
 }
 
