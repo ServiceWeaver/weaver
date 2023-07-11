@@ -29,6 +29,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/google/uuid
     github.com/lightstep/varopt
+    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel
     go.opentelemetry.io/otel/propagation
     go.opentelemetry.io/otel/sdk/resource
@@ -52,6 +53,7 @@ github.com/ServiceWeaver/weaver
     sort
     strings
     sync
+    sync/atomic
     syscall
     time
 github.com/ServiceWeaver/weaver/cmd/weaver
@@ -126,7 +128,6 @@ github.com/ServiceWeaver/weaver/examples/collatz
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
-    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     log
@@ -269,7 +270,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/google/uuid
-    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/slog
     html/template
@@ -361,7 +361,6 @@ github.com/ServiceWeaver/weaver/examples/reverser
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
-    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     log

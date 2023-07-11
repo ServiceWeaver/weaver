@@ -22,7 +22,6 @@ import (
 	"net/http"
 
 	"github.com/ServiceWeaver/weaver"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //go:generate ../../cmd/weaver/weaver generate
@@ -65,8 +64,7 @@ func serve(ctx context.Context, s *server) error {
 			fmt.Fprintln(w, reversed)
 		}))
 	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-	handler := otelhttp.NewHandler(&mux, "http")
 
 	fmt.Printf("hello listener available on %v\n", s.lis)
-	return http.Serve(s.lis, handler)
+	return http.Serve(s.lis, &mux)
 }
