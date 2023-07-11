@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -66,14 +67,21 @@ var (
 		"dec": func(x int) int {
 			return x - 1
 		},
-		"traceurl": func(app, version string) string {
+	}).Parse(deploymentHTML))
+
+	//go:embed templates/traces.html
+	tracesHTML     string
+	tracesTemplate = template.Must(template.New("traces").Funcs(template.FuncMap{
+		"traceurl": func(traceID string) string {
 			v := url.Values{}
-			v.Set("app", app)
-			v.Set("version", version)
+			v.Set("trace_id", traceID)
 			tracerURL := url.QueryEscape("http://127.0.0.1:9001?" + v.Encode())
 			return "https://ui.perfetto.dev/#!/?url=" + tracerURL
 		},
-	}).Parse(deploymentHTML))
+		"dur": func(startTime, endTime time.Time) string {
+			return endTime.Sub(startTime).String()
+		},
+	}).Parse(tracesHTML))
 
 	//go:embed assets/*
 	assets embed.FS
@@ -120,11 +128,17 @@ Flags:
 			if err != nil {
 				return err
 			}
-			dashboard := &dashboard{spec, r}
+			traceDB, err := perfetto.Open(ctx, spec.PerfettoFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
+				traceDB = nil
+			}
+			dashboard := &dashboard{spec, r, traceDB}
 			http.HandleFunc("/", dashboard.handleIndex)
 			http.HandleFunc("/favicon.ico", http.NotFound)
 			http.HandleFunc("/deployment", dashboard.handleDeployment)
 			http.HandleFunc("/metrics", dashboard.handleMetrics)
+			http.HandleFunc("/traces", dashboard.handleTraces)
 			http.Handle("/assets/", http.FileServer(http.FS(assets)))
 
 			lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *dashboardHost, *dashboardPort))
@@ -133,10 +147,7 @@ Flags:
 			}
 			url := "http://" + lis.Addr().String()
 
-			traceDB, err := perfetto.Open(ctx, spec.PerfettoFile)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
-			} else {
+			if traceDB != nil {
 				go traceDB.Serve(ctx)
 			}
 
@@ -151,6 +162,7 @@ Flags:
 type dashboard struct {
 	spec     *DashboardSpec // e.g., "weaver multi" or "weaver single"
 	registry *Registry      // registry of deployments
+	traceDB  *perfetto.DB   // database that stores trace data
 }
 
 // handleIndex handles requests to /
@@ -310,4 +322,49 @@ func (d *dashboard) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	var b bytes.Buffer
 	imetrics.TranslateMetricsToPrometheusTextFormat(&b, snapshots, reg.Addr, prometheusEndpoint)
 	w.Write(b.Bytes()) //nolint:errcheck // response write error
+}
+
+// handleTraces handles requests to /traces?id=<deployment id>
+func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
+	if d.traceDB == nil {
+		http.Error(w, "trace database cannot be opened", http.StatusInternalServerError)
+		return
+	}
+	// TODO(mwhittaker): Change to /<deployment id>/traces?
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "no deployment id provided", http.StatusBadRequest)
+		return
+	}
+
+	// Weavelets export traces every 5 seconds. In order to (semi-)guarantee
+	// that the database contains all spans for the selected traces, we only
+	// fetch traces that ended more than 5+ seconds ago (all spans for such
+	// traces should have been exported to the database by now).
+	const gracePeriod = time.Second
+	endTime := time.Now().Add(-1 * (traceio.ExportInterval + gracePeriod))
+
+	// TODO(spetrovic): Change these once we start bucketizing traces based
+	// on their duration.
+	durationLower := time.Duration(0)
+	durationUpper := time.Duration(0)
+
+	const maxNumTraces = 1000
+	traces, err := d.traceDB.QueryTraces(r.Context(), "" /*app*/, id, time.Time{} /*startTime*/, endTime, durationLower, durationUpper, maxNumTraces)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cannot query trace database: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	content := struct {
+		Tool   string
+		Traces []perfetto.TraceSummary
+	}{
+		Tool:   d.spec.Tool,
+		Traces: traces,
+	}
+	if err := tracesTemplate.Execute(w, content); err != nil {
+		http.Error(w, fmt.Sprintf("cannot display traces: %v", err), http.StatusInternalServerError)
+		return
+	}
 }

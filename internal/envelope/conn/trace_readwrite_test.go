@@ -28,7 +28,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/protobuf/testing/protocmp"
 )
@@ -38,12 +37,12 @@ type pipeForTest struct {
 	wletConn     *conn.WeaveletConn
 
 	waitToExportSpans sync.WaitGroup // wait for trace spans to be exported
-	spans             []sdk.ReadOnlySpan
+	spans             *protos.TraceSpans
 }
 
 var _ conn.EnvelopeHandler = &pipeForTest{}
 
-func (p *pipeForTest) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
+func (p *pipeForTest) HandleTraceSpans(_ context.Context, spans *protos.TraceSpans) error {
 	p.spans = spans
 	p.waitToExportSpans.Done()
 	return nil
@@ -77,96 +76,96 @@ func (*pipeForTest) VerifyServerCertificate(context.Context, *protos.VerifyServe
 	panic("unused")
 }
 
-func writeAndRead(in sdk.ReadOnlySpan, pipe *pipeForTest) (sdk.ReadOnlySpan, error) {
+func writeAndRead(in *protos.Span, pipe *pipeForTest) (*protos.Span, error) {
 	pipe.waitToExportSpans.Add(1)
 	writer := traceio.NewWriter(pipe.wletConn.SendTraceSpans)
-	if err := writer.ExportSpans(context.Background(), []sdk.ReadOnlySpan{in}); err != nil {
+	if err := writer.ExportSpans(context.Background(), []sdk.ReadOnlySpan{&traceio.ReadSpan{Span: in}}); err != nil {
 		return nil, err
 	}
 	pipe.waitToExportSpans.Wait()
 
-	if len(pipe.spans) != 1 {
-		panic(fmt.Sprintf("too many spans: want 1, got %d", len(pipe.spans)))
+	if len(pipe.spans.Span) != 1 {
+		panic(fmt.Sprintf("too many spans: want 1, got %d", len(pipe.spans.Span)))
 	}
-	return pipe.spans[0], nil
+	return pipe.spans.Span[0], nil
 }
 
-func testAttrs() []*protos.Attribute {
-	num := func(t protos.Attribute_Value_Type, v uint64) *protos.Attribute_Value {
-		return &protos.Attribute_Value{
+func testAttrs() []*protos.Span_Attribute {
+	num := func(t protos.Span_Attribute_Value_Type, v uint64) *protos.Span_Attribute_Value {
+		return &protos.Span_Attribute_Value{
 			Type:  t,
-			Value: &protos.Attribute_Value_Num{Num: v},
+			Value: &protos.Span_Attribute_Value_Num{Num: v},
 		}
 	}
-	str := func(t protos.Attribute_Value_Type, s string) *protos.Attribute_Value {
-		return &protos.Attribute_Value{
+	str := func(t protos.Span_Attribute_Value_Type, s string) *protos.Span_Attribute_Value {
+		return &protos.Span_Attribute_Value{
 			Type:  t,
-			Value: &protos.Attribute_Value_Str{Str: s},
+			Value: &protos.Span_Attribute_Value_Str{Str: s},
 		}
 	}
-	nums := func(t protos.Attribute_Value_Type, v ...uint64) *protos.Attribute_Value {
-		return &protos.Attribute_Value{
+	nums := func(t protos.Span_Attribute_Value_Type, v ...uint64) *protos.Span_Attribute_Value {
+		return &protos.Span_Attribute_Value{
 			Type: t,
-			Value: &protos.Attribute_Value_Nums{
-				Nums: &protos.Attribute_Value_NumberList{Nums: v},
+			Value: &protos.Span_Attribute_Value_Nums{
+				Nums: &protos.Span_Attribute_Value_NumberList{Nums: v},
 			},
 		}
 	}
-	strs := func(t protos.Attribute_Value_Type, s ...string) *protos.Attribute_Value {
-		return &protos.Attribute_Value{
+	strs := func(t protos.Span_Attribute_Value_Type, s ...string) *protos.Span_Attribute_Value {
+		return &protos.Span_Attribute_Value{
 			Type: t,
-			Value: &protos.Attribute_Value_Strs{
-				Strs: &protos.Attribute_Value_StringList{Strs: s},
+			Value: &protos.Span_Attribute_Value_Strs{
+				Strs: &protos.Span_Attribute_Value_StringList{Strs: s},
 			},
 		}
 	}
-	bools := func(vals ...bool) *protos.Attribute_Value {
+	bools := func(vals ...bool) *protos.Span_Attribute_Value {
 		b := make([]byte, len(vals))
 		for i, v := range vals {
 			if v {
 				b[i] = 1
 			}
 		}
-		return str(protos.Attribute_Value_BOOLLIST, string(b))
+		return str(protos.Span_Attribute_Value_BOOLLIST, string(b))
 	}
-	return []*protos.Attribute{
+	return []*protos.Span_Attribute{
 		{
 			Key: "invalid",
-			Value: &protos.Attribute_Value{
-				Type: protos.Attribute_Value_INVALID,
+			Value: &protos.Span_Attribute_Value{
+				Type: protos.Span_Attribute_Value_INVALID,
 			},
 		},
 		{
 			Key:   "false",
-			Value: num(protos.Attribute_Value_BOOL, 0),
+			Value: num(protos.Span_Attribute_Value_BOOL, 0),
 		},
 		{
 			Key:   "true",
-			Value: num(protos.Attribute_Value_BOOL, 1),
+			Value: num(protos.Span_Attribute_Value_BOOL, 1),
 		},
 		{
 			Key:   "zero int",
-			Value: num(protos.Attribute_Value_INT64, 0),
+			Value: num(protos.Span_Attribute_Value_INT64, 0),
 		},
 		{
 			Key:   "non-zero int",
-			Value: num(protos.Attribute_Value_INT64, 99),
+			Value: num(protos.Span_Attribute_Value_INT64, 99),
 		},
 		{
 			Key:   "zero float",
-			Value: num(protos.Attribute_Value_FLOAT64, math.Float64bits(0.0)),
+			Value: num(protos.Span_Attribute_Value_FLOAT64, math.Float64bits(0.0)),
 		},
 		{
 			Key:   "non-zero float",
-			Value: num(protos.Attribute_Value_FLOAT64, math.Float64bits(99.9)),
+			Value: num(protos.Span_Attribute_Value_FLOAT64, math.Float64bits(99.9)),
 		},
 		{
 			Key:   "empty string",
-			Value: str(protos.Attribute_Value_STRING, ""),
+			Value: str(protos.Span_Attribute_Value_STRING, ""),
 		},
 		{
 			Key:   "non-empty string",
-			Value: str(protos.Attribute_Value_STRING, "serviceweaver"),
+			Value: str(protos.Span_Attribute_Value_STRING, "serviceweaver"),
 		},
 		{
 			Key:   "empty bool slice",
@@ -178,30 +177,30 @@ func testAttrs() []*protos.Attribute {
 		},
 		{
 			Key:   "empty int slice",
-			Value: nums(protos.Attribute_Value_INT64LIST),
+			Value: nums(protos.Span_Attribute_Value_INT64LIST),
 		},
 		{
 			Key:   "non-empty int slice",
-			Value: nums(protos.Attribute_Value_INT64LIST, 0, 9, 99),
+			Value: nums(protos.Span_Attribute_Value_INT64LIST, 0, 9, 99),
 		},
 		{
 			Key:   "empty float slice",
-			Value: nums(protos.Attribute_Value_FLOAT64LIST),
+			Value: nums(protos.Span_Attribute_Value_FLOAT64LIST),
 		},
 		{
 			Key: "non-empty float slice",
-			Value: nums(protos.Attribute_Value_FLOAT64LIST,
+			Value: nums(protos.Span_Attribute_Value_FLOAT64LIST,
 				math.Float64bits(9.9),
 				math.Float64bits(0.0),
 				math.Float64bits(99.9)),
 		},
 		{
 			Key:   "empty string slice",
-			Value: strs(protos.Attribute_Value_STRINGLIST),
+			Value: strs(protos.Span_Attribute_Value_STRINGLIST),
 		},
 		{
 			Key: "non-empty string slice",
-			Value: strs(protos.Attribute_Value_STRINGLIST,
+			Value: strs(protos.Span_Attribute_Value_STRINGLIST,
 				"serviceweaver",
 				"",
 				"serviceweaver"),
@@ -221,7 +220,7 @@ func TestTracesReadWrite(t *testing.T) {
 		TraceId:      tid[:],
 		SpanId:       rnd()[:8],
 		ParentSpanId: rnd()[:8],
-		Kind:         protos.SpanKind_CONSUMER,
+		Kind:         protos.Span_CONSUMER,
 		StartMicros:  now.UnixMicro(),
 		EndMicros:    now.Add(1 * time.Second).UnixMicro(),
 		Attributes:   testAttrs(),
@@ -281,16 +280,12 @@ func TestTracesReadWrite(t *testing.T) {
 
 	pipe := &pipeForTest{}
 	pipe.envelopeConn, pipe.wletConn = makeConnections(t, pipe)
-	msg, err := writeAndRead(&traceio.ReadSpan{Span: expect}, pipe)
+	actual, err := writeAndRead(expect, pipe)
 	if err != nil {
 		t.Fatal(err)
 	}
-	actual, ok := msg.(*traceio.ReadSpan)
-	if !ok {
-		t.Fatalf("invalid message type: want *protos.ReadSpan, got %T", msg)
-	}
 	if diff := cmp.Diff(expect,
-		actual.Span,
+		actual,
 		protocmp.Transform(),
 		protocmp.SortRepeatedFields((*protos.Span)(nil), "attributes"),
 		protocmp.SortRepeatedFields((*protos.Span_Link)(nil), "attributes"),

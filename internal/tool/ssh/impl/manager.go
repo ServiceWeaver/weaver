@@ -42,13 +42,11 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/status"
-	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/internal/versioned"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 const (
@@ -175,11 +173,7 @@ func RunManager(ctx context.Context, config *SshConfig, locations map[string]str
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 	traceSaver := func(spans *protos.TraceSpans) error {
-		var traces []trace.ReadOnlySpan
-		for _, span := range spans.Span {
-			traces = append(traces, &traceio.ReadSpan{Span: span})
-		}
-		return traceDB.Store(ctx, dep.App.Name, dep.Id, traces)
+		return traceDB.Store(ctx, dep.App.Name, dep.Id, spans)
 	}
 
 	// Form co-location.

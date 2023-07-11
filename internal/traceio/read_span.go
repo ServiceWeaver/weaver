@@ -95,26 +95,26 @@ func fromProtoContext(traceID, spanID []byte) trace.SpanContext {
 	})
 }
 
-func fromProtoKind(kind protos.SpanKind) trace.SpanKind {
+func fromProtoKind(kind protos.Span_Kind) trace.SpanKind {
 	switch kind {
-	case protos.SpanKind_UNSPECIFIED:
+	case protos.Span_UNSPECIFIED:
 		return trace.SpanKindUnspecified
-	case protos.SpanKind_INTERNAL:
+	case protos.Span_INTERNAL:
 		return trace.SpanKindInternal
-	case protos.SpanKind_SERVER:
+	case protos.Span_SERVER:
 		return trace.SpanKindServer
-	case protos.SpanKind_CLIENT:
+	case protos.Span_CLIENT:
 		return trace.SpanKindClient
-	case protos.SpanKind_PRODUCER:
+	case protos.Span_PRODUCER:
 		return trace.SpanKindProducer
-	case protos.SpanKind_CONSUMER:
+	case protos.Span_CONSUMER:
 		return trace.SpanKindConsumer
 	default:
 		return trace.SpanKindInternal
 	}
 }
 
-func fromProtoAttrs(attrs []*protos.Attribute) []attribute.KeyValue {
+func fromProtoAttrs(attrs []*protos.Span_Attribute) []attribute.KeyValue {
 	if attrs == nil {
 		return nil
 	}
@@ -122,19 +122,19 @@ func fromProtoAttrs(attrs []*protos.Attribute) []attribute.KeyValue {
 	for i, attr := range attrs {
 		kv := attribute.KeyValue{Key: attribute.Key(attr.Key)}
 		switch attr.Value.Type {
-		case protos.Attribute_Value_BOOL:
+		case protos.Span_Attribute_Value_BOOL:
 			val := false
 			if attr.Value.GetNum() > 0 {
 				val = true
 			}
 			kv.Value = attribute.BoolValue(val)
-		case protos.Attribute_Value_INT64:
+		case protos.Span_Attribute_Value_INT64:
 			kv.Value = attribute.Int64Value(int64(attr.Value.GetNum()))
-		case protos.Attribute_Value_FLOAT64:
+		case protos.Span_Attribute_Value_FLOAT64:
 			kv.Value = attribute.Float64Value(math.Float64frombits(attr.Value.GetNum()))
-		case protos.Attribute_Value_STRING:
+		case protos.Span_Attribute_Value_STRING:
 			kv.Value = attribute.StringValue(attr.Value.GetStr())
-		case protos.Attribute_Value_BOOLLIST:
+		case protos.Span_Attribute_Value_BOOLLIST:
 			b := []byte(attr.Value.GetStr())
 			vals := make([]bool, len(b))
 			for i, v := range b {
@@ -143,21 +143,21 @@ func fromProtoAttrs(attrs []*protos.Attribute) []attribute.KeyValue {
 				}
 			}
 			kv.Value = attribute.BoolSliceValue(vals)
-		case protos.Attribute_Value_INT64LIST:
+		case protos.Span_Attribute_Value_INT64LIST:
 			nums := attr.Value.GetNums().Nums
 			vals := make([]int64, len(nums))
 			for i, num := range nums {
 				vals[i] = int64(num)
 			}
 			kv.Value = attribute.Int64SliceValue(vals)
-		case protos.Attribute_Value_FLOAT64LIST:
+		case protos.Span_Attribute_Value_FLOAT64LIST:
 			nums := attr.Value.GetNums().Nums
 			vals := make([]float64, len(nums))
 			for i, num := range nums {
 				vals[i] = math.Float64frombits(num)
 			}
 			kv.Value = attribute.Float64SliceValue(vals)
-		case protos.Attribute_Value_STRINGLIST:
+		case protos.Span_Attribute_Value_STRINGLIST:
 			kv.Value = attribute.StringSliceValue(attr.Value.GetStrs().Strs)
 		default:
 			// kv.Value retains the default INVALID value.

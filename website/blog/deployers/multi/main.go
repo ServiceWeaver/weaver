@@ -27,7 +27,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 // deployer is a simple multiprocess deployer that doesn't implement
@@ -158,7 +157,7 @@ func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) erro
 	return nil
 }
 
-func (h *handler) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error {
+func (h *handler) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	// This simplified deployer drops traces on the floor.
 	return nil
 }

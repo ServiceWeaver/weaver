@@ -16,51 +16,41 @@ package perfetto
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
-	"go.opentelemetry.io/otel/attribute"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-var now = time.Now()
+// Current time, rounded to a whole number of microseconds.
+var now = time.UnixMicro(time.Now().UnixMicro())
 
 // storeSpans stores the provided application version's spans in the database.
-func storeSpans(ctx context.Context, t *testing.T, db *DB, app, version string, spans ...sdktrace.ReadOnlySpan) {
-	if err := db.Store(ctx, app, version, spans); err != nil {
+func storeSpans(ctx context.Context, t *testing.T, db *DB, app, version string, spans ...*protos.Span) {
+	if err := db.Store(ctx, app, version, &protos.TraceSpans{Span: spans}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 // makeSpan creates a test span with the given information.
-func makeSpan(name string, dur time.Duration, pid int, weavelet string) sdktrace.ReadOnlySpan {
-	return tracetest.SpanStub{
-		Name:      name,
-		StartTime: now,
-		EndTime:   now.Add(dur),
-		SpanKind:  trace.SpanKindServer,
-		Attributes: []attribute.KeyValue{
-			{
-				Key:   semconv.ProcessPIDKey,
-				Value: attribute.IntValue(pid),
-			},
-			{
-				Key:   "weavelet",
-				Value: attribute.StringValue(weavelet),
-			},
-		},
-	}.Snapshot()
+func makeSpan(name string, tid, sid, pid string, start, end time.Time) *protos.Span {
+	return &protos.Span{
+		Name:         name,
+		TraceId:      []byte(tid),
+		SpanId:       []byte(sid),
+		ParentSpanId: []byte(pid),
+		Kind:         protos.Span_SERVER,
+		StartMicros:  start.UnixMicro(),
+		EndMicros:    end.UnixMicro(),
+	}
 }
 
-func TestStoreFetch(t *testing.T) {
-	// Test Plan: insert a number of spans into the database and associate
-	// them with various application versions. Then fetch the spans for
-	// those application versions and validate they are as expected.
+func TestQueryTraces(t *testing.T) {
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
 	db, err := Open(ctx, fname)
@@ -69,90 +59,142 @@ func TestStoreFetch(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Store a bunch of spans.
-	s1 := makeSpan("s1", time.Minute, 1, "w1")
-	s2 := makeSpan("s2", time.Second, 2, "w1")
-	s3 := makeSpan("s3", 2*time.Minute, 3, "w2")
-	s4 := makeSpan("s4", time.Minute, 5, "w3")
-	s5 := makeSpan("s5", time.Minute, 6, "w4")
-	s6 := makeSpan("s6", time.Minute, 7, "w5")
-	storeSpans(ctx, t, db, "app1", "v1", s1, s2)
-	storeSpans(ctx, t, db, "app1", "v1", s3)
-	storeSpans(ctx, t, db, "app1", "v2", s4)
-	storeSpans(ctx, t, db, "app2", "v1", s5, s6)
+	tid := func(id int) string {
+		return fmt.Sprintf("%016d", id)
+	}
+	sid := func(id int) string {
+		if id == 0 {
+			return string(make([]byte, 8))
+		}
+		return fmt.Sprintf("%08d", id)
+	}
+	tick := func(t int) time.Time {
+		if t == 0 {
+			return time.Time{}
+		}
+		return now.Add(time.Duration(t) * time.Second)
+	}
+	dur := func(ts int) time.Duration {
+		return time.Duration(ts) * time.Second
+	}
 
-	// Fetch a bunch of spans.
+	// Store a bunch of spans.
+	s1 := makeSpan("s1", tid(1), sid(1), sid(0), tick(3), tick(10))
+	s2 := makeSpan("s2", tid(1), sid(2), sid(1), tick(4), tick(9))
+	s3 := makeSpan("s3", tid(1), sid(3), sid(1), tick(5), tick(6))
+	s4 := makeSpan("s4", tid(2), sid(4), sid(0), tick(1), tick(7))
+	s5 := makeSpan("s5", tid(2), sid(5), sid(4), tick(3), tick(7))
+	s6 := makeSpan("s6", tid(2), sid(6), sid(5), tick(4), tick(6))
+	s7 := makeSpan("s7", tid(3), sid(7), sid(0), tick(2), tick(6))
+	s8 := makeSpan("s8", tid(3), sid(8), sid(7), tick(3), tick(5))
+	s9 := makeSpan("s9", tid(3), sid(9), sid(7), tick(3), tick(4))
+	storeSpans(ctx, t, db, "app1", "v1", s1, s2, s3)
+	storeSpans(ctx, t, db, "app1", "v2", s4, s5, s6)
+	storeSpans(ctx, t, db, "app2", "v1", s7, s8, s9)
+
+	// Issue queries and verify that the results are as expected.
 	for _, tc := range []struct {
-		help    string
-		app     string
-		version string
-		expect  []sdktrace.ReadOnlySpan
+		help               string
+		app                string
+		version            string
+		start, end         time.Time
+		durLower, durUpper time.Duration
+		limit              int64
+		expect             []TraceSummary
 	}{
 		{
-			help:    "single span",
-			app:     "app1",
-			version: "v2",
-			expect:  []sdktrace.ReadOnlySpan{s4},
+			help:    "all",
+			version: "",
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+				{tid(2), tick(1), tick(7)},
+				{tid(3), tick(2), tick(6)},
+			},
 		},
 		{
-			help:    "two spans",
-			app:     "app2",
-			version: "v1",
-			expect:  []sdktrace.ReadOnlySpan{s5, s6},
+			help: "match app",
+			app:  "app1",
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+				{tid(2), tick(1), tick(7)},
+			},
 		},
 		{
-			help:    "two rows",
+			help:    "match version",
+			version: "v1",
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+				{tid(3), tick(2), tick(6)},
+			},
+		},
+		{
+			help:    "match app version",
 			app:     "app1",
 			version: "v1",
-			expect:  []sdktrace.ReadOnlySpan{s1, s2, s3},
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+			},
+		},
+		{
+			help:  "match start time",
+			start: tick(2),
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+				{tid(3), tick(2), tick(6)},
+			},
+		},
+		{
+			help: "match end time",
+			end:  tick(9),
+			expect: []TraceSummary{
+				{tid(2), tick(1), tick(7)},
+				{tid(3), tick(2), tick(6)},
+			},
+		},
+		{
+			help:     "match duration lower",
+			durLower: dur(5),
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+				{tid(2), tick(1), tick(7)},
+			},
+		},
+		{
+			help:     "match duration upper",
+			durUpper: dur(6),
+			expect: []TraceSummary{
+				{tid(2), tick(1), tick(7)},
+				{tid(3), tick(2), tick(6)},
+			},
+		},
+		{
+			help:  "match limit",
+			limit: 2,
+			expect: []TraceSummary{
+				{tid(1), tick(3), tick(10)},
+				{tid(2), tick(1), tick(7)},
+			},
 		},
 	} {
 		t.Run(tc.help, func(t *testing.T) {
-			expectEnc, err := db.encodeSpans(ctx, tc.app, tc.version, tc.expect)
+			actual, err := db.QueryTraces(ctx, tc.app, tc.version, tc.start, tc.end, tc.durLower, tc.durUpper, tc.limit)
 			if err != nil {
 				t.Fatal(err)
 			}
-			actualEnc, err := db.fetch(ctx, tc.app, tc.version)
-			if err != nil {
-				t.Fatal(err)
+			// Undo the hex conversion for tests.
+			for i, trace := range actual {
+				s, err := hex.DecodeString(trace.TraceID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				actual[i].TraceID = string(s)
 			}
-			if diff := cmp.Diff(expectEnc, actualEnc); diff != "" {
-				t.Fatalf("unexpected metrics (-want +got):\n%s", diff)
+			less := func(a, b TraceSummary) bool {
+				return string(a.TraceID[:]) < string(b.TraceID[:])
+			}
+			if diff := cmp.Diff(tc.expect, actual, cmpopts.SortSlices(less)); diff != "" {
+				t.Errorf("unexpected traces: (-want +got): %s", diff)
 			}
 		})
 	}
-}
-
-func TestReplicaNum(t *testing.T) {
-	// Test Plan: Retrieve replica numbers for a number of different
-	// application versions. Ensure that different replicas of the same version
-	// get assigned sequential replica numbers, starting with zero.
-	ctx := context.Background()
-	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
-	db, err := Open(ctx, fname)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	expect := func(app, version, weavelet string, num int) {
-		rn, err := db.getReplicaNumber(ctx, app, version, weavelet)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if rn != num {
-			t.Errorf("unexpected replica for %s %s %s; want %d, got %d", app, version, weavelet, num, rn)
-		}
-	}
-	expect("app1", "v1", "w1", 0)
-	expect("app1", "v1", "w2", 1)
-	expect("app1", "v1", "w3", 2)
-	expect("app1", "v2", "w1", 0)
-	expect("app1", "v2", "w2", 1)
-	expect("app1", "v2", "w3", 2)
-	expect("app2", "v1", "w1", 0)
-	expect("app2", "v1", "w2", 1)
-	expect("app2", "v1", "w3", 2)
-	expect("app2", "v2", "w1", 0)
-	expect("app2", "v2", "w2", 1)
-	expect("app2", "v2", "w3", 2)
 }

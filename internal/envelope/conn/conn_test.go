@@ -30,7 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -160,7 +159,7 @@ type handlerForTest struct{}
 
 var _ conn.EnvelopeHandler = &handlerForTest{}
 
-func (*handlerForTest) HandleTraceSpans(context.Context, []sdktrace.ReadOnlySpan) error {
+func (*handlerForTest) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	return nil
 }
 
