@@ -66,22 +66,22 @@ type MethodLabels struct {
 // MethodMetrics contains metrics for a single Service Weaver component method.
 type MethodMetrics struct {
 	remote       bool
-	Count        *metrics.Counter   // See MethodCounts.
-	ErrorCount   *metrics.Counter   // See MethodErrors.
-	Latency      *metrics.Histogram // See MethodLatencies.
-	BytesRequest *metrics.Histogram // See MethodBytesRequest.
-	BytesReply   *metrics.Histogram // See MethodBytesReply.
+	count        *metrics.Counter   // See MethodCounts.
+	errorCount   *metrics.Counter   // See MethodErrors.
+	latency      *metrics.Histogram // See MethodLatencies.
+	bytesRequest *metrics.Histogram // See MethodBytesRequest.
+	bytesReply   *metrics.Histogram // See MethodBytesReply.
 }
 
 // MethodMetricsFor returns metrics for the specified method.
 func MethodMetricsFor(labels MethodLabels) *MethodMetrics {
 	return &MethodMetrics{
 		remote:       labels.Remote,
-		Count:        methodCounts.Get(labels),
-		ErrorCount:   methodErrors.Get(labels),
-		Latency:      methodLatencies.Get(labels),
-		BytesRequest: methodBytesRequest.Get(labels),
-		BytesReply:   methodBytesReply.Get(labels),
+		count:        methodCounts.Get(labels),
+		errorCount:   methodErrors.Get(labels),
+		latency:      methodLatencies.Get(labels),
+		bytesRequest: methodBytesRequest.Get(labels),
+		bytesReply:   methodBytesReply.Get(labels),
 	}
 }
 
@@ -99,13 +99,13 @@ func (m *MethodMetrics) Begin() MethodCallHandle {
 // End ends metric update recording for a call to method m.
 func (m *MethodMetrics) End(h MethodCallHandle, failed bool, requestBytes, replyBytes int) {
 	latency := time.Since(h.start).Microseconds()
-	m.Count.Inc()
+	m.count.Inc()
 	if failed {
-		m.ErrorCount.Inc()
+		m.errorCount.Inc()
 	}
-	m.Latency.Put(float64(latency))
+	m.latency.Put(float64(latency))
 	if m.remote {
-		m.BytesRequest.Put(float64(requestBytes))
-		m.BytesReply.Put(float64(replyBytes))
+		m.bytesRequest.Put(float64(requestBytes))
+		m.bytesReply.Put(float64(replyBytes))
 	}
 }
