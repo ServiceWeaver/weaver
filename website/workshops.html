@@ -26,34 +26,51 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    const JANUARY = 0;
+    const FEBRUARY = 1;
+    const MARCH = 2;
+    const APRIL = 3;
+    const MAY = 4;
+    const JUNE = 5;
+    const JULY = 6;
+    const AUGUST = 7;
+    const SEPTEMBER = 8;
+    const OCTOBER = 9;
+    const NOVEMBER = 10;
+    const DECEMBER = 11;
     const items = [
       {
-        date: new Date('2023-06-27'),
+        date: new Date(2023, JUNE, 27),
         location: 'Berlin',
         register: '<a href="https://gdg.community.dev/events/details/google-gdg-berlin-golang-presents-service-weaver-workshop/">GDG Berlin Golang</a>',
       },
       {
-        date: new Date('2023-06-30'),
+        date: new Date(2023, JUNE, 30),
         location: 'Zurich',
         register: '<a href="https://gdg.community.dev/events/details/google-gdg-zurich-presents-service-weaver-workshop/">GDG Zurich</a>, <a href="https://www.meetup.com/zurich-gophers/events/294260278">Zurich Gophers</a>',
       },
       {
-        date: new Date('2023-07-27'),
+        date: new Date(2023, JULY, 27),
         location: 'San Francisco',
+        register: '<a href="https://gdg.community.dev/events/details/google-gdg-san-francisco-presents-service-weaver-workshop-in-person/cohost-gdg-san-francisco">GDG San Francisco</a>',
+      },
+      {
+        date: new Date(2023, AUGUST, 3),
+        location: 'Sunnyvale',
         register: 'TBA',
       },
       {
-        date: new Date('2023-08-15'),
+        date: new Date(2023, AUGUST, 15),
         location: 'Dublin',
         register: 'TBA',
       },
       {
-        date: new Date('2023-08-16'),
+        date: new Date(2023, AUGUST, 16),
         location: 'London',
         register: '<a href="https://gdg.community.dev/events/details/google-gdg-cloud-london-presents-workshop-on-service-weaver-by-robert-grandl-google-london/">GDG Cloud London</a>',
       },
       {
-        date: new Date('2023-08-18'),
+        date: new Date(2023, AUGUST, 18),
         location: 'Paris',
         register: '<a href="https://gdg.community.dev/events/details/google-gdg-paris-presents-workshop-on-service-weaver-by-robert-grandl-google-paris/">GDG Paris</a>',
       },
