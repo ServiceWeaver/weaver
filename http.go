@@ -105,9 +105,10 @@ func InstrumentHandler(label string, handler http.Handler) http.Handler {
 		httpRequestBytesReturned.Get(labels).Put(float64(writer.responseSize(r)))
 	})
 	const traceSampleInterval = 1 * time.Second
-	s := newTraceSampler(traceSampleInterval)
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	s := newTraceSampler(traceSampleInterval, rng)
 	return otelhttp.NewHandler(h, label, otelhttp.WithFilter(func(r *http.Request) bool {
-		return s.shouldTrace()
+		return s.shouldTrace(time.Now())
 	}))
 }
 
@@ -130,32 +131,32 @@ type traceSampler struct {
 
 // newTraceSampler returns a new traceSampler that allows at most one request
 // to be traced during each time interval.
-func newTraceSampler(interval time.Duration) *traceSampler {
+func newTraceSampler(interval time.Duration, rng *rand.Rand) *traceSampler {
 	return &traceSampler{
 		intervalNs: float64(interval / time.Nanosecond),
-		rng:        rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:        rng,
 	}
 }
 
 // shouldTrace returns true iff a request should be traced.
-func (s *traceSampler) shouldTrace() bool {
+func (s *traceSampler) shouldTrace(now time.Time) bool {
 	// Fast-path check avoids acquiring a mutex or modifying the sampler in any
 	// way.
-	now := time.Now().UnixNano()
-	if now < s.nextSampleTimeNs.Load() {
+	nowNs := now.UnixNano()
+	if nowNs < s.nextSampleTimeNs.Load() {
 		return false
 	}
 
 	// Check again while holding the lock.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if now < s.nextSampleTimeNs.Load() {
+	if nowNs < s.nextSampleTimeNs.Load() {
 		return false
 	}
 
 	// Pick a new value for nextSampleTime and return.
 	// We pick a random value in [0,s*s.intervalNs] (averages out to s.intervalNs).
-	s.nextSampleTimeNs.Store(now + int64(2*s.rng.Float64()*s.intervalNs))
+	s.nextSampleTimeNs.Store(nowNs + int64(2*s.rng.Float64()*s.intervalNs))
 	return true
 }
 
