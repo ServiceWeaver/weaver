@@ -176,13 +176,13 @@ func (s *StatsProcessor) getSnapshot(snapshot []*metrics.MetricSnapshot) {
 		// Aggregate stats within a bucket, based on metric values from different
 		// replicas for the method.
 		switch m.Name {
-		case codegen.MethodCounts.Name():
+		case codegen.MethodCountsName:
 			bucket.calls += m.Value
-		case codegen.MethodBytesReply.Name():
+		case codegen.MethodBytesReplyName:
 			bucket.kbSent += m.Value / 1024 // B to KB
-		case codegen.MethodBytesRequest.Name():
+		case codegen.MethodBytesRequestName:
 			bucket.kbRecvd += m.Value / 1024 // B to KB
-		case codegen.MethodLatencies.Name():
+		case codegen.MethodLatenciesName:
 			bucket.latencyMs += m.Value / 1000 // µs to ms
 
 			var count uint64

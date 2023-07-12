@@ -259,7 +259,7 @@ func computeTraffic(status *Status, metrics []*protos.MetricSnapshot) []edge {
 	}
 	byPair := map[pair]int{}
 	for _, metric := range metrics {
-		if metric.Name != codegen.MethodCounts.Name() {
+		if metric.Name != codegen.MethodCountsName {
 			continue
 		}
 		call := pair{
