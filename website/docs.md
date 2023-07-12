@@ -1097,9 +1097,22 @@ mux.Handle("/foo", weaver.InstrumentHandler("foo", fooHandler))
 Service Weaver relies on [OpenTelemetry][otel] to trace your application.
 Service Weaver exports these traces into the environment where your application
 is deployed. If you [deploy a Service Weaver application to Google Cloud](#gke),
-for example, traces are automatically exported to [Google Cloud
-Trace][cloud_trace]. Here's an example of how to enable tracing for a simple
-`Hello, World!` application.
+for example, traces are automatically exported to
+[Google Cloud Trace][cloud_trace].
+
+If you pass an [`http.Handler`](https://pkg.go.dev/net/http#Handler) to the
+`weaver.InstrumentHandler` function, it will return a new `http.Handler` that
+traces an HTTP request every second.
+
+```go
+// Tracing is enabled for one request every second.
+var mux http.ServeMux
+var fooHandler http.Handler = ...
+mux.Handle("/foo", weaver.InstrumentHandler("foo", fooHandler))
+```
+
+Alternatively, you can enable tracing manually using the [OpenTelemetry][otel]
+libraries: 
 
 ```go
 import (
@@ -1131,29 +1144,21 @@ func serve(ctx context.Context, app *app) error {
         fmt.Fprintf(w, "Hello, %s!\n", r.URL.Query().Get("name"))
     })
 
-    // Create an otel handler to enable tracing.
+    // Create an otel handler to manually enable tracing.
     otelHandler := otelhttp.NewHandler(http.DefaultServeMux, "http")
     return http.Serve(lis, otelHandler)
 }
 ```
 
-This code does the following:
-
-- `http.HandleFunc("/hello", ...)` registers a handler with the default HTTP
-  mux, called `http.DefaultServeMux`.
-- `otelhttp.NewHandler(http.DefaultServeMux, "http")` returns a new HTTP handler
-  that wraps the default HTTP mux.
-- `http.Serve(lis, otelHandler)` serves HTTP traffic on `lis` using the
-  OpenTelemetry handler.
-
-Using the OpenTelemetry HTTP handler enables tracing. Once tracing is enabled,
-all HTTP requests and resulting component method calls will be automatically
-traced. Service Weaver will collect and export the traces for you. Refer to the
+Regardless of whether you use `weaver.InstrumentHandler` or you manually enable
+tracing, once tracing is enabled for a given HTTP request, that request
+and the resulting component method calls will be automatically traced. Service
+Weaver will collect and export the traces for you. Refer to the
 deployer-specific documentation for [single process](#single-process-tracing),
 [multiprocess](#multiprocess-tracing), and [GKE](#gke-tracing) to learn about
-deployer specific exporters.
+deployer-specific exporters.
 
-The step above is all you need to get started with tracing. If you want to add
+The steps above are all you need to get started with tracing. If you want to add
 more application-specific details to your traces, you can add attributes,
 events, and errors using the context passed to registered HTTP handlers and
 component methods. For example, in our `hello` example, you can add an event as
@@ -1175,13 +1180,13 @@ more about how to add more application-specific details to your traces.
 
 # Profiling
 
-Service Weaver allows you to profile an entire Service Weaver application, even one that is
-deployed in multiple processes across multiple machines. Service Weaver profiles every
-individual binary and aggregates them into a single profile that captures the
-performance of the application as a whole. Refer to the deployer-specific
-documentation for details on how to collect profiles for [single
-process](#single-process-profiling), [multiprocess](#multiprocess-profiling),
-and [GKE](#gke-profiling) deployments.
+Service Weaver allows you to profile an entire Service Weaver application, even
+one that is deployed in multiple processes across multiple machines. Service
+Weaver profiles every individual binary and aggregates them into a single
+profile that captures the performance of the application as a whole. Refer to
+the deployer-specific documentation for details on how to collect profiles for
+[single process](#single-process-profiling),
+[multiprocess](#multiprocess-profiling), and [GKE](#gke-profiling) deployments.
 
 # Routing
 

@@ -33,7 +33,6 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -155,9 +154,8 @@ func Serve(ctx context.Context, s *Server) error {
 	var handler http.Handler = r
 	// TODO(spetrovic): Use the Service Weaver per-component config to provisionaly
 	// add these stats.
-	handler = ensureSessionID(handler)             // add session ID
-	handler = newLogHandler(s, handler)            // add logging
-	handler = otelhttp.NewHandler(handler, "http") // add tracing
+	handler = ensureSessionID(handler)  // add session ID
+	handler = newLogHandler(s, handler) // add logging
 	s.handler = handler
 
 	s.Logger().Debug("Frontend available", "addr", s.boutique)
