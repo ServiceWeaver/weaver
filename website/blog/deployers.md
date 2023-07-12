@@ -621,7 +621,7 @@ sending protobufs over a pair of pipes. For even more details, refer to
 [GetLoad]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetLoad
 [Run]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Run
 [ListenerOptions]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#ListenerOptions
-[Listener]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Instance
+[Listener]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Listener
 [NewEnvelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#NewEnvelope
 [ReplicaToRegister]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#ReplicaToRegister
 [WeaveletInfo]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletInfo

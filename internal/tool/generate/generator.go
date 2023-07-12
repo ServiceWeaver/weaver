@@ -955,14 +955,14 @@ please file an issue at https://github.com/ServiceWeaver/weaver/issues.
 }
 
 // generateInstanceChecks generates code that checks that every component
-// implementation type implements weaver.Instance.
+// implementation type implements weaver.InstanceOf[T] for the appropriate T.
 func (g *generator) generateInstanceChecks(p printFn) {
 	// If someone deletes a weaver.Implements annotation and forgets to re-run
 	// `weaver generate`, these checks will fail to build. Similarly, if a user
 	// changes the interface in a weaver.Implements and forgets to re-run
 	// `weaver generate`, these checks will fail to build.
 	p(``)
-	p(`// weaver.Instance checks.`)
+	p(`// weaver.InstanceOf checks.`)
 	for _, c := range g.components {
 		// e.g., var _ weaver.InstanceOf[Odd] = &odd{}
 		p(`var _ %s[%s] = (*%s)(nil)`, g.weaver().qualify("InstanceOf"), g.tset.genTypeString(c.intf), g.tset.genTypeString(c.impl))

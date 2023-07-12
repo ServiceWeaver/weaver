@@ -18,20 +18,20 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ServiceWeaver/weaver"
+	"golang.org/x/exp/slog"
 )
 
 type cartStore struct {
-	component weaver.Instance
-	cache     cartCache
+	logger *slog.Logger
+	cache  cartCache
 }
 
-func newCartStore(component weaver.Instance, cache cartCache) (*cartStore, error) {
-	return &cartStore{component: component, cache: cache}, nil
+func newCartStore(logger *slog.Logger, cache cartCache) (*cartStore, error) {
+	return &cartStore{logger: logger, cache: cache}, nil
 }
 
 func (c *cartStore) AddItem(ctx context.Context, userID, productID string, quantity int32) error {
-	c.component.Logger().Info("AddItem called", "userID", userID, "productID", productID, "quantity", quantity)
+	c.logger.Info("AddItem called", "userID", userID, "productID", productID, "quantity", quantity)
 	// Get the cart from the cache.
 	cart, err := c.cache.Get(ctx, userID)
 	if err != nil {
@@ -64,13 +64,13 @@ func (c *cartStore) AddItem(ctx context.Context, userID, productID string, quant
 }
 
 func (c *cartStore) EmptyCart(ctx context.Context, userID string) error {
-	c.component.Logger().Info("EmptyCart called", "userID", userID)
+	c.logger.Info("EmptyCart called", "userID", userID)
 	_, err := c.cache.Remove(ctx, userID)
 	return err
 }
 
 func (c *cartStore) GetCart(ctx context.Context, userID string) ([]CartItem, error) {
-	c.component.Logger().Info("GetCart called", "userID", userID)
+	c.logger.Info("GetCart called", "userID", userID)
 	cart, err := c.cache.Get(ctx, userID)
 	if err != nil && errors.Is(err, errNotFound{}) {
 		return []CartItem{}, nil

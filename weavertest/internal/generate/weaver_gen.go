@@ -52,7 +52,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[testApp] = (*impl)(nil)
 
 // weaver.Router checks.

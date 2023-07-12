@@ -39,7 +39,7 @@ type impl struct {
 }
 
 func (s *impl) Init(context.Context) error {
-	store, err := newCartStore(s, s.cache.Get())
+	store, err := newCartStore(s.Logger(), s.cache.Get())
 	s.store = store
 	return err
 }

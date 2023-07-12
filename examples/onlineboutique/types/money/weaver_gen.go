@@ -29,7 +29,7 @@ please file an issue at https://github.com/ServiceWeaver/weaver/issues.
 
 `)
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 
 // weaver.Router checks.
 

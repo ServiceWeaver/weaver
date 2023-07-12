@@ -32,26 +32,13 @@ import (
 //    a componentImpl if the component is local, a componentStub if it
 //    is remote.
 //  - componentImpl: created when a component is instantiated in this process.
-//  - Instance: common interface implemented by all local component implementations.
-//    Implemented by componentImpl.
+//  - InstanceOf[T]: interface implemented by a struct that embeds
+//    weaver.Implements[T].
 //  - componentStub: proxies method calls to remote componentImpls.
-
-// Instance is the interface implemented by all component implementations
-// (by virtue of [weaver.Implements] being embedded inside the component implementation).
-// An Instance for a particular component only exists in processes that are hosting
-// that component.
-type Instance interface {
-	// Logger returns a logger that associates its log entries with this component.
-	Logger() *slog.Logger
-
-	// rep is for internal use.
-	rep() *component
-}
 
 // InstanceOf[T] is the interface implemented by a struct that embeds
 // weaver.Implements[T].
 type InstanceOf[T any] interface {
-	Instance
 	implements(T)
 }
 
@@ -97,8 +84,6 @@ type component struct {
 	load  *loadCollector           // non-nil for routed components
 }
 
-var _ Instance = &componentImpl{}
-
 // Main is interface implemented by an application's main component.
 type Main interface{}
 
@@ -119,9 +104,8 @@ type Main interface{}
 //	}
 //
 // Implements is embedded inside the component implementation, and therefore
-// methods of Implements (as well as methods of [weaver.Instance]) are available
-// as methods of the implementation type and can be invoked directly on an
-// implementation type instance.
+// methods of Implements are available as methods of the implementation type
+// and can be invoked directly on an implementation type instance.
 type Implements[T any] struct {
 	*componentImpl
 
@@ -225,10 +209,10 @@ func (l *Listener) ProxyAddr() string {
 	return l.proxyAddr
 }
 
-func (c *componentImpl) rep() *component { return c.component }
-
 // Logger returns a logger that associates its log entries with this component.
-func (c *componentImpl) Logger() *slog.Logger { return c.component.logger }
+func (i *Implements[T]) Logger() *slog.Logger {
+	return i.componentImpl.component.logger
+}
 
 // WithRouter[T] is a type that can be embedded inside a component implementation
 // struct to indicate that calls to a method M on the component must be routed according

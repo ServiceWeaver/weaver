@@ -187,7 +187,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Ping1] = (*ping1)(nil)
 var _ weaver.InstanceOf[Ping10] = (*ping10)(nil)
 var _ weaver.InstanceOf[Ping2] = (*ping2)(nil)

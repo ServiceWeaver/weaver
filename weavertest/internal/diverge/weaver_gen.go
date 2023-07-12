@@ -67,7 +67,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Errer] = (*errer)(nil)
 var _ weaver.InstanceOf[Pointer] = (*pointer)(nil)
 

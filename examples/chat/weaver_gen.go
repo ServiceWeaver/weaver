@@ -97,7 +97,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[ImageScaler] = (*scaler)(nil)
 var _ weaver.InstanceOf[LocalCache] = (*localCache)(nil)
 var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)

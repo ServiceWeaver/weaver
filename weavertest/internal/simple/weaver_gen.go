@@ -83,7 +83,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Destination] = (*destination)(nil)
 var _ weaver.InstanceOf[Server] = (*server)(nil)
 var _ weaver.InstanceOf[Source] = (*source)(nil)

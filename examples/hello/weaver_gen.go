@@ -65,7 +65,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[weaver.Main] = (*app)(nil)
 var _ weaver.InstanceOf[Reverser] = (*reverser)(nil)
 

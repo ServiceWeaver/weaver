@@ -66,7 +66,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Started] = (*started)(nil)
 var _ weaver.InstanceOf[Widget] = (*widget)(nil)
 
