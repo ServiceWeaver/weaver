@@ -180,22 +180,41 @@ func TestErrorUnableToDecBytes(t *testing.T) {
 	}
 }
 
+// Some custom error types. There are manually made serializable since we do
+// not want this package to depend on the code generator.
+
 type customTestError struct{ f string }
 
-func (c customTestError) Error() string { return fmt.Sprintf("custom(%s)", c.f) }
+func (c customTestError) Error() string               { return fmt.Sprintf("custom(%s)", c.f) }
+func (c *customTestError) WeaverMarshal(e *Encoder)   { e.String(c.f) }
+func (c *customTestError) WeaverUnmarshal(d *Decoder) { c.f = d.String() }
+
+type alternateError struct{ f string }
+
+func (e alternateError) Error() string               { return fmt.Sprintf("alt(%s)", e.f) }
+func (c *alternateError) WeaverMarshal(e *Encoder)   { e.String(c.f) }
+func (c *alternateError) WeaverUnmarshal(d *Decoder) { c.f = d.String() }
+
+func init() {
+	RegisterSerializable[customTestError]()
+	RegisterSerializable[alternateError]()
+}
 
 func TestErrorValues(t *testing.T) {
 	type testCase struct {
-		name string
-		val  error
+		name  string
+		val   error
+		is    []error // Error values target for which errors.Is(decoded, target) must be true
+		notis []error // Error values target for which errors.Is(decoded, target) must be false
 	}
 	for _, c := range []testCase{
-		{"nil", nil},
-		{"flat", errors.New("hello")},
-		{"wrap1", fmt.Errorf("hello %w", os.ErrNotExist)},
-		{"wrap2", fmt.Errorf("hello %w", fmt.Errorf("world %w", os.ErrNotExist))},
-		{"custom", customTestError{"x"}},
-		{"wrap-custom", fmt.Errorf("hello %w", customTestError{"a"})},
+		{"nil", nil, nil, nil},
+		{"flat", errors.New("hello"), nil, []error{os.ErrNotExist}},
+		{"wrap1", fmt.Errorf("hello %w", os.ErrNotExist), []error{os.ErrNotExist}, nil},
+		{"wrap2", fmt.Errorf("hello %w", fmt.Errorf("world %w", os.ErrNotExist)), []error{os.ErrNotExist}, nil},
+		{"custom", customTestError{"x"}, nil, []error{os.ErrNotExist, alternateError{"x"}}},
+		{"wrap-custom", fmt.Errorf("hello %w", customTestError{"a"}), []error{customTestError{"a"}}, nil},
+		{"wrap-two", fmt.Errorf("hello %w %w", customTestError{"a"}, alternateError{"b"}), []error{customTestError{"a"}, alternateError{"b"}}, []error{customTestError{"other"}, alternateError{"other"}}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// Encode/decode and get resulting error value.
@@ -208,32 +227,32 @@ func TestErrorValues(t *testing.T) {
 				t.Fatalf("leftover bytes in decoder")
 			}
 
-			// Test that unwrapping chain is preserved.
-			for src != nil && dst != nil {
-				if diff := cmp.Diff(src.Error(), dst.Error()); diff != "" {
-					t.Errorf("error message different (-want,+got):\n%s", diff)
-				}
-				src = errors.Unwrap(src)
-				dst = errors.Unwrap(dst)
-				if !errors.Is(dst, src) {
-					t.Errorf("decoded error %q does match source error: %T:%q", dst, src, src)
-				}
+			if src == nil && dst != nil {
+				t.Errorf("decoded non-nil error (%v) for nil source", dst)
+			}
+			if src != nil && dst == nil {
+				t.Errorf("decoded nil error for non-nil source (%v)", src)
+			}
 
-				// Verify that we do not get spurious matches to other errors.
-				if errors.Is(dst, os.ErrInvalid) {
-					t.Errorf("decoded error %q matches unexpected error", dst)
-				}
-
-				if a, b := errors.Is(src, customTestError{}), errors.Is(dst, customTestError{}); a != b {
-					t.Errorf("incompatible errors.Is(...customTestError{}) results for src(%v) and dst(%v)", a, b)
+			// Check errors.Is(dst) for all error types that should match.
+			for _, target := range c.is {
+				if !errors.Is(dst, target) {
+					t.Errorf("decoded error (%v) (from %v) does not match target (%v)", dst, src, target)
 				}
 			}
 
-			if src != nil {
-				t.Errorf("too few unwrapping levels in decoded error")
+			// Check errors.Is(dst) for all error types that should not match.
+			for _, target := range c.notis {
+				if errors.Is(dst, target) {
+					t.Errorf("decoded error (%v) (from %v) unexpectedly matches target (%v)", dst, src, target)
+				}
 			}
-			if dst != nil {
-				t.Errorf("too many unwrapping levels in decoded error")
+
+			// Checks errors.Is(dst) against all unwrappings of src.
+			for u := src; u != nil; u = errors.Unwrap(u) {
+				if !errors.Is(dst, u) {
+					t.Errorf("decoded error (%#v) (from %#v) does not match unwrapped error (%#v)", dst, src, u)
+				}
 			}
 		})
 	}
