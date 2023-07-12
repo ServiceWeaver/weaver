@@ -616,10 +616,6 @@ type foo struct{
 -   It must embed a `weaver.Implements[T]` field where `T` is the component
     interface it implements.
 
-`weaver.Implements[T]` implements the `weaver.Instance` interface and therefore
-every component implementation (including `foo`) also implements
-`weaver.Instance`.
-
 If a component implementation implements an `Init(context.Context) error`
 method, it will be called when an instance of the component is created.
 
@@ -1112,7 +1108,7 @@ mux.Handle("/foo", weaver.InstrumentHandler("foo", fooHandler))
 ```
 
 Alternatively, you can enable tracing manually using the [OpenTelemetry][otel]
-libraries: 
+libraries:
 
 ```go
 import (

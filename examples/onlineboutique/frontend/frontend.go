@@ -154,8 +154,8 @@ func Serve(ctx context.Context, s *Server) error {
 	var handler http.Handler = r
 	// TODO(spetrovic): Use the Service Weaver per-component config to provisionaly
 	// add these stats.
-	handler = ensureSessionID(handler)  // add session ID
-	handler = newLogHandler(s, handler) // add logging
+	handler = ensureSessionID(handler)           // add session ID
+	handler = newLogHandler(s.Logger(), handler) // add logging
 	s.handler = handler
 
 	s.Logger().Debug("Frontend available", "addr", s.boutique)

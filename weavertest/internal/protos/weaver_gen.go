@@ -51,7 +51,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[PingPonger] = (*impl)(nil)
 
 // weaver.Router checks.

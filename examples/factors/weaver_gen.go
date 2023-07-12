@@ -66,7 +66,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Factorer] = (*factorer)(nil)
 var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)
 

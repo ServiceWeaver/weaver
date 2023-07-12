@@ -80,7 +80,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Even] = (*even)(nil)
 var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)
 var _ weaver.InstanceOf[Odd] = (*odd)(nil)

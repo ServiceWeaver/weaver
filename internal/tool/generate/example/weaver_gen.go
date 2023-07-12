@@ -71,7 +71,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[A] = (*a)(nil)
 var _ weaver.InstanceOf[B] = (*b)(nil)
 

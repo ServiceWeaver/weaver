@@ -68,7 +68,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[T] = (*impl)(nil)
 var _ weaver.InstanceOf[cartCache] = (*cartCacheImpl)(nil)
 

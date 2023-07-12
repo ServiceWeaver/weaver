@@ -48,7 +48,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[weaver.Main] = (*Server)(nil)
 
 // weaver.Router checks.

@@ -51,7 +51,7 @@ func init() {
 	})
 }
 
-// weaver.Instance checks.
+// weaver.InstanceOf checks.
 var _ weaver.InstanceOf[Clock] = (*clock)(nil)
 
 // weaver.Router checks.

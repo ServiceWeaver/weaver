@@ -19,7 +19,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
 )
@@ -55,8 +54,8 @@ type logHandler struct {
 	next   http.Handler
 }
 
-func newLogHandler(component weaver.Instance, next http.Handler) http.Handler {
-	return &logHandler{logger: component.Logger(), next: next}
+func newLogHandler(logger *slog.Logger, next http.Handler) http.Handler {
+	return &logHandler{logger: logger, next: next}
 }
 
 func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
