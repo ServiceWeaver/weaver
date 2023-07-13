@@ -17,6 +17,7 @@ package codegen
 import (
 	"encoding"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -215,42 +216,73 @@ func (d *Decoder) Len() int {
 // Error decodes an error. We construct an instance of a special error value
 // that provides Is and Unwrap support.
 func (d *Decoder) Error() error {
-	n := d.Int()
-	if n == 0 {
-		return nil
+	// Decode the list of errors produced by Encoder.Error().
+	var list []error
+	for {
+		tag := d.Uint8()
+		if tag == endOfErrors {
+			break
+		} else if tag == serializedError {
+			val := d.Interface()
+			e, ok := val.(error)
+			if !ok {
+				panic(fmt.Sprintf("received type %T which is not an error", val))
+			}
+			list = append(list, e)
+		} else if tag == emulatedError {
+			msg := d.String()
+			f := d.String()
+			list = append(list, decodedError{msg, f})
+		} else {
+			panic(fmt.Sprintf("invalid error list tag %d", tag))
+		}
 	}
-	var err decodedErrorStack
-	for i := 0; i < n; i++ {
-		msg := d.String()
-		f := d.String()
-		err = append(err, decodedErrorEntry{msg, f})
+	if len(list) == 1 {
+		return list[0] // Preserve original error instead of wrapping it via Join
 	}
-	// Note that we intentionally return nil when n==0 so that the deserialization
-	// of a serialized nil error remains nil
-	return err
+	return errors.Join(list...)
 }
 
-type decodedErrorStack []decodedErrorEntry
+// Interface decodes a value encoded by Encoder.Interface.
+// Panics if the encoded value does not belong to a type registered
+// using RegisterSerializable.
+func (d *Decoder) Interface() any {
+	key := d.String()
+	typesMu.Lock()
+	defer typesMu.Unlock()
+	t, ok := types[key]
+	if !ok {
+		return nil
+	}
+	// XXX Support serializable pointer types.
+	ptr := reflect.New(t)
+	am, ok := ptr.Interface().(AutoMarshal)
+	if !ok {
+		panic(fmt.Sprintf("received value for non-serializable type %v", t))
+	}
+	am.WeaverUnmarshal(d)
+	return ptr.Elem().Interface()
+}
 
-type decodedErrorEntry struct {
+// decodedError is an error used for non-serializable decoded errors.
+// It supports Error() by returning the Error() string precomputed at
+// the send. It partially supports Is() by comparing the string
+// representation of the value.
+type decodedError struct {
 	msg string // Error() result
 	fmt string // Result of fmtError
 }
 
+var _ error = decodedError{}
+
 // Error implements error.Error.
-func (e decodedErrorStack) Error() string { return e[0].msg }
+func (e decodedError) Error() string { return e.msg }
 
-// Unwrap returns the error wrapped by e, or nil if there isn't one.
-func (e decodedErrorStack) Unwrap() error {
-	if len(e) > 1 {
-		return e[1:]
-	}
-	return nil
-}
-
-// Is returns true if either e or an error it wraps has the same type as target.
-func (e decodedErrorStack) Is(target error) bool {
-	return e[0].fmt == fmtError(target)
+// Is returns true if the representation of this error is the same as the
+// representation of the target error. Note that this is not the same
+// as the normal specification of errors.Is, but is the best we can do.
+func (e decodedError) Is(target error) bool {
+	return e.fmt == fmtError(target)
 }
 
 // fmtError serializes an error value including its type info using fmt.Sprintf.
