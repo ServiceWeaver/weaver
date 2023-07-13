@@ -12,52 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package weaver
+package weaver_test
 
 import (
 	"fmt"
-	"net"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/ServiceWeaver/weaver"
+	core "github.com/ServiceWeaver/weaver/internal/weaver"
 )
 
-type testListener struct {
-	net.Listener
+type impl struct {
+	A weaver.Ref[int]
+	B weaver.Ref[string]
+	C weaver.Ref[bool]
 }
 
-func getListener(lis string) (net.Listener, string, error) {
-	if lis != "A" && lis != "b" && lis != "cname" && lis != "DName" {
-		return nil, "", fmt.Errorf("unexpected listener %q", lis)
+func getValue(t reflect.Type) (any, error) {
+	if t == reflect.TypeOf(int(0)) {
+		return 42, nil
 	}
-	return &testListener{}, lis, nil
+	if t == reflect.TypeOf("") {
+		return "hello", nil
+	}
+	return nil, fmt.Errorf("unsupported type %v", t)
 }
 
-func TestFillListeners(t *testing.T) {
+func TestFillRefs(t *testing.T) {
 	var x struct {
-		A Listener
-		b Listener
-		C Listener `weaver:"cname"`
-		d Listener `weaver:"DName"`
+		a weaver.Ref[int]
+		b weaver.Ref[string]
 	}
-	if err := fillListeners(&x, getListener); err != nil {
+	if err := core.FillRefs(&x, getValue); err != nil {
 		t.Fatal(err)
 	}
-	if x.A.proxyAddr != "A" {
-		t.Errorf(`expecting x.A.proxyAddr to be "A", got %q`, x.A.proxyAddr)
+	if x.a.Get() != 42 {
+		t.Errorf("expecting x.a to be 42, got %d", x.a.Get())
 	}
-	if x.b.proxyAddr != "b" {
-		t.Errorf(`expecting x.b.proxyAddr to be "b", got %q`, x.b.proxyAddr)
-	}
-	if x.C.proxyAddr != "cname" {
-		t.Errorf(`expecting x.C.proxyAddr to be "cname", got %q`, x.C.proxyAddr)
-	}
-	if x.d.proxyAddr != "DName" {
-		t.Errorf(`expecting x.d.proxyAddr to be "Dname", got %q`, x.d.proxyAddr)
+	if x.b.Get() != "hello" {
+		t.Errorf("expecting x.b to be `hello`, got %s", x.b.Get())
 	}
 }
 
-func TestFillListenerErrors(t *testing.T) {
-	type impl struct{}
+func TestFillRefsErrors(t *testing.T) {
+	type badref struct {
+		weaver.Ref[bool]
+	}
 	type testCase struct {
 		name   string
 		impl   any    // impl argument to pass to fillRefs
@@ -66,9 +68,10 @@ func TestFillListenerErrors(t *testing.T) {
 	for _, c := range []testCase{
 		{"not-pointer", impl{}, "not a pointer"},
 		{"not-struct-pointer", new(int), "not a struct pointer"},
+		{"unsupported-type", &badref{}, "unsupported"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			err := fillRefs(c.impl, getValue)
+			err := core.FillRefs(c.impl, getValue)
 			if err == nil || !strings.Contains(err.Error(), c.expect) {
 				t.Fatalf("unexpected error %v; expecting %s", err, c.expect)
 			}

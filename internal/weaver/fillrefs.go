@@ -17,15 +17,13 @@ package weaver
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
-// fillRefs initializes Ref[T] fields in a component implement struct.
+// FillRefs initializes Ref[T] fields in a component implement struct.
 //   - impl should be a pointer to the implementation struct
 //   - get should be a function that returns the component of interface type
 //     T when passed the reflect.Type for T.
-func fillRefs(impl any, get func(reflect.Type) (any, error)) error {
+func FillRefs(impl any, get func(reflect.Type) (any, error)) error {
 	p := reflect.ValueOf(impl)
 	if p.Kind() != reflect.Pointer {
 		return fmt.Errorf("not a pointer")
@@ -34,11 +32,10 @@ func fillRefs(impl any, get func(reflect.Type) (any, error)) error {
 	if s.Kind() != reflect.Struct {
 		return fmt.Errorf("not a struct pointer")
 	}
-	isRef := reflection.Type[interface{ isRef() }]()
 	for i, n := 0, s.NumField(); i < n; i++ {
 		// Handle field with type weaver.Ref[T].
 		ref := s.Field(i)
-		if !ref.Type().Implements(isRef) {
+		if !IsRef(ref.Type()) {
 			continue
 		}
 		// Sanity check that field type structure matches weaver.Ref[T].
