@@ -1904,7 +1904,7 @@ func (g *generator) generateAutoMarshalMethods(p printFn) {
 		// that implement error. We could conceivably allow other types to
 		// be sent around as interfaces in the future.
 		if g.tset.implementsError(t) {
-			p("func init() { %s[%s]() }", g.codegen().qualify("RegisterSerializable"), ts(t))
+			p("func init() { %s[*%s]() }", g.codegen().qualify("RegisterSerializable"), ts(t))
 		}
 	}
 }

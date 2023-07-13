@@ -19,11 +19,11 @@
 // func (x *B) WeaverUnmarshal(dec *codegen.Decoder)
 // func (x *customError) WeaverMarshal(enc *codegen.Encoder)
 // func (x *customError) WeaverUnmarshal(dec *codegen.Decoder)
-// RegisterSerializable[customError]()
+// RegisterSerializable[*customError]()
 
 // UNEXPECTED
-// RegisterSerializable[A]()
-// RegisterSerializable[B]()
+// RegisterSerializable[*A]()
+// RegisterSerializable[*B]()
 
 // Verify that AutoMarshal works on a struct with an embedded struct that also
 // embeds AutoMarshal.

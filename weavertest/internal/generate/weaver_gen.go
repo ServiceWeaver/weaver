@@ -333,7 +333,7 @@ func (x *customErrorValue) WeaverUnmarshal(dec *codegen.Decoder) {
 	}
 	x.key = dec.String()
 }
-func init() { codegen.RegisterSerializable[customErrorValue]() }
+func init() { codegen.RegisterSerializable[*customErrorValue]() }
 
 // Encoding/decoding implementations.
 

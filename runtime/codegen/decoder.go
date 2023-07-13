@@ -222,13 +222,20 @@ func (d *Decoder) Error() error {
 		tag := d.Uint8()
 		if tag == endOfErrors {
 			break
-		} else if tag == serializedError {
+		} else if tag == serializedErrorVal {
 			val := d.Interface()
-			e, ok := val.(error)
-			if !ok {
-				panic(fmt.Sprintf("received type %T which is not an error", val))
+			if e, ok := val.(error); ok {
+				list = append(list, e)
+				continue
 			}
-			list = append(list, e)
+			panic(fmt.Sprintf("received type %T which is not an error", val))
+		} else if tag == serializedErrorPtr {
+			val := d.Interface()
+			if e, ok := pointee(val).(error); ok {
+				list = append(list, e)
+				continue
+			}
+			panic(fmt.Sprintf("received type %T which is not a pointer to error", val))
 		} else if tag == emulatedError {
 			msg := d.String()
 			f := d.String()
@@ -252,16 +259,27 @@ func (d *Decoder) Interface() any {
 	defer typesMu.Unlock()
 	t, ok := types[key]
 	if !ok {
-		return nil
+		panic(fmt.Sprintf("received value for non-registered type %q", key))
 	}
-	// XXX Support serializable pointer types.
-	ptr := reflect.New(t)
+
+	// Allocate space for the value.
+	var ptr reflect.Value
+	if t.Kind() == reflect.Pointer {
+		ptr = reflect.New(t.Elem())
+	} else {
+		ptr = reflect.New(t)
+	}
 	am, ok := ptr.Interface().(AutoMarshal)
 	if !ok {
 		panic(fmt.Sprintf("received value for non-serializable type %v", t))
 	}
 	am.WeaverUnmarshal(d)
-	return ptr.Elem().Interface()
+
+	result := ptr
+	if t.Kind() != reflect.Pointer {
+		result = ptr.Elem()
+	}
+	return result.Interface()
 }
 
 // decodedError is an error used for non-serializable decoded errors.

@@ -19,7 +19,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"reflect"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -256,14 +255,20 @@ func (e *Encoder) Len(l int) {
 // We encode such a tree in a linear list of errors visited in depth-first
 // order.
 //
-// The encoding is a list of encoded errors terminated by a <endOfErrors>.
-// An encoded error is either <serializedError,typKey,serial> for registered
-// serializable error types, or <emulatedError,message,fmtError> for
-// unregistered error types.
+// The encoding is a list of encoded errors terminated by a <endOfErrors>.  An
+// encoded error is one of:
+//
+// <serializedErrorVal,typKey,serial> for registered serializable error types.
+//
+// <serializedErrorPtr,typeKey,serial> where a pointer to an error has been
+// registered as serializable.
+//
+// <emulatedError,message,fmtError> for unregistered error types.
 const (
-	endOfErrors     uint8 = 0
-	serializedError uint8 = 1
-	emulatedError   uint8 = 2
+	endOfErrors        uint8 = 0
+	serializedErrorVal uint8 = 1
+	serializedErrorPtr uint8 = 2
+	emulatedError      uint8 = 3
 )
 
 // Error encodes an arg of type error. We save enough type information
@@ -292,9 +297,17 @@ func (e *Encoder) Error(err error) {
 
 		// If err can be marshaled, do that and skip extracting its children
 		// since serialized form should contain all of them.
-		if canEncodeInterface(err) {
-			e.Uint8(serializedError)
-			e.Interface(err)
+		if am, ok := err.(AutoMarshal); ok {
+			e.Uint8(serializedErrorVal)
+			e.Interface(am)
+			return
+		}
+
+		// See if pointer to err implements AutoMarshal. This allows
+		// the Error() method to have a value receiver.
+		if am, ok := pointerTo(err).(AutoMarshal); ok {
+			e.Uint8(serializedErrorPtr)
+			e.Interface(am)
 			return
 		}
 
@@ -317,26 +330,8 @@ func (e *Encoder) Error(err error) {
 	e.Uint8(endOfErrors)
 }
 
-// Interface encodes value prefixed with its concrete type.  Panics if the type
-// of value has not been registered using RegisterSerializable or is not
-// serializable.
-func (e *Encoder) Interface(value any) {
-	key := typeKey(value)
-	typesMu.Lock()
-	defer typesMu.Unlock()
-	t, ok := types[key]
-	if !ok {
-		panic(fmt.Sprintf("cannot encode unknown type %T since it is not marked as AutomMarshal", value))
-	}
-
-	// We want a pointer to the value wrapped in any.
-	// XXX Support pointers to structs as well.
-	copy := reflect.New(t)
-	copy.Elem().Set(reflect.ValueOf(value))
-	am, ok := copy.Interface().(AutoMarshal)
-	if !ok {
-		panic(fmt.Sprintf("attempting to send non-serializable type %T", value))
-	}
-	e.String(key)
-	am.WeaverMarshal(e)
+// Interface encodes value prefixed with its concrete type.
+func (e *Encoder) Interface(value AutoMarshal) {
+	e.String(typeKey(value))
+	value.WeaverMarshal(e)
 }
