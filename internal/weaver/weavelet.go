@@ -30,7 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
-	"github.com/ServiceWeaver/weaver/internal/private"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -54,10 +53,11 @@ var readyMethodKey = call.MakeMethodKey("", "ready")
 
 // A weavelet runs and manages components. As the name suggests, a weavelet is
 // analogous to a kubelet.
-type weavelet struct {
-	ctx       context.Context
-	env       env                  // Manages interactions with execution environment
-	info      *protos.EnvelopeInfo // Setup info sent by the deployer.
+type Weavelet struct {
+	ctx context.Context
+	env env // Manages interactions with execution environment
+	// TODO(mwhittaker): Unexport Info.
+	Info      *protos.EnvelopeInfo // Setup info sent by the deployer.
 	transport *transport           // Transport for cross-weavelet communication
 	dialAddr  string               // Address this weavelet is reachable at
 	tracer    trace.Tracer         // Tracer for this weavelet
@@ -88,20 +88,17 @@ type client struct {
 
 type server struct {
 	net.Listener
-	wlet *weavelet
+	wlet *Weavelet
 }
 
 // Ensure that WeaveletHandler remains in-sync with conn.WeaveletHandler.
-var _ conn.WeaveletHandler = &weavelet{}
+var _ conn.WeaveletHandler = &Weavelet{}
 
-// weavelet should also implement the private.App API used by weavertest.
-var _ private.App = &weavelet{}
-
-// newWeavelet returns a new weavelet.
-func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos []*codegen.Registration) (*weavelet, error) {
-	w := &weavelet{
+// NewWeavelet returns a new weavelet.
+func NewWeavelet(ctx context.Context, fakes map[reflect.Type]any, componentInfos []*codegen.Registration) (*Weavelet, error) {
+	w := &Weavelet{
 		ctx:                  ctx,
-		overrides:            options.Fakes,
+		overrides:            fakes,
 		componentsByName:     make(map[string]*component, len(componentInfos)),
 		componentsByType:     make(map[reflect.Type]*component, len(componentInfos)),
 		componentsByImplType: make(map[reflect.Type]*component, len(componentInfos)),
@@ -119,7 +116,7 @@ func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos
 	if info == nil {
 		return nil, fmt.Errorf("unable to get weavelet information")
 	}
-	w.info = info
+	w.Info = info
 
 	for _, info := range componentInfos {
 		c := &component{
@@ -189,7 +186,7 @@ func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos
 
 // getSelfCertificate returns the certificate the weavelet should use for
 // establishing a network connection. Only called if w.info.Mtls.
-func (w *weavelet) getSelfCertificate() (*tls.Certificate, error) {
+func (w *Weavelet) getSelfCertificate() (*tls.Certificate, error) {
 	cert, key, err := w.env.GetSelfCertificate(w.ctx)
 	if err != nil {
 		return nil, err
@@ -201,8 +198,8 @@ func (w *weavelet) getSelfCertificate() (*tls.Certificate, error) {
 	return &tlsCert, nil
 }
 
-// start starts a weavelet, executing the logic to start and manage components.
-func (w *weavelet) start() error {
+// Start starts a weavelet, executing the logic to Start and manage components.
+func (w *Weavelet) Start() error {
 	// Launch status server for single process deployments.
 	if single, ok := w.env.(*singleprocessEnv); ok {
 		go func() {
@@ -212,7 +209,7 @@ func (w *weavelet) start() error {
 		}()
 	}
 
-	if w.info.SingleProcess {
+	if w.Info.SingleProcess {
 		for _, c := range w.componentsByName {
 			// Mark all components as local.
 			c.local.TryWrite(true)
@@ -241,26 +238,10 @@ func (w *weavelet) start() error {
 	}
 
 	w.logRolodexCard()
-
-	// Make sure Main is initialized if local.
-	if _, err := w.getMainIfLocal(); err != nil {
-		return err
-	}
 	return nil
 }
 
-// getMainIfLocal returns the weaver.Main implementation if hosted in
-// this weavelet, or nil if weaver.Main is remote.
-func (w *weavelet) getMainIfLocal() (*componentImpl, error) {
-	// Note that a weavertest may have RunMain set to true, but no main
-	// component registered.
-	if m, ok := w.componentsByType[reflection.Type[Main]()]; ok && w.info.RunMain {
-		return w.getImpl(w.ctx, m)
-	}
-	return nil, nil
-}
-
-func (w *weavelet) Get(requester string, compType reflect.Type) (any, error) {
+func (w *Weavelet) Get(requester string, compType reflect.Type) (any, error) {
 	component, err := w.getComponentByType(compType)
 	if err != nil {
 		return nil, err
@@ -269,7 +250,7 @@ func (w *weavelet) Get(requester string, compType reflect.Type) (any, error) {
 	return result, err
 }
 
-func (w *weavelet) GetImpl(requester string, compType reflect.Type) (any, error) {
+func (w *Weavelet) GetImpl(requester string, compType reflect.Type) (any, error) {
 	component, err := w.getComponentByImplType(compType)
 	if err != nil {
 		return nil, err
@@ -290,16 +271,16 @@ func (w *weavelet) GetImpl(requester string, compType reflect.Type) (any, error)
 //	│   address:   : tcp://127.0.0.1:43937                  │
 //	│   pid        : 836347                                 │
 //	└───────────────────────────────────────────────────────┘
-func (w *weavelet) logRolodexCard() {
+func (w *Weavelet) logRolodexCard() {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "UNKNOWN"
 	}
 
-	header := fmt.Sprintf(" weavelet %s started ", w.info.Id)
+	header := fmt.Sprintf(" weavelet %s started ", w.Info.Id)
 	lines := []string{
 		fmt.Sprintf("   hostname   : %s ", hostname),
-		fmt.Sprintf("   deployment : %s ", w.info.DeploymentId),
+		fmt.Sprintf("   deployment : %s ", w.Info.DeploymentId),
 		fmt.Sprintf("   address    : %s", w.dialAddr),
 		fmt.Sprintf("   pid        : %v ", os.Getpid()),
 	}
@@ -324,7 +305,7 @@ func (w *weavelet) logRolodexCard() {
 // is local, the results are a local stub used to invoke methods on the component
 // as well as the actual local object. Otherwise, the results are a network client
 // and nil.
-func (w *weavelet) getInstance(ctx context.Context, c *component, requester string) (any, any, error) {
+func (w *Weavelet) getInstance(ctx context.Context, c *component, requester string) (any, any, error) {
 	// Register the component.
 	c.registerInit.Do(func() {
 		w.env.SystemLogger().Debug("Activating component...", "component", c.info.Name)
@@ -359,7 +340,7 @@ func (w *weavelet) getInstance(ctx context.Context, c *component, requester stri
 
 // getListener returns a network listener with the given name, along with its
 // proxy address.
-func (w *weavelet) getListener(name string) (net.Listener, string, error) {
+func (w *Weavelet) getListener(name string) (net.Listener, string, error) {
 	if name == "" {
 		return nil, "", fmt.Errorf("getListener(%q): empty listener name", name)
 	}
@@ -403,7 +384,7 @@ func (w *weavelet) getListener(name string) (net.Listener, string, error) {
 // Specifically, for every method m in the component, we register a function f
 // that (1) creates the local component if it hasn't been created yet and (2)
 // calls m.
-func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
+func (w *Weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 	for i, n := 0, c.info.Iface.NumMethod(); i < n; i++ {
 		mname := c.info.Iface.Method(i).Name
 		handler := func(ctx context.Context, args []byte) (res []byte, err error) {
@@ -424,7 +405,7 @@ func (w *weavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 	}
 }
 
-func (w *weavelet) ListenerAddress(name string) (string, error) {
+func (w *Weavelet) ListenerAddress(name string) (string, error) {
 	w.listenersMu.Lock()
 	ls := w.getListenerState(name)
 	w.listenersMu.Unlock()
@@ -434,7 +415,7 @@ func (w *weavelet) ListenerAddress(name string) (string, error) {
 }
 
 // REQUIRES: w.listenersMu is held
-func (w *weavelet) getListenerState(name string) *listenerState {
+func (w *Weavelet) getListenerState(name string) *listenerState {
 	l := w.listeners[name]
 	if l != nil {
 		return l
@@ -448,7 +429,7 @@ func (w *weavelet) getListenerState(name string) *listenerState {
 }
 
 // GetLoad implements the WeaveletHandler interface.
-func (w *weavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error) {
+func (w *Weavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error) {
 	report := &protos.LoadReport{
 		Loads: map[string]*protos.LoadReport_ComponentLoad{},
 	}
@@ -468,7 +449,7 @@ func (w *weavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error)
 }
 
 // UpdateComponents implements the conn.WeaverHandler interface.
-func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
+func (w *Weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	// Create components in a separate goroutine. A component's Init function
 	// may be slow or block. It may also call weaver.Get which will trigger
 	// pipe communication. We want to avoid blocking and pipe communication in
@@ -500,7 +481,7 @@ func (w *weavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*proto
 }
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
-func (w *weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
+func (w *Weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
 	logger := w.env.SystemLogger().With(
 		"component", req.RoutingInfo.Component,
 		"local", req.RoutingInfo.Local,
@@ -543,7 +524,7 @@ func (w *weavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (repl
 }
 
 // getComponent returns the component with the given name.
-func (w *weavelet) getComponent(name string) (*component, error) {
+func (w *Weavelet) getComponent(name string) (*component, error) {
 	// Note that we don't need to lock d.components because, while the components
 	// within d.components are modified, d.components itself is read-only.
 	c, ok := w.componentsByName[name]
@@ -554,7 +535,7 @@ func (w *weavelet) getComponent(name string) (*component, error) {
 }
 
 // getComponentByType returns the component with the given interface type.
-func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
+func (w *Weavelet) getComponentByType(t reflect.Type) (*component, error) {
 	// Note that we don't need to lock d.componentsByType because, while the
 	// components referenced by d.componentsByType are modified,
 	// d.componentsByType itself is read-only.
@@ -567,7 +548,7 @@ func (w *weavelet) getComponentByType(t reflect.Type) (*component, error) {
 
 // getComponentByImplType returns the component with the given implementation
 // type.
-func (w *weavelet) getComponentByImplType(t reflect.Type) (*component, error) {
+func (w *Weavelet) getComponentByImplType(t reflect.Type) (*component, error) {
 	// Note that we don't need to lock d.componentsByImplType because, while
 	// the components referenced by d.componentsByImplType are modified,
 	// d.componentsByImplType itself is read-only.
@@ -579,7 +560,7 @@ func (w *weavelet) getComponentByImplType(t reflect.Type) (*component, error) {
 }
 
 // getImpl returns a component's componentImpl, initializing it if necessary.
-func (w *weavelet) getImpl(ctx context.Context, c *component) (*componentImpl, error) {
+func (w *Weavelet) getImpl(ctx context.Context, c *component) (*componentImpl, error) {
 	init := func(c *component) error {
 		// We have to initialize these fields before passing to c.info.fn
 		// because the user's constructor may use them.
@@ -590,10 +571,10 @@ func (w *weavelet) getImpl(ctx context.Context, c *component) (*componentImpl, e
 		c.impl = &componentImpl{component: c}
 		c.logger = slog.New(&logging.LogHandler{
 			Opts: logging.Options{
-				App:        w.info.App,
-				Deployment: w.info.DeploymentId,
+				App:        w.Info.App,
+				Deployment: w.Info.DeploymentId,
 				Component:  c.info.Name,
-				Weavelet:   w.info.Id,
+				Weavelet:   w.Info.Id,
 			},
 			Write: w.env.CreateLogSaver(),
 		})
@@ -619,7 +600,7 @@ func (w *weavelet) getImpl(ctx context.Context, c *component) (*componentImpl, e
 	return c.impl, c.implErr
 }
 
-func (w *weavelet) createComponent(ctx context.Context, c *component) error {
+func (w *Weavelet) createComponent(ctx context.Context, c *component) error {
 	if obj, ok := w.overrides[c.info.Iface]; ok {
 		// Use supplied implementation (typically a weavertest fake).
 		c.impl.impl = obj
@@ -633,20 +614,24 @@ func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	// Fill config if necessary.
 	if cfg := config.Config(v); cfg != nil {
 		// Populate the *T.
-		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.info.Sections, cfg); err != nil {
+		if err := runtime.ParseConfigSection(c.info.Name, "", c.wlet.Info.Sections, cfg); err != nil {
 			return err
 		}
 	}
 
-	// Set obj.Implements.component to c.
-	if i, ok := obj.(interface{ setInstance(*componentImpl) }); !ok {
-		return fmt.Errorf("component %q: type %T is not a component implementation", c.info.Name, obj)
-	} else {
-		i.setInstance(c.impl)
+	// Set logger.
+	for i := 0; i < v.Elem().NumField(); i++ {
+		f := v.Elem().Field(i)
+		if IsImplements(f.Type()) {
+			if f.Field(0).Type() != reflection.Type[*slog.Logger]() {
+				panic(fmt.Errorf("unexpected field 0 of %v: %v", f.Type(), f.Field(0).Type()))
+			}
+			setPossiblyUnexported(f.Field(0), reflect.ValueOf(c.impl.component.logger))
+		}
 	}
 
 	// Fill ref fields.
-	err := fillRefs(obj, func(refType reflect.Type) (any, error) {
+	err := FillRefs(obj, func(refType reflect.Type) (any, error) {
 		sub, err := w.getComponentByType(refType)
 		if err != nil {
 			return nil, err
@@ -659,7 +644,7 @@ func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	}
 
 	// Fill listener fields.
-	err = fillListeners(obj, w.getListener)
+	err = FillListeners(obj, w.getListener)
 	if err != nil {
 		return err
 	}
@@ -674,7 +659,7 @@ func (w *weavelet) createComponent(ctx context.Context, c *component) error {
 	return nil
 }
 
-func (w *weavelet) repeatedly(errMsg string, f func() error) error {
+func (w *Weavelet) repeatedly(errMsg string, f func() error) error {
 	for r := retry.Begin(); r.Continue(w.ctx); {
 		if err := f(); err != nil {
 			w.env.SystemLogger().Error(errMsg+"; will retry", "err", err)
@@ -686,7 +671,7 @@ func (w *weavelet) repeatedly(errMsg string, f func() error) error {
 }
 
 // getClient returns a component's network client, initializing it if necessary.
-func (w *weavelet) getClient(c *component) *client {
+func (w *Weavelet) getClient(c *component) *client {
 	c.clientInit.Do(func() {
 		c.client = &client{
 			resolver: newRoutingResolver(),
@@ -697,7 +682,7 @@ func (w *weavelet) getClient(c *component) *client {
 }
 
 // getStub returns a component's componentStub, initializing it if necessary.
-func (w *weavelet) getStub(c *component) (*stub, error) {
+func (w *Weavelet) getStub(c *component) (*stub, error) {
 	init := func(c *component) error {
 		// Initialize the client.
 		w.env.SystemLogger().Debug("Creating a connection to a remote component...", "component", c.info.Name)
@@ -771,7 +756,7 @@ func (s *server) Accept() (net.Conn, *call.HandlerMap, error) {
 		return nil, nil, err
 	}
 
-	if !s.wlet.info.Mtls {
+	if !s.wlet.Info.Mtls {
 		// No security: all components are accessible.
 		hm, err := s.handlers(maps.Keys(s.wlet.componentsByName))
 		return conn, hm, err

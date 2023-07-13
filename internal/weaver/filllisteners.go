@@ -19,15 +19,13 @@ import (
 	"go/token"
 	"net"
 	"reflect"
-
-	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
-// fillListeners initializes Listener fields in a component implementation struct.
+// FillListeners initializes Listener fields in a component implementation struct.
 //   - impl should be a pointer to the implementation struct
 //   - get should be a function that returns the required Listener values,
 //     namely the network listener and the proxy address.
-func fillListeners(impl any, get func(field string) (net.Listener, string, error)) error {
+func FillListeners(impl any, get func(field string) (net.Listener, string, error)) error {
 	p := reflect.ValueOf(impl)
 	if p.Kind() != reflect.Pointer {
 		return fmt.Errorf("not a pointer")
@@ -36,11 +34,10 @@ func fillListeners(impl any, get func(field string) (net.Listener, string, error
 	if s.Kind() != reflect.Struct {
 		return fmt.Errorf("not a struct pointer")
 	}
-	isListener := reflection.Type[interface{ isListener() }]()
 	for i, n := 0, s.NumField(); i < n; i++ {
 		// Handle field with type weaver.Listener.
 		ref := s.Field(i)
-		if !ref.Type().Implements(isListener) {
+		if !IsListener(ref.Type()) {
 			continue
 		}
 

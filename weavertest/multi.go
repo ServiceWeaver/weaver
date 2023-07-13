@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ServiceWeaver/weaver/internal/private"
+	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -59,7 +59,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 			os.Exit(1)
 		}()
 
-		err := runWeaver(ctx, t, runner, func(context.Context, private.App) error {
+		err := runWeaver(ctx, t, runner, func(context.Context, *weaver.Weavelet) error {
 			<-ctx.Done() // Wait for parent process
 			return ctx.Err()
 		})

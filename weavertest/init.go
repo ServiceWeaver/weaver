@@ -23,8 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/private"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
+	"github.com/ServiceWeaver/weaver/internal/weaver"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"golang.org/x/exp/slices"
 )
@@ -208,7 +209,7 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 // either component interfaces or pointer to component implementations). On
 // success it returns (1) a function that gets the components and passes them
 // to fn and (2) the interface types of the component implementation arguments.
-func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) error, []reflect.Type, error) {
+func checkRunFunc(t testing.TB, fn any) (func(context.Context, *weaver.Weavelet) error, []reflect.Type, error) {
 	fnType := reflect.TypeOf(fn)
 	if fnType == nil || fnType.Kind() != reflect.Func {
 		return nil, nil, fmt.Errorf("not a func")
@@ -242,20 +243,20 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, private.App) erro
 		}
 	}
 
-	return func(ctx context.Context, app private.App) error {
+	return func(ctx context.Context, wlet *weaver.Weavelet) error {
 		args := make([]reflect.Value, n)
 		args[0] = reflect.ValueOf(t)
 		for i := 1; i < n; i++ {
 			argType := fnType.In(i)
 			switch argType.Kind() {
 			case reflect.Interface:
-				comp, err := app.Get(t.Name(), argType)
+				comp, err := wlet.Get(t.Name(), argType)
 				if err != nil {
 					return err
 				}
 				args[i] = reflect.ValueOf(comp)
 			case reflect.Pointer:
-				comp, err := app.GetImpl(t.Name(), argType.Elem())
+				comp, err := wlet.GetImpl(t.Name(), argType.Elem())
 				if err != nil {
 					return err
 				}
@@ -288,17 +289,21 @@ func extractComponentInterfaceType(t reflect.Type) (reflect.Type, error) {
 	return f.Type, nil
 }
 
-func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(context.Context, private.App) error) error {
+func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(context.Context, *weaver.Weavelet) error) error {
 	t.Helper()
-	opts := private.AppOptions{Fakes: map[reflect.Type]any{}}
+	fakes := map[reflect.Type]any{}
 	for _, f := range runner.Fakes {
-		opts.Fakes[f.intf] = f.impl
+		fakes[f.intf] = f.impl
 	}
-	app, err := private.Start(ctx, opts)
+
+	wlet, err := weaver.NewWeavelet(ctx, fakes, codegen.Registered())
 	if err != nil {
+		return fmt.Errorf("error initializating application: %w", err)
+	}
+	if err := wlet.Start(); err != nil {
 		return err
 	}
-	return body(ctx, app)
+	return body(ctx, wlet)
 }
 
 // logStacks prints the stacks of live goroutines. This functionality
