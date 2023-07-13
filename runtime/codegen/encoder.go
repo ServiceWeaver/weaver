@@ -250,7 +250,7 @@ func (e *Encoder) Len(l int) {
 	e.Int32(int32(l))
 }
 
-//	Error encoding
+// Error encoding
 //
 // An error can be composed of a tree of errors (see the errors package)
 // We encode such a tree in a linear list of errors visited in depth-first
@@ -277,11 +277,18 @@ func (e *Encoder) Error(err error) {
 	// An encoded error is either <1,typKey,serialization> for
 	// registered custom error types, or <2,message,fmtError> for
 	// unregistered error types.
+	seen := map[error]struct{}{}
 	var dfs func(error)
 	dfs = func(err error) {
 		if err == nil {
 			return
 		}
+
+		// Avoid cycles and potential exponential expansion of diamond patterns.
+		if _, ok := seen[err]; ok {
+			return
+		}
+		seen[err] = struct{}{}
 
 		// If err can be marshaled, do that and skip extracting its children
 		// since serialized form should contain all of them.
@@ -307,7 +314,7 @@ func (e *Encoder) Error(err error) {
 		}
 	}
 	dfs(err)
-	e.Uint8(0)
+	e.Uint8(endOfErrors)
 }
 
 // Interface encodes value prefixed with its concrete type.  Panics if the type

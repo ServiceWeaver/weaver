@@ -28,8 +28,6 @@ type AutoMarshal interface {
 }
 
 // autoMarshalPointer[T] is an interface which asserts that *T implements AutoMarshal.
-//
-//nolint:unused
 type autoMarshalPointer[T any] interface {
 	*T
 	AutoMarshal
@@ -51,8 +49,7 @@ var (
 // The extra PT type parameter is used to check that *T is an AutoMarshal
 // (since AutoMarshal methods have pointer receivers, but T itself may be a
 // struct).
-// func RegisterSerializable[T any, PT autoMarshalPointer[T]]() {
-func RegisterSerializable[T any]() {
+func RegisterSerializable[T any, PT autoMarshalPointer[T]]() {
 	var value T
 	t := reflect.TypeOf(value)
 	typesMu.Lock()

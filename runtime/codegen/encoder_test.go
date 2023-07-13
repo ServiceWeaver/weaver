@@ -200,6 +200,11 @@ func init() {
 	RegisterSerializable[alternateError]()
 }
 
+type cyclicError struct{ msg string }
+
+func (c *cyclicError) Error() string { return c.msg }
+func (c *cyclicError) Unwrap() error { return c }
+
 func TestErrorValues(t *testing.T) {
 	type testCase struct {
 		name  string
@@ -215,6 +220,7 @@ func TestErrorValues(t *testing.T) {
 		{"custom", customTestError{"x"}, nil, []error{os.ErrNotExist, alternateError{"x"}}},
 		{"wrap-custom", fmt.Errorf("hello %w", customTestError{"a"}), []error{customTestError{"a"}}, nil},
 		{"wrap-two", fmt.Errorf("hello %w %w", customTestError{"a"}, alternateError{"b"}), []error{customTestError{"a"}, alternateError{"b"}}, []error{customTestError{"other"}, alternateError{"other"}}},
+		{"cycle", &cyclicError{"c"}, []error{&cyclicError{"c"}}, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// Encode/decode and get resulting error value.
@@ -248,8 +254,10 @@ func TestErrorValues(t *testing.T) {
 				}
 			}
 
-			// Checks errors.Is(dst) against all unwrappings of src.
-			for u := src; u != nil; u = errors.Unwrap(u) {
+			// Checks errors.Is(dst) against all unwrappings of src, including src itself.
+			seen := map[error]bool{} // Guard against cycles
+			for u := src; u != nil && !seen[u]; u = errors.Unwrap(u) {
+				seen[u] = true
 				if !errors.Is(dst, u) {
 					t.Errorf("decoded error (%#v) (from %#v) does not match unwrapped error (%#v)", dst, src, u)
 				}
