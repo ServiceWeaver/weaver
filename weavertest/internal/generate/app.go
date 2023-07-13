@@ -31,8 +31,16 @@ type behaviorType int
 const (
 	appError behaviorType = iota
 	panicError
+	customError
 	noError
 )
+
+type customErrorValue struct {
+	weaver.AutoMarshal
+	key string
+}
+
+func (c customErrorValue) Error() string { return fmt.Sprintf("customError(%s)", c.key) }
 
 type testApp interface {
 	Get(_ context.Context, key string, behavior behaviorType) (int, error)
@@ -50,6 +58,8 @@ func (p *impl) Get(_ context.Context, key string, behavior behaviorType) (int, e
 		return 42, fmt.Errorf("key %v not found in the store", key)
 	case panicError:
 		panic("panic")
+	case customError:
+		return 0, customErrorValue{key: key}
 	case noError:
 		return 42, nil
 	}

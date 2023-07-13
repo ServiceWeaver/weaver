@@ -47,6 +47,18 @@ func TestErrors(t *testing.T) {
 			t.Fatalf("client.Get: got %d, want 42", x)
 		}
 
+		// Check custom error.
+		_, err = client.Get(ctx, "custom", customError)
+		if err == nil {
+			t.Fatal(err)
+		}
+		var c customErrorValue
+		if !errors.As(err, &c) {
+			t.Errorf("did not get customError, got error %v of type %T", err, err)
+		} else if c.key != "custom" {
+			t.Errorf("customError contained wrong key %q, expecting %q", c.key, "custom")
+		}
+
 		// Trigger a panic.
 		_, err = client.Get(ctx, "foo", panicError)
 		if err == nil || !errors.Is(err, weaver.RemoteCallError) {

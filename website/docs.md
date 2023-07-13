@@ -2755,10 +2755,17 @@ type Pair[A any] struct {
 To serialize generic structs, implement `BinaryMarshaler` and
 `BinaryUnmarshaler`.
 
-Finally note that while [Service Weaver requires every component method to
-return an `error`](#components-interfaces), `error` is not a
-serializable type. Service Weaver serializes `error`s in a way that does not
-preserve any custom `Is` or `As` methods.
+## Errors
+
+Service Weaver requires every component method to [return an
+error](#components-interfaces).  If a non-nil error is returned, Service Weaver
+by default transmits the textual representation of the error and therefore any
+custom information stored in the error value, or custom `Is` or `As` methods are
+not available to the caller.
+
+Applications that need custom error information can embed a `weaver.AutoMarshal`
+in their custom error type. Service Weaver will then serialize and deserialize
+such errors properly and make them available to the caller.
 
 # weaver generate
 

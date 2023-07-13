@@ -583,6 +583,30 @@ func isInvalid(t types.Type) bool {
 	return t.String() == "invalid type"
 }
 
+// implementsError returns whether the provided type is a concrete type that
+// implements error.
+func (tset *typeSet) implementsError(t types.Type) bool {
+	if _, ok := t.Underlying().(*types.Interface); ok {
+		return false
+	}
+	obj, _, _ := types.LookupFieldOrMethod(t, true, tset.pkg.Types, "Error")
+	method, ok := obj.(*types.Func)
+	if !ok {
+		return false
+	}
+	sig, ok := method.Type().(*types.Signature)
+	if !ok {
+		return false
+	}
+	if args := sig.Params(); args.Len() != 0 {
+		return false
+	}
+	if results := sig.Results(); results.Len() != 1 || !isString(results.At(0).Type()) {
+		return false
+	}
+	return true
+}
+
 // isProto returns whether the provided type is a concrete type that implements
 // the proto.Message interface.
 func (tset *typeSet) isProto(t types.Type) bool {
@@ -863,6 +887,11 @@ func isWeaverWithRouter(t types.Type) bool {
 
 func isWeaverAutoMarshal(t types.Type) bool {
 	return isWeaverType(t, "AutoMarshal", 0)
+}
+
+func isString(t types.Type) bool {
+	b, ok := t.(*types.Basic)
+	return ok && b.Kind() == types.String
 }
 
 func isContext(t types.Type) bool {
