@@ -2759,9 +2759,9 @@ To serialize generic structs, implement `BinaryMarshaler` and
 
 Service Weaver requires every component method to [return an
 error](#components-interfaces).  If a non-nil error is returned, Service Weaver
-by default transmits the textual representation of the error and therefore any
-custom information stored in the error value, or custom `Is` or `As` methods are
-not available to the caller.
+by default transmits the textual representation of the error. Therefore any
+custom information stored in the error value, or custom `Is` or `As` methods,
+are not available to the caller.
 
 Applications that need custom error information can embed a `weaver.AutoMarshal`
 in their custom error type. Service Weaver will then serialize and deserialize
