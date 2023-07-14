@@ -17,6 +17,13 @@
 // func (x *A) WeaverUnmarshal(dec *codegen.Decoder)
 // func (x *B) WeaverMarshal(enc *codegen.Encoder)
 // func (x *B) WeaverUnmarshal(dec *codegen.Decoder)
+// func (x *customError) WeaverMarshal(enc *codegen.Encoder)
+// func (x *customError) WeaverUnmarshal(dec *codegen.Decoder)
+// RegisterSerializable[customError]()
+
+// UNEXPECTED
+// RegisterSerializable[A]()
+// RegisterSerializable[B]()
 
 // Verify that AutoMarshal works on a struct with an embedded struct that also
 // embeds AutoMarshal.
@@ -36,6 +43,12 @@ type A struct {
 type B struct {
 	weaver.AutoMarshal
 }
+
+type customError struct {
+	weaver.AutoMarshal
+}
+
+func (c customError) Error() string { return "custom" }
 
 type foo interface {
 	M(context.Context, A, B) error

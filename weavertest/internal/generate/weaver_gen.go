@@ -6,6 +6,7 @@ package generate
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/codes"
@@ -307,6 +308,32 @@ func (s testApp_server_stub) incPointer(ctx context.Context, args []byte) (res [
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
+
+// AutoMarshal implementations.
+
+var _ codegen.AutoMarshal = (*customErrorValue)(nil)
+
+type __is_customErrorValue[T ~struct {
+	weaver.AutoMarshal
+	key string
+}] struct{}
+
+var _ __is_customErrorValue[customErrorValue]
+
+func (x *customErrorValue) WeaverMarshal(enc *codegen.Encoder) {
+	if x == nil {
+		panic(fmt.Errorf("customErrorValue.WeaverMarshal: nil receiver"))
+	}
+	enc.String(x.key)
+}
+
+func (x *customErrorValue) WeaverUnmarshal(dec *codegen.Decoder) {
+	if x == nil {
+		panic(fmt.Errorf("customErrorValue.WeaverUnmarshal: nil receiver"))
+	}
+	x.key = dec.String()
+}
+func init() { codegen.RegisterSerializable[customErrorValue]() }
 
 // Encoding/decoding implementations.
 

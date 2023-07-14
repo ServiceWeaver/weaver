@@ -1898,6 +1898,14 @@ func (g *generator) generateAutoMarshalMethods(p printFn) {
 		for _, inner := range innerTypes {
 			g.generateEncDecMethodsFor(p, inner)
 		}
+
+		// Register the type so it can be sent when the compile time type
+		// is an interface (like error). For now, we only do so for types
+		// that implement error. We could conceivably allow other types to
+		// be sent around as interfaces in the future.
+		if g.tset.implementsError(t) {
+			p("func init() { %s[%s]() }", g.codegen().qualify("RegisterSerializable"), ts(t))
+		}
 	}
 }
 
