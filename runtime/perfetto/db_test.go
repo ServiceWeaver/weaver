@@ -50,6 +50,24 @@ func makeSpan(name string, tid, sid, pid string, start, end time.Time) *protos.S
 	}
 }
 
+func tid(id int) string {
+	return fmt.Sprintf("%016d", id)
+}
+
+func sid(id int) string {
+	if id == 0 {
+		return string(make([]byte, 8))
+	}
+	return fmt.Sprintf("%08d", id)
+}
+
+func tick(t int) time.Time {
+	if t == 0 {
+		return time.Time{}
+	}
+	return now.Add(time.Duration(t) * time.Second)
+}
+
 func TestQueryTraces(t *testing.T) {
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
@@ -59,21 +77,6 @@ func TestQueryTraces(t *testing.T) {
 	}
 	defer db.Close()
 
-	tid := func(id int) string {
-		return fmt.Sprintf("%016d", id)
-	}
-	sid := func(id int) string {
-		if id == 0 {
-			return string(make([]byte, 8))
-		}
-		return fmt.Sprintf("%08d", id)
-	}
-	tick := func(t int) time.Time {
-		if t == 0 {
-			return time.Time{}
-		}
-		return now.Add(time.Duration(t) * time.Second)
-	}
 	dur := func(ts int) time.Duration {
 		return time.Duration(ts) * time.Second
 	}
@@ -194,6 +197,33 @@ func TestQueryTraces(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.expect, actual, cmpopts.SortSlices(less)); diff != "" {
 				t.Errorf("unexpected traces: (-want +got): %s", diff)
+			}
+		})
+	}
+}
+
+func BenchmarkStore(b *testing.B) {
+	ctx := context.Background()
+	s := makeSpan("s1", tid(1), sid(1), sid(1), tick(3), tick(10))
+	for _, size := range []int{1, 10, 100} {
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			fname := filepath.Join(b.TempDir(), "tracedb.db_bench.db")
+			db, err := Open(ctx, fname)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.Cleanup(func() { db.Close() })
+
+			spans := &protos.TraceSpans{}
+			spans.Span = make([]*protos.Span, size)
+			for i := 0; i < size; i++ {
+				spans.Span[i] = s
+			}
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				if err := db.Store(ctx, "app", "v", spans); err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}
