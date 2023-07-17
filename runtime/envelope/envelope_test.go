@@ -148,11 +148,11 @@ type handlerForTest struct {
 
 var _ EnvelopeHandler = &handlerForTest{}
 
-func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans []sdktrace.ReadOnlySpan) error {
+func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans *protos.TraceSpans) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for _, span := range spans {
-		h.traces = append(h.traces, span.Name())
+	for _, span := range spans.Span {
+		h.traces = append(h.traces, span.Name)
 	}
 	return nil
 }

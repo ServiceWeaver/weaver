@@ -560,16 +560,63 @@ message TraceSpans {
   repeated Span span = 1;
 }
 
-// Span is a proto-based representation of an open-telemetry Span.
+// Span is a proto-based representation of an open-telemetry Span [1].
+//
+// [1]: https://opentelemetry.io/docs/concepts/signals/traces/#spans
+// TODO(spetrovic): Rename to TraceSpan.
 message Span {
   string name = 1;            // Span name
-  bytes trace_id = 2;         // Span trace id
-  bytes span_id = 3;          // Unique span id
-  bytes parent_span_id = 4;   // If non-empty, the span's parent id
-  SpanKind kind = 5;          // Span's role in the trace.
+  bytes trace_id = 2;         // Span trace id, 16 bytes long.
+  bytes span_id = 3;          // Unique span id, 8 bytes long.
+  bytes parent_span_id = 4;   // Parent span id, 8 bytes long
+
+  // Span's role in the trace.
+  enum Kind {
+    UNSPECIFIED = 0;
+    INTERNAL = 1;
+    SERVER = 2;
+    CLIENT = 3;
+    PRODUCER = 4;
+    CONSUMER = 5;
+  }
+  Kind kind = 5;
+
   sfixed64 start_micros = 6;  // Span start time (microseconds since epoch)
   sfixed64 end_micros = 7;    // Span end time (microseconds since epoch)
-  repeated Attribute attributes = 8;  // Span attributes
+
+  // Span attributes.
+  message Attribute {
+    message Value {
+      // Type describes the type of the value.
+      enum Type {
+        INVALID = 0;  // Used when no value is set
+        BOOL = 1;
+        INT64 = 2;
+        FLOAT64 = 3;
+        STRING = 4;
+        BOOLLIST = 5;
+        INT64LIST = 6;
+        FLOAT64LIST = 7;
+        STRINGLIST = 8;
+      }
+      message NumberList {
+        repeated uint64 nums = 1;
+      }
+      message StringList {
+        repeated string strs = 2;
+      }
+      Type type = 1;  // Attribute type
+      oneof value {
+        uint64 num = 2;
+        string str = 3;
+        NumberList nums = 4;
+        StringList strs = 5;
+      }
+    }
+    string key = 1;
+    Value value = 2;
+  }  
+  repeated Attribute attributes = 8;
 
   // Link represents the link a span has to another span.
   message Link {
@@ -647,49 +694,4 @@ message Span {
 
   // Number of spans that consider this span a direct parent.
   int64 child_span_count = 17;
-}
-
-// Attribute is a key-value pair representing a component property.
-//
-// TODO(mwhittaker): Nest in Span. Attribute is too generic.
-message Attribute {
-  message Value {
-    // Type describes the type of the value.
-    enum Type {
-      INVALID = 0;  // Used when no value is set
-      BOOL = 1;
-      INT64 = 2;
-      FLOAT64 = 3;
-      STRING = 4;
-      BOOLLIST = 5;
-      INT64LIST = 6;
-      FLOAT64LIST = 7;
-      STRINGLIST = 8;
-    }
-    message NumberList {
-      repeated uint64 nums = 1;
-    }
-    message StringList {
-      repeated string strs = 2;
-    }
-    Type type = 1;  // Attribute type
-    oneof value {
-      uint64 num = 2;
-      string str = 3;
-      NumberList nums = 4;
-      StringList strs = 5;
-    }
-  }
-  string key = 1;
-  Value value = 2;
-}
-
-// SpanKind is the role a span plays in a trace.
-enum SpanKind {
-  UNSPECIFIED = 0;
-  INTERNAL = 1;
-  SERVER = 2;
-  CLIENT = 3;
-  PRODUCER = 4;
-  CONSUMER = 5;
 }

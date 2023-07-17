@@ -30,7 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -82,7 +81,7 @@ type EnvelopeHandler interface {
 	HandleLogEntry(context.Context, *protos.LogEntry) error
 
 	// HandleTraceSpans handles a set of trace spans.
-	HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
+	HandleTraceSpans(context.Context, *protos.TraceSpans) error
 }
 
 // Ensure that EnvelopeHandler remains in-sync with conn.EnvelopeHandler.

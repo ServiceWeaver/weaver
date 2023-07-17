@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/proto"
-	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -31,18 +30,17 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/slog"
 )
 
 // babysitter starts and manages weavelets belonging to a single colocation
 // group for a single application version, on the local machine.
 type babysitter struct {
-	ctx           context.Context
-	info          *BabysitterInfo
-	logger        *slog.Logger
-	traceExporter *traceio.Writer // to export traces to the manager
-	envelope      *envelope.Envelope
+	ctx          context.Context
+	info         *BabysitterInfo
+	logger       *slog.Logger
+	exportTraces func(spans *protos.TraceSpans) error // exports to the manager
+	envelope     *envelope.Envelope
 
 	mu                  sync.Mutex
 	watchingRoutingInfo map[string]bool
@@ -80,14 +78,14 @@ func RunBabysitter(ctx context.Context) error {
 			},
 			Write: logSaver,
 		}),
-		traceExporter: traceio.NewWriter(func(spans *protos.TraceSpans) error {
+		exportTraces: func(spans *protos.TraceSpans) error {
 			return protomsg.Call(ctx, protomsg.CallArgs{
 				Client:  http.DefaultClient,
 				Addr:    info.ManagerAddr,
 				URLPath: recvTraceSpansURL,
 				Request: spans,
 			})
-		}),
+		},
 		watchingRoutingInfo: map[string]bool{},
 	}
 
@@ -327,6 +325,6 @@ func (b *babysitter) HandleLogEntry(_ context.Context, req *protos.LogEntry) err
 }
 
 // HandleTraceSpans implements the protos.EnvelopeHandler interface.
-func (b *babysitter) HandleTraceSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
-	return b.traceExporter.ExportSpans(b.ctx, spans)
+func (b *babysitter) HandleTraceSpans(_ context.Context, spans *protos.TraceSpans) error {
+	return b.exportTraces(spans)
 }

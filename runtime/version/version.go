@@ -50,7 +50,7 @@ const (
 	// the deployer API in v0.13.0 of Service Weaver, then we leave the
 	// deployer API at v0.12.0.
 	DeployerMajor = 0
-	DeployerMinor = 14
+	DeployerMinor = 18
 
 	// The version of the codegen API. As with the deployer API, we assign a
 	// new version every time we change how code is generated, and we use

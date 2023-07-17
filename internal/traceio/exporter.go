@@ -18,6 +18,7 @@ import (
 	"context"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/attribute"
@@ -26,6 +27,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+)
+
+const (
+	// Interval at which traces are exported.
+	ExportInterval = 5 * time.Second
 )
 
 // Writer writes a sequence of trace spans to a specified export function.
@@ -83,55 +89,55 @@ func toProtoSpan(span sdk.ReadOnlySpan) *protos.Span {
 	}
 }
 
-func toProtoKind(kind trace.SpanKind) protos.SpanKind {
+func toProtoKind(kind trace.SpanKind) protos.Span_Kind {
 	switch kind {
 	case trace.SpanKindUnspecified:
-		return protos.SpanKind_UNSPECIFIED
+		return protos.Span_UNSPECIFIED
 	case trace.SpanKindInternal:
-		return protos.SpanKind_INTERNAL
+		return protos.Span_INTERNAL
 	case trace.SpanKindServer:
-		return protos.SpanKind_SERVER
+		return protos.Span_SERVER
 	case trace.SpanKindClient:
-		return protos.SpanKind_CLIENT
+		return protos.Span_CLIENT
 	case trace.SpanKindProducer:
-		return protos.SpanKind_PRODUCER
+		return protos.Span_PRODUCER
 	case trace.SpanKindConsumer:
-		return protos.SpanKind_CONSUMER
+		return protos.Span_CONSUMER
 	default:
-		return protos.SpanKind_INTERNAL
+		return protos.Span_INTERNAL
 	}
 }
 
-func toProtoAttrs(kvs []attribute.KeyValue) []*protos.Attribute {
+func toProtoAttrs(kvs []attribute.KeyValue) []*protos.Span_Attribute {
 	if len(kvs) == 0 {
 		return nil
 	}
-	attrs := make([]*protos.Attribute, len(kvs))
+	attrs := make([]*protos.Span_Attribute, len(kvs))
 	for i, kv := range kvs {
-		attr := &protos.Attribute{
+		attr := &protos.Span_Attribute{
 			Key:   string(kv.Key),
-			Value: &protos.Attribute_Value{},
+			Value: &protos.Span_Attribute_Value{},
 		}
 		switch kv.Value.Type() {
 		case attribute.BOOL:
-			attr.Value.Type = protos.Attribute_Value_BOOL
-			val := &protos.Attribute_Value_Num{Num: 0}
+			attr.Value.Type = protos.Span_Attribute_Value_BOOL
+			val := &protos.Span_Attribute_Value_Num{Num: 0}
 			if kv.Value.AsBool() {
 				val.Num = 1
 			}
 			attr.Value.Value = val
 		case attribute.INT64:
-			attr.Value.Type = protos.Attribute_Value_INT64
-			attr.Value.Value = &protos.Attribute_Value_Num{Num: uint64(kv.Value.AsInt64())}
+			attr.Value.Type = protos.Span_Attribute_Value_INT64
+			attr.Value.Value = &protos.Span_Attribute_Value_Num{Num: uint64(kv.Value.AsInt64())}
 		case attribute.FLOAT64:
-			attr.Value.Type = protos.Attribute_Value_FLOAT64
-			attr.Value.Value = &protos.Attribute_Value_Num{Num: math.Float64bits(kv.Value.AsFloat64())}
+			attr.Value.Type = protos.Span_Attribute_Value_FLOAT64
+			attr.Value.Value = &protos.Span_Attribute_Value_Num{Num: math.Float64bits(kv.Value.AsFloat64())}
 		case attribute.STRING:
-			attr.Value.Type = protos.Attribute_Value_STRING
-			attr.Value.Value = &protos.Attribute_Value_Str{Str: kv.Value.AsString()}
+			attr.Value.Type = protos.Span_Attribute_Value_STRING
+			attr.Value.Value = &protos.Span_Attribute_Value_Str{Str: kv.Value.AsString()}
 		case attribute.BOOLSLICE:
 			// TODO(spetrovic): Store as a bitset.
-			attr.Value.Type = protos.Attribute_Value_BOOLLIST
+			attr.Value.Type = protos.Span_Attribute_Value_BOOLLIST
 			vals := kv.Value.AsBoolSlice()
 			b := make([]byte, len(vals))
 			for i, v := range vals {
@@ -139,31 +145,31 @@ func toProtoAttrs(kvs []attribute.KeyValue) []*protos.Attribute {
 					b[i] = 1
 				}
 			}
-			attr.Value.Value = &protos.Attribute_Value_Str{Str: string(b)}
+			attr.Value.Value = &protos.Span_Attribute_Value_Str{Str: string(b)}
 		case attribute.INT64SLICE:
-			attr.Value.Type = protos.Attribute_Value_INT64LIST
+			attr.Value.Type = protos.Span_Attribute_Value_INT64LIST
 			vals := kv.Value.AsInt64Slice()
 			nums := make([]uint64, len(vals))
 			for i, v := range vals {
 				nums[i] = uint64(v)
 			}
-			attr.Value.Value = &protos.Attribute_Value_Nums{Nums: &protos.Attribute_Value_NumberList{Nums: nums}}
+			attr.Value.Value = &protos.Span_Attribute_Value_Nums{Nums: &protos.Span_Attribute_Value_NumberList{Nums: nums}}
 		case attribute.FLOAT64SLICE:
-			attr.Value.Type = protos.Attribute_Value_FLOAT64LIST
+			attr.Value.Type = protos.Span_Attribute_Value_FLOAT64LIST
 			vals := kv.Value.AsFloat64Slice()
 			nums := make([]uint64, len(vals))
 			for i, v := range vals {
 				nums[i] = math.Float64bits(v)
 			}
-			attr.Value.Value = &protos.Attribute_Value_Nums{Nums: &protos.Attribute_Value_NumberList{Nums: nums}}
+			attr.Value.Value = &protos.Span_Attribute_Value_Nums{Nums: &protos.Span_Attribute_Value_NumberList{Nums: nums}}
 		case attribute.STRINGSLICE:
-			attr.Value.Type = protos.Attribute_Value_STRINGLIST
+			attr.Value.Type = protos.Span_Attribute_Value_STRINGLIST
 			vals := kv.Value.AsStringSlice()
 			strs := make([]string, len(vals))
 			copy(strs, vals)
-			attr.Value.Value = &protos.Attribute_Value_Strs{Strs: &protos.Attribute_Value_StringList{Strs: strs}}
+			attr.Value.Value = &protos.Span_Attribute_Value_Strs{Strs: &protos.Span_Attribute_Value_StringList{Strs: strs}}
 		default:
-			attr.Value.Type = protos.Attribute_Value_INVALID
+			attr.Value.Type = protos.Span_Attribute_Value_INVALID
 		}
 		attrs[i] = attr
 	}

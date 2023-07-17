@@ -40,7 +40,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
@@ -545,7 +544,7 @@ func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) err
 }
 
 // HandleTraceSpans implements the envelope.EnvelopeHandler interface.
-func (d *deployer) HandleTraceSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
+func (d *deployer) HandleTraceSpans(ctx context.Context, spans *protos.TraceSpans) error {
 	return d.traceDB.Store(ctx, d.config.App.Name, d.deploymentId, spans)
 }
 

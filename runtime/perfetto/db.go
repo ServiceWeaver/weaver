@@ -14,31 +14,36 @@
 
 // Package perfetto contains libraries for displaying trace information in the
 // Perfetto UI.
+//
+// TODO(spetrovic): Move this package to internal/
 package perfetto
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/traceio"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
-	lru "github.com/hashicorp/golang-lru/v2"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/proto"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -65,33 +70,18 @@ type metadataEvent struct {
 	Args map[string]string `json:"args"` // arguments provided for the event
 }
 
-type replicaCacheKey struct {
-	app, version, weaveletId string
-}
-
 // DB is a trace database that stores traces on the local file system.
 //
-// Trace data is stored in a JSON format [1] that is compatible with the
-// Perfetto UI[2].
+// Trace spans are stored in a single sqlite DB table. Each span is stored in
+// a separate row in the table.
 //
-// For each trace span, the following Perfetto events are generated:
-//   - A complete event, encapsulating the span duration.
-//   - A number of metadata events, encapsulating the span events.
-//
-// [1] https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview#
-// [2] https://ui.perfetto.dev/
+// TODO(spetrovic): Separate the database from the Pefetto serving code.
 type DB struct {
-	// Trace data is stored in a sqlite DB spread across three tables:
-	// (1) traces:           trace data in a Perfetto-UI-compattible JSON format
-	// (2) replica_num:      map from colocation group replica id to a replica
-	//                       number
-	// (3) next_replica_num: the next replica number to use for a given
-	//                       colocation group
+	// Trace data is stored in a sqlite DB spread across two tables:
+	// (1) spans:           serialized trace spans
+	// (2) span_attributes: span attributes stored in key,value format
 	fname string
 	db    *sql.DB
-
-	// Cache of replica numbers.
-	replicaNumCache *lru.Cache[replicaCacheKey, int]
 }
 
 // Open opens the default trace database on the local machine, which is
@@ -112,34 +102,33 @@ func Open(ctx context.Context, fname string) (*DB, error) {
 	}
 	db.SetMaxOpenConns(1)
 
-	// Initialize the replica number cache.
-	const cacheSize = 65536
-	cache, err := lru.New[replicaCacheKey, int](cacheSize)
-	if err != nil {
-		return nil, err
-	}
-
 	t := &DB{
-		fname:           fname,
-		db:              db,
-		replicaNumCache: cache,
+		fname: fname,
+		db:    db,
 	}
 
 	const initTables = `
--- Trace data.
-CREATE TABLE IF NOT EXISTS traces (
+-- Trace span data.
+CREATE TABLE IF NOT EXISTS spans (
 	app TEXT NOT NULL,
 	version TEXT NOT NULL,
-	events TEXT NOT NULL
+	name TEXT,
+	trace_id TEXT NOT NULL,
+	span_id TEXT NOT NULL,
+	parent_span_id TEXT,
+	start_time_unix_us INTEGER,
+	end_time_unix_us INTEGER,
+	encoded_span TEXT,
+	PRIMARY KEY(trace_id, span_id)
 );
 
--- Map from a weavelet id to a replica number.
-CREATE TABLE IF NOT EXISTS replica_num (
-	app TEXT NOT NULL,
-	version TEXT NOT NULL,
-	weavelet_id TEXT NOT NULL,
-	num INTEGER NOT NULL,
-	PRIMARY KEY(app,version,weavelet_id)
+-- Trace span attributes.
+CREATE TABLE IF NOT EXISTS span_attributes (
+	trace_id TEXT NOT NULL,
+	span_id TEXT NOT NULL,
+	key TEXT NOT NULL,
+	val TEXT,
+	FOREIGN KEY (trace_id, span_id) REFERENCES spans (trace_id, span_id)
 );
 `
 	if _, err := t.execDB(ctx, initTables); err != nil {
@@ -155,47 +144,280 @@ func (d *DB) Close() error {
 }
 
 // Store stores the given traces in the database.
-func (d *DB) Store(ctx context.Context, app, version string, spans []sdktrace.ReadOnlySpan) error {
-	encoded, err := d.encodeSpans(ctx, app, version, spans)
+func (d *DB) Store(ctx context.Context, app, version string, spans *protos.TraceSpans) error {
+	var errs []error
+	for _, span := range spans.Span {
+		if err := d.storeSpan(ctx, app, version, span); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (d *DB) storeSpan(ctx context.Context, app, version string, span *protos.Span) error {
+	encoded, err := proto.Marshal(span)
 	if err != nil {
 		return err
 	}
-	return d.storeEncoded(ctx, app, version, encoded)
-}
-
-func (d *DB) storeEncoded(ctx context.Context, app, version string, encoded []byte) error {
-	const stmt = `
-		INSERT INTO traces(app, version, events)
-		VALUES (?,?,?);
-	`
-	_, err := d.execDB(ctx, stmt, app, version, string(encoded))
+	const spanStmt = `
+INSERT INTO spans(app,version,name,trace_id,span_id,parent_span_id,start_time_unix_us,end_time_unix_us,encoded_span)
+VALUES (?,?,?,?,?,?,?,?,?)`
+	res, err := d.execDB(ctx, spanStmt, app, version, span.Name, hex.EncodeToString(span.TraceId), hex.EncodeToString(span.SpanId), hex.EncodeToString(span.ParentSpanId), span.StartMicros, span.EndMicros, encoded)
 	if err != nil {
-		return fmt.Errorf("write trace to %s: %w", d.fname, err)
+		return fmt.Errorf("write span to %s: %w", d.fname, err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("get last insertion id to %s: %w", d.fname, err)
+	}
+
+	// NOTE: we perform attribute inserts non-transactionaly, for performance
+	// reasons. In terms of DB consistency, this may result in some traces
+	// getting missed during querying, but that is okay as querying doesn't
+	// require strong consistency guarantees.
+	const attrStmt = `INSERT INTO span_attributes VALUES(?,?,?)`
+	for _, attr := range span.Attributes {
+		valStr := attributeValueString(attr)
+		if _, err := d.execDB(ctx, attrStmt, id, attr.Key, valStr); err != nil {
+			return fmt.Errorf("write span attributes to %s: %w", d.fname, err)
+		}
 	}
 	return nil
 }
 
-func (d *DB) encodeSpans(ctx context.Context, app, version string, spans []sdktrace.ReadOnlySpan) ([]byte, error) {
-	var b bytes.Buffer
-	for _, span := range spans {
-		if err := d.encodeSpan(ctx, app, version, span, &b); err != nil {
-			return nil, err
-		}
-	}
-	return b.Bytes(), nil
+// TraceSummary stores summary information about a trace.
+type TraceSummary struct {
+	TraceID            string    // Unique trace identifier, in hex format.
+	StartTime, EndTime time.Time // Start and end times for the trace.
+
+	// TODO(spetrovic): Add more fields as we figure out what type of
+	// summary trace information we want to display.
 }
 
-func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.ReadOnlySpan, buf *bytes.Buffer) error {
+// QueryTraces returns the summaries of the traces that match the given
+// query arguments, namely:
+//   - That have been generated by the given application version.
+//   - That fit entirely in the given [startTime, endTime] time interval.
+//   - Whose duration is in the given [durationLower, durationUpper] range.
+//   - Who are in the most recent limit of trace spans.
+//
+// Any query argument that has a zero value (e.g., empty app or version,
+// zero endTime) is ignored, i.e., it matches all spans.
+//
+// TODO(spetrovic): Add attribute matching.
+func (d *DB) QueryTraces(ctx context.Context, app, version string, startTime, endTime time.Time, durationLower, durationUpper time.Duration, limit int64) ([]TraceSummary, error) {
+	const query = `
+SELECT trace_id, start_time_unix_us, end_time_unix_us
+FROM spans
+WHERE
+	(parent_span_id="0000000000000000") AND
+	(app=? OR ?="") AND (version=? OR ?="") AND
+	(start_time_unix_us>=? OR ?=0) AND (end_time_unix_us<=? OR ?=0) AND
+	((end_time_unix_us - start_time_unix_us)>=? OR ?=0) AND
+	((end_time_unix_us - start_time_unix_us)<=? OR ?=0)
+ORDER BY end_time_unix_us DESC
+LIMIT ?
+`
+	var startTimeUs int64
+	if !startTime.IsZero() {
+		startTimeUs = startTime.UnixMicro()
+	}
+	var endTimeUs int64
+	if !endTime.IsZero() {
+		endTimeUs = endTime.UnixMicro()
+	}
+	durationLowerUs := durationLower.Microseconds()
+	durationUpperUs := durationUpper.Microseconds()
+	if limit <= 0 {
+		limit = math.MaxInt64
+	}
+	rows, err := d.queryDB(ctx, query, app, app, version, version, startTimeUs, startTimeUs, endTimeUs, endTimeUs, durationLowerUs, durationLowerUs, durationUpperUs, durationUpperUs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var traces []TraceSummary
+	for rows.Next() {
+		var traceID string
+		var startTimeUs, endTimeUs int64
+		if err := rows.Scan(&traceID, &startTimeUs, &endTimeUs); err != nil {
+			return nil, err
+		}
+		traces = append(traces, TraceSummary{
+			TraceID:   traceID,
+			StartTime: time.UnixMicro(startTimeUs),
+			EndTime:   time.UnixMicro(endTimeUs),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return traces, nil
+}
+
+func (d *DB) fetchSpans(ctx context.Context, traceID string) ([]*protos.Span, error) {
+	const query = `SELECT encoded_span FROM spans WHERE trace_id=?`
+	rows, err := d.queryDB(ctx, query, traceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var spans []*protos.Span
+	for rows.Next() {
+		var encoded []byte
+		if err := rows.Scan(&encoded); err != nil {
+			return nil, err
+		}
+		span := &protos.Span{}
+		if err := proto.Unmarshal(encoded, span); err != nil {
+			return nil, err
+		}
+		spans = append(spans, span)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return spans, nil
+}
+
+func (d *DB) queryDB(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	// Keep retrying as long as we are getting the "locked" error.
+	for r := retry.Begin(); r.Continue(ctx); {
+		rows, err := d.db.QueryContext(ctx, query, args...)
+		if isLocked(err) {
+			continue
+		}
+		return rows, err
+	}
+	return nil, ctx.Err()
+}
+
+func (d *DB) execDB(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	// Keep retrying as long as we are getting the "locked" error.
+	for r := retry.Begin(); r.Continue(ctx); {
+		res, err := d.db.ExecContext(ctx, query, args...)
+		if isLocked(err) {
+			continue
+		}
+		return res, err
+	}
+	return nil, ctx.Err()
+}
+
+// Serve runs an HTTP server that serves traces stored in the database.
+// In order to view the traces, open the following URL in a Chrome browser:
+//
+//	https://ui.perfetto.dev/#!/?url=http://<hostname>:9001?trace_id=<trace_id>
+//
+// , where <hostname> is the hostname of the machine running this server
+// (e.g., "127.0.0.1"), and <trace_id> is the trace ID in hexadecimal format.
+//
+// Perfetto UI requires that the server runs on the local port 9001. For that
+// reason, this method will block until port 9001 becomes available.
+func (d *DB) Serve(ctx context.Context) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("OK")) //nolint:errcheck // response write error
+	})
+	mux.HandleFunc("/", d.fetchTrace)
+	server := http.Server{Handler: mux}
+
+	// Repeatedly try to start a Perfetto HTTP server on port 9001. As long as
+	// we fail, it means that some other OS process is serving database
+	// traces on that port, and is serving "our" traces as well.
+	// TODO(spetrovic): With recent "purge" changes, this is no longer the case,
+	// as we now have a separate database for single, multi, and GKE-local
+	// deployers. We should fix this.
+	ticker := time.NewTicker(time.Second)
+	var warnOnce sync.Once
+	for {
+		select {
+		case <-ticker.C:
+			lis, err := net.Listen("tcp", "localhost:9001")
+			if err != nil {
+				warnOnce.Do(func() {
+					fmt.Fprintf(os.Stderr, "Perfetto server failed to listen on port 9001: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Perfetto server will retry until port 9001 is available\n")
+				})
+				continue
+			}
+
+			ticker.Stop()
+			err = server.Serve(lis)
+			if !errors.Is(err, http.ErrServerClosed) {
+				fmt.Fprintf(os.Stderr, "Failed to serve perfetto backend: %v\n", err)
+			}
+			return
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (d *DB) fetchTrace(w http.ResponseWriter, r *http.Request) {
+	// Set access control according to:
+	//   https://perfetto.dev/docs/visualization/deep-linking-to-perfetto-ui.
+	w.Header().Set("Access-Control-Allow-Origin", "https://ui.perfetto.dev")
+	traceID := r.URL.Query().Get("trace_id")
+	if traceID == "" {
+		http.Error(w, "no trace id provided", http.StatusBadRequest)
+		return
+	}
+	spans, err := d.fetchSpans(r.Context(), traceID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cannot fetch spans: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if len(spans) == 0 {
+		http.Error(w, "cannot find span", http.StatusNotFound)
+		return
+	}
+	traces, err := encodeSpans(spans)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	w.Write(traces) //nolint:errcheck // response write error
+}
+
+// encodeSpans encodes the given spans in a format that can be read by the
+// Perfetto UI.
+func encodeSpans(spans []*protos.Span) ([]byte, error) {
+	var buf strings.Builder
+
+	// We are returning a JSON array, so surround everything in [].
+	buf.WriteByte('[')
+	addEvent := func(event []byte) {
+		if buf.Len() > 1 { // NOTE: buf always starts with a '['
+			buf.WriteByte(',')
+		}
+		buf.Write(event)
+	}
+	for _, span := range spans {
+		s := &traceio.ReadSpan{Span: span}
+		events, err := encodeSpanEvents(s)
+		if err != nil {
+			return nil, err
+		}
+		for _, event := range events {
+			addEvent(event)
+		}
+	}
+	buf.WriteByte(']')
+	return []byte(buf.String()), nil
+}
+
+// encodeSpanEvents encodes the given span into a series of Perfetto events.
+func encodeSpanEvents(span sdktrace.ReadOnlySpan) ([][]byte, error) {
+	var ret [][]byte
 	appendEvent := func(event any) error {
 		b, err := json.Marshal(event)
 		if err != nil {
 			return err
 		}
-		if buf.Len() > 0 {
-			buf.Write([]byte{','})
-		}
-		_, err = buf.Write(b)
-		return err
+		ret = append(ret, b)
+		return nil
 	}
 
 	// Extract information from the span attributes.
@@ -208,14 +430,6 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 		case traceio.WeaveletIdTraceKey:
 			weaveletId = a.Value.AsString()
 		}
-	}
-
-	// Get replica number that corresponds to the colocation group replica
-	// that generated the span. We do this to avoid displaying long random
-	// numbers on the Perfetto UI.
-	replicaNum, err := d.getReplicaNumber(ctx, app, version, weaveletId)
-	if err != nil {
-		return err
 	}
 
 	// The span name contains the name of the method that is called. Based
@@ -259,20 +473,20 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 		Name: "process_name",
 		Cat:  span.SpanKind().String(),
 		Pid:  weaveletFP,
-		Tid:  replicaNum,
-		Args: map[string]string{"name": fmt.Sprintf("Weavelet %d", replicaNum)},
+		Tid:  weaveletFP,
+		Args: map[string]string{"name": "Weavelet"},
 	}); err != nil {
-		return err
+		return nil, err
 	}
 	if err := appendEvent(&metadataEvent{
 		Ph:   "M", // make it a metadata event
 		Name: "thread_name",
 		Cat:  span.SpanKind().String(),
 		Pid:  weaveletFP,
-		Tid:  replicaNum,
+		Tid:  weaveletFP,
 		Args: map[string]string{"name": "Weavelet"},
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Build a complete event.
@@ -281,12 +495,12 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 		Name: eventName,
 		Cat:  span.SpanKind().String(),
 		Pid:  weaveletFP,
-		Tid:  replicaNum,
+		Tid:  weaveletFP,
 		Args: args,
 		Ts:   span.StartTime().UnixMicro(),
 		Dur:  span.EndTime().UnixMicro() - span.StartTime().UnixMicro(),
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
 	// For each span event, create a corresponding metadata event.
@@ -300,216 +514,27 @@ func (d *DB) encodeSpan(ctx context.Context, app, version string, span sdktrace.
 			Name: e.Name,
 			Cat:  span.SpanKind().String(),
 			Pid:  weaveletFP,
-			Tid:  replicaNum,
+			Tid:  weaveletFP,
 			Args: attrs,
 		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// getReplicaNumber returns a replica number associated with the given
-// weavelet. If no such number exists, a new number will be associated. The
-// returned replica number is guaranteed to come from a dense number space.
-func (d *DB) getReplicaNumber(ctx context.Context, app, version, weaveletId string) (int, error) {
-	// Try to return the replica number from the cache.
-	cacheKey := replicaCacheKey{app, version, weaveletId}
-	if replicaNum, ok := d.replicaNumCache.Get(cacheKey); ok {
-		return replicaNum, nil
-	}
-
-	for r := retry.Begin(); r.Continue(ctx); {
-		// Get the replica number from the database.
-		replicaNum, err := d.getReplicaNumberUncached(ctx, app, version, weaveletId)
-		if isLocked(err) {
-			continue
-		}
-		if err == nil {
-			d.replicaNumCache.Add(cacheKey, replicaNum)
-		}
-		return replicaNum, err
-	}
-	return -1, ctx.Err()
-}
-
-func (d *DB) getReplicaNumberUncached(ctx context.Context, app, version, weaveletId string) (int, error) {
-	tx, err := d.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelLinearizable})
-	if err != nil {
-		return -1, err
-	}
-	defer tx.Rollback() //nolint:errcheck // rollback errors can be ignored
-
-	// See if the replica number is already associated.
-	const query = `
-		SELECT num
-		FROM replica_num
-		WHERE app=? AND version=? AND weavelet_id=?;
-	`
-	rows, err := tx.QueryContext(ctx, query, app, version, weaveletId)
-	if err != nil {
-		return -1, err
-	}
-	defer rows.Close()
-	if rows.Next() { // already associated
-		var replicaNum int
-		err = rows.Scan(&replicaNum)
-		return replicaNum, err
-	}
-	if err := rows.Err(); err != nil {
-		return -1, err
-	}
-
-	// Compute the next replica number.
-	const nextReplicaNumberQuery = `
-		SELECT COALESCE(MAX(num), -1)
-		FROM replica_num
-		WHERE app=? AND version=?;
-	`
-	rows, err = tx.QueryContext(ctx, nextReplicaNumberQuery, app, version)
-	if err != nil {
-		return -1, err
-	}
-	defer rows.Close()
-	replicaNum := 0
-	if rows.Next() {
-		if err = rows.Scan(&replicaNum); err != nil {
-			return -1, err
-		}
-		replicaNum++
-	}
-	if err := rows.Err(); err != nil {
-		return -1, err
-	}
-
-	// Associate the next replica number.
-	const stmt = `
-		INSERT INTO replica_num(app, version, weavelet_id, num)
-		VALUES (?,?,?,?);
-	`
-	if _, err = tx.ExecContext(ctx, stmt, app, version, weaveletId, replicaNum); err != nil {
-		return -1, err
-	}
-
-	// Commit the transaction.
-	err = tx.Commit()
-	return replicaNum, err
-}
-
-// fetch returns all trace events for the given application version.
-func (d *DB) fetch(ctx context.Context, app, version string) ([]byte, error) {
-	const query = `
-		SELECT GROUP_CONCAT(events, ',')
-		FROM traces
-		WHERE
-		(app=? OR ?="") AND (version=? OR ?="");
-	`
-	rows, err := d.queryDB(ctx, query, app, app, version, version)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var traces []byte
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
 			return nil, err
 		}
-		// no record
-		return traces, nil
 	}
-	if err := rows.Scan(&traces); err != nil {
-		return nil, err
-	}
-	return traces, nil
+	return ret, nil
 }
 
-func (d *DB) queryDB(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	// Keep retrying as long as we are getting the "locked" error.
-	for r := retry.Begin(); r.Continue(ctx); {
-		rows, err := d.db.QueryContext(ctx, query, args...)
-		if isLocked(err) {
-			continue
-		}
-		return rows, err
+func attributeValueString(attr *protos.Span_Attribute) string {
+	switch v := attr.Value.Value.(type) {
+	case *protos.Span_Attribute_Value_Num:
+		return fmt.Sprintf("%d", v.Num)
+	case *protos.Span_Attribute_Value_Str:
+		return v.Str
+	case *protos.Span_Attribute_Value_Nums:
+		return fmt.Sprintf("%v", v.Nums)
+	case *protos.Span_Attribute_Value_Strs:
+		return fmt.Sprintf("%v", v.Strs)
 	}
-	return nil, ctx.Err()
-}
-
-func (d *DB) execDB(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	// Keep retrying as long as we are getting the "locked" error.
-	for r := retry.Begin(); r.Continue(ctx); {
-		res, err := d.db.ExecContext(ctx, query, args...)
-		if isLocked(err) {
-			continue
-		}
-		return res, err
-	}
-	return nil, ctx.Err()
-}
-
-// Serve runs an HTTP server that serves traces stored in the database.
-// In order to view the traces, open the following URL in a Chrome browser:
-//
-//	https://ui.perfetto.dev/#!/?url=http://<hostname>:9001?app=<app>&version=<version>
-//
-// , where <hostname> is the hostname of the machine running this server
-// (e.g., "127.0.0.1"), <app> is the application name, and <version> is the
-// application version. If <version> is empty, all of the application's traces
-// will be displayed. If <app> is also empty, all of the database traces will be
-// displayed.
-//
-// Perfetto UI requires that the server runs on the local port 9001. For that
-// reason, this method will block until port 9001 becomes available.
-func (d *DB) Serve(ctx context.Context) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("OK")) //nolint:errcheck // response write error
-	})
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		app := r.URL.Query().Get("app")
-		version := r.URL.Query().Get("version")
-
-		// Set access control according to:
-		//   https://perfetto.dev/docs/visualization/deep-linking-to-perfetto-ui.
-		w.Header().Set("Access-Control-Allow-Origin", "https://ui.perfetto.dev")
-
-		data, err := d.fetch(r.Context(), app, version)
-		if err != nil || len(data) == 0 {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		traces := make([]byte, len(data)+2)
-		traces[0] = '['
-		copy(traces[1:], data)
-		traces[len(data)+1] = ']'
-		w.Write(traces) //nolint:errcheck // response write error
-	})
-	server := http.Server{Handler: mux}
-	ticker := time.NewTicker(time.Second)
-	var warnOnce sync.Once
-	for {
-		select {
-		case <-ticker.C:
-			lis, err := net.Listen("tcp", "localhost:9001")
-			if err != nil {
-				warnOnce.Do(func() {
-					fmt.Fprintf(os.Stderr, "Perfetto server failed to listen on port 9001: %v\n", err)
-					fmt.Fprintf(os.Stderr, "Perfetto server will retry until port 9001 is available\n")
-				})
-				continue
-			}
-
-			ticker.Stop()
-			err = server.Serve(lis)
-			if !errors.Is(err, http.ErrServerClosed) {
-				fmt.Fprintf(os.Stderr, "Failed to serve perfetto backend: %v\n", err)
-			}
-			return
-
-		case <-ctx.Done():
-			return
-		}
-	}
+	return ""
 }
 
 // isLocked returns whether the error is a "database is locked" error.

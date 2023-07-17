@@ -153,7 +153,7 @@ func newWeavelet(ctx context.Context, options private.AppOptions, componentInfos
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(env.CreateTraceExporter()),
+		sdktrace.WithBatcher(env.CreateTraceExporter(), sdktrace.WithBatchTimeout(traceio.ExportInterval)),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", info.Id)),

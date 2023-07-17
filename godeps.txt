@@ -393,13 +393,11 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     context
     fmt
     github.com/ServiceWeaver/weaver/internal/queue
-    github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/version
-    go.opentelemetry.io/otel/sdk/trace
     golang.org/x/sync/errgroup
     google.golang.org/protobuf/proto
     io
@@ -491,6 +489,7 @@ github.com/ServiceWeaver/weaver/internal/status
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
@@ -619,7 +618,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
     golang.org/x/exp/slices
     golang.org/x/exp/slog
@@ -697,7 +695,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
-    github.com/ServiceWeaver/weaver/internal/traceio
     github.com/ServiceWeaver/weaver/internal/versioned
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/envelope
@@ -708,7 +705,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
     golang.org/x/exp/slices
     golang.org/x/exp/slog
@@ -809,7 +805,6 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
-    go.opentelemetry.io/otel/sdk/trace
     golang.org/x/sync/errgroup
     io
     os
@@ -859,20 +854,22 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     unicode
     unicode/utf8
 github.com/ServiceWeaver/weaver/runtime/perfetto
-    bytes
     context
     crypto/sha256
     database/sql
     encoding/binary
+    encoding/hex
     encoding/json
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/traceio
+    github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
-    github.com/hashicorp/golang-lru/v2
     go.opentelemetry.io/otel/sdk/trace
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
+    google.golang.org/protobuf/proto
+    math
     modernc.org/sqlite
     modernc.org/sqlite/lib
     net
@@ -880,6 +877,7 @@ github.com/ServiceWeaver/weaver/runtime/perfetto
     os
     path/filepath
     strconv
+    strings
     sync
     time
 github.com/ServiceWeaver/weaver/runtime/profiling
@@ -956,7 +954,6 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
     golang.org/x/exp/maps
     golang.org/x/exp/slices
     golang.org/x/sync/errgroup
@@ -1040,7 +1037,6 @@ github.com/ServiceWeaver/weaver/website/blog/deployers/multi
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
     sync
 github.com/ServiceWeaver/weaver/website/blog/deployers/pipes
     context
@@ -1061,5 +1057,4 @@ github.com/ServiceWeaver/weaver/website/blog/deployers/single
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
-    go.opentelemetry.io/otel/sdk/trace
     log

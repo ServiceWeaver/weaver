@@ -132,11 +132,7 @@ func newSingleprocessEnv(bootstrap runtime.Bootstrap) (*singleprocessEnv, error)
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 	traceSaver := func(spans *protos.TraceSpans) error {
-		traces := make([]sdktrace.ReadOnlySpan, len(spans.Span))
-		for i, span := range spans.Span {
-			traces[i] = &traceio.ReadSpan{Span: span}
-		}
-		return traceDB.Store(ctx, singleConfig.App.Name, wlet.DeploymentId, traces)
+		return traceDB.Store(ctx, singleConfig.App.Name, wlet.DeploymentId, spans)
 	}
 
 	env := &singleprocessEnv{
