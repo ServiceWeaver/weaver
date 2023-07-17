@@ -854,6 +854,7 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     unicode
     unicode/utf8
 github.com/ServiceWeaver/weaver/runtime/perfetto
+    bytes
     context
     crypto/sha256
     database/sql

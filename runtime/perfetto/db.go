@@ -19,6 +19,7 @@
 package perfetto
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -108,27 +109,30 @@ func Open(ctx context.Context, fname string) (*DB, error) {
 	}
 
 	const initTables = `
--- Trace span data.
-CREATE TABLE IF NOT EXISTS spans (
+-- Queryable trace data.
+CREATE TABLE IF NOT EXISTS traces (
+	trace_id TEXT NOT NULL,
 	app TEXT NOT NULL,
 	version TEXT NOT NULL,
 	name TEXT,
-	trace_id TEXT NOT NULL,
-	span_id TEXT NOT NULL,
-	parent_span_id TEXT,
 	start_time_unix_us INTEGER,
 	end_time_unix_us INTEGER,
-	encoded_span TEXT,
-	PRIMARY KEY(trace_id, span_id)
+	PRIMARY KEY(trace_id)
 );
 
--- Trace span attributes.
-CREATE TABLE IF NOT EXISTS span_attributes (
+-- Queryable trace attributes.
+CREATE TABLE IF NOT EXISTS trace_attributes (
 	trace_id TEXT NOT NULL,
-	span_id TEXT NOT NULL,
 	key TEXT NOT NULL,
 	val TEXT,
-	FOREIGN KEY (trace_id, span_id) REFERENCES spans (trace_id, span_id)
+	FOREIGN KEY (trace_id) REFERENCES traces (trace_id)
+);
+
+-- Encoded spans.
+CREATE TABLE IF NOT EXISTS encoded_spans (
+	trace_id TEXT NOT NULL,
+	data TEXT,
+	FOREIGN KEY (trace_id) REFERENCES traces (trace_id)
 );
 `
 	if _, err := t.execDB(ctx, initTables); err != nil {
@@ -145,44 +149,60 @@ func (d *DB) Close() error {
 
 // Store stores the given traces in the database.
 func (d *DB) Store(ctx context.Context, app, version string, spans *protos.TraceSpans) error {
+	// NOTE: we insert all rows transactionally, as it is significantly faster
+	// than inserting one row at a time [1].
+	//
+	// [1]: https://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
+	tx, err := d.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelLinearizable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck supplanted by errs below
 	var errs []error
 	for _, span := range spans.Span {
-		if err := d.storeSpan(ctx, app, version, span); err != nil {
+		if isRootSpan(span) {
+			if err := d.storeTrace(ctx, tx, app, version, span); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if err := d.storeSpan(ctx, tx, span); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	return errors.Join(errs...)
+	if errs != nil {
+		return errors.Join(errs...)
+	}
+	return tx.Commit()
 }
 
-func (d *DB) storeSpan(ctx context.Context, app, version string, span *protos.Span) error {
+func (d *DB) storeTrace(ctx context.Context, tx *sql.Tx, app, version string, root *protos.Span) error {
+	const traceStmt = `
+INSERT INTO traces(trace_id,app,version,name,start_time_unix_us,end_time_unix_us)
+VALUES (?,?,?,?,?,?)`
+	_, err := tx.ExecContext(ctx, traceStmt, hex.EncodeToString(root.TraceId), app, version, root.Name, root.StartMicros, root.EndMicros)
+	if err != nil {
+		return fmt.Errorf("write span to %s: %w", d.fname, err)
+	}
+
+	const attrStmt = `INSERT INTO trace_attributes VALUES(?,?,?)`
+	for _, attr := range root.Attributes {
+		valStr := attributeValueString(attr)
+		_, err := tx.ExecContext(ctx, attrStmt, hex.EncodeToString(root.TraceId), attr.Key, valStr)
+		if err != nil {
+			return fmt.Errorf("write trace attributes to %s: %w", d.fname, err)
+		}
+	}
+	return nil
+}
+
+func (d *DB) storeSpan(ctx context.Context, tx *sql.Tx, span *protos.Span) error {
 	encoded, err := proto.Marshal(span)
 	if err != nil {
 		return err
 	}
-	const spanStmt = `
-INSERT INTO spans(app,version,name,trace_id,span_id,parent_span_id,start_time_unix_us,end_time_unix_us,encoded_span)
-VALUES (?,?,?,?,?,?,?,?,?)`
-	res, err := d.execDB(ctx, spanStmt, app, version, span.Name, hex.EncodeToString(span.TraceId), hex.EncodeToString(span.SpanId), hex.EncodeToString(span.ParentSpanId), span.StartMicros, span.EndMicros, encoded)
-	if err != nil {
-		return fmt.Errorf("write span to %s: %w", d.fname, err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return fmt.Errorf("get last insertion id to %s: %w", d.fname, err)
-	}
-
-	// NOTE: we perform attribute inserts non-transactionaly, for performance
-	// reasons. In terms of DB consistency, this may result in some traces
-	// getting missed during querying, but that is okay as querying doesn't
-	// require strong consistency guarantees.
-	const attrStmt = `INSERT INTO span_attributes VALUES(?,?,?)`
-	for _, attr := range span.Attributes {
-		valStr := attributeValueString(attr)
-		if _, err := d.execDB(ctx, attrStmt, id, attr.Key, valStr); err != nil {
-			return fmt.Errorf("write span attributes to %s: %w", d.fname, err)
-		}
-	}
-	return nil
+	const stmt = `INSERT INTO encoded_spans(trace_id,data) VALUES (?,?)`
+	_, err = tx.ExecContext(ctx, stmt, hex.EncodeToString(span.TraceId), encoded)
+	return err
 }
 
 // TraceSummary stores summary information about a trace.
@@ -208,9 +228,8 @@ type TraceSummary struct {
 func (d *DB) QueryTraces(ctx context.Context, app, version string, startTime, endTime time.Time, durationLower, durationUpper time.Duration, limit int64) ([]TraceSummary, error) {
 	const query = `
 SELECT trace_id, start_time_unix_us, end_time_unix_us
-FROM spans
+FROM traces
 WHERE
-	(parent_span_id="0000000000000000") AND
 	(app=? OR ?="") AND (version=? OR ?="") AND
 	(start_time_unix_us>=? OR ?=0) AND (end_time_unix_us<=? OR ?=0) AND
 	((end_time_unix_us - start_time_unix_us)>=? OR ?=0) AND
@@ -256,7 +275,7 @@ LIMIT ?
 }
 
 func (d *DB) fetchSpans(ctx context.Context, traceID string) ([]*protos.Span, error) {
-	const query = `SELECT encoded_span FROM spans WHERE trace_id=?`
+	const query = `SELECT data FROM encoded_spans WHERE trace_id=?`
 	rows, err := d.queryDB(ctx, query, traceID)
 	if err != nil {
 		return nil, err
@@ -542,6 +561,12 @@ func isLocked(err error) bool {
 	sqlError := &sqlite.Error{}
 	ok := errors.As(err, &sqlError)
 	return ok && (sqlError.Code() == sqlite3.SQLITE_BUSY || sqlError.Code() == sqlite3.SQLITE_LOCKED)
+}
+
+// isRootSpan returns true iff the given span is a root span.
+func isRootSpan(span *protos.Span) bool {
+	var nilSpanID [8]byte
+	return bytes.Equal(span.ParentSpanId, nilSpanID[:])
 }
 
 func fp(name string) int {
