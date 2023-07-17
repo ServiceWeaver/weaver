@@ -78,7 +78,7 @@ var (
 			tracerURL := url.QueryEscape("http://127.0.0.1:9001?" + v.Encode())
 			return "https://ui.perfetto.dev/#!/?url=" + tracerURL
 		},
-		"dur": func(startTime, endTime time.Time) string {
+		"sub": func(endTime, startTime time.Time) string {
 			return endTime.Sub(startTime).String()
 		},
 	}).Parse(tracesHTML))

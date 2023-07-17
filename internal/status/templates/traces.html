@@ -56,7 +56,7 @@
               <tr>
                 <td><a href="{{traceurl .TraceID}}">link</a></td>
                 <td>{{.StartTime}}</a></td>
-                <td>{{dur .StartTime .EndTime}}</a></td>
+                <td>{{sub .EndTime .StartTime}}</a></td>
               </tr>
             {{end}}
           </tbody>
