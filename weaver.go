@@ -30,11 +30,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"reflect"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"golang.org/x/exp/slog"
 )
@@ -143,29 +145,66 @@ type PointerToMain[T any] interface {
 //	        log.Fatal(err)
 //	    }
 //	}
-func Run[T any, _ PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error) error {
+func Run[T any, P PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error) error {
 	// Register HealthzHandler in the default ServerMux.
 	healthzInit.Do(func() {
 		http.HandleFunc(HealthzURL, HealthzHandler)
 	})
 
-	registrations := codegen.Registered()
-	wlet, err := weaver.NewWeavelet(ctx, nil /*fakes*/, registrations)
+	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
-		return fmt.Errorf("error initializating application: %w", err)
+		return err
 	}
-	if err := wlet.Start(); err != nil {
+	if !bootstrap.HasPipes() {
+		return runLocal[T, P](ctx, app)
+	}
+	return runRemote[T, P](ctx, app, bootstrap)
+}
+
+func runLocal[T any, _ PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error) error {
+	// Read config from SERVICEWEAVER_CONFIG env variable, if non-empty.
+	opts := weaver.SingleWeaveletOptions{}
+	if filename := os.Getenv("SERVICEWEAVER_CONFIG"); filename != "" {
+		contents, err := os.ReadFile(filename)
+		if err != nil {
+			return fmt.Errorf("config file: %w", err)
+		}
+		opts.ConfigFilename = filename
+		opts.Config = string(contents)
+	}
+
+	regs := codegen.Registered()
+	runner, err := weaver.NewSingleWeavelet(ctx, regs, opts)
+	if err != nil {
 		return err
 	}
 
-	for _, reg := range registrations {
-		if reg.Iface == reflection.Type[Main]() && wlet.Info.RunMain {
-			main, err := wlet.GetImpl("weaver.Run", reflection.Type[T]())
-			if err != nil {
-				return err
-			}
-			return app(ctx, main.(*T))
+	go func() {
+		if err := runner.ServeStatus(ctx); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
+	}()
+
+	main, err := runner.GetImpl(reflection.Type[T]())
+	if err != nil {
+		return err
+	}
+	return app(ctx, main.(*T))
+}
+
+func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error, bootstrap runtime.Bootstrap) error {
+	regs := codegen.Registered()
+	opts := weaver.RemoteWeaveletOptions{}
+	runner, err := weaver.NewRemoteWeavelet(ctx, regs, bootstrap, opts)
+	if err != nil {
+		return err
+	}
+	if runner.Info().RunMain {
+		main, err := runner.GetImpl(reflection.Type[T]())
+		if err != nil {
+			return err
+		}
+		return app(ctx, main.(*T))
 	}
 
 	<-ctx.Done()

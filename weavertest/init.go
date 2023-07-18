@@ -188,18 +188,39 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 		}
 	}()
 
+	fakes := map[reflect.Type]any{}
+	for _, f := range r.Fakes {
+		fakes[f.intf] = f.impl
+	}
+
+	var runner weaver.Weavelet
 	if !r.multi && !r.forceRPC {
-		ctx = initSingleProcessLocal(ctx, r.Config)
-	} else {
-		logger := logging.NewTestLogger(t, testing.Verbose())
-		multiCtx, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, intfs, logger.Log)
+		opts := weaver.SingleWeaveletOptions{
+			Fakes:  fakes,
+			Config: r.Config,
+			Quiet:  !testing.Verbose(),
+		}
+		var err error
+		runner, err = weaver.NewSingleWeavelet(ctx, codegen.Registered(), opts)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, cleanup = multiCtx, multiCleanup
+	} else {
+		logger := logging.NewTestLogger(t, testing.Verbose())
+		bootstrap, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, intfs, logger.Log)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cleanup = multiCleanup
+
+		opts := weaver.RemoteWeaveletOptions{Fakes: fakes}
+		runner, err = weaver.NewRemoteWeavelet(ctx, codegen.Registered(), bootstrap, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	if err := runWeaver(ctx, t, r, body); err != nil {
+	if err := body(ctx, runner); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -209,7 +230,7 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 // either component interfaces or pointer to component implementations). On
 // success it returns (1) a function that gets the components and passes them
 // to fn and (2) the interface types of the component implementation arguments.
-func checkRunFunc(t testing.TB, fn any) (func(context.Context, *weaver.Weavelet) error, []reflect.Type, error) {
+func checkRunFunc(t testing.TB, fn any) (func(context.Context, weaver.Weavelet) error, []reflect.Type, error) {
 	fnType := reflect.TypeOf(fn)
 	if fnType == nil || fnType.Kind() != reflect.Func {
 		return nil, nil, fmt.Errorf("not a func")
@@ -243,20 +264,20 @@ func checkRunFunc(t testing.TB, fn any) (func(context.Context, *weaver.Weavelet)
 		}
 	}
 
-	return func(ctx context.Context, wlet *weaver.Weavelet) error {
+	return func(ctx context.Context, runner weaver.Weavelet) error {
 		args := make([]reflect.Value, n)
 		args[0] = reflect.ValueOf(t)
 		for i := 1; i < n; i++ {
 			argType := fnType.In(i)
 			switch argType.Kind() {
 			case reflect.Interface:
-				comp, err := wlet.Get(t.Name(), argType)
+				comp, err := runner.GetIntf(argType)
 				if err != nil {
 					return err
 				}
 				args[i] = reflect.ValueOf(comp)
 			case reflect.Pointer:
-				comp, err := wlet.GetImpl(t.Name(), argType.Elem())
+				comp, err := runner.GetImpl(argType.Elem())
 				if err != nil {
 					return err
 				}
@@ -287,23 +308,6 @@ func extractComponentInterfaceType(t reflect.Type) (reflect.Type, error) {
 		return nil, fmt.Errorf("type %v does not embed weaver.Implements", t)
 	}
 	return f.Type, nil
-}
-
-func runWeaver(ctx context.Context, t testing.TB, runner Runner, body func(context.Context, *weaver.Weavelet) error) error {
-	t.Helper()
-	fakes := map[reflect.Type]any{}
-	for _, f := range runner.Fakes {
-		fakes[f.intf] = f.impl
-	}
-
-	wlet, err := weaver.NewWeavelet(ctx, fakes, codegen.Registered())
-	if err != nil {
-		return fmt.Errorf("error initializating application: %w", err)
-	}
-	if err := wlet.Start(); err != nil {
-		return err
-	}
-	return body(ctx, wlet)
 }
 
 // logStacks prints the stacks of live goroutines. This functionality
