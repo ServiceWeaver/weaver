@@ -6,12 +6,14 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/metrics
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     golang.org/x/exp/slog
     math/rand
     net
     net/http
+    os
     reflect
     sync
     sync/atomic
@@ -698,7 +700,6 @@ github.com/ServiceWeaver/weaver/internal/weaver
     context
     crypto/tls
     crypto/x509
-    embed
     errors
     fmt
     github.com/DataDog/hyperloglog
@@ -737,7 +738,6 @@ github.com/ServiceWeaver/weaver/internal/weaver
     math/rand
     net
     net/http
-    net/http/pprof
     os
     os/signal
     path/filepath

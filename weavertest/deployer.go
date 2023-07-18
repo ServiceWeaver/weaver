@@ -138,7 +138,7 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	return d
 }
 
-func (d *deployer) start() error {
+func (d *deployer) start() (runtime.Bootstrap, error) {
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -149,11 +149,11 @@ func (d *deployer) start() error {
 	//                         └────┘
 	fromWeaveletReader, fromWeaveletWriter, err := os.Pipe()
 	if err != nil {
-		return fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
+		return runtime.Bootstrap{}, fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
 	}
 	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
 	if err != nil {
-		return fmt.Errorf("cannot create toWeavelet pipe: %v", err)
+		return runtime.Bootstrap{}, fmt.Errorf("cannot create toWeavelet pipe: %v", err)
 	}
 	// Run an envelope connection to the main co-location group.
 	wlet := &protos.EnvelopeInfo{
@@ -167,7 +167,6 @@ func (d *deployer) start() error {
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
 		ToEnvelopeFile: fromWeaveletWriter,
-		TestConfig:     d.runner.Config,
 	}
 	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
 
@@ -199,7 +198,7 @@ func (d *deployer) start() error {
 			d.stopLocked(fmt.Errorf(`cannot register the replica for "main": %w`, err))
 		}
 	}()
-	return nil
+	return bootstrap, nil
 }
 
 // stop stops the deployer.
