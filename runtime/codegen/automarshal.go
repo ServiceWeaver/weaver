@@ -27,12 +27,6 @@ type AutoMarshal interface {
 	WeaverUnmarshal(dec *Decoder)
 }
 
-// autoMarshalPointer[T] is an interface which asserts that *T implements AutoMarshal.
-type autoMarshalPointer[T any] interface {
-	*T
-	AutoMarshal
-}
-
 // Table of registered serialized types.
 var (
 	typesMu  sync.Mutex
@@ -45,11 +39,7 @@ var (
 // wire (currently only used for AutoMarshal errors returned from remote method
 // calls). The registration is automatically done by generated code for custom
 // error structs that embed weaver.AutoMarshal.
-//
-// The extra PT type parameter is used to check that *T is an AutoMarshal
-// (since AutoMarshal methods have pointer receivers, but T itself may be a
-// struct).
-func RegisterSerializable[T any, PT autoMarshalPointer[T]]() {
+func RegisterSerializable[T AutoMarshal]() {
 	var value T
 	t := reflect.TypeOf(value)
 	typesMu.Lock()
@@ -73,15 +63,36 @@ func RegisterSerializable[T any, PT autoMarshalPointer[T]]() {
 // The returned key is stable across processes.
 func typeKey(value any) string {
 	t := reflect.TypeOf(value)
-	return t.PkgPath() + "." + t.Name()
+
+	// Embed the package path into the result since the short package name
+	// may not be unique. Note: if the registered type is a pointer, it
+	// will have an empty PkgPath, so we use the package from the pointed
+	// to type.
+	pkg := t.PkgPath()
+	if pkg == "" && t.Kind() == reflect.Pointer {
+		pkg = t.Elem().PkgPath()
+	}
+
+	return fmt.Sprintf("%s(%s)", t.String(), pkg)
 }
 
-// canEncodeInterface returns true if the concrete type of value is registered
-// as a serializable type and can therefore be sent using Encoder.Interface.
-func canEncodeInterface(value any) bool {
-	key := typeKey(value)
-	typesMu.Lock()
-	defer typesMu.Unlock()
-	_, ok := types[key]
-	return ok
+// pointerTo returns a pointer to value. If value is not addressable, pointerTo
+// will make an addressable copy of value and return a pointer to the copy.
+func pointerTo(value any) any {
+	v := reflect.ValueOf(value)
+	if !v.CanAddr() {
+		// value is not addressable, so make a heap-allocated copy.
+		v = reflect.New(v.Type()).Elem()
+		v.Set(reflect.ValueOf(value))
+	}
+	return v.Addr().Interface()
+}
+
+// pointee returns *value if value is a pointer, nil otherwise.
+func pointee(value any) any {
+	v := reflect.ValueOf(value)
+	if v.Kind() != reflect.Pointer {
+		return nil
+	}
+	return v.Elem().Interface()
 }

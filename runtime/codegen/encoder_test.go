@@ -189,21 +189,29 @@ func (c customTestError) Error() string               { return fmt.Sprintf("cust
 func (c *customTestError) WeaverMarshal(e *Encoder)   { e.String(c.f) }
 func (c *customTestError) WeaverUnmarshal(d *Decoder) { c.f = d.String() }
 
+// For a change, make the pointer type an error.
 type alternateError struct{ f string }
 
-func (e alternateError) Error() string               { return fmt.Sprintf("alt(%s)", e.f) }
-func (c *alternateError) WeaverMarshal(e *Encoder)   { e.String(c.f) }
-func (c *alternateError) WeaverUnmarshal(d *Decoder) { c.f = d.String() }
-
-func init() {
-	RegisterSerializable[customTestError]()
-	RegisterSerializable[alternateError]()
+func (a *alternateError) Error() string              { return fmt.Sprintf("alt(%s)", a.f) }
+func (a *alternateError) WeaverMarshal(e *Encoder)   { e.String(a.f) }
+func (a *alternateError) WeaverUnmarshal(d *Decoder) { a.f = d.String() }
+func (a *alternateError) Is(target error) bool {
+	x, ok := target.(*alternateError)
+	return ok && a.f == x.f
 }
 
 type cyclicError struct{ msg string }
 
-func (c *cyclicError) Error() string { return c.msg }
-func (c *cyclicError) Unwrap() error { return c }
+func (c *cyclicError) Error() string              { return c.msg }
+func (c *cyclicError) Unwrap() error              { return c }
+func (c *cyclicError) WeaverMarshal(e *Encoder)   { e.String(c.msg) }
+func (c *cyclicError) WeaverUnmarshal(d *Decoder) { c.msg = d.String() }
+
+func init() {
+	RegisterSerializable[*customTestError]()
+	RegisterSerializable[*alternateError]()
+	RegisterSerializable[*cyclicError]()
+}
 
 func TestErrorValues(t *testing.T) {
 	type testCase struct {
@@ -217,10 +225,10 @@ func TestErrorValues(t *testing.T) {
 		{"flat", errors.New("hello"), nil, []error{os.ErrNotExist}},
 		{"wrap1", fmt.Errorf("hello %w", os.ErrNotExist), []error{os.ErrNotExist}, nil},
 		{"wrap2", fmt.Errorf("hello %w", fmt.Errorf("world %w", os.ErrNotExist)), []error{os.ErrNotExist}, nil},
-		{"custom", customTestError{"x"}, nil, []error{os.ErrNotExist, alternateError{"x"}}},
+		{"custom", customTestError{"x"}, nil, []error{os.ErrNotExist, &alternateError{"x"}}},
 		{"wrap-custom", fmt.Errorf("hello %w", customTestError{"a"}), []error{customTestError{"a"}}, nil},
-		{"wrap-two", fmt.Errorf("hello %w %w", customTestError{"a"}, alternateError{"b"}), []error{customTestError{"a"}, alternateError{"b"}}, []error{customTestError{"other"}, alternateError{"other"}}},
-		{"cycle", &cyclicError{"c"}, []error{&cyclicError{"c"}}, nil},
+		{"wrap-two", fmt.Errorf("hello %w %w", customTestError{"a"}, &alternateError{"b"}), []error{customTestError{"a"}, &alternateError{"b"}}, []error{customTestError{"other"}, &alternateError{"other"}}},
+		{"ptr", &alternateError{"a"}, []error{&alternateError{"a"}}, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// Encode/decode and get resulting error value.
@@ -255,14 +263,33 @@ func TestErrorValues(t *testing.T) {
 			}
 
 			// Checks errors.Is(dst) against all unwrappings of src, including src itself.
-			seen := map[error]bool{} // Guard against cycles
-			for u := src; u != nil && !seen[u]; u = errors.Unwrap(u) {
-				seen[u] = true
+			for u := src; u != nil; u = errors.Unwrap(u) {
 				if !errors.Is(dst, u) {
 					t.Errorf("decoded error (%#v) (from %#v) does not match unwrapped error (%#v)", dst, src, u)
 				}
 			}
 		})
+	}
+}
+
+func TestCyclicError(t *testing.T) {
+	// Special test for cyclic errors since errors.Is etc. can get
+	// into an infinite loop on cycles.
+	src := &cyclicError{"c"}
+	enc := newEncoder()
+	enc.Error(src)
+	dec := Decoder{data: enc.data}
+	dst := dec.Error()
+	if !dec.Empty() {
+		t.Fatalf("leftover bytes in decoder")
+	}
+
+	c, ok := dst.(*cyclicError)
+	if !ok {
+		t.Fatalf("did not encode cyclic error")
+	}
+	if c.msg != "c" {
+		t.Fatalf("wrong contents for cyclic error")
 	}
 }
 
