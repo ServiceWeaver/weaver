@@ -19,6 +19,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +40,26 @@ func storeSpans(ctx context.Context, t *testing.T, db *DB, app, version string, 
 }
 
 // makeSpan creates a test span with the given information.
-func makeSpan(name string, tid, sid, pid string, start, end time.Time) *protos.Span {
+func makeSpan(name string, tid, sid, pid string, start, end time.Time, attrs ...string) *protos.Span {
+	protoAttrs := make([]*protos.Span_Attribute, len(attrs))
+	for i, attr := range attrs {
+		parts := strings.Split(attr, "=")
+		if len(parts) != 2 {
+			panic("attribute format not key=val")
+		}
+		val := &protos.Span_Attribute_Value{}
+		if valInt, err := strconv.Atoi(parts[1]); err == nil {
+			val.Type = protos.Span_Attribute_Value_INT64
+			val.Value = &protos.Span_Attribute_Value_Num{Num: uint64(valInt)}
+		} else {
+			val.Type = protos.Span_Attribute_Value_STRING
+			val.Value = &protos.Span_Attribute_Value_Str{Str: parts[1]}
+		}
+		protoAttrs[i] = &protos.Span_Attribute{
+			Key:   parts[0],
+			Value: val,
+		}
+	}
 	return &protos.Span{
 		Name:         name,
 		TraceId:      []byte(tid),
@@ -47,6 +68,7 @@ func makeSpan(name string, tid, sid, pid string, start, end time.Time) *protos.S
 		Kind:         protos.Span_SERVER,
 		StartMicros:  start.UnixMicro(),
 		EndMicros:    end.UnixMicro(),
+		Attributes:   protoAttrs,
 	}
 }
 
@@ -85,10 +107,10 @@ func TestQueryTraces(t *testing.T) {
 	s1 := makeSpan("s1", tid(1), sid(1), sid(0), tick(3), tick(10))
 	s2 := makeSpan("s2", tid(1), sid(2), sid(1), tick(4), tick(9))
 	s3 := makeSpan("s3", tid(1), sid(3), sid(1), tick(5), tick(6))
-	s4 := makeSpan("s4", tid(2), sid(4), sid(0), tick(1), tick(7))
+	s4 := makeSpan("s4", tid(2), sid(4), sid(0), tick(1), tick(7), "http.status_code=200")
 	s5 := makeSpan("s5", tid(2), sid(5), sid(4), tick(3), tick(7))
 	s6 := makeSpan("s6", tid(2), sid(6), sid(5), tick(4), tick(6))
-	s7 := makeSpan("s7", tid(3), sid(7), sid(0), tick(2), tick(6))
+	s7 := makeSpan("s7", tid(3), sid(7), sid(0), tick(2), tick(6), "http.status_code=400")
 	s8 := makeSpan("s8", tid(3), sid(8), sid(7), tick(3), tick(5))
 	s9 := makeSpan("s9", tid(3), sid(9), sid(7), tick(3), tick(4))
 	storeSpans(ctx, t, db, "app1", "v1", s1, s2, s3)
@@ -102,32 +124,32 @@ func TestQueryTraces(t *testing.T) {
 		version            string
 		start, end         time.Time
 		durLower, durUpper time.Duration
+		onlyErrs           bool
 		limit              int64
 		expect             []TraceSummary
 	}{
 		{
-			help:    "all",
-			version: "",
+			help: "all",
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
-				{tid(2), tick(1), tick(7)},
-				{tid(3), tick(2), tick(6)},
+				{tid(1), tick(3), tick(10), "OK"},
+				{tid(2), tick(1), tick(7), "OK"},
+				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
 		},
 		{
 			help: "match app",
 			app:  "app1",
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
-				{tid(2), tick(1), tick(7)},
+				{tid(1), tick(3), tick(10), "OK"},
+				{tid(2), tick(1), tick(7), "OK"},
 			},
 		},
 		{
 			help:    "match version",
 			version: "v1",
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
-				{tid(3), tick(2), tick(6)},
+				{tid(1), tick(3), tick(10), "OK"},
+				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
 		},
 		{
@@ -135,52 +157,59 @@ func TestQueryTraces(t *testing.T) {
 			app:     "app1",
 			version: "v1",
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
+				{tid(1), tick(3), tick(10), "OK"},
 			},
 		},
 		{
 			help:  "match start time",
 			start: tick(2),
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
-				{tid(3), tick(2), tick(6)},
+				{tid(1), tick(3), tick(10), "OK"},
+				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
 		},
 		{
 			help: "match end time",
 			end:  tick(9),
 			expect: []TraceSummary{
-				{tid(2), tick(1), tick(7)},
-				{tid(3), tick(2), tick(6)},
+				{tid(2), tick(1), tick(7), "OK"},
+				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
 		},
 		{
 			help:     "match duration lower",
 			durLower: dur(5),
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
-				{tid(2), tick(1), tick(7)},
+				{tid(1), tick(3), tick(10), "OK"},
+				{tid(2), tick(1), tick(7), "OK"},
 			},
 		},
 		{
 			help:     "match duration upper",
-			durUpper: dur(6),
+			durUpper: dur(7),
 			expect: []TraceSummary{
-				{tid(2), tick(1), tick(7)},
-				{tid(3), tick(2), tick(6)},
+				{tid(2), tick(1), tick(7), "OK"},
+				{tid(3), tick(2), tick(6), "Bad Request"},
+			},
+		},
+		{
+			help:     "match only errors",
+			onlyErrs: true,
+			expect: []TraceSummary{
+				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
 		},
 		{
 			help:  "match limit",
 			limit: 2,
 			expect: []TraceSummary{
-				{tid(1), tick(3), tick(10)},
-				{tid(2), tick(1), tick(7)},
+				{tid(1), tick(3), tick(10), "OK"},
+				{tid(2), tick(1), tick(7), "OK"},
 			},
 		},
 	} {
 		t.Run(tc.help, func(t *testing.T) {
-			actual, err := db.QueryTraces(ctx, tc.app, tc.version, tc.start, tc.end, tc.durLower, tc.durUpper, tc.limit)
+			actual, err := db.QueryTraces(ctx, tc.app, tc.version, tc.start, tc.end, tc.durLower, tc.durUpper, tc.onlyErrs, tc.limit)
 			if err != nil {
 				t.Fatal(err)
 			}
