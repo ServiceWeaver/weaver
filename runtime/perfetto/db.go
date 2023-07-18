@@ -73,14 +73,12 @@ type metadataEvent struct {
 
 // DB is a trace database that stores traces on the local file system.
 //
-// Trace spans are stored in a single sqlite DB table. Each span is stored in
-// a separate row in the table.
-//
 // TODO(spetrovic): Separate the database from the Pefetto serving code.
 type DB struct {
 	// Trace data is stored in a sqlite DB spread across two tables:
-	// (1) spans:           serialized trace spans
-	// (2) span_attributes: span attributes stored in key,value format
+	// (1) traces:         serialized trace data, used for querying.
+	// (2) encoded_spans:  full encoded span data, used for fetching all of the
+	//                     spans that belong to a given trace.
 	fname string
 	db    *sql.DB
 }
@@ -108,7 +106,11 @@ func Open(ctx context.Context, fname string) (*DB, error) {
 		db:    db,
 	}
 
-	const initTables = `
+	const initDB = `
+-- Disable foreign key checking as spans may get inserted into encoded_spans
+-- before the corresponding traces are inserted into traces.
+PRAGMA foreign_keys=OFF;
+
 -- Queryable trace data.
 CREATE TABLE IF NOT EXISTS traces (
 	trace_id TEXT NOT NULL,
@@ -121,22 +123,29 @@ CREATE TABLE IF NOT EXISTS traces (
 	PRIMARY KEY(trace_id)
 );
 
--- Queryable trace attributes.
-CREATE TABLE IF NOT EXISTS trace_attributes (
-	trace_id TEXT NOT NULL,
-	key TEXT NOT NULL,
-	val TEXT,
-	FOREIGN KEY (trace_id) REFERENCES traces (trace_id)
-);
-
 -- Encoded spans.
 CREATE TABLE IF NOT EXISTS encoded_spans (
 	trace_id TEXT NOT NULL,
+	start_time_unix_us INTEGER,
 	data TEXT,
 	FOREIGN KEY (trace_id) REFERENCES traces (trace_id)
 );
+
+-- Garbage-collect traces older than 30 days.
+CREATE TRIGGER IF NOT EXISTS expire_traces AFTER INSERT ON traces
+BEGIN
+	DELETE FROM traces
+	WHERE start_time_unix_us < (1000000 * unixepoch('now', '-30 days'));
+END;
+
+-- Garbage-collect spans older than 30 days.
+CREATE TRIGGER IF NOT EXISTS expire_spans AFTER INSERT ON encoded_spans
+BEGIN
+	DELETE FROM encoded_spans
+	WHERE start_time_unix_us < (1000000 * unixepoch('now', '-30 days'));
+END;
 `
-	if _, err := t.execDB(ctx, initTables); err != nil {
+	if _, err := t.execDB(ctx, initDB); err != nil {
 		return nil, fmt.Errorf("open trace DB %s: %w", fname, err)
 	}
 
@@ -179,19 +188,7 @@ func (d *DB) Store(ctx context.Context, app, version string, spans *protos.Trace
 func (d *DB) storeTrace(ctx context.Context, tx *sql.Tx, app, version string, root *protos.Span) error {
 	const traceStmt = `INSERT INTO traces VALUES (?,?,?,?,?,?,?)`
 	_, err := tx.ExecContext(ctx, traceStmt, hex.EncodeToString(root.TraceId), app, version, root.Name, root.StartMicros, root.EndMicros, spanStatus(root))
-	if err != nil {
-		return fmt.Errorf("write span to %s: %w", d.fname, err)
-	}
-
-	const attrStmt = `INSERT INTO trace_attributes VALUES(?,?,?)`
-	for _, attr := range root.Attributes {
-		valStr := attributeValueString(attr)
-		_, err := tx.ExecContext(ctx, attrStmt, hex.EncodeToString(root.TraceId), attr.Key, valStr)
-		if err != nil {
-			return fmt.Errorf("write trace attributes to %s: %w", d.fname, err)
-		}
-	}
-	return nil
+	return err
 }
 
 func (d *DB) storeSpan(ctx context.Context, tx *sql.Tx, span *protos.Span) error {
@@ -199,8 +196,8 @@ func (d *DB) storeSpan(ctx context.Context, tx *sql.Tx, span *protos.Span) error
 	if err != nil {
 		return err
 	}
-	const stmt = `INSERT INTO encoded_spans(trace_id,data) VALUES (?,?)`
-	_, err = tx.ExecContext(ctx, stmt, hex.EncodeToString(span.TraceId), encoded)
+	const stmt = `INSERT INTO encoded_spans VALUES (?,?,?)`
+	_, err = tx.ExecContext(ctx, stmt, hex.EncodeToString(span.TraceId), span.StartMicros, encoded)
 	return err
 }
 
@@ -544,20 +541,6 @@ func encodeSpanEvents(span sdktrace.ReadOnlySpan) ([][]byte, error) {
 		}
 	}
 	return ret, nil
-}
-
-func attributeValueString(attr *protos.Span_Attribute) string {
-	switch v := attr.Value.Value.(type) {
-	case *protos.Span_Attribute_Value_Num:
-		return fmt.Sprintf("%d", v.Num)
-	case *protos.Span_Attribute_Value_Str:
-		return v.Str
-	case *protos.Span_Attribute_Value_Nums:
-		return fmt.Sprintf("%v", v.Nums)
-	case *protos.Span_Attribute_Value_Strs:
-		return fmt.Sprintf("%v", v.Strs)
-	}
-	return ""
 }
 
 // isLocked returns whether the error is a "database is locked" error.
