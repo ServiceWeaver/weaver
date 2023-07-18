@@ -336,6 +336,27 @@ func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no deployment id provided", http.StatusBadRequest)
 		return
 	}
+	parseDuration := func(arg string) (time.Duration, bool) {
+		str := r.URL.Query().Get(arg)
+		if str == "" {
+			return 0, true
+		}
+		dur, err := time.ParseDuration(str)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid duration %q", str), http.StatusBadRequest)
+			return 0, false
+		}
+		return dur, true
+	}
+	latencyLower, ok := parseDuration("lat_low")
+	if !ok {
+		return
+	}
+	latencyUpper, ok := parseDuration("lat_hi")
+	if !ok {
+		return
+	}
+	onlyErrors := r.URL.Query().Get("errs") != ""
 
 	// Weavelets export traces every 5 seconds. In order to (semi-)guarantee
 	// that the database contains all spans for the selected traces, we only
@@ -344,13 +365,8 @@ func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
 	const gracePeriod = time.Second
 	endTime := time.Now().Add(-1 * (traceio.ExportInterval + gracePeriod))
 
-	// TODO(spetrovic): Change these once we start bucketizing traces based
-	// on their duration.
-	durationLower := time.Duration(0)
-	durationUpper := time.Duration(0)
-
-	const maxNumTraces = 1000
-	traces, err := d.traceDB.QueryTraces(r.Context(), "" /*app*/, id, time.Time{} /*startTime*/, endTime, durationLower, durationUpper, maxNumTraces)
+	const maxNumTraces = 100
+	traces, err := d.traceDB.QueryTraces(r.Context(), "" /*app*/, id, time.Time{} /*startTime*/, endTime, latencyLower, latencyUpper, onlyErrors, maxNumTraces)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot query trace database: %v", err), http.StatusInternalServerError)
 		return
@@ -358,9 +374,11 @@ func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
 
 	content := struct {
 		Tool   string
+		ID     string
 		Traces []perfetto.TraceSummary
 	}{
 		Tool:   d.spec.Tool,
+		ID:     id,
 		Traces: traces,
 	}
 	if err := tracesTemplate.Execute(w, content); err != nil {

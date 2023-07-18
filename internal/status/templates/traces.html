@@ -43,20 +43,36 @@
     <div class="card">
       <div class="card-title">Traces</div>
       <div class="card-body">
-        <table id="deployments" class="data-table">
+        <table id = buckets class = "data-table">
+            <tbody>
+                <tr>
+                    <td><a href="/traces?id={{.ID}}&lat_hi=1ms">0-1ms</a></td>
+                    <td><a href="/traces?id={{.ID}}&lat_low=1ms&lat_hi=10ms">1-10ms</a></td>
+                    <td><a href="/traces?id={{.ID}}&lat_low=10ms&lat_hi=100ms">10-100ms</a></td>
+                    <td><a href="/traces?id={{.ID}}&lat_low=100ms&lat_hi=1s">100ms-1s</a></td>
+                    <td><a href="/traces?id={{.ID}}&lat_low=1s&lat_hi=10s">1-10s</a></td>
+                    <td><a href="/traces?id={{.ID}}">all</a></td>
+                    <td><a href="/traces?id={{.ID}}&errs=true">errors</a></td>
+                </tr>
+            </tbody>
+        </table>
+        <br>
+        <table id="traces" class="data-table">
           <thead>
             <tr>
               <th scope="col">Trace URL</th>
               <th scope="col">Start Time</th>
               <th scope="col">Latency</th>
+              <th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
             {{range .Traces}}
               <tr>
                 <td><a href="{{traceurl .TraceID}}">link</a></td>
-                <td>{{.StartTime}}</a></td>
-                <td>{{sub .EndTime .StartTime}}</a></td>
+                <td>{{.StartTime}}</td>
+                <td>{{sub .EndTime .StartTime}}</td>
+                <td>{{.Status}}</td>
               </tr>
             {{end}}
           </tbody>
