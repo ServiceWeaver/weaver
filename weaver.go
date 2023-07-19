@@ -298,10 +298,11 @@ func (r Ref[T]) isRef() {}
 //	    myOtherListener weaver.Listener `weaver:"mylistener2"`
 //	}
 //
-// Listener names must be unique inside a given application binary, regardless
-// of which components they are specified in. For example, it is illegal to
-// declare a Listener field "foo" in two different component implementation
-// structs, unless one is renamed using the `weaver:"name"` struct tag.
+// Listener names must be valid Go identifier names. Listener names must be
+// unique inside a given application binary, regardless of which components
+// they are specified in. For example, it is illegal to declare a Listener
+// field "foo" in two different component implementation structs, unless one is
+// renamed using the `weaver:"name"` struct tag.
 //
 // HTTP servers constructed using this listener are expected to perform health
 // checks on the reserved HealthzURL path. (Note that this URL path is

@@ -9,7 +9,6 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
-    go/token
     golang.org/x/exp/slog
     math/rand
     net
@@ -19,6 +18,7 @@ github.com/ServiceWeaver/weaver
     sync
     sync/atomic
     time
+    unicode
 github.com/ServiceWeaver/weaver/cmd/weaver
     context
     errors
