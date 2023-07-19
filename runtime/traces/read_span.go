@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package traceio
+package traces
 
 import (
 	"math"
@@ -27,8 +27,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ReadSpan is a wrapper around a Span that implements the sdk.ReadOnlySpan
-// interface.
+// ReadSpan is a wrapper around *protos.Span that implements the
+// Open Telemetry ReadOnlySpan interface.
 type ReadSpan struct {
 	sdk.ReadOnlySpan
 	Span *protos.Span
@@ -36,54 +36,87 @@ type ReadSpan struct {
 
 var _ sdk.ReadOnlySpan = &ReadSpan{}
 
+// Name implements the ReadOnlySpan interface.
 func (s *ReadSpan) Name() string {
 	return s.Span.Name
 }
+
+// SpanContext implements the ReadOnlySpan interface.
 func (s *ReadSpan) SpanContext() trace.SpanContext {
 	return fromProtoContext(s.Span.TraceId, s.Span.SpanId)
 }
+
+// Parent implements the ReadOnlySpan interface.
 func (s *ReadSpan) Parent() trace.SpanContext {
 	return fromProtoContext(s.Span.TraceId, s.Span.ParentSpanId)
 }
+
+// SpanKind implements the ReadOnlySpan interface.
 func (s *ReadSpan) SpanKind() trace.SpanKind {
 	return fromProtoKind(s.Span.Kind)
 }
+
+// StartTime implements the ReadOnlySpan interface.
 func (s *ReadSpan) StartTime() time.Time {
 	return time.UnixMicro(s.Span.StartMicros)
 }
+
+// EndTime implements the ReadOnlySpan interface.
 func (s *ReadSpan) EndTime() time.Time {
 	return time.UnixMicro(s.Span.EndMicros)
 }
+
+// Attributes implements the ReadOnlySpan interface.
 func (s *ReadSpan) Attributes() []attribute.KeyValue {
 	return fromProtoAttrs(s.Span.Attributes)
 }
+
+// Links implements the ReadOnlySpan interface.
 func (s *ReadSpan) Links() []sdk.Link {
 	return fromProtoLinks(s.Span.Links)
 }
+
+// Events implements the ReadOnlySpan interface.
 func (s *ReadSpan) Events() []sdk.Event {
 	return fromProtoEvents(s.Span.Events)
 }
+
+// Status implements the ReadOnlySpan interface.
 func (s *ReadSpan) Status() sdk.Status {
 	return fromProtoStatus(s.Span.Status)
 }
+
+// InstrumentationScope implements the ReadOnlySpan interface.
 func (s *ReadSpan) InstrumentationScope() instrumentation.Scope {
 	return fromProtoScope(s.Span.Scope)
 }
+
+// InstrumentationLibrary implements the ReadOnlySpan interface.
 func (s *ReadSpan) InstrumentationLibrary() instrumentation.Scope {
 	return fromProtoLibrary(s.Span.Library)
 }
+
+// Resource implements the ReadOnlySpan interface.
 func (s *ReadSpan) Resource() *resource.Resource {
 	return fromProtoResource(s.Span.Resource)
 }
+
+// DroppedAttributes implements the ReadOnlySpan interface.
 func (s *ReadSpan) DroppedAttributes() int {
 	return int(s.Span.DroppedAttributeCount)
 }
+
+// DroppedLinks implements the ReadOnlySpan interface.
 func (s *ReadSpan) DroppedLinks() int {
 	return int(s.Span.DroppedLinkCount)
 }
+
+// DroppedEvents implements the ReadOnlySpan interface.
 func (s *ReadSpan) DroppedEvents() int {
 	return int(s.Span.DroppedEventCount)
 }
+
+// ChildSpanCount implements the ReadOnlySpan interface.
 func (s *ReadSpan) ChildSpanCount() int {
 	return int(s.Span.ChildSpanCount)
 }

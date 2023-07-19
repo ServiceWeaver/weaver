@@ -28,7 +28,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	sdk "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -79,7 +78,7 @@ func (*pipeForTest) VerifyServerCertificate(context.Context, *protos.VerifyServe
 func writeAndRead(in *protos.Span, pipe *pipeForTest) (*protos.Span, error) {
 	pipe.waitToExportSpans.Add(1)
 	writer := traceio.NewWriter(pipe.wletConn.SendTraceSpans)
-	if err := writer.ExportSpans(context.Background(), []sdk.ReadOnlySpan{&traceio.ReadSpan{Span: in}}); err != nil {
+	if err := writer.ExportSpansProto(&protos.TraceSpans{Span: []*protos.Span{in}}); err != nil {
 		return nil, err
 	}
 	pipe.waitToExportSpans.Wait()

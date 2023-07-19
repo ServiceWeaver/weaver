@@ -452,11 +452,11 @@ github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
-    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/prometheus
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/tool
+    github.com/ServiceWeaver/weaver/runtime/traces
     github.com/google/pprof/profile
     github.com/pkg/browser
     golang.org/x/exp/maps
@@ -569,11 +569,11 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
-    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/profiling
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/tool
+    github.com/ServiceWeaver/weaver/runtime/traces
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
     golang.org/x/exp/maps
@@ -658,10 +658,10 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
-    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
+    github.com/ServiceWeaver/weaver/runtime/traces
     github.com/google/uuid
     golang.org/x/exp/maps
     golang.org/x/exp/slices
@@ -717,9 +717,9 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
-    github.com/ServiceWeaver/weaver/runtime/perfetto
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
+    github.com/ServiceWeaver/weaver/runtime/traces
     github.com/google/uuid
     github.com/lightstep/varopt
     go.opentelemetry.io/otel
@@ -864,34 +864,6 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     sync/atomic
     unicode
     unicode/utf8
-github.com/ServiceWeaver/weaver/runtime/perfetto
-    bytes
-    context
-    crypto/sha256
-    database/sql
-    encoding/binary
-    encoding/hex
-    encoding/json
-    errors
-    fmt
-    github.com/ServiceWeaver/weaver/internal/traceio
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/ServiceWeaver/weaver/runtime/retry
-    go.opentelemetry.io/otel/sdk/trace
-    go.opentelemetry.io/otel/semconv/v1.4.0
-    go.opentelemetry.io/otel/trace
-    google.golang.org/protobuf/proto
-    math
-    modernc.org/sqlite
-    modernc.org/sqlite/lib
-    net
-    net/http
-    os
-    path/filepath
-    strconv
-    strings
-    sync
-    time
 github.com/ServiceWeaver/weaver/runtime/profiling
     bytes
     errors
@@ -950,6 +922,38 @@ github.com/ServiceWeaver/weaver/runtime/tool
     sort
     strings
     text/template
+    time
+github.com/ServiceWeaver/weaver/runtime/traces
+    bytes
+    context
+    crypto/sha256
+    database/sql
+    encoding/binary
+    encoding/hex
+    encoding/json
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver/internal/traceio
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/ServiceWeaver/weaver/runtime/retry
+    go.opentelemetry.io/otel/attribute
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/sdk/instrumentation
+    go.opentelemetry.io/otel/sdk/resource
+    go.opentelemetry.io/otel/sdk/trace
+    go.opentelemetry.io/otel/semconv/v1.4.0
+    go.opentelemetry.io/otel/trace
+    google.golang.org/protobuf/proto
+    math
+    modernc.org/sqlite
+    modernc.org/sqlite/lib
+    net
+    net/http
+    os
+    path/filepath
+    strconv
+    strings
+    sync
     time
 github.com/ServiceWeaver/weaver/runtime/version
     fmt

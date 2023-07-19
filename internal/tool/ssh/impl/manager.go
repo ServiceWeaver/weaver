@@ -32,8 +32,8 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
@@ -72,7 +72,7 @@ var (
 	LogDir       = filepath.Join(runtime.LogsDir(), "ssh")
 	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "ssh")
 	registryDir  = filepath.Join(dataDir, "registry")
-	PerfettoFile = filepath.Join(dataDir, "perfetto.db")
+	PerfettoFile = filepath.Join(dataDir, "traces.DB")
 )
 
 // manager manages an application version deployment across a set of locations,
@@ -168,7 +168,7 @@ func RunManager(ctx context.Context, config *SshConfig, locations map[string]str
 	})
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx, PerfettoFile)
+	traceDB, err := traces.OpenDB(ctx, PerfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}

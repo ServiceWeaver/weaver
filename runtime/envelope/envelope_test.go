@@ -42,7 +42,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -343,25 +342,25 @@ func writeTraces(conn *conn.WeaveletConn) error {
 	w := traceio.NewWriter(conn.SendTraceSpans)
 	defer w.Shutdown(context.Background())
 
-	span := func(name string) sdktrace.ReadOnlySpan {
+	span := func(name string) *protos.Span {
 		rnd := uuid.New()
-		return &traceio.ReadSpan{Span: &protos.Span{
+		return &protos.Span{
 			Name:         name,
 			TraceId:      rnd[:16],
 			SpanId:       rnd[:8],
 			ParentSpanId: rnd[:8],
-		}}
+		}
 	}
-	if err := w.ExportSpans(context.Background(), []sdktrace.ReadOnlySpan{
+	if err := w.ExportSpansProto(&protos.TraceSpans{Span: []*protos.Span{
 		span("span1"),
 		span("span2"),
-	}); err != nil {
+	}}); err != nil {
 		return err
 	}
-	if err := w.ExportSpans(context.Background(), []sdktrace.ReadOnlySpan{
+	if err := w.ExportSpansProto(&protos.TraceSpans{Span: []*protos.Span{
 		span("span3"),
 		span("span4"),
-	}); err != nil {
+	}}); err != nil {
 		return err
 	}
 	return nil
