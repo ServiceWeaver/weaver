@@ -16,9 +16,9 @@ package weaver
 
 import (
 	"fmt"
-	"go/token"
 	"net"
 	"reflect"
+	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
@@ -102,7 +102,7 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 		// The listener's name is the field name, unless a tag is present.
 		name := t.Name
 		if tag := t.Tag.Get("weaver"); tag != "" {
-			if !token.IsIdentifier(tag) {
+			if !isIdentifier(tag) {
 				return fmt.Errorf("FillListeners: listener tag %s is not a valid Go identifier", tag)
 			}
 			name = tag
@@ -121,6 +121,22 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 		l.proxyAddr = proxyAddr
 	}
 	return nil
+}
+
+// isIdentifier returns whether the provided string is a valid Go identifier,
+// including keywords. It is taken from [1].
+//
+// [1]: https://cs.opensource.google/go/go/+/refs/tags/go1.20.6:src/go/token/token.go;l=331-341;drc=19309779ac5e2f5a2fd3cbb34421dafb2855ac21
+func isIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, c := range name {
+		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
+			return false
+		}
+	}
+	return true
 }
 
 // setPossiblyUnexported sets dst to value. It is equivalent to
