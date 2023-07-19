@@ -46,18 +46,19 @@ type LogsSpec struct {
 // query language. Some entries, like full_version and full_node, are not
 // present in a runtime.LogEntry; they are derived fields.
 type fullEntry struct {
-	App           string `json:"app"`
-	Version       string `json:"version"`
-	FullVersion   string `json:"full_version"`
-	Component     string `json:"component"`
-	FullComponent string `json:"full_component"`
-	Node          string `json:"node"`
-	FullNode      string `json:"full_node"`
-	Time          string `json:"time"`
-	Level         string `json:"level"`
-	File          string `json:"file"`
-	Line          int32  `json:"line"`
-	Msg           string `json:"msg"`
+	App           string            `json:"app"`
+	Version       string            `json:"version"`
+	FullVersion   string            `json:"full_version"`
+	Component     string            `json:"component"`
+	FullComponent string            `json:"full_component"`
+	Node          string            `json:"node"`
+	FullNode      string            `json:"full_node"`
+	Time          string            `json:"time"`
+	Level         string            `json:"level"`
+	File          string            `json:"file"`
+	Line          int32             `json:"line"`
+	Msg           string            `json:"msg"`
+	Attrs         map[string]string `json:"attrs"`
 }
 
 // LogsCmd returns a command to query log entries.
@@ -284,6 +285,15 @@ func (s *LogsSpec) logFn(ctx context.Context, args []string) error {
 		case "pretty":
 			fmt.Println(pp.Format(entry))
 		case "json":
+			attrs := map[string]string{}
+			for i := 0; i < len(entry.Attrs); i += 2 {
+				key := entry.Attrs[i]
+				value := ""
+				if i+1 < len(entry.Attrs) {
+					value = entry.Attrs[i+1]
+				}
+				attrs[key] = value
+			}
 			bytes, err := json.MarshalIndent(fullEntry{
 				App:           entry.App,
 				Version:       logging.Shorten(entry.Version),
@@ -297,6 +307,7 @@ func (s *LogsSpec) logFn(ctx context.Context, args []string) error {
 				File:          entry.File,
 				Line:          entry.Line,
 				Msg:           entry.Msg,
+				Attrs:         attrs,
 			}, "", "    ")
 			if err != nil {
 				return err
