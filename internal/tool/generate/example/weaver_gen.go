@@ -14,10 +14,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -50,6 +50,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(A), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return a_reflect_stub{caller: caller}
+		},
 		RefData: "⟦627f661b:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/tool/generate/example/A→github.com/ServiceWeaver/weaver/internal/tool/generate/example/B⟧\n⟦26168bd7:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/internal/tool/generate/example/A→lis2,renamed_listener⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -66,6 +69,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(B), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return b_reflect_stub{caller: caller}
 		},
 		RefData: "⟦6971bce2:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/tool/generate/example/B→github.com/ServiceWeaver/weaver/internal/tool/generate/example/A⟧\n⟦c9c43570:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/internal/tool/generate/example/B→lis2,renamed_listener⟧\n",
 	})
@@ -644,6 +650,98 @@ func (s b_server_stub) m2(ctx context.Context, args []byte) (res []byte, err err
 	(r0).WeaverMarshal(enc)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type a_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that a_reflect_stub implements the A interface.
+var _ A = (*a_reflect_stub)(nil)
+
+func (s a_reflect_stub) M1(ctx context.Context, a0 int, a1 string, a2 bool, a3 [10]int, a4 []string, a5 map[bool]int, a6 message) (r0 pair, err error) {
+	component := reflect.TypeOf((*A)(nil)).Elem()
+	args := make([]reflect.Value, 8)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	args[3] = reflect.ValueOf(a2)
+	args[4] = reflect.ValueOf(a3)
+	args[5] = reflect.ValueOf(a4)
+	args[6] = reflect.ValueOf(a5)
+	args[7] = reflect.ValueOf(a6)
+	results := s.caller(component, "M1", args)
+	r0 = results[0].Interface().(pair)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s a_reflect_stub) M2(ctx context.Context, a0 int, a1 string, a2 bool, a3 [10]int, a4 []string, a5 map[bool]int, a6 message) (r0 pair, err error) {
+	component := reflect.TypeOf((*A)(nil)).Elem()
+	args := make([]reflect.Value, 8)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	args[3] = reflect.ValueOf(a2)
+	args[4] = reflect.ValueOf(a3)
+	args[5] = reflect.ValueOf(a4)
+	args[6] = reflect.ValueOf(a5)
+	args[7] = reflect.ValueOf(a6)
+	results := s.caller(component, "M2", args)
+	r0 = results[0].Interface().(pair)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type b_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that b_reflect_stub implements the B interface.
+var _ B = (*b_reflect_stub)(nil)
+
+func (s b_reflect_stub) M1(ctx context.Context, a0 int, a1 string, a2 bool, a3 [10]int, a4 []string, a5 map[bool]int, a6 message) (r0 pair, err error) {
+	component := reflect.TypeOf((*B)(nil)).Elem()
+	args := make([]reflect.Value, 8)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	args[3] = reflect.ValueOf(a2)
+	args[4] = reflect.ValueOf(a3)
+	args[5] = reflect.ValueOf(a4)
+	args[6] = reflect.ValueOf(a5)
+	args[7] = reflect.ValueOf(a6)
+	results := s.caller(component, "M1", args)
+	r0 = results[0].Interface().(pair)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s b_reflect_stub) M2(ctx context.Context, a0 int, a1 string, a2 bool, a3 [10]int, a4 []string, a5 map[bool]int, a6 message) (r0 pair, err error) {
+	component := reflect.TypeOf((*B)(nil)).Elem()
+	args := make([]reflect.Value, 8)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	args[3] = reflect.ValueOf(a2)
+	args[4] = reflect.ValueOf(a3)
+	args[5] = reflect.ValueOf(a4)
+	args[6] = reflect.ValueOf(a5)
+	args[7] = reflect.ValueOf(a6)
+	results := s.caller(component, "M2", args)
+	r0 = results[0].Interface().(pair)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }
 
 // AutoMarshal implementations.

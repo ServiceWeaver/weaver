@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -47,6 +47,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return started_server_stub{impl: impl.(Started), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return started_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -61,6 +64,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return widget_server_stub{impl: impl.(Widget), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return widget_reflect_stub{caller: caller}
 		},
 		RefData: "⟦f3fa3c18:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget→github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started⟧\n",
 	})
@@ -346,4 +352,44 @@ func (s widget_server_stub) use(ctx context.Context, args []byte) (res []byte, e
 	enc := codegen.NewEncoder()
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type started_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that started_reflect_stub implements the Started interface.
+var _ Started = (*started_reflect_stub)(nil)
+
+func (s started_reflect_stub) MarkStarted(ctx context.Context, a0 string) (err error) {
+	component := reflect.TypeOf((*Started)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "MarkStarted", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type widget_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that widget_reflect_stub implements the Widget interface.
+var _ Widget = (*widget_reflect_stub)(nil)
+
+func (s widget_reflect_stub) Use(ctx context.Context, a0 string) (err error) {
+	component := reflect.TypeOf((*Widget)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Use", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }

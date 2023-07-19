@@ -26,6 +26,7 @@
 // type foo_server_stub struct
 // func (s foo_server_stub) GetStubFn
 // func (s foo_server_stub) m(ctx
+// type foo_reflect_stub struct
 
 // UNEXPECTED
 // Preallocate

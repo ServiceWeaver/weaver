@@ -28,7 +28,7 @@ const (
 	//
 	// [1]: https://go.dev/doc/modules/version-numbers
 	ModuleMajor = 0
-	ModuleMinor = 17
+	ModuleMinor = 18
 	ModulePatch = 0
 
 	// Note that there is currently no way to programmatically get the version
@@ -56,7 +56,7 @@ const (
 	// new version every time we change how code is generated, and we use
 	// weaver module versions.
 	CodegenMajor = 0
-	CodegenMinor = 17
+	CodegenMinor = 18
 )
 
 var (

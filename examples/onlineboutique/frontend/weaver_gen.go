@@ -11,10 +11,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -43,6 +43,9 @@ func init() {
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return main_reflect_stub{caller: caller}
 		},
 		RefData: "⟦36ba6b75:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice/T⟧\n⟦ad903f0a:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice/T⟧\n⟦ae7426b7:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice/T⟧\n⟦3324d893:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/recommendationservice/T⟧\n⟦f76a2b4a:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice/T⟧\n⟦dd0dfbe8:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice/T⟧\n⟦24712bd9:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice/T⟧\n⟦29a161ab:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→boutique⟧\n",
 	})
@@ -90,3 +93,13 @@ func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, arg
 		return nil
 	}
 }
+
+// Reflect stub implementations.
+
+type main_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that main_reflect_stub implements the weaver.Main interface.
+var _ weaver.Main = (*main_reflect_stub)(nil)
+

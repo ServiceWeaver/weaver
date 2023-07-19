@@ -14,10 +14,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -47,6 +47,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return t_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -287,6 +290,41 @@ func (s t_server_stub) getSupportedCurrencies(ctx context.Context, args []byte) 
 	serviceweaver_enc_slice_string_4af10117(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type t_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that t_reflect_stub implements the T interface.
+var _ T = (*t_reflect_stub)(nil)
+
+func (s t_reflect_stub) Convert(ctx context.Context, a0 money.T, a1 string) (r0 money.T, err error) {
+	component := reflect.TypeOf((*T)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "Convert", args)
+	r0 = results[0].Interface().(money.T)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s t_reflect_stub) GetSupportedCurrencies(ctx context.Context) (r0 []string, err error) {
+	component := reflect.TypeOf((*T)(nil)).Elem()
+	args := make([]reflect.Value, 1)
+	args[0] = reflect.ValueOf(ctx)
+	results := s.caller(component, "GetSupportedCurrencies", args)
+	r0 = results[0].Interface().([]string)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }
 
 // Encoding/decoding implementations.

@@ -14,10 +14,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -48,6 +48,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping1_server_stub{impl: impl.(Ping1), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping1_reflect_stub{caller: caller}
+		},
 		RefData: "⟦544443c5:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping1→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -62,6 +65,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping10_server_stub{impl: impl.(Ping10), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping10_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -78,6 +84,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping2_server_stub{impl: impl.(Ping2), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping2_reflect_stub{caller: caller}
+		},
 		RefData: "⟦b42b173c:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping2→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -92,6 +101,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping3_server_stub{impl: impl.(Ping3), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping3_reflect_stub{caller: caller}
 		},
 		RefData: "⟦8c498b47:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping3→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4⟧\n",
 	})
@@ -108,6 +120,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping4_server_stub{impl: impl.(Ping4), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping4_reflect_stub{caller: caller}
+		},
 		RefData: "⟦90669915:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping4→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -122,6 +137,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping5_server_stub{impl: impl.(Ping5), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping5_reflect_stub{caller: caller}
 		},
 		RefData: "⟦a38d1914:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping5→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6⟧\n",
 	})
@@ -138,6 +156,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping6_server_stub{impl: impl.(Ping6), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping6_reflect_stub{caller: caller}
+		},
 		RefData: "⟦ebf8b6d3:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping6→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -152,6 +173,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping7_server_stub{impl: impl.(Ping7), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping7_reflect_stub{caller: caller}
 		},
 		RefData: "⟦88d68418:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping7→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8⟧\n",
 	})
@@ -168,6 +192,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping8_server_stub{impl: impl.(Ping8), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping8_reflect_stub{caller: caller}
+		},
 		RefData: "⟦ed98271d:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping8→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -182,6 +209,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return ping9_server_stub{impl: impl.(Ping9), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return ping9_reflect_stub{caller: caller}
 		},
 		RefData: "⟦5ceb96a7:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/benchmarks/Ping9→github.com/ServiceWeaver/weaver/internal/benchmarks/Ping10⟧\n",
 	})
@@ -2645,6 +2675,358 @@ func (s ping9_server_stub) pingS(ctx context.Context, args []byte) (res []byte, 
 	(r0).WeaverMarshal(enc)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type ping1_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping1_reflect_stub implements the Ping1 interface.
+var _ Ping1 = (*ping1_reflect_stub)(nil)
+
+func (s ping1_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping1)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping1_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping1)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping10_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping10_reflect_stub implements the Ping10 interface.
+var _ Ping10 = (*ping10_reflect_stub)(nil)
+
+func (s ping10_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping10)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping10_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping10)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping2_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping2_reflect_stub implements the Ping2 interface.
+var _ Ping2 = (*ping2_reflect_stub)(nil)
+
+func (s ping2_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping2)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping2_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping2)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping3_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping3_reflect_stub implements the Ping3 interface.
+var _ Ping3 = (*ping3_reflect_stub)(nil)
+
+func (s ping3_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping3)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping3_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping3)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping4_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping4_reflect_stub implements the Ping4 interface.
+var _ Ping4 = (*ping4_reflect_stub)(nil)
+
+func (s ping4_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping4)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping4_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping4)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping5_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping5_reflect_stub implements the Ping5 interface.
+var _ Ping5 = (*ping5_reflect_stub)(nil)
+
+func (s ping5_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping5)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping5_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping5)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping6_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping6_reflect_stub implements the Ping6 interface.
+var _ Ping6 = (*ping6_reflect_stub)(nil)
+
+func (s ping6_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping6)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping6_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping6)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping7_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping7_reflect_stub implements the Ping7 interface.
+var _ Ping7 = (*ping7_reflect_stub)(nil)
+
+func (s ping7_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping7)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping7_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping7)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping8_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping8_reflect_stub implements the Ping8 interface.
+var _ Ping8 = (*ping8_reflect_stub)(nil)
+
+func (s ping8_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping8)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping8_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping8)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type ping9_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that ping9_reflect_stub implements the Ping9 interface.
+var _ Ping9 = (*ping9_reflect_stub)(nil)
+
+func (s ping9_reflect_stub) PingC(ctx context.Context, a0 payloadC, a1 int) (r0 payloadC, err error) {
+	component := reflect.TypeOf((*Ping9)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingC", args)
+	r0 = results[0].Interface().(payloadC)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s ping9_reflect_stub) PingS(ctx context.Context, a0 payloadS, a1 int) (r0 payloadS, err error) {
+	component := reflect.TypeOf((*Ping9)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "PingS", args)
+	r0 = results[0].Interface().(payloadS)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }
 
 // AutoMarshal implementations.

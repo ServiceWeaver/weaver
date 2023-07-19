@@ -829,6 +829,7 @@ func (g *generator) generate() error {
 		g.generateLocalStubs(fn)
 		g.generateClientStubs(fn)
 		g.generateServerStubs(fn)
+		g.generateReflectStubs(fn)
 		g.generateAutoMarshalMethods(fn)
 		g.generateRouterMethods(fn)
 		g.generateEncDecMethods(fn)
@@ -1106,6 +1107,16 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//   }
 		serverStubFn := fmt.Sprintf(`func(impl any, addLoad func(uint64, float64)) %s { return %s_server_stub{impl: impl.(%s), addLoad: addLoad } }`, g.codegen().qualify("Server"), notExported(name), g.componentRef(comp))
 
+		// E.g.,
+		//   func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+		//       return foo_reflect_stub{caller: caller}
+		//   }
+		reflect := g.tset.importPackage("reflect", "reflect")
+		reflectStubFn := fmt.Sprintf(
+			`func(caller func(%s, string, []%s) []%s) any { return %s_reflect_stub{caller: caller} }`,
+			reflect.qualify("Type"), reflect.qualify("Value"), reflect.qualify("Value"), notExported(name),
+		)
+
 		var refData strings.Builder
 		myName := comp.fullIntfName()
 		for _, ref := range comp.refs {
@@ -1120,7 +1131,6 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		//	    Props: codegen.ComponentProperties{},
 		//	    ...,
 		//	})
-		reflect := g.tset.importPackage("reflect", "reflect")
 		p(`	%s(%s{`, g.codegen().qualify("Register"), g.codegen().qualify("Registration"))
 		p(`		Name: %q,`, myName)
 		// To get a reflect.Type for an interface, we have to first get a type
@@ -1141,6 +1151,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		p(`		LocalStubFn: %s,`, localStubFn)
 		p(`		ClientStubFn: %s,`, clientStubFn)
 		p(`		ServerStubFn: %s,`, serverStubFn)
+		p(`		ReflectStubFn: %s,`, reflectStubFn)
 		p(`		RefData: %s,`, strconv.Quote(refData.String()))
 		p(`	})`)
 	}
@@ -1812,6 +1823,53 @@ func (g *generator) generateServerStubs(p printFn) {
 			}
 			p(`	enc.Error(appErr)`)
 			p(`	return enc.Data(), nil`)
+			p(`}`)
+		}
+	}
+}
+
+// generateReflectStubs generates code for reflect stubs. A reflect stub
+// converts all component method arguments and results to and from
+// reflect.Values and uses a provided caller function to execute the method
+// call.
+func (g *generator) generateReflectStubs(p printFn) {
+	p(``)
+	p(``)
+	p(`// Reflect stub implementations.`)
+
+	ts := g.tset.genTypeString
+	for _, comp := range g.components {
+		reflect := g.tset.importPackage("reflect", "reflect")
+		stub := notExported(comp.intfName()) + "_reflect_stub"
+		p(``)
+		p(`type %s struct{`, stub)
+		p(`	caller func(%s, string, []%s) []%s`, reflect.qualify("Type"), reflect.qualify("Value"), reflect.qualify("Value"))
+		p(`}`)
+
+		p(``)
+		p(`// Check that %s implements the %s interface.`, stub, ts(comp.intf))
+		p(`var _ %s = (*%s)(nil)`, ts(comp.intf), stub)
+		p(``)
+
+		for _, m := range comp.methods() {
+			mt := m.Type().(*types.Signature)
+			p(``)
+			p(`func (s %s) %s(%s) (%s) {`, stub, m.Name(), g.args(mt), g.returns(mt))
+
+			p(`	component := %s((*%s)(nil)).Elem()`, reflect.qualify("TypeOf"), ts(comp.intf))
+			p(`	args := make([]%s, %d)`, reflect.qualify("Value"), mt.Params().Len())
+			p(`	args[0] = %s(ctx)`, reflect.qualify("ValueOf"))
+			for i := 1; i < mt.Params().Len(); i++ {
+				p(`	args[%d] = %s(a%d)`, i, reflect.qualify("ValueOf"), i-1)
+			}
+			p(`	results := s.caller(component, %q, args)`, m.Name())
+			for i := 0; i < mt.Results().Len()-1; i++ {
+				p(`	r%d = results[%d].Interface().(%s)`, i, i, ts(mt.Results().At(i).Type()))
+			}
+			p(`	if x := results[%d].Interface(); x != nil {`, mt.Results().Len()-1)
+			p(`		err = x.(error)`)
+			p(`	}`)
+			p(`	return`)
 			p(`}`)
 		}
 	}

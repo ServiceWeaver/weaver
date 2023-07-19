@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -46,6 +46,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return main_reflect_stub{caller: caller}
+		},
 		RefData: "⟦8d621687:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/hello/Reverser⟧\n⟦17f36ff9:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→hello⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -60,6 +63,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return reverser_server_stub{impl: impl.(Reverser), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return reverser_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -244,4 +250,33 @@ func (s reverser_server_stub) reverse(ctx context.Context, args []byte) (res []b
 	enc.String(r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type main_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that main_reflect_stub implements the weaver.Main interface.
+var _ weaver.Main = (*main_reflect_stub)(nil)
+
+type reverser_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that reverser_reflect_stub implements the Reverser interface.
+var _ Reverser = (*reverser_reflect_stub)(nil)
+
+func (s reverser_reflect_stub) Reverse(ctx context.Context, a0 string) (r0 string, err error) {
+	component := reflect.TypeOf((*Reverser)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Reverse", args)
+	r0 = results[0].Interface().(string)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }

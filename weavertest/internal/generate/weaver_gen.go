@@ -14,10 +14,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -47,6 +47,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return testApp_server_stub{impl: impl.(testApp), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return testApp_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -307,6 +310,42 @@ func (s testApp_server_stub) incPointer(ctx context.Context, args []byte) (res [
 	serviceweaver_enc_ptr_int_98a2a745(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type testApp_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that testApp_reflect_stub implements the testApp interface.
+var _ testApp = (*testApp_reflect_stub)(nil)
+
+func (s testApp_reflect_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
+	component := reflect.TypeOf((*testApp)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "Get", args)
+	r0 = results[0].Interface().(int)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s testApp_reflect_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, err error) {
+	component := reflect.TypeOf((*testApp)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "IncPointer", args)
+	r0 = results[0].Interface().(*int)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }
 
 // AutoMarshal implementations.

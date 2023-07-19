@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -46,6 +46,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pingPonger_server_stub{impl: impl.(PingPonger), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return pingPonger_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -192,6 +195,28 @@ func (s pingPonger_server_stub) ping(ctx context.Context, args []byte) (res []by
 	serviceweaver_enc_ptr_Pong_10ae1a4e(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type pingPonger_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that pingPonger_reflect_stub implements the PingPonger interface.
+var _ PingPonger = (*pingPonger_reflect_stub)(nil)
+
+func (s pingPonger_reflect_stub) Ping(ctx context.Context, a0 *Ping) (r0 *Pong, err error) {
+	component := reflect.TypeOf((*PingPonger)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Ping", args)
+	r0 = results[0].Interface().(*Pong)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }
 
 // Encoding/decoding implementations.

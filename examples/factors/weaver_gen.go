@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -48,6 +48,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return factorer_server_stub{impl: impl.(Factorer), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return factorer_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -61,6 +64,9 @@ func init() {
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return main_reflect_stub{caller: caller}
 		},
 		RefData: "⟦4724da9b:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/factors/Factorer⟧\n⟦68699208:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→factors⟧\n",
 	})
@@ -254,6 +260,35 @@ func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, arg
 		return nil
 	}
 }
+
+// Reflect stub implementations.
+
+type factorer_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that factorer_reflect_stub implements the Factorer interface.
+var _ Factorer = (*factorer_reflect_stub)(nil)
+
+func (s factorer_reflect_stub) Factors(ctx context.Context, a0 int) (r0 []int, err error) {
+	component := reflect.TypeOf((*Factorer)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Factors", args)
+	r0 = results[0].Interface().([]int)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type main_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that main_reflect_stub implements the weaver.Main interface.
+var _ weaver.Main = (*main_reflect_stub)(nil)
 
 // Router methods.
 

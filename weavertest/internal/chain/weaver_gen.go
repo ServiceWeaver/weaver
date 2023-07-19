@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -47,6 +47,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(A), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return a_reflect_stub{caller: caller}
+		},
 		RefData: "⟦d3d93f6e:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/chain/A→github.com/ServiceWeaver/weaver/weavertest/internal/chain/B⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -62,6 +65,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(B), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return b_reflect_stub{caller: caller}
+		},
 		RefData: "⟦08d612ad:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/chain/B→github.com/ServiceWeaver/weaver/weavertest/internal/chain/C⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -76,6 +82,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return c_server_stub{impl: impl.(C), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return c_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -497,4 +506,63 @@ func (s c_server_stub) propagate(ctx context.Context, args []byte) (res []byte, 
 	enc := codegen.NewEncoder()
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type a_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that a_reflect_stub implements the A interface.
+var _ A = (*a_reflect_stub)(nil)
+
+func (s a_reflect_stub) Propagate(ctx context.Context, a0 int) (err error) {
+	component := reflect.TypeOf((*A)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Propagate", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type b_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that b_reflect_stub implements the B interface.
+var _ B = (*b_reflect_stub)(nil)
+
+func (s b_reflect_stub) Propagate(ctx context.Context, a0 int) (err error) {
+	component := reflect.TypeOf((*B)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Propagate", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type c_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that c_reflect_stub implements the C interface.
+var _ C = (*c_reflect_stub)(nil)
+
+func (s c_reflect_stub) Propagate(ctx context.Context, a0 int) (err error) {
+	component := reflect.TypeOf((*C)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "Propagate", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }

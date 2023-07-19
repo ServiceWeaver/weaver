@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][18]struct{}](`
 
-ERROR: You generated this file with 'weaver generate' v0.17.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+ERROR: You generated this file with 'weaver generate' v0.18.0 (codegen
+version v0.18.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -48,6 +48,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return destination_server_stub{impl: impl.(Destination), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return destination_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -64,6 +67,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return server_server_stub{impl: impl.(Server), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return server_reflect_stub{caller: caller}
+		},
 		RefData: "⟦1e2dce71:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server→hello⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -78,6 +84,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return source_server_stub{impl: impl.(Source), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(reflect.Type, string, []reflect.Value) []reflect.Value) any {
+			return source_reflect_stub{caller: caller}
 		},
 		RefData: "⟦bf914175:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source→github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination⟧\n",
 	})
@@ -1000,6 +1009,128 @@ func (s source_server_stub) emit(ctx context.Context, args []byte) (res []byte, 
 	enc := codegen.NewEncoder()
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type destination_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that destination_reflect_stub implements the Destination interface.
+var _ Destination = (*destination_reflect_stub)(nil)
+
+func (s destination_reflect_stub) GetAll(ctx context.Context, a0 string) (r0 []string, err error) {
+	component := reflect.TypeOf((*Destination)(nil)).Elem()
+	args := make([]reflect.Value, 2)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	results := s.caller(component, "GetAll", args)
+	r0 = results[0].Interface().([]string)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s destination_reflect_stub) Getpid(ctx context.Context) (r0 int, err error) {
+	component := reflect.TypeOf((*Destination)(nil)).Elem()
+	args := make([]reflect.Value, 1)
+	args[0] = reflect.ValueOf(ctx)
+	results := s.caller(component, "Getpid", args)
+	r0 = results[0].Interface().(int)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s destination_reflect_stub) Record(ctx context.Context, a0 string, a1 string) (err error) {
+	component := reflect.TypeOf((*Destination)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "Record", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s destination_reflect_stub) RoutedRecord(ctx context.Context, a0 string, a1 string) (err error) {
+	component := reflect.TypeOf((*Destination)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "RoutedRecord", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type server_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that server_reflect_stub implements the Server interface.
+var _ Server = (*server_reflect_stub)(nil)
+
+func (s server_reflect_stub) Address(ctx context.Context) (r0 string, err error) {
+	component := reflect.TypeOf((*Server)(nil)).Elem()
+	args := make([]reflect.Value, 1)
+	args[0] = reflect.ValueOf(ctx)
+	results := s.caller(component, "Address", args)
+	r0 = results[0].Interface().(string)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s server_reflect_stub) ProxyAddress(ctx context.Context) (r0 string, err error) {
+	component := reflect.TypeOf((*Server)(nil)).Elem()
+	args := make([]reflect.Value, 1)
+	args[0] = reflect.ValueOf(ctx)
+	results := s.caller(component, "ProxyAddress", args)
+	r0 = results[0].Interface().(string)
+	if x := results[1].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+func (s server_reflect_stub) Shutdown(ctx context.Context) (err error) {
+	component := reflect.TypeOf((*Server)(nil)).Elem()
+	args := make([]reflect.Value, 1)
+	args[0] = reflect.ValueOf(ctx)
+	results := s.caller(component, "Shutdown", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
+}
+
+type source_reflect_stub struct {
+	caller func(reflect.Type, string, []reflect.Value) []reflect.Value
+}
+
+// Check that source_reflect_stub implements the Source interface.
+var _ Source = (*source_reflect_stub)(nil)
+
+func (s source_reflect_stub) Emit(ctx context.Context, a0 string, a1 string) (err error) {
+	component := reflect.TypeOf((*Source)(nil)).Elem()
+	args := make([]reflect.Value, 3)
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = reflect.ValueOf(a0)
+	args[2] = reflect.ValueOf(a1)
+	results := s.caller(component, "Emit", args)
+	if x := results[0].Interface(); x != nil {
+		err = x.(error)
+	}
+	return
 }
 
 // Router methods.
