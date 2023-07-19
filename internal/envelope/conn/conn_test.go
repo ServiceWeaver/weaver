@@ -118,11 +118,11 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 	weaveletDone := make(chan error)
 	go func() {
 		var err error
-		if w, err = conn.NewWeaveletConn(wReader, wWriter, nil /*handler*/); err != nil {
+		if w, err = conn.NewWeaveletConn(wReader, wWriter); err != nil {
 			panic(err)
 		}
 		created <- struct{}{}
-		err = w.Serve()
+		err = w.Serve(nil)
 		weaveletDone <- err
 
 	}()
