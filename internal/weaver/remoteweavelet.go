@@ -128,7 +128,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		return nil, err
 	}
 	// TODO(mwhittaker): Pass handler to Serve, not NewWeaveletConn.
-	w.conn, err = conn.NewWeaveletConn(toWeavelet, toEnvelope, w)
+	w.conn, err = conn.NewWeaveletConn(toWeavelet, toEnvelope)
 	if err != nil {
 		return nil, fmt.Errorf("new weavelet conn: %w", err)
 	}
@@ -174,7 +174,9 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	}
 
 	// Serve deployer API requests on the weavelet conn.
-	runAndDie(ctx, "serve weavelet conn", w.conn.Serve)
+	runAndDie(ctx, "serve weavelet conn", func() error {
+		return w.conn.Serve(w)
+	})
 
 	// Serve RPC requests from other weavelets.
 	server := &server{Listener: w.conn.Listener(), wlet: w}

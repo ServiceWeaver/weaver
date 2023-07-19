@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 				return nil
 			},
 			"writetraces": func() error { return writeTraces(conn) },
-			"serve_conn":  func() error { return conn.Serve() },
+			"serve_conn":  func() error { return conn.Serve(nil) },
 		}
 		fn, ok := cmds[cmd]
 		if !ok {
@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "subprocess: %v\n", err)
 			os.Exit(1)
 		}
-		conn.Serve()
+		conn.Serve(nil)
 	}
 
 	var err error
@@ -335,7 +335,7 @@ func createWeaveletConn() (*conn.WeaveletConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable make weavelet<->envelope pipes: %w", err)
 	}
-	return conn.NewWeaveletConn(toWeavelet, toEnvelope, nil /*handler*/)
+	return conn.NewWeaveletConn(toWeavelet, toEnvelope)
 }
 
 func writeTraces(conn *conn.WeaveletConn) error {

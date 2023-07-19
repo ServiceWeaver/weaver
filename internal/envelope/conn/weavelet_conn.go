@@ -51,7 +51,6 @@ type WeaveletHandler interface {
 // an envelope. For more information, refer to runtime/protos/runtime.proto and
 // https://serviceweaver.dev/blog/deployers.html.
 type WeaveletConn struct {
-	handler WeaveletHandler
 	conn    conn
 	einfo   *protos.EnvelopeInfo
 	winfo   *protos.WeaveletInfo
@@ -64,10 +63,9 @@ type WeaveletConn struct {
 // all RPCs will block until [Serve] is called.
 //
 // TODO(mwhittaker): Pass in a context.Context?
-func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*WeaveletConn, error) {
+func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
 	wc := &WeaveletConn{
-		handler: h,
-		conn:    conn{name: "weavelet", reader: r, writer: w},
+		conn: conn{name: "weavelet", reader: r, writer: w},
 	}
 
 	// Perform the handshake. First, receive EnvelopeInfo.
@@ -115,13 +113,13 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser, h WeaveletHandler) (*Wea
 
 // Serve accepts RPC requests from the envelope. Requests are handled serially
 // in the order they are received.
-func (w *WeaveletConn) Serve() error {
+func (w *WeaveletConn) Serve(h WeaveletHandler) error {
 	msg := &protos.EnvelopeMsg{}
 	for {
 		if err := w.conn.recv(msg); err != nil {
 			return err
 		}
-		if err := w.handleMessage(msg); err != nil {
+		if err := w.handleMessage(h, msg); err != nil {
 			return err
 		}
 	}
@@ -144,7 +142,7 @@ func (w *WeaveletConn) Listener() net.Listener {
 
 // handleMessage handles all RPC requests initiated by the envelope. Note that
 // this method doesn't handle RPC replies from the envelope.
-func (w *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
+func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.EnvelopeMsg) error {
 	errstring := func(err error) string {
 		if err == nil {
 			return ""
@@ -174,7 +172,7 @@ func (w *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 			GetHealthReply: &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY},
 		})
 	case msg.GetLoadRequest != nil:
-		reply, err := w.handler.GetLoad(msg.GetLoadRequest)
+		reply, err := handler.GetLoad(msg.GetLoadRequest)
 		return w.conn.send(&protos.WeaveletMsg{
 			Id:           -msg.Id,
 			Error:        errstring(err),
@@ -198,14 +196,14 @@ func (w *WeaveletConn) handleMessage(msg *protos.EnvelopeMsg) error {
 		}()
 		return nil
 	case msg.UpdateComponentsRequest != nil:
-		reply, err := w.handler.UpdateComponents(msg.UpdateComponentsRequest)
+		reply, err := handler.UpdateComponents(msg.UpdateComponentsRequest)
 		return w.conn.send(&protos.WeaveletMsg{
 			Id:                    -msg.Id,
 			Error:                 errstring(err),
 			UpdateComponentsReply: reply,
 		})
 	case msg.UpdateRoutingInfoRequest != nil:
-		reply, err := w.handler.UpdateRoutingInfo(msg.UpdateRoutingInfoRequest)
+		reply, err := handler.UpdateRoutingInfo(msg.UpdateRoutingInfoRequest)
 		return w.conn.send(&protos.WeaveletMsg{
 			Id:                     -msg.Id,
 			Error:                  errstring(err),
