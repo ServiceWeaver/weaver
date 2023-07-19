@@ -14,18 +14,31 @@
 
 package weaver
 
-import "reflect"
+import (
+	"net"
+	"reflect"
+
+	"golang.org/x/exp/slog"
+)
 
 var (
-	// IsImplements, IsRef, and IsListener return whether the provided type is
-	// a weaver.Implements[T], weaver.Ref[T], and weaver.Listener respectively.
-	// These values are populated by an init function in the main weaver
-	// package. The circuitousness is to avoid cyclic dependencies.
-	//
-	// TODO(mwhittaker): Improve these abstractions to initialize values as
-	// well. The code in fillrefs, filllisteners, etc. relies on some unsafe
-	// reflection stuff.
-	IsImplements func(reflect.Type) bool
-	IsRef        func(reflect.Type) bool
-	IsListener   func(reflect.Type) bool
+	// The following values are populated by an init function in the main
+	// weaver package. The circuitousness is to avoid cyclic dependencies.
+
+	// SetLogger sets the logger of a component implementation struct. impl
+	// should be a pointer to the implementation struct.
+	SetLogger func(impl any, logger *slog.Logger) error
+
+	// FillRefs initializes Ref[T] fields in a component implement struct.
+	//   - impl should be a pointer to the implementation struct
+	//   - get should be a function that returns the component of interface
+	//     type T when passed the reflect.Type for T.
+	FillRefs func(impl any, get func(reflect.Type) (any, error)) error
+
+	// FillListeners initializes Listener fields in a component implementation
+	// struct.
+	//   - impl should be a pointer to the implementation struct
+	//   - get should be a function that returns the required Listener values,
+	//     namely the network listener and the proxy address.
+	FillListeners func(impl any, get func(string) (net.Listener, string, error)) error
 )

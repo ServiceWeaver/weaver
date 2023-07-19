@@ -31,7 +31,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"reflect"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
@@ -48,22 +47,6 @@ import (
 //go:generate ./dev/protoc.sh runtime/protos/runtime.proto
 //go:generate ./dev/protoc.sh runtime/protos/config.proto
 //go:generate ./dev/writedeps.sh
-
-func init() {
-	// See internal/weaver/types.go.
-	weaver.IsImplements = func(t reflect.Type) bool {
-		intf := reflection.Type[interface{ isImplements() }]()
-		return t.Implements(intf)
-	}
-	weaver.IsRef = func(t reflect.Type) bool {
-		intf := reflection.Type[interface{ isRef() }]()
-		return t.Implements(intf)
-	}
-	weaver.IsListener = func(t reflect.Type) bool {
-		intf := reflection.Type[interface{ isListener() }]()
-		return t.Implements(intf)
-	}
-}
 
 // RemoteCallError indicates that a remote component method call failed to
 // execute properly. This can happen, for example, because of a failed machine
@@ -253,16 +236,16 @@ func (i Implements[T]) Logger() *slog.Logger {
 	return i.logger
 }
 
+func (i *Implements[T]) setLogger(logger *slog.Logger) {
+	i.logger = logger
+}
+
 // implements is a method that can only be implemented inside the weaver
 // package. It exists so that a component struct that embeds Implements[T]
 // implements the InstanceOf[T] interface.
 //
 //nolint:unused
 func (Implements[T]) implements(T) {}
-
-// isImplements is an internal method that is only implemented by Implements[T]
-// and is used internally to check that a value is of type Implements[T].
-func (Implements[T]) isImplements() {}
 
 // InstanceOf[T] is the interface implemented by a struct that embeds
 // weaver.Implements[T].
@@ -327,10 +310,6 @@ type Listener struct {
 	net.Listener        // underlying listener
 	proxyAddr    string // address of proxy that forwards to the listener
 }
-
-// isListener is an internal method that is only implemented by Listener and is
-// used internally to check that a value is of type Listener.
-func (l Listener) isListener() {}
 
 // String returns the address clients should dial to connect to the listener;
 // this will be the proxy address if available, otherwise the <host>:<port> for

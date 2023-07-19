@@ -30,7 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
-	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -254,15 +253,8 @@ func (w *SingleWeavelet) get(reg *codegen.Registration) (any, error) {
 	}
 
 	// Set logger.
-	for i := 0; i < v.Elem().NumField(); i++ {
-		f := v.Elem().Field(i)
-		if IsImplements(f.Type()) {
-			if f.Field(0).Type() != reflection.Type[*slog.Logger]() {
-				panic(fmt.Errorf("unexpected field 0 of %v: %v", f.Type(), f.Field(0).Type()))
-			}
-			logger := w.logger(reg.Name)
-			setPossiblyUnexported(f.Field(0), reflect.ValueOf(logger))
-		}
+	if err := SetLogger(obj, w.logger(reg.Name)); err != nil {
+		return nil, err
 	}
 
 	// Fill ref fields.

@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package weaver_test
+package weaver
 
 import (
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/ServiceWeaver/weaver"
-	core "github.com/ServiceWeaver/weaver/internal/weaver"
 )
 
 type impl struct {
-	A weaver.Ref[int]
-	B weaver.Ref[string]
-	C weaver.Ref[bool]
+	A Ref[int]
+	B Ref[string]
+	C Ref[bool]
 }
 
 func getValue(t reflect.Type) (any, error) {
@@ -42,10 +39,10 @@ func getValue(t reflect.Type) (any, error) {
 
 func TestFillRefs(t *testing.T) {
 	var x struct {
-		a weaver.Ref[int]
-		b weaver.Ref[string]
+		a Ref[int]
+		b Ref[string]
 	}
-	if err := core.FillRefs(&x, getValue); err != nil {
+	if err := fillRefs(&x, getValue); err != nil {
 		t.Fatal(err)
 	}
 	if x.a.Get() != 42 {
@@ -58,7 +55,7 @@ func TestFillRefs(t *testing.T) {
 
 func TestFillRefsErrors(t *testing.T) {
 	type badref struct {
-		weaver.Ref[bool]
+		Ref[bool]
 	}
 	type testCase struct {
 		name   string
@@ -71,7 +68,7 @@ func TestFillRefsErrors(t *testing.T) {
 		{"unsupported-type", &badref{}, "unsupported"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			err := core.FillRefs(c.impl, getValue)
+			err := fillRefs(c.impl, getValue)
 			if err == nil || !strings.Contains(err.Error(), c.expect) {
 				t.Fatalf("unexpected error %v; expecting %s", err, c.expect)
 			}

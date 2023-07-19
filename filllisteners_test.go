@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package weaver_test
+package weaver
 
 import (
 	"fmt"
 	"net"
 	"testing"
-
-	"github.com/ServiceWeaver/weaver"
-	core "github.com/ServiceWeaver/weaver/internal/weaver"
 )
 
 type testListener struct {
@@ -36,12 +33,12 @@ func getListener(lis string) (net.Listener, string, error) {
 
 func TestFillListeners(t *testing.T) {
 	var x struct {
-		A weaver.Listener
-		b weaver.Listener
-		C weaver.Listener `weaver:"cname"`
-		d weaver.Listener `weaver:"DName"`
+		A Listener
+		b Listener
+		C Listener `weaver:"cname"`
+		d Listener `weaver:"DName"`
 	}
-	if err := core.FillListeners(&x, getListener); err != nil {
+	if err := fillListeners(&x, getListener); err != nil {
 		t.Fatal(err)
 	}
 	if x.A.ProxyAddr() != "A" {
