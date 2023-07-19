@@ -30,7 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
-	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/register"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -295,15 +294,8 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 	}
 
 	// Set logger.
-	for i := 0; i < v.Elem().NumField(); i++ {
-		f := v.Elem().Field(i)
-		if IsImplements(f.Type()) {
-			if f.Field(0).Type() != reflection.Type[*slog.Logger]() {
-				panic(fmt.Errorf("unexpected field 0 of %v: %v", f.Type(), f.Field(0).Type()))
-			}
-			logger := w.logger(reg.Name)
-			setPossiblyUnexported(f.Field(0), reflect.ValueOf(logger))
-		}
+	if err := SetLogger(obj, w.logger(reg.Name)); err != nil {
+		return nil, err
 	}
 
 	// Fill ref fields.
