@@ -53,9 +53,15 @@ func (w *Writer) ExportSpans(_ context.Context, spans []sdk.ReadOnlySpan) error 
 	for i, span := range spans {
 		msg.Span[i] = toProtoSpan(span)
 	}
+	return w.ExportSpansProto(msg)
+}
+
+// ExportSpansProto is like ExportSpans, but it exports spans in the
+// *protos.TraceSpans format.
+func (w *Writer) ExportSpansProto(spans *protos.TraceSpans) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.export(msg)
+	return w.export(spans)
 }
 
 // Shutdown implements the sdk.SpanExporter interface.

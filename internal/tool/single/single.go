@@ -30,7 +30,7 @@ var (
 	// The directories and files where the single process deployer stores data.
 	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "single")
 	RegistryDir  = filepath.Join(dataDir, "registry")
-	PerfettoFile = filepath.Join(dataDir, "perfetto.db")
+	PerfettoFile = filepath.Join(dataDir, "traces.DB")
 
 	dashboardSpec = &status.DashboardSpec{
 		Tool:         "weaver single",

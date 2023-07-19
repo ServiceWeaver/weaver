@@ -36,9 +36,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"github.com/google/uuid"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -62,7 +62,7 @@ type deployer struct {
 	caKey        crypto.PrivateKey
 	running      errgroup.Group
 	logsDB       *logging.FileStore
-	traceDB      *perfetto.DB
+	traceDB      *traces.DB
 
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
@@ -132,7 +132,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig) 
 	}
 
 	// Create the trace saver.
-	traceDB, err := perfetto.Open(ctx, perfettoFile)
+	traceDB, err := traces.OpenDB(ctx, perfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}

@@ -32,7 +32,7 @@ var (
 	logDir       = filepath.Join(runtime.LogsDir(), "multi")
 	dataDir      = filepath.Join(must.Must(runtime.DataDir()), "multi")
 	registryDir  = filepath.Join(dataDir, "registry")
-	perfettoFile = filepath.Join(dataDir, "perfetto.db")
+	perfettoFile = filepath.Join(dataDir, "traces.DB")
 
 	dashboardSpec = &status.DashboardSpec{
 		Tool:         "weaver multi",

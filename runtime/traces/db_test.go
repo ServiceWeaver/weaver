@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package perfetto
+package traces_test
 
 import (
 	"context"
@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -33,7 +34,7 @@ import (
 var now = time.UnixMicro(time.Now().UnixMicro())
 
 // storeSpans stores the provided application version's spans in the database.
-func storeSpans(ctx context.Context, t *testing.T, db *DB, app, version string, spans ...*protos.Span) {
+func storeSpans(ctx context.Context, t *testing.T, db *traces.DB, app, version string, spans ...*protos.Span) {
 	if err := db.Store(ctx, app, version, &protos.TraceSpans{Span: spans}); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +94,7 @@ func tick(t int) time.Time {
 func TestQueryTraces(t *testing.T) {
 	ctx := context.Background()
 	fname := filepath.Join(t.TempDir(), "tracedb.db_test.db")
-	db, err := Open(ctx, fname)
+	db, err := traces.OpenDB(ctx, fname)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,11 +127,11 @@ func TestQueryTraces(t *testing.T) {
 		durLower, durUpper time.Duration
 		onlyErrs           bool
 		limit              int64
-		expect             []TraceSummary
+		expect             []traces.TraceSummary
 	}{
 		{
 			help: "all",
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 				{tid(2), tick(1), tick(7), "OK"},
 				{tid(3), tick(2), tick(6), "Bad Request"},
@@ -139,7 +140,7 @@ func TestQueryTraces(t *testing.T) {
 		{
 			help: "match app",
 			app:  "app1",
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 				{tid(2), tick(1), tick(7), "OK"},
 			},
@@ -147,7 +148,7 @@ func TestQueryTraces(t *testing.T) {
 		{
 			help:    "match version",
 			version: "v1",
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
@@ -156,14 +157,14 @@ func TestQueryTraces(t *testing.T) {
 			help:    "match app version",
 			app:     "app1",
 			version: "v1",
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 			},
 		},
 		{
 			help:  "match start time",
 			start: tick(2),
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
@@ -171,7 +172,7 @@ func TestQueryTraces(t *testing.T) {
 		{
 			help: "match end time",
 			end:  tick(9),
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(2), tick(1), tick(7), "OK"},
 				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
@@ -179,7 +180,7 @@ func TestQueryTraces(t *testing.T) {
 		{
 			help:     "match duration lower",
 			durLower: dur(5),
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 				{tid(2), tick(1), tick(7), "OK"},
 			},
@@ -187,7 +188,7 @@ func TestQueryTraces(t *testing.T) {
 		{
 			help:     "match duration upper",
 			durUpper: dur(7),
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(2), tick(1), tick(7), "OK"},
 				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
@@ -195,14 +196,14 @@ func TestQueryTraces(t *testing.T) {
 		{
 			help:     "match only errors",
 			onlyErrs: true,
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(3), tick(2), tick(6), "Bad Request"},
 			},
 		},
 		{
 			help:  "match limit",
 			limit: 2,
-			expect: []TraceSummary{
+			expect: []traces.TraceSummary{
 				{tid(1), tick(3), tick(10), "OK"},
 				{tid(2), tick(1), tick(7), "OK"},
 			},
@@ -221,7 +222,7 @@ func TestQueryTraces(t *testing.T) {
 				}
 				actual[i].TraceID = string(s)
 			}
-			less := func(a, b TraceSummary) bool {
+			less := func(a, b traces.TraceSummary) bool {
 				return string(a.TraceID[:]) < string(b.TraceID[:])
 			}
 			if diff := cmp.Diff(tc.expect, actual, cmpopts.SortSlices(less)); diff != "" {
@@ -237,7 +238,7 @@ func BenchmarkStore(b *testing.B) {
 	for _, size := range []int{1, 10, 100} {
 		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
 			fname := filepath.Join(b.TempDir(), "tracedb.db_bench.db")
-			db, err := Open(ctx, fname)
+			db, err := traces.OpenDB(ctx, fname)
 			if err != nil {
 				b.Fatal(err)
 			}

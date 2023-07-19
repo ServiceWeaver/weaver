@@ -33,10 +33,10 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	dtool "github.com/ServiceWeaver/weaver/runtime/tool"
+	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"github.com/pkg/browser"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -128,7 +128,7 @@ Flags:
 			if err != nil {
 				return err
 			}
-			traceDB, err := perfetto.Open(ctx, spec.PerfettoFile)
+			traceDB, err := traces.OpenDB(ctx, spec.PerfettoFile)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "cannot open Perfetto database: %v\n", err)
 				traceDB = nil
@@ -148,7 +148,7 @@ Flags:
 			url := "http://" + lis.Addr().String()
 
 			if traceDB != nil {
-				go traceDB.Serve(ctx)
+				go traces.ServePerfetto(ctx, traceDB)
 			}
 
 			fmt.Fprintln(os.Stderr, "Dashboard available at:", url)
@@ -162,7 +162,7 @@ Flags:
 type dashboard struct {
 	spec     *DashboardSpec // e.g., "weaver multi" or "weaver single"
 	registry *Registry      // registry of deployments
-	traceDB  *perfetto.DB   // database that stores trace data
+	traceDB  *traces.DB     // database that stores trace data
 }
 
 // handleIndex handles requests to /
@@ -366,7 +366,7 @@ func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
 	endTime := time.Now().Add(-1 * (traceio.ExportInterval + gracePeriod))
 
 	const maxNumTraces = 100
-	traces, err := d.traceDB.QueryTraces(r.Context(), "" /*app*/, id, time.Time{} /*startTime*/, endTime, latencyLower, latencyUpper, onlyErrors, maxNumTraces)
+	ts, err := d.traceDB.QueryTraces(r.Context(), "" /*app*/, id, time.Time{} /*startTime*/, endTime, latencyLower, latencyUpper, onlyErrors, maxNumTraces)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("cannot query trace database: %v", err), http.StatusInternalServerError)
 		return
@@ -375,11 +375,11 @@ func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
 	content := struct {
 		Tool   string
 		ID     string
-		Traces []perfetto.TraceSummary
+		Traces []traces.TraceSummary
 	}{
 		Tool:   d.spec.Tool,
 		ID:     id,
-		Traces: traces,
+		Traces: ts,
 	}
 	if err := tracesTemplate.Execute(w, content); err != nil {
 		http.Error(w, fmt.Sprintf("cannot display traces: %v", err), http.StatusInternalServerError)
