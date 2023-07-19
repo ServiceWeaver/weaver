@@ -1,0 +1,114 @@
+#!/bin/sh
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -e
+
+# Print the difference between two versions of Service Weaver.
+usage() {
+  2>&1 cat <<"EOF"
+Usage: dev/apidiff [--from=_version_] [--to=_version_] [packages...]
+
+Print API changes in the specified packages. If no packages are specified, all
+public packages (e.g., skipping internal and examples) are examined.
+
+The _version_ specified for --from or --to can be any Git revision like HEAD,
+HEAD^, <tag>, <commithash> (see man gitrevisions).
+
+If --from is not specified, the baseline for the comparison is HEAD,
+otherwise it is the specified version.
+
+If --to is not specified, the baseline for the comparison is the current
+working tree, otherwise it is the specified version.
+
+Examples:
+    # Uncommitted API changes.
+    dev/apidiff
+
+    # Uncommitted API changes in some packages
+    dev/apidiff ./metrics ./runtime/metrics
+
+    # Changes from one version to current source tree.
+    dev/apidiff --from=v0.16.1
+
+    # Changes from one version to another
+    dev/apidiff --from=v0.16.1 --to=v0.17.0
+EOF
+  exit 1
+}
+
+# Parse arguments.
+from="HEAD"
+to=""
+packages=()
+for arg in "$@"; do
+  case "$arg" in
+    --from=*)
+      from="${arg#--from=}"
+      ;;
+    --to=*)
+      to="${arg#--to=}"
+      ;;
+    -*)
+      2>&1 echo "unknown option $arg; must be --from=version or --to=version"
+      exit 1
+      ;;
+    *)
+      packages+=($arg)
+    ;;
+  esac
+done
+
+# Check that needed binaries are available.
+if command -v apidiff &>/dev/null; then
+  true # Found it
+else
+  2>&1 printf "apidiff not found; install via\n\tgo install golang.org/x/exp/cmd/apidiff@latest\n"
+fi
+
+# Setup tmp directories where we can checkout the versions to compare.
+tmpdir="$(mktemp -d --tmpdir apidiff-XXXXXX)"
+cleanup() { rm -rf "$tmpdir"; }
+trap cleanup EXIT
+
+# Checkout the base version in a temporary directory
+fromdir="$tmpdir/from"
+mkdir -p "$fromdir"
+git archive --format=tar "$from" | tar -f - -C "$fromdir" -x
+
+# Checkout the new version if necessary and cd to it.
+todir="."
+if test -n "$to"; then
+  todir="$tmpdir/to"
+  mkdir -p "$todir"
+  git archive --format=tar "$to" | tar -f - -C "$todir" -x
+  cd "$todir"
+fi
+
+if test ${#packages[@]} -eq 0; then
+  # Find interesting packages
+  packages=( $(go list ./... | egrep -v '/internal/|/examples\b|/cmd/|/docgen$|/runtime/bin$|/blog/|/testprogram$' | sed -e s,github.com/ServiceWeaver/weaver,.,) )
+fi
+
+# Compare packages.
+for pkg in ${packages[@]}; do
+  if test -d "$fromdir/$pkg"; then
+    # Generate API summaries for from,to and then diff
+    echo "$pkg"
+    (cd "$fromdir" && apidiff -w "$tmpdir/from.api" "$pkg")
+    apidiff -w "$tmpdir/to.api" "$pkg"
+    # Indent the diff for readability.
+    apidiff "$tmpdir/from.api" "$tmpdir/to.api" | sed -e 's,^,\t,'
+  fi
+done
