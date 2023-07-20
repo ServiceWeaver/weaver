@@ -441,6 +441,19 @@ github.com/ServiceWeaver/weaver/internal/routing
     math
     sort
     strings
+github.com/ServiceWeaver/weaver/internal/sim
+    context
+    fmt
+    github.com/ServiceWeaver/weaver/internal/config
+    github.com/ServiceWeaver/weaver/internal/weaver
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/protos
+    golang.org/x/exp/slog
+    math/rand
+    net
+    reflect
+    sync
 github.com/ServiceWeaver/weaver/internal/status
     bytes
     context
