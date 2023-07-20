@@ -23,7 +23,6 @@ import (
 	"html/template"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -33,6 +32,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/perfetto"
 	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
 	dtool "github.com/ServiceWeaver/weaver/runtime/tool"
@@ -72,12 +72,6 @@ var (
 	//go:embed templates/traces.html
 	tracesHTML     string
 	tracesTemplate = template.Must(template.New("traces").Funcs(template.FuncMap{
-		"traceurl": func(traceID string) string {
-			v := url.Values{}
-			v.Set("trace_id", traceID)
-			tracerURL := url.QueryEscape("http://127.0.0.1:9001?" + v.Encode())
-			return "https://ui.perfetto.dev/#!/?url=" + tracerURL
-		},
 		"sub": func(endTime, startTime time.Time) string {
 			return endTime.Sub(startTime).String()
 		},
@@ -139,6 +133,7 @@ Flags:
 			http.HandleFunc("/deployment", dashboard.handleDeployment)
 			http.HandleFunc("/metrics", dashboard.handleMetrics)
 			http.HandleFunc("/traces", dashboard.handleTraces)
+			http.HandleFunc("/tracefetch", dashboard.handleTraceFetch)
 			http.Handle("/assets/", http.FileServer(http.FS(assets)))
 
 			lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *dashboardHost, *dashboardPort))
@@ -146,10 +141,6 @@ Flags:
 				return err
 			}
 			url := "http://" + lis.Addr().String()
-
-			if traceDB != nil {
-				go traces.ServePerfetto(ctx, traceDB)
-			}
 
 			fmt.Fprintln(os.Stderr, "Dashboard available at:", url)
 			go browser.OpenURL(url) //nolint:errcheck // browser open is optional
@@ -385,4 +376,32 @@ func (d *dashboard) handleTraces(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("cannot display traces: %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+// handleTraceFetch handles requests to /tracefetch?trace_id=<trace_id>.
+func (d *dashboard) handleTraceFetch(w http.ResponseWriter, r *http.Request) {
+	if d.traceDB == nil {
+		http.Error(w, "cannot open trace database", http.StatusInternalServerError)
+		return
+	}
+	traceID := r.URL.Query().Get("trace_id")
+	if traceID == "" {
+		http.Error(w, fmt.Sprintf("invalid trace id %q", traceID), http.StatusBadRequest)
+		return
+	}
+	spans, err := d.traceDB.FetchSpans(r.Context(), traceID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cannot fetch spans: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if len(spans) == 0 {
+		http.Error(w, "no matching spans", http.StatusNotFound)
+		return
+	}
+	data, err := perfetto.EncodeSpans(spans)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cannot encode spans: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Write(data) //nolint:errcheck // response write error
 }
