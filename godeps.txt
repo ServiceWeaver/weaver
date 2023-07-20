@@ -264,6 +264,23 @@ github.com/ServiceWeaver/weaver/internal/routing
     slices
     sort
     strings
+github.com/ServiceWeaver/weaver/internal/sim
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/internal/config
+    github.com/ServiceWeaver/weaver/internal/weaver
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/protos
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    log/slog
+    math/rand
+    net
+    reflect
+    sync
 github.com/ServiceWeaver/weaver/internal/status
     bytes
     context
