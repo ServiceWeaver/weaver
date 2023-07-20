@@ -23,12 +23,19 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"golang.org/x/exp/slog"
 )
+
+type Op[T any] struct {
+	Name string
+	Gen  func(*rand.Rand) T
+	Func any
+}
 
 type Options struct {
 	Seed           int64
@@ -37,12 +44,20 @@ type Options struct {
 	Config         string
 }
 
+type op struct {
+	t    reflect.Type
+	name string
+	gen  any
+	f    any
+}
+
 type Simulator struct {
 	opts       Options
 	config     *protos.AppConfig
 	regs       []*codegen.Registration
 	regsByIntf map[reflect.Type]*codegen.Registration
 	components map[string][]any
+	ops        map[string]op
 
 	mu   sync.Mutex
 	rand *rand.Rand
@@ -73,6 +88,7 @@ func New(opts Options) (*Simulator, error) {
 		regs:       regs,
 		regsByIntf: regsByIntf,
 		components: map[string][]any{},
+		ops:        map[string]op{},
 		rand:       rand.New(rand.NewSource(opts.Seed)),
 	}
 
@@ -125,6 +141,45 @@ func New(opts Options) (*Simulator, error) {
 	}
 
 	return s, nil
+}
+
+func RegisterOp[T any](s *Simulator, o Op[T]) {
+	if _, ok := s.ops[o.Name]; ok {
+		panic(fmt.Errorf("duplicate registration of op %q", o.Name))
+	}
+
+	// TODO(mwhittaker): Improve error messages.
+	t := reflect.TypeOf(o.Func)
+	if t.Kind() != reflect.Func {
+		panic(fmt.Errorf("op %q func is not a function: %T", o.Name, o.Func))
+	}
+	if t.NumIn() < 2 {
+		panic(fmt.Errorf("op %q func has < 2 arguments: %T", o.Name, o.Func))
+	}
+	if t.In(0) != reflection.Type[context.Context]() {
+		panic(fmt.Errorf("op %q func's first argument is not context.Context: %T", o.Name, o.Func))
+	}
+	if t.In(1) != reflection.Type[T]() {
+		panic(fmt.Errorf("op %q func's second argument is not %v: %T", o.Name, reflection.Type[T](), o.Func))
+	}
+	for i := 2; i < t.NumIn(); i++ {
+		if _, ok := s.regsByIntf[t.In(i)]; !ok {
+			panic(fmt.Errorf("op %q func argument %d is not a registered component: %T", o.Name, i, o.Func))
+		}
+	}
+	if t.NumOut() != 1 {
+		panic(fmt.Errorf("op %q func does not have exactly one return: %T", o.Name, o.Func))
+	}
+	if t.Out(0) != reflection.Type[error]() {
+		panic(fmt.Errorf("op %q func does not return an error: %T", o.Name, o.Func))
+	}
+
+	s.ops[o.Name] = op{
+		t:    reflection.Type[T](),
+		name: o.Name,
+		gen:  o.Gen,
+		f:    o.Func,
+	}
 }
 
 func (s *Simulator) GetIntf(t reflect.Type) (any, error) {
