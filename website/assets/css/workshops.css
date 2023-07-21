@@ -28,3 +28,16 @@
 .workshops-table th {
   background-color: #f2f2f2;
 }
+
+.partners-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.partners-table td, .partners-table th {
+  text-align: center;
+}
+
+.partners-table th {
+  background-color: #f2f2f2;
+}
