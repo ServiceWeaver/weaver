@@ -28,3 +28,18 @@
 .workshops-table th {
   background-color: #f2f2f2;
 }
+
+#partners {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+}
+
+.partner_logo {
+  width: 10rem;
+  margin: 1rem;
+}
+
+.partner_logo img {
+  width: 100%;
+}

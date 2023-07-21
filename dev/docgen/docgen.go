@@ -91,6 +91,8 @@ var files = []file{
 	staticFile("assets/images/trace_single.png"),
 	staticFile("assets/images/trace_gke.png"),
 	staticFile("assets/images/trace_gke_local.png"),
+	staticFile("assets/images/GDG_logo.png"),
+	staticFile("assets/images/aicamp_logo.png"),
 	staticFile("assets/js/copy.js"),
 	staticFile("assets/js/placement.js"),
 	staticFile("assets/js/snap.svg-min.js"),
