@@ -223,7 +223,7 @@ func (s *Simulator) step() {
 	const deliverCall = 1
 	const deliverReply = 2
 	var candidates []int
-	if s.numOps < s.opts.NumOps {
+	if s.ctx.Err() == nil && s.numOps < s.opts.NumOps {
 		candidates = append(candidates, runOp)
 	}
 	if len(s.calls) > 0 {
@@ -297,7 +297,24 @@ func (s *Simulator) call(component reflect.Type, method string, args []reflect.V
 	})
 	s.mu.Unlock()
 	s.step()
-	return (<-reply).returns
+
+	select {
+	case r := <-reply:
+		return r.returns
+	case <-s.ctx.Done():
+		m, ok := component.MethodByName(method)
+		if !ok {
+			panic(fmt.Errorf("method %s.%s not found", component, method))
+		}
+		t := m.Type
+		n := t.NumOut()
+		returns := make([]reflect.Value, n)
+		for i := 0; i < n-1; i++ {
+			returns[i] = reflect.Zero(t.Out(i))
+		}
+		returns[n-1] = reflect.ValueOf(s.ctx.Err())
+		return returns
+	}
 }
 
 func (s *Simulator) deliverCall(call *call) {
