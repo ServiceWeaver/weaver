@@ -29,6 +29,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
 )
 
 type Op[T any] struct {
@@ -40,35 +41,52 @@ type Op[T any] struct {
 type Options struct {
 	Seed           int64
 	MaxReplicas    int
+	NumOps         int
 	ConfigFilename string
 	Config         string
 }
 
-type op struct {
-	t    reflect.Type
-	name string
-	gen  any
-	f    any
+type Simulator struct {
+	opts          Options
+	registrations map[reflect.Type]*codegen.Registration
+	components    map[string][]any
+	ops           map[string]op
+
+	ctx   context.Context
+	group *errgroup.Group
+
+	mu      sync.Mutex
+	rand    *rand.Rand
+	numOps  int
+	calls   []*call
+	replies []*reply
 }
 
-type Simulator struct {
-	opts       Options
-	config     *protos.AppConfig
-	regs       []*codegen.Registration
-	regsByIntf map[reflect.Type]*codegen.Registration
-	components map[string][]any
-	ops        map[string]op
+type op struct {
+	t          reflect.Type
+	name       string
+	gen        reflect.Value
+	f          reflect.Value
+	components []reflect.Type
+}
 
-	mu   sync.Mutex
-	rand *rand.Rand
+type call struct {
+	component reflect.Type
+	method    string
+	args      []reflect.Value
+	reply     chan *reply
+}
+
+type reply struct {
+	call    *call
+	returns []reflect.Value
 }
 
 func New(opts Options) (*Simulator, error) {
 	// Index registrations.
-	regs := codegen.Registered()
-	regsByIntf := map[reflect.Type]*codegen.Registration{}
-	for _, reg := range regs {
-		regsByIntf[reg.Iface] = reg
+	registrations := map[reflect.Type]*codegen.Registration{}
+	for _, reg := range codegen.Registered() {
+		registrations[reg.Iface] = reg
 	}
 
 	// Parse config.
@@ -83,17 +101,15 @@ func New(opts Options) (*Simulator, error) {
 
 	// Create simulator.
 	s := &Simulator{
-		opts:       opts,
-		config:     app,
-		regs:       regs,
-		regsByIntf: regsByIntf,
-		components: map[string][]any{},
-		ops:        map[string]op{},
-		rand:       rand.New(rand.NewSource(opts.Seed)),
+		opts:          opts,
+		registrations: registrations,
+		components:    map[string][]any{},
+		ops:           map[string]op{},
+		rand:          rand.New(rand.NewSource(opts.Seed)),
 	}
 
 	// Create component replicas.
-	for _, reg := range regs {
+	for _, reg := range registrations {
 		for i := 0; i < opts.MaxReplicas; i++ {
 			// Create the component implementation.
 			v := reflect.New(reg.Impl)
@@ -115,7 +131,7 @@ func New(opts Options) (*Simulator, error) {
 
 			// Fill ref fields.
 			if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
-				return s.GetIntf(t)
+				return s.getIntf(t)
 			}); err != nil {
 				return nil, err
 			}
@@ -144,11 +160,10 @@ func New(opts Options) (*Simulator, error) {
 }
 
 func RegisterOp[T any](s *Simulator, o Op[T]) {
+	// TODO(mwhittaker): Improve error messages.
 	if _, ok := s.ops[o.Name]; ok {
 		panic(fmt.Errorf("duplicate registration of op %q", o.Name))
 	}
-
-	// TODO(mwhittaker): Improve error messages.
 	t := reflect.TypeOf(o.Func)
 	if t.Kind() != reflect.Func {
 		panic(fmt.Errorf("op %q func is not a function: %T", o.Name, o.Func))
@@ -162,10 +177,12 @@ func RegisterOp[T any](s *Simulator, o Op[T]) {
 	if t.In(1) != reflection.Type[T]() {
 		panic(fmt.Errorf("op %q func's second argument is not %v: %T", o.Name, reflection.Type[T](), o.Func))
 	}
+	var components []reflect.Type
 	for i := 2; i < t.NumIn(); i++ {
-		if _, ok := s.regsByIntf[t.In(i)]; !ok {
+		if _, ok := s.registrations[t.In(i)]; !ok {
 			panic(fmt.Errorf("op %q func argument %d is not a registered component: %T", o.Name, i, o.Func))
 		}
+		components = append(components, t.In(i))
 	}
 	if t.NumOut() != 1 {
 		panic(fmt.Errorf("op %q func does not have exactly one return: %T", o.Name, o.Func))
@@ -175,30 +192,130 @@ func RegisterOp[T any](s *Simulator, o Op[T]) {
 	}
 
 	s.ops[o.Name] = op{
-		t:    reflection.Type[T](),
-		name: o.Name,
-		gen:  o.Gen,
-		f:    o.Func,
+		t:          reflection.Type[T](),
+		name:       o.Name,
+		gen:        reflect.ValueOf(o.Gen),
+		f:          reflect.ValueOf(o.Func),
+		components: components,
 	}
 }
 
-func (s *Simulator) GetIntf(t reflect.Type) (any, error) {
-	reg, ok := s.regsByIntf[t]
+func (s *Simulator) getIntf(t reflect.Type) (any, error) {
+	reg, ok := s.registrations[t]
 	if !ok {
 		return nil, fmt.Errorf("component %v not found", t)
 	}
 	return reg.ReflectStubFn(s.call), nil
 }
 
-func (s *Simulator) call(component reflect.Type, method string, args []reflect.Value) []reflect.Value {
-	reg, ok := s.regsByIntf[component]
-	if !ok {
-		panic(fmt.Errorf("component %v not found", component))
+func (s *Simulator) Simulate(ctx context.Context) error {
+	s.group, s.ctx = errgroup.WithContext(ctx)
+	s.step()
+	return s.group.Wait()
+}
+
+func (s *Simulator) step() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Compute the set of candidate steps.
+	const runOp = 0
+	const deliverCall = 1
+	const deliverReply = 2
+	var candidates []int
+	if s.numOps < s.opts.NumOps {
+		candidates = append(candidates, runOp)
+	}
+	if len(s.calls) > 0 {
+		candidates = append(candidates, deliverCall)
+	}
+	if len(s.replies) > 0 {
+		candidates = append(candidates, deliverReply)
+	}
+	if len(candidates) == 0 {
+		return
 	}
 
-	replicas := s.components[reg.Name]
+	// Randomly execute a step.
+	switch x := candidates[s.rand.Intn(len(candidates))]; x {
+	case runOp:
+		s.numOps++
+		o := pickValue(s.rand, s.ops)
+		s.group.Go(func() error {
+			return s.runOp(s.ctx, o)
+		})
+
+	case deliverCall:
+		var call *call
+		call, s.calls = pop(s.rand, s.calls)
+		s.group.Go(func() error {
+			s.deliverCall(call)
+			return nil
+		})
+
+	case deliverReply:
+		var reply *reply
+		reply, s.replies = pop(s.rand, s.replies)
+		reply.call.reply <- reply
+
+	default:
+		panic(fmt.Errorf("unrecognized candidate %v", x))
+	}
+}
+
+func (s *Simulator) runOp(ctx context.Context, o op) error {
 	s.mu.Lock()
-	i := s.rand.Intn(len(replicas))
+	val := o.gen.Call([]reflect.Value{reflect.ValueOf(s.rand)})[0]
 	s.mu.Unlock()
-	return reflect.ValueOf(replicas[i]).MethodByName(method).Call(args)
+
+	args := make([]reflect.Value, 2+len(o.components))
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = val
+	for i, component := range o.components {
+		c, err := s.getIntf(component)
+		if err != nil {
+			return err
+		}
+		args[2+i] = reflect.ValueOf(c)
+	}
+
+	if x := o.f.Call(args)[0].Interface(); x != nil {
+		return x.(error)
+	}
+	s.step()
+	return nil
+}
+
+func (s *Simulator) call(component reflect.Type, method string, args []reflect.Value) []reflect.Value {
+	reply := make(chan *reply, 1)
+	s.mu.Lock()
+	s.calls = append(s.calls, &call{
+		component: component,
+		method:    method,
+		args:      args,
+		reply:     reply,
+	})
+	s.mu.Unlock()
+	s.step()
+	return (<-reply).returns
+}
+
+func (s *Simulator) deliverCall(call *call) {
+	reg, ok := s.registrations[call.component]
+	if !ok {
+		panic(fmt.Errorf("component %v not found", call.component))
+	}
+	s.mu.Lock()
+	replica := pick(s.rand, s.components[reg.Name])
+	s.mu.Unlock()
+
+	returns := reflect.ValueOf(replica).MethodByName(call.method).Call(call.args)
+	s.mu.Lock()
+	s.replies = append(s.replies, &reply{
+		call:    call,
+		returns: returns,
+	})
+	s.mu.Unlock()
+
+	s.step()
 }

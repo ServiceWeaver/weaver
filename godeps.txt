@@ -445,11 +445,16 @@ github.com/ServiceWeaver/weaver/internal/sim
     context
     fmt
     github.com/ServiceWeaver/weaver/internal/config
+    github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/protos
+    golang.org/x/exp/constraints
+    golang.org/x/exp/maps
+    golang.org/x/exp/slices
     golang.org/x/exp/slog
+    golang.org/x/sync/errgroup
     math/rand
     net
     reflect
