@@ -38,46 +38,84 @@
   <header class="navbar">
     <a href="/">{{.Tool}} dashboard</a>
   </header>
-
+  <script type="text/javascript">
+    // The code below largely taken from:
+    //   https://perfetto.dev/docs/visualization/deep-linking-to-perfetto-ui
+    const ORIGIN = 'https://ui.perfetto.dev';
+    
+    async function fetchAndOpen(traceUrl) {
+      const resp = await fetch(traceUrl);
+      const blob = await resp.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      openTrace(arrayBuffer, traceUrl);
+    }
+    
+    function openTrace(arrayBuffer, traceId, traceUrl) {
+      const win = window.open(ORIGIN);
+      if (!win) {
+        alert('Popups blocked. Please allow popups in order to be able to' +
+              'see traces');
+        return
+      }
+      const timer = setInterval(() => win.postMessage('PING', ORIGIN), 50);
+      const onMessageHandler = (evt) => {
+        if (evt.data !== 'PONG') return;
+    
+        // We got a PONG, the UI is ready.
+        window.clearInterval(timer);
+        window.removeEventListener('message', onMessageHandler);
+    
+        const reopenUrl = new URL(location.href);
+        reopenUrl.hash = `#reopen=${traceUrl}`;
+        win.postMessage({
+          perfetto: {
+            buffer: arrayBuffer,
+            title: 'Trace Id ' + traceId,
+            url: reopenUrl.toString(),
+        }}, ORIGIN);
+      };
+    
+      window.addEventListener('message', onMessageHandler);
+    }
+  </script>
   <div class="container">
-    <div class="card">
-      <div class="card-title">Traces</div>
-      <div class="card-body">
-        <table id = buckets class = "data-table">
-            <tbody>
-                <tr>
-                    <td><a href="/traces?id={{.ID}}&lat_hi=1ms">0-1ms</a></td>
-                    <td><a href="/traces?id={{.ID}}&lat_low=1ms&lat_hi=10ms">1-10ms</a></td>
-                    <td><a href="/traces?id={{.ID}}&lat_low=10ms&lat_hi=100ms">10-100ms</a></td>
-                    <td><a href="/traces?id={{.ID}}&lat_low=100ms&lat_hi=1s">100ms-1s</a></td>
-                    <td><a href="/traces?id={{.ID}}&lat_low=1s&lat_hi=10s">1-10s</a></td>
-                    <td><a href="/traces?id={{.ID}}">all</a></td>
-                    <td><a href="/traces?id={{.ID}}&errs=true">errors</a></td>
-                </tr>
-            </tbody>
-        </table>
-        <br>
-        <table id="traces" class="data-table">
-          <thead>
+  <div class="card">
+    <div class="card-title">Traces</div>
+    <div class="card-body">
+    <table id = buckets class = "data-table">
+        <tbody>
             <tr>
-              <th scope="col">Trace URL</th>
-              <th scope="col">Start Time</th>
-              <th scope="col">Latency</th>
-              <th scope="col">Status</th>
+                <td><a href="/traces?id={{.ID}}&lat_hi=1ms">0-1ms</a></td>
+                <td><a href="/traces?id={{.ID}}&lat_low=1ms&lat_hi=10ms">1-10ms</a></td>
+                <td><a href="/traces?id={{.ID}}&lat_low=10ms&lat_hi=100ms">10-100ms</a></td>
+                <td><a href="/traces?id={{.ID}}&lat_low=100ms&lat_hi=1s">100ms-1s</a></td>
+                <td><a href="/traces?id={{.ID}}&lat_low=1s&lat_hi=10s">1-10s</a></td>
+                <td><a href="/traces?id={{.ID}}">all</a></td>
+                <td><a href="/traces?id={{.ID}}&errs=true">errors</a></td>
             </tr>
-          </thead>
-          <tbody>
-            {{range .Traces}}
-              <tr>
-                <td><a href="{{traceurl .TraceID}}">link</a></td>
-                <td>{{.StartTime}}</td>
-                <td>{{sub .EndTime .StartTime}}</td>
-                <td>{{.Status}}</td>
-              </tr>
-            {{end}}
-          </tbody>
-        </table>
-      </div>
+        </tbody>
+    </table>
+    <br>
+    <table id="traces" class="data-table">
+        <thead>
+        <tr>
+            <th scope="col">Trace URL</th>
+            <th scope="col">Start Time</th>
+            <th scope="col">Latency</th>
+            <th scope="col">Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .Traces}}
+            <tr>
+            <td><a href="javascript:fetchAndOpen('/tracefetch?trace_id={{.TraceID}}')">link</a></td>
+            <td>{{.StartTime}}</td>
+            <td>{{sub .EndTime .StartTime}}</td>
+            <td>{{.Status}}</td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
     </div>
   </div>
 </body>
