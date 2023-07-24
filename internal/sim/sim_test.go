@@ -19,8 +19,11 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
 type pair struct {
@@ -116,6 +119,46 @@ func TestCancelledSimulation(t *testing.T) {
 		}
 	case <-failAfter:
 		t.Fatal("simulation not cancelled promptly")
+	}
+}
+
+type fakeDivMod struct{}
+
+func (fakeDivMod) DivMod(context.Context, int, int) (int, int, error) {
+	return 42, 42, nil
+}
+
+func TestFakes(t *testing.T) {
+	opts := Options{
+		NumReplicas: 10,
+		NumOps:      1000,
+		Fakes: map[reflect.Type]any{
+			reflection.Type[divMod](): fakeDivMod{},
+		},
+	}
+	sim := simulator(t, opts)
+	RegisterOp(sim, Op[pair]{
+		Name: "divmod",
+		Gen: func(r *rand.Rand) pair {
+			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
+		},
+		Func: func(ctx context.Context, p pair, dm divMod) error {
+			div, mod, err := dm.DivMod(ctx, p.x, p.y)
+			if err != nil {
+				// Ignore errors.
+				return nil
+			}
+			if div != 42 {
+				return fmt.Errorf("div %d/%d: got %d, want %d", p.x, p.y, div, 42)
+			}
+			if mod != 42 {
+				return fmt.Errorf("mod %d%%%d: got %d, want %d", p.x, p.y, mod, 42)
+			}
+			return nil
+		},
+	})
+	if err := sim.Simulate(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }
 
