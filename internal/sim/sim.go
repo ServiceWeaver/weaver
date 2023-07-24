@@ -28,6 +28,8 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 )
@@ -55,11 +57,20 @@ type Simulator struct {
 	ctx   context.Context
 	group *errgroup.Group
 
+	exporter *exporter
+	provider *sdktrace.TracerProvider
+	tracer   trace.Tracer
+
 	mu      sync.Mutex
 	rand    *rand.Rand
 	numOps  int
 	calls   []*call
 	replies []*reply
+}
+
+type Result struct {
+	Err   error
+	Spans []sdktrace.ReadOnlySpan
 }
 
 type op struct {
@@ -99,12 +110,24 @@ func New(opts Options) (*Simulator, error) {
 		}
 	}
 
+	// Create TracerProvider.
+	exporter := &exporter{}
+	generator := &idGenerator{traceID: 1, spanID: 1}
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithSyncer(exporter),
+		sdktrace.WithIDGenerator(generator),
+	)
+	tracer := provider.Tracer("sim")
+
 	// Create simulator.
 	s := &Simulator{
 		opts:          opts,
 		registrations: registrations,
 		components:    map[string][]any{},
 		ops:           map[string]op{},
+		exporter:      exporter,
+		provider:      provider,
+		tracer:        tracer,
 		rand:          rand.New(rand.NewSource(opts.Seed)),
 	}
 
@@ -208,10 +231,13 @@ func (s *Simulator) getIntf(t reflect.Type) (any, error) {
 	return reg.ReflectStubFn(s.call), nil
 }
 
-func (s *Simulator) Simulate(ctx context.Context) error {
+func (s *Simulator) Simulate(ctx context.Context) (Result, error) {
 	s.group, s.ctx = errgroup.WithContext(ctx)
 	s.step()
-	return s.group.Wait()
+	err := s.group.Wait()
+	// TODO(mwhittaker): Handle error.
+	s.provider.Shutdown(ctx)
+	return Result{Err: err, Spans: s.exporter.spans}, nil
 }
 
 func (s *Simulator) step() {
@@ -264,6 +290,9 @@ func (s *Simulator) step() {
 }
 
 func (s *Simulator) runOp(ctx context.Context, o op) error {
+	ctx, span := s.tracer.Start(ctx, o.name, trace.WithSpanKind(trace.SpanKindClient))
+	defer span.End()
+
 	s.mu.Lock()
 	val := o.gen.Call([]reflect.Value{reflect.ValueOf(s.rand)})[0]
 	s.mu.Unlock()
@@ -287,6 +316,11 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 }
 
 func (s *Simulator) call(component reflect.Type, method string, args []reflect.Value) []reflect.Value {
+	name := fmt.Sprintf("%v.%s", component, method)
+	ctx := args[0].Interface().(context.Context)
+	ctx, span := s.tracer.Start(ctx, name, trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
 	reply := make(chan *reply, 1)
 	s.mu.Lock()
 	s.calls = append(s.calls, &call{
