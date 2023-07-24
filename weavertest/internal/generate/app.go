@@ -45,6 +45,7 @@ func (c customErrorValue) Error() string { return fmt.Sprintf("customError(%s)",
 type testApp interface {
 	Get(_ context.Context, key string, behavior behaviorType) (int, error)
 	IncPointer(_ context.Context, arg *int) (*int, error)
+	DivMod(_ context.Context, numerator int, denominator int) (int, int, error)
 }
 
 type impl struct {
@@ -74,4 +75,12 @@ func (p *impl) IncPointer(_ context.Context, arg *int) (*int, error) {
 	res := new(int)
 	*res = *arg + 1
 	return res, nil
+}
+
+// DivMod returns n/d, n%d.
+func (p *impl) DivMod(_ context.Context, n, d int) (int, int, error) {
+	if d == 0 {
+		return 0, 0, fmt.Errorf("divide by zero")
+	}
+	return n / d, n % d, nil
 }

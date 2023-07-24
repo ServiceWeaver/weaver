@@ -17,10 +17,12 @@ package generate
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/weavertest"
 )
 
@@ -109,5 +111,31 @@ func TestPointers(t *testing.T) {
 				t.Fatalf("unexpected pointer to %d; expecting %d", *got, x+1)
 			}
 		})
+	}
+}
+
+func TestReflectStubs(t *testing.T) {
+	fakeErr := fmt.Errorf("fake error")
+	call := func(method string, _ context.Context, args, returns []any) error {
+		if method != "DivMod" {
+			t.Fatalf("unexpected method %q", method)
+		}
+		n := args[0].(int)
+		d := args[1].(int)
+		*returns[0].(*int) = n / d
+		*returns[1].(*int) = n % d
+		return fakeErr
+	}
+	reg := codegen.Registered()[0]
+	app := reg.ReflectStubFn(call).(testApp)
+	div, mod, err := app.DivMod(context.Background(), 11, 4)
+	if div != 2 {
+		t.Errorf("bad div: got %d, want 2", div)
+	}
+	if mod != 3 {
+		t.Errorf("bad mod: got %d, want 3", mod)
+	}
+	if err != fakeErr {
+		t.Errorf("bad err: got %v, want %v", err, fakeErr)
 	}
 }

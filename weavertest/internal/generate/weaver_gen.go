@@ -14,10 +14,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' v0.20.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+version v0.20.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -40,13 +40,16 @@ func init() {
 		Iface: reflect.TypeOf((*testApp)(nil)).Elem(),
 		Impl:  reflect.TypeOf(impl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return testApp_local_stub{impl: impl.(testApp), tracer: tracer, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: false}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: false})}
+			return testApp_local_stub{impl: impl.(testApp), tracer: tracer, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "DivMod", Remote: false}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: false}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return testApp_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: true}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: true})}
+			return testApp_client_stub{stub: stub, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "DivMod", Remote: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: true}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return testApp_server_stub{impl: impl.(testApp), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return testApp_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -63,12 +66,33 @@ var _ weaver.Unrouted = (*impl)(nil)
 type testApp_local_stub struct {
 	impl              testApp
 	tracer            trace.Tracer
+	divModMetrics     *codegen.MethodMetrics
 	getMetrics        *codegen.MethodMetrics
 	incPointerMetrics *codegen.MethodMetrics
 }
 
 // Check that testApp_local_stub implements the testApp interface.
 var _ testApp = (*testApp_local_stub)(nil)
+
+func (s testApp_local_stub) DivMod(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+	// Update metrics.
+	begin := s.divModMetrics.Begin()
+	defer func() { s.divModMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "generate.testApp.DivMod", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.DivMod(ctx, a0, a1)
+}
 
 func (s testApp_local_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
 	// Update metrics.
@@ -114,12 +138,72 @@ func (s testApp_local_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, e
 
 type testApp_client_stub struct {
 	stub              codegen.Stub
+	divModMetrics     *codegen.MethodMetrics
 	getMetrics        *codegen.MethodMetrics
 	incPointerMetrics *codegen.MethodMetrics
 }
 
 // Check that testApp_client_stub implements the testApp interface.
 var _ testApp = (*testApp_client_stub)(nil)
+
+func (s testApp_client_stub) DivMod(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.divModMetrics.Begin()
+	defer func() { s.divModMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "generate.testApp.DivMod", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Preallocate a buffer of the right size.
+	size := 0
+	size += 8
+	size += 8
+	enc := codegen.NewEncoder()
+	enc.Reset(size)
+
+	// Encode arguments.
+	enc.Int(a0)
+	enc.Int(a1)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.Int()
+	r1 = dec.Int()
+	err = dec.Error()
+	return
+}
 
 func (s testApp_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
 	// Update metrics.
@@ -165,7 +249,7 @@ func (s testApp_client_stub) Get(ctx context.Context, a0 string, a1 behaviorType
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
@@ -221,7 +305,7 @@ func (s testApp_client_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, 
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(weaver.RemoteCallError, err)
@@ -248,6 +332,8 @@ var _ codegen.Server = (*testApp_server_stub)(nil)
 // GetStubFn implements the codegen.Server interface.
 func (s testApp_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
+	case "DivMod":
+		return s.divMod
 	case "Get":
 		return s.get
 	case "IncPointer":
@@ -255,6 +341,34 @@ func (s testApp_server_stub) GetStubFn(method string) func(ctx context.Context, 
 	default:
 		return nil
 	}
+}
+
+func (s testApp_server_stub) divMod(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 int
+	a0 = dec.Int()
+	var a1 int
+	a1 = dec.Int()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, r1, appErr := s.impl.DivMod(ctx, a0, a1)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Int(r0)
+	enc.Int(r1)
+	enc.Error(appErr)
+	return enc.Data(), nil
 }
 
 func (s testApp_server_stub) get(ctx context.Context, args []byte) (res []byte, err error) {
@@ -307,6 +421,30 @@ func (s testApp_server_stub) incPointer(ctx context.Context, args []byte) (res [
 	serviceweaver_enc_ptr_int_98a2a745(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type testApp_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that testApp_reflect_stub implements the testApp interface.
+var _ testApp = (*testApp_reflect_stub)(nil)
+
+func (s testApp_reflect_stub) DivMod(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+	err = s.caller("DivMod", ctx, []any{a0, a1}, []any{&r0, &r1})
+	return
+}
+
+func (s testApp_reflect_stub) Get(ctx context.Context, a0 string, a1 behaviorType) (r0 int, err error) {
+	err = s.caller("Get", ctx, []any{a0, a1}, []any{&r0})
+	return
+}
+
+func (s testApp_reflect_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, err error) {
+	err = s.caller("IncPointer", ctx, []any{a0}, []any{&r0})
+	return
 }
 
 // AutoMarshal implementations.

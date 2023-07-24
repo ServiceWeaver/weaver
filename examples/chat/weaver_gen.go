@@ -15,10 +15,10 @@ import (
 	"time"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' v0.20.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+version v0.20.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -49,6 +49,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return imageScaler_server_stub{impl: impl.(ImageScaler), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return imageScaler_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -64,6 +67,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return localCache_server_stub{impl: impl.(LocalCache), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return localCache_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -77,6 +83,9 @@ func init() {
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return main_reflect_stub{caller: caller}
 		},
 		RefData: "⟦7e1a0aa0:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/SQLStore⟧\n⟦ae108c0d:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/ImageScaler⟧\n⟦c86a1d44:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/LocalCache⟧\n⟦7b9a3b0b:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→chat⟧\n",
 	})
@@ -92,6 +101,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return sQLStore_server_stub{impl: impl.(SQLStore), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return sQLStore_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -995,6 +1007,71 @@ func (s sQLStore_server_stub) getImage(ctx context.Context, args []byte) (res []
 	serviceweaver_enc_slice_byte_87461245(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type imageScaler_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that imageScaler_reflect_stub implements the ImageScaler interface.
+var _ ImageScaler = (*imageScaler_reflect_stub)(nil)
+
+func (s imageScaler_reflect_stub) Scale(ctx context.Context, a0 []byte, a1 int, a2 int) (r0 []byte, err error) {
+	err = s.caller("Scale", ctx, []any{a0, a1, a2}, []any{&r0})
+	return
+}
+
+type localCache_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that localCache_reflect_stub implements the LocalCache interface.
+var _ LocalCache = (*localCache_reflect_stub)(nil)
+
+func (s localCache_reflect_stub) Get(ctx context.Context, a0 string) (r0 string, err error) {
+	err = s.caller("Get", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+func (s localCache_reflect_stub) Put(ctx context.Context, a0 string, a1 string) (err error) {
+	err = s.caller("Put", ctx, []any{a0, a1}, []any{})
+	return
+}
+
+type main_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that main_reflect_stub implements the weaver.Main interface.
+var _ weaver.Main = (*main_reflect_stub)(nil)
+
+type sQLStore_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that sQLStore_reflect_stub implements the SQLStore interface.
+var _ SQLStore = (*sQLStore_reflect_stub)(nil)
+
+func (s sQLStore_reflect_stub) CreatePost(ctx context.Context, a0 string, a1 time.Time, a2 ThreadID, a3 string) (err error) {
+	err = s.caller("CreatePost", ctx, []any{a0, a1, a2, a3}, []any{})
+	return
+}
+
+func (s sQLStore_reflect_stub) CreateThread(ctx context.Context, a0 string, a1 time.Time, a2 []string, a3 string, a4 []byte) (r0 ThreadID, err error) {
+	err = s.caller("CreateThread", ctx, []any{a0, a1, a2, a3, a4}, []any{&r0})
+	return
+}
+
+func (s sQLStore_reflect_stub) GetFeed(ctx context.Context, a0 string) (r0 []Thread, err error) {
+	err = s.caller("GetFeed", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+func (s sQLStore_reflect_stub) GetImage(ctx context.Context, a0 string, a1 ImageID) (r0 []byte, err error) {
+	err = s.caller("GetImage", ctx, []any{a0, a1}, []any{&r0})
+	return
 }
 
 // AutoMarshal implementations.

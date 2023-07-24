@@ -56,7 +56,7 @@ const (
 	// new version every time we change how code is generated, and we use
 	// weaver module versions.
 	CodegenMajor = 0
-	CodegenMinor = 17
+	CodegenMinor = 20
 )
 
 var (

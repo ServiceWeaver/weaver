@@ -15,6 +15,7 @@
 package codegen
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -60,9 +61,10 @@ type Registration struct {
 	Listeners []string     // the names of any weaver.Listeners
 
 	// Functions that return different types of stubs.
-	LocalStubFn  func(impl any, caller string, tracer trace.Tracer) any
-	ClientStubFn func(stub Stub, caller string) any
-	ServerStubFn func(impl any, load func(key uint64, load float64)) Server
+	LocalStubFn   func(impl any, caller string, tracer trace.Tracer) any
+	ClientStubFn  func(stub Stub, caller string) any
+	ServerStubFn  func(impl any, load func(key uint64, load float64)) Server
+	ReflectStubFn func(func(method string, ctx context.Context, args []any, returns []any) error) any
 
 	// RefData holds a string containing the result of MakeEdgeString(Name, Dst)
 	// for all components named Dst used by this component.
