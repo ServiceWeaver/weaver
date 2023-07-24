@@ -11,10 +11,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' v0.20.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+version v0.20.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -44,6 +44,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(A), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return a_reflect_stub{caller: caller}
+		},
 		RefData: "⟦193f6c94:wEaVeReDgE:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A→github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B⟧\n⟦8cd483a3:wEaVeReDgE:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A→github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C⟧\n⟦93cd9612:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A→aLis1,aLis2,aLis3⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -57,6 +60,9 @@ func init() {
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return b_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(B), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return b_reflect_stub{caller: caller}
 		},
 		RefData: "⟦7551e870:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/B→Listener⟧\n",
 	})
@@ -72,6 +78,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return c_server_stub{impl: impl.(C), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return c_reflect_stub{caller: caller}
+		},
 		RefData: "⟦105ddfd4:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/runtime/bin/testprogram/C→cLis⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -85,6 +94,9 @@ func init() {
 		ClientStubFn: func(stub codegen.Stub, caller string) any { return main_client_stub{stub: stub} },
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return main_server_stub{impl: impl.(weaver.Main), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return main_reflect_stub{caller: caller}
 		},
 		RefData: "⟦d90475cb:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/runtime/bin/testprogram/A⟧\n⟦b7bc7e7d:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→appLis⟧\n",
 	})
@@ -231,3 +243,34 @@ func (s main_server_stub) GetStubFn(method string) func(ctx context.Context, arg
 		return nil
 	}
 }
+
+// Reflect stub implementations.
+
+type a_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that a_reflect_stub implements the A interface.
+var _ A = (*a_reflect_stub)(nil)
+
+type b_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that b_reflect_stub implements the B interface.
+var _ B = (*b_reflect_stub)(nil)
+
+type c_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that c_reflect_stub implements the C interface.
+var _ C = (*c_reflect_stub)(nil)
+
+type main_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that main_reflect_stub implements the weaver.Main interface.
+var _ weaver.Main = (*main_reflect_stub)(nil)
+

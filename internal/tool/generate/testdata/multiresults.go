@@ -22,6 +22,7 @@
 // r1 = dec.Int()
 // func (x *Bar) WeaverMarshal(enc *codegen.Encoder)
 // func (x *Bar) WeaverUnmarshal(dec *codegen.Decoder)
+// err = s.caller("A", ctx, []any{}, []any{&r0, &r1, &r2})
 
 // UNEXPECTED
 // Preallocate

@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' v0.20.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+version v0.20.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -47,6 +47,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return started_server_stub{impl: impl.(Started), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return started_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -61,6 +64,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return widget_server_stub{impl: impl.(Widget), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return widget_reflect_stub{caller: caller}
 		},
 		RefData: "⟦f3fa3c18:wEaVeReDgE:github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Widget→github.com/ServiceWeaver/weaver/weavertest/internal/deploy/Started⟧\n",
 	})
@@ -346,4 +352,30 @@ func (s widget_server_stub) use(ctx context.Context, args []byte) (res []byte, e
 	enc := codegen.NewEncoder()
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type started_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that started_reflect_stub implements the Started interface.
+var _ Started = (*started_reflect_stub)(nil)
+
+func (s started_reflect_stub) MarkStarted(ctx context.Context, a0 string) (err error) {
+	err = s.caller("MarkStarted", ctx, []any{a0}, []any{})
+	return
+}
+
+type widget_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that widget_reflect_stub implements the Widget interface.
+var _ Widget = (*widget_reflect_stub)(nil)
+
+func (s widget_reflect_stub) Use(ctx context.Context, a0 string) (err error) {
+	err = s.caller("Use", ctx, []any{a0}, []any{})
+	return
 }

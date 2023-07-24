@@ -14,10 +14,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' v0.20.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+version v0.20.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -48,6 +48,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return errer_server_stub{impl: impl.(Errer), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return errer_reflect_stub{caller: caller}
+		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
@@ -62,6 +65,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return pointer_server_stub{impl: impl.(Pointer), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return pointer_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -335,6 +341,32 @@ func (s pointer_server_stub) get(ctx context.Context, args []byte) (res []byte, 
 	(r0).WeaverMarshal(enc)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type errer_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that errer_reflect_stub implements the Errer interface.
+var _ Errer = (*errer_reflect_stub)(nil)
+
+func (s errer_reflect_stub) Err(ctx context.Context, a0 int) (err error) {
+	err = s.caller("Err", ctx, []any{a0}, []any{})
+	return
+}
+
+type pointer_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that pointer_reflect_stub implements the Pointer interface.
+var _ Pointer = (*pointer_reflect_stub)(nil)
+
+func (s pointer_reflect_stub) Get(ctx context.Context) (r0 Pair, err error) {
+	err = s.caller("Get", ctx, []any{}, []any{&r0})
+	return
 }
 
 // AutoMarshal implementations.
