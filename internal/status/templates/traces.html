@@ -55,6 +55,7 @@
       if (!win) {
         alert('Popups blocked. Please allow popups in order to be able to' +
               'see traces');
+        return
       }
       const timer = setInterval(() => win.postMessage('PING', ORIGIN), 50);
       const onMessageHandler = (evt) => {
