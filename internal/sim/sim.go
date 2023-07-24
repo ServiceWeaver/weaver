@@ -61,11 +61,12 @@ type Op[T any] struct {
 
 // Options configures a simulator.
 type Options struct {
-	Seed           int64  // the simulator's seed
-	NumReplicas    int    // the number of replicas of every component
-	NumOps         int    // the number of ops to run
-	ConfigFilename string // TOML config filename
-	Config         string // TOML config contents
+	Seed           int64                // the simulator's seed
+	NumReplicas    int                  // the number of replicas of every component
+	NumOps         int                  // the number of ops to run
+	ConfigFilename string               // TOML config filename
+	Config         string               // TOML config contents
+	Fakes          map[reflect.Type]any // fake component implementations
 }
 
 // Simulator deterministically simulates a Service Weaver application.
@@ -153,6 +154,10 @@ func New(opts Options) (*Simulator, error) {
 
 	// Create component replicas.
 	for _, reg := range regsByIntf {
+		if fake, ok := opts.Fakes[reg.Iface]; ok {
+			s.components[reg.Name] = []any{fake}
+			continue
+		}
 		for i := 0; i < opts.NumReplicas; i++ {
 			// Create the component implementation.
 			v := reflect.New(reg.Impl)
