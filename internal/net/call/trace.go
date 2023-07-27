@@ -15,18 +15,14 @@
 package call
 
 import (
-	"context"
-
 	"go.opentelemetry.io/otel/trace"
 )
 
 const traceHeaderLen = 25
 
-// writeTraceContext serializes the trace context (if any) contained in ctx
-// into b.
+// writeSpanContext serializes the provided span context into b if it is valid.
 // REQUIRES: len(b) >= traceHeaderLen
-func writeTraceContext(ctx context.Context, b []byte) {
-	sc := trace.SpanContextFromContext(ctx)
+func writeSpanContext(sc trace.SpanContext, b []byte) {
 	if !sc.IsValid() {
 		return
 	}
@@ -41,9 +37,9 @@ func writeTraceContext(ctx context.Context, b []byte) {
 	b[24] = byte(sc.TraceFlags())
 }
 
-// readTraceContext returns a span context with tracing information stored in b.
+// readSpanContext parses and returns the span context stored in b.
 // REQUIRES: len(b) >= traceHeaderLen
-func readTraceContext(b []byte) trace.SpanContext {
+func readSpanContext(b []byte) trace.SpanContext {
 	cfg := trace.SpanContextConfig{
 		TraceID:    *(*trace.TraceID)(b[:16]),
 		SpanID:     *(*trace.SpanID)(b[16:24]),

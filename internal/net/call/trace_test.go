@@ -15,7 +15,6 @@
 package call
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -29,7 +28,7 @@ func TestTraceSerialization(t *testing.T) {
 		b := uuid.New()
 		return b[:]
 	}
-	span := trace.NewSpanContext(trace.SpanContextConfig{
+	sc := trace.NewSpanContext(trace.SpanContextConfig{
 		TraceID:    trace.TraceID(uuid.New()),
 		SpanID:     *(*trace.SpanID)(rndBytes()[:8]),
 		TraceFlags: trace.TraceFlags(rndBytes()[0]),
@@ -37,12 +36,11 @@ func TestTraceSerialization(t *testing.T) {
 
 	// Serialize the trace context.
 	var b [25]byte
-	writeTraceContext(
-		trace.ContextWithSpanContext(context.Background(), span), b[:])
+	writeSpanContext(sc, b[:])
 
 	// Deserialize the trace context.
-	actual := readTraceContext(b[:])
-	expect := span.WithRemote(true)
+	actual := readSpanContext(b[:])
+	expect := sc.WithRemote(true)
 	if !expect.Equal(actual) {
 		want, _ := json.Marshal(expect)
 		got, _ := json.Marshal(actual)

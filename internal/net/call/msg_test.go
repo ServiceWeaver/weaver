@@ -50,7 +50,7 @@ func TestConcurrentWrites(t *testing.T) {
 			if rand.Int()%2 == 0 {
 				flattenLimit = 9999999
 			}
-			if err := writeMessage(client, &wlock, requestMessage, uint64(id), extraHdr, payload, flattenLimit); err != nil {
+			if err := write(client, &wlock, requestType, uint64(id), extraHdr, payload, flattenLimit); err != nil {
 				return err
 			}
 			id += numWriters
@@ -60,11 +60,11 @@ func TestConcurrentWrites(t *testing.T) {
 
 	reader := func() error {
 		for i := 0; i < numWriters*numWrites; i++ {
-			mt, id, payload, err := readMessage(server)
+			mt, id, payload, err := read(server)
 			if err != nil {
 				return err
 			}
-			if got, want := mt, requestMessage; got != want {
+			if got, want := mt, requestType; got != want {
 				return fmt.Errorf("bad messageType: got %d, want %d", got, want)
 			}
 			if min, max := 0, numWriters*numWrites; int(id) < min || int(id) > max {
@@ -115,7 +115,7 @@ func BenchmarkReadWrite(b *testing.B) {
 					done := make(chan bool)
 					go func() {
 						for n := 0; n < numIters; n++ {
-							if _, _, _, err := readMessage(in); err != nil {
+							if _, _, _, err := read(in); err != nil {
 								panic(fmt.Sprint(err))
 							}
 						}
@@ -123,11 +123,11 @@ func BenchmarkReadWrite(b *testing.B) {
 					}()
 					for n := 0; n < numIters; n++ {
 						if flatten == "Flatten" {
-							if err := writeFlat(out, &mu, requestMessage, 0, extraHdr[:], payload); err != nil {
+							if err := writeFlat(out, &mu, requestType, 0, extraHdr[:], payload); err != nil {
 								b.Fatal(err)
 							}
 						} else {
-							if err := writeChunked(out, &mu, requestMessage, 0, extraHdr[:], payload); err != nil {
+							if err := writeChunked(out, &mu, requestType, 0, extraHdr[:], payload); err != nil {
 								b.Fatal(err)
 							}
 						}

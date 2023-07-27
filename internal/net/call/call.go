@@ -69,7 +69,6 @@ package call
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -82,6 +81,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slog"
 )
 
@@ -349,25 +349,20 @@ func (rc *reconnectingConnection) Close() {
 
 // Call makes an RPC over connection c.
 func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []byte, opts CallOptions) ([]byte, error) {
-	var hdr [msgHeaderSize]byte
-	copy(hdr[0:], h[:])
 	deadline, haveDeadline := ctx.Deadline()
+	var micros int64
 	if haveDeadline {
 		// Send the deadline in the header. We use the relative time instead
 		// of absolute in case there is significant clock skew. This does mean
 		// that we will not count transmission delay against the deadline.
-		micros := time.Until(deadline).Microseconds()
+		micros = time.Until(deadline).Microseconds()
 		if micros <= 0 {
 			// Fail immediately without attempting to send a zero or negative
 			// deadline to the server which will be misinterpreted.
 			<-ctx.Done()
 			return nil, ctx.Err()
 		}
-		binary.LittleEndian.PutUint64(hdr[16:], uint64(micros))
 	}
-
-	// Send trace information in the header.
-	writeTraceContext(ctx, hdr[24:])
 
 	rpc := &call{}
 	rpc.doneSignal = make(chan struct{})
@@ -384,7 +379,14 @@ func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []b
 		return nil, err
 	}
 
-	if err := writeMessage(conn.c, &conn.wlock, requestMessage, rpc.id, hdr[:], arg, rc.opts.WriteFlattenLimit); err != nil {
+	request := requestMessage{
+		id:             rpc.id,
+		methodKey:      h,
+		deadlineMicros: uint64(micros),
+		spanContext:    trace.SpanContextFromContext(ctx),
+		args:           arg,
+	}
+	if err := writeMessage(conn.c, &conn.wlock, request, rc.opts.WriteFlattenLimit); err != nil {
 		conn.shutdown("client send request", err)
 		conn.endCall(rpc)
 		return nil, fmt.Errorf("%w: %s", CommunicationError, err)
@@ -409,7 +411,7 @@ func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []b
 
 			if !haveDeadline || time.Now().Before(deadline) {
 				// Early cancellation. Tell server about it.
-				if err := writeMessage(conn.c, &conn.wlock, cancelMessage, rpc.id, nil, nil, rc.opts.WriteFlattenLimit); err != nil {
+				if err := writeMessage(conn.c, &conn.wlock, cancelMessage{id: rpc.id}, rc.opts.WriteFlattenLimit); err != nil {
 					conn.shutdown("client send cancel", err)
 				}
 			}
@@ -586,7 +588,7 @@ func (rc *reconnectingConnection) reconnect(ctx context.Context, endpoint Endpoi
 		calls:    map[uint64]*call{},
 		lastID:   0,
 	}
-	if err := writeVersion(conn.c, &conn.wlock); err != nil {
+	if err := writeMessage(conn.c, &conn.wlock, versionMessage{currentVersion}, rc.opts.WriteFlattenLimit); err != nil {
 		return nil, fmt.Errorf("%w: client send version: %s", CommunicationError, err)
 	}
 	go conn.readResponses()
@@ -657,73 +659,71 @@ func (c *clientConnection) endCalls(err error) {
 // readResponses runs on the client side reading messages sent over a connection by the server.
 func (c *clientConnection) readResponses() {
 	for {
-		mt, id, msg, err := readMessage(c.cbuf)
+		msg, err := readMessage(c.cbuf)
 		if err != nil {
 			c.shutdown("client read", err)
 			return
 		}
 
-		switch mt {
+		switch x := msg.(type) {
 		case versionMessage:
-			v, err := getVersion(id, msg)
-			if err != nil {
-				c.shutdown("client read", err)
-				return
-			}
 			c.mu.Lock()
-			c.version = v
+			c.version = min(x.v, currentVersion)
 			c.mu.Unlock()
-		case responseMessage, responseError:
-			rpc := c.findAndEndCall(id)
+
+		case responseMessage:
+			rpc := c.findAndEndCall(x.id)
 			if rpc == nil {
 				continue // May have been canceled
 			}
-			if mt == responseError {
-				if err, ok := decodeError(msg); ok {
-					rpc.err = err
-				} else {
-					rpc.err = fmt.Errorf("%w: could not decode error", CommunicationError)
-				}
-			} else {
-				rpc.response = msg
-			}
+			rpc.response = x.returns
 			atomic.StoreUint32(&rpc.done, 1)
 			close(rpc.doneSignal)
+
+		case errorMessage:
+			rpc := c.findAndEndCall(x.id)
+			if rpc == nil {
+				continue // May have been canceled
+			}
+			rpc.err = x.err
+			atomic.StoreUint32(&rpc.done, 1)
+			close(rpc.doneSignal)
+
 		default:
-			c.shutdown("client read", fmt.Errorf("invalid response %d", mt))
+			c.shutdown("client read", fmt.Errorf("invalid response %T", msg))
 			return
 		}
 	}
 }
 
+// writeMessage writes a message over the connection.
+func (c *serverConnection) writeMessage(msg message) error {
+	return writeMessage(c.c, &c.wlock, msg, c.opts.WriteFlattenLimit)
+}
+
 // readRequests runs on the server side reading messages sent over a connection by the client.
 func (c *serverConnection) readRequests(ctx context.Context, hmap *HandlerMap, onDone func()) {
 	for ctx.Err() == nil {
-		mt, id, msg, err := readMessage(c.cbuf)
+		msg, err := readMessage(c.cbuf)
 		if err != nil {
 			c.shutdown("server read", err)
 			onDone()
 			return
 		}
 
-		switch mt {
+		switch x := msg.(type) {
 		case versionMessage:
-			v, err := getVersion(id, msg)
-			if err != nil {
-				c.shutdown("server read version", err)
-				onDone()
-				return
-			}
 			c.mu.Lock()
-			c.version = v
+			c.version = min(x.v, currentVersion)
 			c.mu.Unlock()
 
 			// Respond with my version.
-			if err := writeVersion(c.c, &c.wlock); err != nil {
+			if err := c.writeMessage(versionMessage{currentVersion}); err != nil {
 				c.shutdown("server send version", err)
 				onDone()
 				return
 			}
+
 		case requestMessage:
 			if c.opts.InlineHandlerDuration > 0 {
 				// Run the handler inline. If it doesn't return in the specified
@@ -731,19 +731,21 @@ func (c *serverConnection) readRequests(ctx context.Context, hmap *HandlerMap, o
 				t := time.AfterFunc(c.opts.InlineHandlerDuration, func() {
 					c.readRequests(ctx, hmap, onDone)
 				})
-				c.runHandler(hmap, id, msg)
+				c.runHandler(hmap, x)
 				if !t.Stop() {
 					// Another goroutine is reading incoming requests: bail out.
 					return
 				}
 			} else {
 				// Run the handler in a separate goroutine.
-				go c.runHandler(hmap, id, msg)
+				go c.runHandler(hmap, x)
 			}
+
 		case cancelMessage:
-			c.endRequest(id)
+			c.endRequest(x.id)
+
 		default:
-			c.shutdown("server read", fmt.Errorf("invalid request type %d", mt))
+			c.shutdown("server read", fmt.Errorf("invalid request type %T", msg))
 			onDone()
 			return
 		}
@@ -754,19 +756,9 @@ func (c *serverConnection) readRequests(ctx context.Context, hmap *HandlerMap, o
 
 // runHandler runs an application specified RPC handler at the server side.
 // The result (or error) from the handler is sent back to the client over c.
-func (c *serverConnection) runHandler(hmap *HandlerMap, id uint64, msg []byte) {
-	// Extract request header from front of payload.
-	if len(msg) < msgHeaderSize {
-		c.shutdown("server handler", fmt.Errorf("missing request header"))
-		return
-	}
-
-	// Extract handler key.
-	var hkey MethodKey
-	copy(hkey[:], msg)
-
+func (c *serverConnection) runHandler(hmap *HandlerMap, request requestMessage) {
 	// Extract the method name
-	methodName := hmap.names[hkey]
+	methodName := hmap.names[request.methodKey]
 	if methodName == "" {
 		methodName = "handler"
 	} else {
@@ -777,16 +769,15 @@ func (c *serverConnection) runHandler(hmap *HandlerMap, id uint64, msg []byte) {
 	// call on the server.
 	ctx := context.Background()
 	span := trace.SpanFromContext(ctx) // noop span
-	if sc := readTraceContext(msg[24:]); sc.IsValid() {
-		ctx, span = c.opts.Tracer.Start(trace.ContextWithSpanContext(ctx, sc), methodName, trace.WithSpanKind(trace.SpanKindServer))
+	if request.spanContext.IsValid() {
+		ctx, span = c.opts.Tracer.Start(trace.ContextWithSpanContext(ctx, request.spanContext), methodName, trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 	}
 
 	// Add deadline information from the header to the context.
-	micros := binary.LittleEndian.Uint64(msg[16:])
 	var cancelFunc func()
-	if micros != 0 {
-		deadline := time.Now().Add(time.Microsecond * time.Duration(micros))
+	if request.deadlineMicros != 0 {
+		deadline := time.Now().Add(time.Microsecond * time.Duration(request.deadlineMicros))
 		ctx, cancelFunc = context.WithDeadline(ctx, deadline)
 	} else {
 		ctx, cancelFunc = context.WithCancel(ctx)
@@ -798,32 +789,30 @@ func (c *serverConnection) runHandler(hmap *HandlerMap, id uint64, msg []byte) {
 	}()
 
 	// Call the handler passing it the payload.
-	payload := msg[msgHeaderSize:]
 	var err error
 	var result []byte
-	fn, ok := hmap.handlers[hkey]
+	fn, ok := hmap.handlers[request.methodKey]
 	if !ok {
 		err = fmt.Errorf("internal error: unknown function")
 	} else {
-		if err := c.startRequest(id, cancelFunc); err != nil {
-			logError(c.opts.Logger, "handle "+hmap.names[hkey], err)
+		if err := c.startRequest(request.id, cancelFunc); err != nil {
+			logError(c.opts.Logger, "handle "+hmap.names[request.methodKey], err)
 			return
 		}
 		cancelFunc = nil // endRequest() or cancellation will deal with it
-		defer c.endRequest(id)
-		result, err = fn(ctx, payload)
+		defer c.endRequest(request.id)
+		result, err = fn(ctx, request.args)
 	}
 
-	mt := responseMessage
+	var msg message = responseMessage{id: request.id, returns: result}
 	if err != nil {
-		mt = responseError
-		result = encodeError(err)
+		msg = errorMessage{id: request.id, err: err}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 	}
 
-	if err := writeMessage(c.c, &c.wlock, mt, id, nil, result, c.opts.WriteFlattenLimit); err != nil {
-		c.shutdown("server write "+hmap.names[hkey], err)
+	if err := c.writeMessage(msg); err != nil {
+		c.shutdown("server write "+hmap.names[request.methodKey], err)
 	}
 }
 
@@ -873,4 +862,11 @@ func logError(logger *slog.Logger, details string, err error) {
 	} else {
 		logger.Error(details, "err", err)
 	}
+}
+
+func min[T constraints.Ordered](x, y T) T {
+	if x < y {
+		return x
+	}
+	return y
 }
