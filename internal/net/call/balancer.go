@@ -45,7 +45,7 @@ type Balancer interface {
 	Pick(CallOptions) (Endpoint, error)
 }
 
-// balancerFuncImpl is the imeplementation of the "functional" balancer
+// balancerFuncImpl is the implementation of the "functional" balancer
 // returned by BalancerFunc.
 type balancerFuncImpl struct {
 	endpoints []Endpoint

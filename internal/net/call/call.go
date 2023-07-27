@@ -95,7 +95,6 @@ const (
 )
 
 // TODO:
-// - Preserve error types (maybe via registration and Gob?)
 // - Load balancer
 //   - API to allow changes to set
 //   - health-checks

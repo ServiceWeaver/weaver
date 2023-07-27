@@ -404,7 +404,6 @@ github.com/ServiceWeaver/weaver/internal/net/call
     io
     math/rand
     net
-    os
     strings
     sync
     sync/atomic
