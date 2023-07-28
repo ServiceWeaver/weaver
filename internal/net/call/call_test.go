@@ -374,6 +374,87 @@ func (d *deadEndpoint) Address() string {
 	return fmt.Sprintf("dead://%s", d.name)
 }
 
+// hangingConn is a net.Conn that never actually responds to calls.
+type hangingConn struct {
+	net.Conn // Inherit normal behavior from wrapped conn
+}
+
+func (h hangingConn) Write(b []byte) (n int, err error) {
+	// Throw away the message.
+	fmt.Fprintf(os.Stderr, "dropping write to %s\n", h.RemoteAddr().String())
+	return len(b), nil
+}
+
+// hangingEndpoint returns a hangingConn.
+type hangingEndpoint struct {
+	addr string
+}
+
+var _ call.Endpoint = hangingEndpoint{}
+
+func (h hangingEndpoint) Address() string { return h.addr }
+
+func (h hangingEndpoint) Dial(ctx context.Context) (net.Conn, error) {
+	// Make real connection and wrap it inside a hangingConn.
+	c, err := call.NetEndpoint{"tcp", h.addr}.Dial(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return hangingConn{c}, nil
+}
+
+// callTester manages operation and shutdown of a call test.
+type callTester struct {
+	t      testing.TB
+	ctx    context.Context
+	cancel func()
+	done   []chan struct{} // Channels are closed as sub-goroutines finish
+}
+
+func startTest(t testing.TB) *callTester {
+	ct := &callTester{t: t}
+	t.Helper()
+	ct.ctx, ct.cancel = context.WithTimeout(context.Background(), testTimeout)
+
+	// When exiting, wait for goroutines to finish.
+	t.Cleanup(func() {
+		ct.cancel()
+		for _, c := range ct.done {
+			<-c
+		}
+	})
+	return ct
+}
+
+// fork runs fn in a goroutine and waits for it to exit when the test ends.
+func (ct *callTester) fork(fn func()) {
+	done := make(chan struct{})
+	ct.done = append(ct.done, done)
+	go func() {
+		defer close(done)
+		fn()
+	}()
+}
+
+// startTCPServer starts a TCP server and returns its address.
+func (ct *callTester) startTCPServer() string {
+	t := ct.t
+	t.Helper()
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("server listen failed: %v", err)
+	}
+	t.Logf("server %q", lis.Addr().String())
+	ct.fork(func() {
+		opts := call.ServerOptions{Logger: logger(t)}
+		err := call.Serve(ct.ctx, testListener{Listener: lis}, opts)
+		if err != ct.ctx.Err() {
+			t.Errorf("unexpected error from Serve: %v", err)
+		}
+	})
+	return lis.Addr().String()
+}
+
 // waitUntil repeatedly calls f until it returns true, with a small delay
 // between invocations. If f doesn't return true before the testTimeout is
 // reached, the test is failed.
@@ -1090,6 +1171,74 @@ func TestRefreshDraining(t *testing.T) {
 	// still be open.
 	if m.Closed() {
 		t.Fatalf("connection closed")
+	}
+}
+
+// TestUnhealthyChannels attempts to use a resolver that returns a mix of
+// healthy and unhealthy endpoints and verifies that calls succeed by being
+// routed to the healthy backend.
+func TestInitiallyUnhealthyEndpoint(t *testing.T) {
+	t.Skip("TODO(sanjay): Implement unhealthy channel avoidance")
+
+	// To fix this, we will avoid connections on which an initial
+	// health-check has not completed. There are some options here:
+	//
+	// 1. We let the balancer Pick() stay as it is currently where it does
+	// not know about connections, just endpoints. After a Pick(), if the
+	// connection does not exist or the health-check hasn't completed, we
+	// Pick() from the subset of connections with healthy endpoints.
+	//
+	// 2. We eagerly connect to any endpoint handed to us by the Resolver.
+	// Balancer is passed a connection only after the initial hand-shake
+	// has completed. Balancer.Pick() returns a connection, not an
+	// endpoint.
+	//
+	// 3. We return a special error to startCall if we are attempting to
+	// use a connection that hasn't completed its initial health
+	// check. startCall retries after a delay if it sees this error.
+	//
+	// Option 2 seems the best? Its main potential downside is that we may
+	// make too many connections. However we can avoid having too many
+	// connections when there are many clients and many servers by
+	// implementing backend subsetting inside the Resolver.
+
+	// Start a good server and a bad server.
+	ct := startTest(t)
+	bad, good := ct.startTCPServer(), ct.startTCPServer()
+	resolver := call.NewConstantResolver(hangingEndpoint{bad}, call.TCP(good))
+
+	// Connect via a balancer whose picking decision we control.
+	var target atomic.Int32
+	balancer := call.BalancerFunc(func(endpoints []call.Endpoint, options call.CallOptions) (call.Endpoint, error) {
+		i := int(target.Load())
+		fmt.Fprintf(os.Stderr, "%d from %v\n", i, endpoints)
+		if i < 0 || i >= len(endpoints) {
+			return nil, fmt.Errorf("%w: no endpoints available", call.Unreachable)
+		}
+		return endpoints[i], nil
+	})
+	client, err := call.Connect(ct.ctx, resolver, call.ClientOptions{
+		Balancer: balancer,
+		Logger:   logger(t),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Switch to using the good endpoint after a delay.
+	ct.fork(func() {
+		time.Sleep(shortDelay)
+		target.Store(1)
+	})
+
+	start := time.Now()
+	testCall(t, client)
+	elapsed := time.Since(start)
+	if elapsed < shortDelay {
+		t.Fatalf("call completed too soon: after %v, expecting at least %v", elapsed, shortDelay)
+	}
+	if elapsed >= 4*shortDelay {
+		t.Fatalf("call completed too late: after %v, expecting approximately %v", elapsed, shortDelay)
 	}
 }
 
