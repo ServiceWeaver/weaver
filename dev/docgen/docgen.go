@@ -70,6 +70,7 @@ var files = []file{
 
 	{dst: "blog/corba.html", markdown: "blog/corba.md", template: "blog_entry.html", title: "CORBA vs the Fallacies of Distributed Computing", license: true},
 	{dst: "blog/vision.html", markdown: "blog/vision.md", template: "blog_entry.html", title: "Monolith or Microservices or Both", license: true},
+	{dst: "blog/metric_labels.html", markdown: "blog/metric_labels.md", template: "blog_entry.html", title: "Strongly Typed Metric Labels Using Generics in Go", license: true},
 
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
