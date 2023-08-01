@@ -340,6 +340,7 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 	// Create the client connection.
 	w.syslogger.Debug("Creating a connection to a remote component...", "component", reg.Name)
 	opts := call.ClientOptions{
+		Balancer:          balancer,
 		Logger:            w.syslogger,
 		WriteFlattenLimit: 4 << 10,
 	}
@@ -366,7 +367,6 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 		component: reg.Name,
 		conn:      conn,
 		methods:   methods,
-		balancer:  balancer,
 		tracer:    w.tracer,
 	}, nil
 }

@@ -387,16 +387,14 @@ func (h hangingConn) Write(b []byte) (n int, err error) {
 
 // hangingEndpoint returns a hangingConn.
 type hangingEndpoint struct {
-	addr string
+	call.Endpoint
 }
 
 var _ call.Endpoint = hangingEndpoint{}
 
-func (h hangingEndpoint) Address() string { return h.addr }
-
 func (h hangingEndpoint) Dial(ctx context.Context) (net.Conn, error) {
 	// Make real connection and wrap it inside a hangingConn.
-	c, err := call.NetEndpoint{"tcp", h.addr}.Dial(ctx)
+	c, err := h.Endpoint.Dial(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -494,9 +492,9 @@ func checkQuickCancel(ctx context.Context, t *testing.T, c call.Connection) erro
 	return err
 }
 
-func testCall(t *testing.T, client call.Connection) {
+func testCall(ctx context.Context, t *testing.T, client call.Connection) {
 	const arg = "hello"
-	result, err := client.Call(context.Background(), echoKey, []byte(arg), call.CallOptions{})
+	result, err := client.Call(ctx, echoKey, []byte(arg), call.CallOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -621,7 +619,7 @@ func TestSingleTCPServer(t *testing.T) {
 		name string
 		f    func(*testing.T, call.Connection)
 	}{
-		{"TestCall", testCall},
+		{"TestCall", func(t *testing.T, c call.Connection) { testCall(context.Background(), t, c) }},
 		{"TestConcurrentCalls", testConcurrentCalls},
 		{"TestError", testError},
 		{"TestDeadlineHandling", testDeadlineHandling},
@@ -640,11 +638,11 @@ func TestSingleTCPServer(t *testing.T) {
 	for resolverName, maker := range resolverMakers {
 		for _, protocol := range protocols {
 			client := getClientConn(t, protocol, endpoints[protocol], maker)
-			defer client.Close()
 			for _, subtest := range subtests {
 				name := fmt.Sprintf("Shared/%s/%s/%s", resolverName, protocol, subtest.name)
 				t.Run(name, func(t *testing.T) { subtest.f(t, client) })
 			}
+			client.Close()
 		}
 	}
 
@@ -654,8 +652,8 @@ func TestSingleTCPServer(t *testing.T) {
 			for _, subtest := range subtests {
 				name := fmt.Sprintf("Fresh/%s/%s/%s", resolverName, protocol, subtest.name)
 				client := getClientConn(t, protocol, endpoints[protocol], maker)
-				defer client.Close()
 				t.Run(name, func(t *testing.T) { subtest.f(t, client) })
+				client.Close()
 			}
 		}
 	}
@@ -697,13 +695,21 @@ func TestMultipleEndpoints(t *testing.T) {
 			}
 			defer client.Close()
 
-			for i := 0; i < 2*n; i++ {
+			// Run a bunch of calls and check that they spread out over the replicas.
+			count := map[string]int{}
+			const attempts = 100
+			for i := 0; i < attempts; i++ {
 				result, err := client.Call(ctx, whoKey, []byte{}, call.CallOptions{})
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if got, want := string(result), strconv.Itoa(i%n); got != want {
-					t.Fatalf("bad result: got %q, want %q", got, want)
+				count[string(result)]++
+			}
+			want := attempts / n
+			for _, k := range []string{"0", "1", "2"} {
+				got := count[k]
+				if got < want/2 || got > want*2 {
+					t.Errorf("replica %s got %d, expecting ~%d", k, got, want)
 				}
 			}
 		})
@@ -732,102 +738,6 @@ func TestChangingEndpoints(t *testing.T) {
 			}
 			return string(result) == name
 		})
-	}
-}
-
-// TestShardedBalancer tests that requests are routed correctly using a sharded
-// load balancer.
-func TestShardedBalancer(t *testing.T) {
-	ctx := context.Background()
-	s1, s2, s3 := server(t, "1"), server(t, "2"), server(t, "3")
-	resolver := call.NewConstantResolver(s1, s2, s3)
-	opts := call.ClientOptions{
-		Balancer: call.Sharded(),
-		Logger:   logger(t),
-	}
-	client, err := call.Connect(ctx, resolver, opts)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	defer client.Close()
-
-	// Route with a key.
-	for i := 1; i < 10; i++ { // Skip 0, which indicates no key.
-		key := uint64(i)
-		result, err := client.Call(ctx, whoKey, []byte{}, call.CallOptions{ShardKey: key})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		wants := []string{"1", "2", "3"}
-		want := wants[i%3]
-		if got := string(result); got != want {
-			t.Fatalf("bad result: got %q, want %q", got, want)
-		}
-	}
-
-	// Route without a key.
-	for i := 0; i < 10; i++ {
-		result, err := client.Call(ctx, whoKey, []byte{}, call.CallOptions{})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if got := string(result); got != "1" && got != "2" && got != "3" {
-			t.Fatalf("bad result: got %q, want %q, %q, or %q", got, "1", "2", "3")
-		}
-	}
-}
-
-// TestCallOptionsBalancer tests that requests are routed correctly using a
-// per-call load balancer.
-func TestCallOptionsBalancer(t *testing.T) {
-	// Test plan: Create three servers named 1, 2, and 3. Create a call.Client
-	// to these servers using a sharded balancer. Invoke the who method,
-	// checking that the request with key i is routed to server i % 3.
-	ctx := context.Background()
-	s1, s2, s3 := server(t, "1"), server(t, "2"), server(t, "3")
-	resolver := call.NewConstantResolver(s1, s2, s3)
-	opts := call.ClientOptions{Logger: logger(t)}
-	client, err := call.Connect(ctx, resolver, opts)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	defer client.Close()
-
-	// Route using per-call balancer.
-	for _, test := range []struct {
-		e    call.Endpoint
-		want string
-	}{
-		{s1, "1"},
-		{s2, "2"},
-		{s3, "3"},
-	} {
-		b := call.BalancerFunc(func([]call.Endpoint, call.CallOptions) (call.Endpoint, error) {
-			return test.e, nil
-		})
-		for i := 0; i < 10; i++ {
-			result, err := client.Call(ctx, whoKey, []byte{}, call.CallOptions{Balancer: b})
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got := string(result); got != test.want {
-				t.Fatalf("bad result: got %q, want %q", got, test.want)
-			}
-		}
-	}
-
-	// Route with the default balancer.
-	for i := 0; i < 10; i++ {
-		result, err := client.Call(ctx, whoKey, []byte{}, call.CallOptions{})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if got := string(result); got != "1" && got != "2" && got != "3" {
-			t.Fatalf("bad result: got %q, want %q, %q, or %q", got, "1", "2", "3")
-		}
 	}
 }
 
@@ -861,26 +771,29 @@ func TestNoEndpointsNonConstant(t *testing.T) {
 	}
 
 	// Making a call without any endpoints is an error though.
-	_, err = client.Call(ctx, echoKey, []byte{}, call.CallOptions{})
-	if err == nil {
-		t.Fatal("unexpected success when expecting error")
-	}
-	if got, want := err, call.Unreachable; !errors.Is(got, want) {
+	sub, cancel := context.WithTimeout(ctx, shortDelay)
+	_, err = client.Call(sub, echoKey, []byte{}, call.CallOptions{})
+	cancel()
+	if got, want := err, context.DeadlineExceeded; !errors.Is(got, want) {
 		t.Fatalf("bad error: got %v, want %v", got, want)
 	}
 
 	// Add an endpoint and let the update propagate.
 	resolver.Endpoints(server(t, "server"))
 	waitUntil(t, func() bool {
-		_, err = client.Call(ctx, echoKey, []byte{}, call.CallOptions{})
+		sub, cancel := context.WithTimeout(ctx, shortDelay)
+		defer cancel()
+		_, err = client.Call(sub, echoKey, []byte{}, call.CallOptions{})
 		return err == nil
 	})
 
 	// Remove the endpoint.
 	resolver.Endpoints()
 	waitUntil(t, func() bool {
-		_, err = client.Call(ctx, echoKey, []byte{}, call.CallOptions{})
-		return err != nil && errors.Is(err, call.Unreachable)
+		sub, cancel := context.WithTimeout(ctx, shortDelay)
+		defer cancel()
+		_, err = client.Call(sub, echoKey, []byte{}, call.CallOptions{})
+		return errors.Is(err, context.DeadlineExceeded)
 	})
 }
 
@@ -1165,21 +1078,12 @@ func TestRefreshDraining(t *testing.T) {
 	if _, err := client.Call(ctx, sleepKey, []byte((2 * delaySlop).String()), call.CallOptions{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	// If m1 were draining, then it would be closed because it has no active
-	// connections. The connection is no longer draining though, so it should
-	// still be open.
-	if m.Closed() {
-		t.Fatalf("connection closed")
-	}
 }
 
 // TestUnhealthyChannels attempts to use a resolver that returns a mix of
 // healthy and unhealthy endpoints and verifies that calls succeed by being
 // routed to the healthy backend.
 func TestInitiallyUnhealthyEndpoint(t *testing.T) {
-	t.Skip("TODO(sanjay): Implement unhealthy channel avoidance")
-
 	// To fix this, we will avoid connections on which an initial
 	// health-check has not completed. There are some options here:
 	//
@@ -1204,18 +1108,24 @@ func TestInitiallyUnhealthyEndpoint(t *testing.T) {
 
 	// Start a good server and a bad server.
 	ct := startTest(t)
-	bad, good := ct.startTCPServer(), ct.startTCPServer()
-	resolver := call.NewConstantResolver(hangingEndpoint{bad}, call.TCP(good))
+	badAddr, goodAddr := ct.startTCPServer(), ct.startTCPServer()
+	bad := hangingEndpoint{call.TCP(badAddr)}
+	good := call.TCP(goodAddr)
+	resolver := call.NewConstantResolver(bad, good)
 
 	// Connect via a balancer whose picking decision we control.
-	var target atomic.Int32
-	balancer := call.BalancerFunc(func(endpoints []call.Endpoint, options call.CallOptions) (call.Endpoint, error) {
-		i := int(target.Load())
-		fmt.Fprintf(os.Stderr, "%d from %v\n", i, endpoints)
-		if i < 0 || i >= len(endpoints) {
-			return nil, fmt.Errorf("%w: no endpoints available", call.Unreachable)
+	var useGood atomic.Bool
+	balancer := call.BalancerFunc(func(conns []call.ReplicaConnection, options call.CallOptions) (call.ReplicaConnection, bool) {
+		want := bad.Address()
+		if useGood.Load() {
+			want = good.Address()
 		}
-		return endpoints[i], nil
+		for _, c := range conns {
+			if c.Address() == want {
+				return c, true
+			}
+		}
+		return nil, false
 	})
 	client, err := call.Connect(ct.ctx, resolver, call.ClientOptions{
 		Balancer: balancer,
@@ -1228,11 +1138,11 @@ func TestInitiallyUnhealthyEndpoint(t *testing.T) {
 	// Switch to using the good endpoint after a delay.
 	ct.fork(func() {
 		time.Sleep(shortDelay)
-		target.Store(1)
+		useGood.Store(true)
 	})
 
 	start := time.Now()
-	testCall(t, client)
+	testCall(ct.ctx, t, client)
 	elapsed := time.Since(start)
 	if elapsed < shortDelay {
 		t.Fatalf("call completed too soon: after %v, expecting at least %v", elapsed, shortDelay)

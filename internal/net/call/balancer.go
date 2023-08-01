@@ -14,63 +14,54 @@
 
 package call
 
-import (
-	"fmt"
-	"math/rand"
-)
+// ReplicaConnection is a connection to a single replica. A single Connection
+// may consist of many ReplicaConnections (typically one per replica).
+type ReplicaConnection interface {
+	// Address returns the name of the endpoint to which the ReplicaConnection
+	// is connected.
+	Address() string
+}
 
-// A Balancer picks the endpoint to which which an RPC client performs a call. A
-// Balancer should only be used by a single goroutine.
+// Balancer manages a set of ReplicaConnections and picks one of them per
+// call. A Balancer should only be used by a single goroutine.
 //
 // TODO(mwhittaker): Right now, balancers have no load information about
 // endpoints. In the short term, we can at least add information about the
 // number of pending requests for every endpoint.
-//
-// TODO(mwhittaker): Right now, we pass a balancer the set of all endpoints. We
-// instead probably want to pass it only the endpoints for which we have a
-// connection. This means we may have to form connections more eagerly.
-//
-// TODO(mwhittaker): We may want to guarantee that Update() is never called
-// with an empty list of addresses. If we don't have addresses, then we don't
-// need to do balancing.
 type Balancer interface {
-	// Update updates the current set of endpoints from which the Balancer can
-	// pick. Before Update is called for the first time, the set of endpoints
-	// is empty.
-	Update(endpoints []Endpoint)
+	// Add adds a ReplicaConnection to the set of connections.
+	Add(ReplicaConnection)
 
-	// Pick picks an endpoint. Pick is guaranteed to return an endpoint that
-	// was passed to the most recent call of Update. If there are no endpoints,
-	// then Pick returns an error that includes Unreachable.
-	Pick(CallOptions) (Endpoint, error)
+	// Remove removes a ReplicaConnection from the set of connections.
+	Remove(ReplicaConnection)
+
+	// Pick picks a ReplicaConnection from the set of connections.
+	// Pick returns _,false if no connections are available.
+	Pick(CallOptions) (ReplicaConnection, bool)
 }
 
 // balancerFuncImpl is the implementation of the "functional" balancer
 // returned by BalancerFunc.
 type balancerFuncImpl struct {
-	endpoints []Endpoint
-	pick      func([]Endpoint, CallOptions) (Endpoint, error)
+	connList
+	pick func([]ReplicaConnection, CallOptions) (ReplicaConnection, bool)
 }
 
 var _ Balancer = &balancerFuncImpl{}
 
-// BalancerFunc returns a stateless, purely functional load balancer that uses
-// the provided picking function.
-func BalancerFunc(pick func([]Endpoint, CallOptions) (Endpoint, error)) Balancer {
+// BalancerFunc returns a stateless, purely functional load balancer that calls
+// pick to pick the connection to use.
+func BalancerFunc(pick func([]ReplicaConnection, CallOptions) (ReplicaConnection, bool)) Balancer {
 	return &balancerFuncImpl{pick: pick}
 }
 
-func (bf *balancerFuncImpl) Update(endpoints []Endpoint) {
-	bf.endpoints = endpoints
-}
-
-func (bf *balancerFuncImpl) Pick(opts CallOptions) (Endpoint, error) {
-	return bf.pick(bf.endpoints, opts)
+func (bf *balancerFuncImpl) Pick(opts CallOptions) (ReplicaConnection, bool) {
+	return bf.pick(bf.list, opts)
 }
 
 type roundRobin struct {
-	endpoints []Endpoint
-	next      int
+	connList
+	next int
 }
 
 var _ Balancer = &roundRobin{}
@@ -80,37 +71,35 @@ func RoundRobin() *roundRobin {
 	return &roundRobin{}
 }
 
-func (rr *roundRobin) Update(endpoints []Endpoint) {
-	rr.endpoints = endpoints
-}
-
-func (rr *roundRobin) Pick(CallOptions) (Endpoint, error) {
-	if len(rr.endpoints) == 0 {
-		return nil, fmt.Errorf("%w: no endpoints available", Unreachable)
+func (rr *roundRobin) Pick(CallOptions) (ReplicaConnection, bool) {
+	if len(rr.list) == 0 {
+		return nil, false
 	}
-	if rr.next >= len(rr.endpoints) {
+	if rr.next >= len(rr.list) {
 		rr.next = 0
 	}
-	endpoint := rr.endpoints[rr.next]
+	c := rr.list[rr.next]
 	rr.next += 1
-	return endpoint, nil
+	return c, true
 }
 
-// Sharded returns a new sharded balancer.
-//
-// Given a list of n endpoints e1, ..., en, for a request with shard key k, a
-// sharded balancer will pick endpoint ei where i = k mod n. If no shard key is
-// provided, an endpoint is picked at random.
-func Sharded() Balancer {
-	return BalancerFunc(func(endpoints []Endpoint, opts CallOptions) (Endpoint, error) {
-		n := len(endpoints)
-		if n == 0 {
-			return nil, fmt.Errorf("%w: no endpoints available", Unreachable)
+// connList is a helper type used by balancers to maintain set of connections.
+type connList struct {
+	list []ReplicaConnection
+}
+
+func (cl *connList) Add(c ReplicaConnection) {
+	cl.list = append(cl.list, c)
+}
+
+func (cl *connList) Remove(c ReplicaConnection) {
+	for i, elem := range cl.list {
+		if elem != c {
+			continue
 		}
-		if opts.ShardKey == 0 {
-			// There is no ShardKey. Pick an endpoint at random.
-			return endpoints[rand.Intn(n)], nil
-		}
-		return endpoints[opts.ShardKey%uint64(n)], nil
-	})
+		// Replace removed entry with last entry.
+		cl.list[i] = cl.list[len(cl.list)-1]
+		cl.list = cl.list[:len(cl.list)-1]
+		return
+	}
 }

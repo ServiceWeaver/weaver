@@ -65,11 +65,6 @@ type CallOptions struct {
 	// TODO(mwhittaker): Figure out a way to have 0 be a valid shard key. Could
 	// change to *uint64 for example.
 	ShardKey uint64
-
-	// Balancer, if not nil, is the Balancer to use for a call, instead of the
-	// Balancer that the client was constructed with (provided in
-	// ClientOptions).
-	Balancer Balancer
 }
 
 // withDefaults returns a copy of the ClientOptions with zero values replaced
