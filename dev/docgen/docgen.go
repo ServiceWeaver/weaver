@@ -72,6 +72,7 @@ var files = []file{
 	{dst: "blog/vision.html", markdown: "blog/vision.md", template: "blog_entry.html", title: "Monolith or Microservices or Both", license: true},
 	{dst: "blog/metric_labels.html", markdown: "blog/metric_labels.md", template: "blog_entry.html", title: "Strongly Typed Metric Labels Using Generics in Go", license: true},
 	{dst: "blog/weaver_generate.html", markdown: "blog/weaver_generate.md", template: "blog_entry.html", title: "Using Advanced Go Features to Detect Stale Code", license: true},
+	{dst: "blog/history.html", markdown: "blog/history.md", template: "blog_entry.html", title: "A History of Service Weaver's Core API", license: true},
 
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
