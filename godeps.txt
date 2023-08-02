@@ -808,6 +808,7 @@ github.com/ServiceWeaver/weaver/runtime/colors
 github.com/ServiceWeaver/weaver/runtime/envelope
     bufio
     context
+    errors
     fmt
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/pipe
