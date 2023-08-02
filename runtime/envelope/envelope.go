@@ -19,6 +19,7 @@ package envelope
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -132,22 +133,22 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	// Pipe for messages to weavelet.
 	toWeaveletFd, toWeavelet, err := cmd.WPipe()
 	if err != nil {
-		return nil, fmt.Errorf("cannot create weavelet request pipe: %w", err)
+		return nil, fmt.Errorf("NewEnvelope: create weavelet request pipe: %w", err)
 	}
 	// Pipe for messages to envelope.
 	toEnvelopeFd, toEnvelope, err := cmd.RPipe()
 	if err != nil {
-		return nil, fmt.Errorf("cannot create weavelet response pipe: %w", err)
+		return nil, fmt.Errorf("NewEnvelope: create weavelet response pipe: %w", err)
 	}
 
 	// Create pipes that capture child outputs.
 	outpipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("create stdout pipe: %w", err)
+		return nil, fmt.Errorf("NewEnvelope: create stdout pipe: %w", err)
 	}
 	errpipe, err := cmd.StderrPipe()
 	if err != nil {
-		return nil, fmt.Errorf("create stderr pipe: %w", err)
+		return nil, fmt.Errorf("NewEnvelope: create stderr pipe: %w", err)
 	}
 
 	cmd.Env = os.Environ()
@@ -157,12 +158,30 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 
 	// Start the command.
 	if err := cmd.Start(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewEnvelope: start subprocess: %w", err)
 	}
 
 	// Create the connection, now that the weavelet is running.
 	conn, err := conn.NewEnvelopeConn(e.ctx, toEnvelope, toWeavelet, e.weavelet)
 	if err != nil {
+		err := fmt.Errorf("NewEnvelope: connect to weavelet: %w", err)
+
+		// Kill the subprocess, if it's not already dead.
+		cancel()
+
+		// Include stdout and stderr in the returned error.
+		if bytes, stdoutErr := io.ReadAll(outpipe); stdoutErr == nil && len(bytes) > 0 {
+			err = errors.Join(err, fmt.Errorf("-----BEGIN STDOUT-----\n%s-----END STDOUT-----", string(bytes)))
+		}
+		if bytes, stderrErr := io.ReadAll(errpipe); stderrErr == nil && len(bytes) > 0 {
+			err = errors.Join(err, fmt.Errorf("-----BEGIN STDERR-----\n%s\n-----END STDERR-----", string(bytes)))
+		}
+
+		// Wait for the subprocess to terminate.
+		if waitErr := cmd.Wait(); waitErr != nil {
+			err = errors.Join(err, waitErr)
+		}
+		cmd.Cleanup()
 		return nil, err
 	}
 

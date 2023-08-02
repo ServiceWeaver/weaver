@@ -191,6 +191,23 @@ func (*handlerForTest) VerifyServerCertificate(context.Context, *protos.VerifySe
 	panic("unused")
 }
 
+// TestWeaveletExit tests that an envelope captures the stdout and stderr of a
+// subprocess that fails to perform the envelope-weavelet handshake.
+func TestWeaveletExit(t *testing.T) {
+	ctx := context.Background()
+	wlet, config := wlet("/usr/bin/env", "bash", "-c", `echo "hello from stdout"; echo "hello from stderr" >&2 && exit 1`)
+	_, err := NewEnvelope(ctx, wlet, config)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "hello from stdout") {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if !strings.Contains(err.Error(), "hello from stderr") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestStartStop(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "file.txt")
 	if _, err := os.Create(filename); err != nil {
