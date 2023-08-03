@@ -38,9 +38,9 @@ package call
 //
 // # Client operation
 //
-// A client creates connections to one or more servers and, for every
-// connection, starts a background readResponses() goroutine that reads
-// messages from the connection.
+// For each newly discovered server, the client starts a manage() goroutine
+// that connects to server, and then reads messages from the connection. If the
+// network connection breaks, manage() reconnects (after a retry delay).
 //
 // When the client wants to send an RPC, it selects one of its server
 // connections to use, creates a call object, assigns it a new request-id, and
@@ -48,8 +48,8 @@ package call
 // message over the connection and waits for the call object to be marked as
 // done.
 //
-// When the response arrives, it is picked up by readResponses().
-// readResponses() finds the call object corresponding to the
+// When the response arrives, it is picked up by readAndProcessMessage().
+// readAndProcessMessage() finds the call object corresponding to the
 // request-id in the response, and marks the call object as done which
 // wakes up goroutine that initiated the RPC.
 //
@@ -63,8 +63,8 @@ package call
 // requests on a draining connection are allowed to finish. As soon as a
 // draining connection has no active calls, the connection closes itself. If
 // the resolver later returns a new set of endpoints that includes a draining
-// connection that hasn't closed itself, that draining connection is left in
-// the draining state, and a brand new connection is made.
+// connection that hasn't closed itself, the draining connection is turned
+// back into a normal connection.
 import (
 	"bufio"
 	"context"
@@ -568,6 +568,12 @@ func (c *clientConnection) register() {
 	case missing:
 		c.setState(disconnected)
 	case draining:
+		// We were attempting to get rid of the old connection, but it
+		// seems like the server-side problem was transient, so we
+		// resurrect the draining connection into a non-draining state.
+		//
+		// New state is active instead of idle since state==draining
+		// implies there is at least one call in-flight.
 		c.setState(active)
 	}
 }
