@@ -28,22 +28,44 @@ import (
 
 // routingBalancer balances requests according to a routing assignment.
 type routingBalancer struct {
-	balancer  call.Balancer // default balancer
+	balancer  call.Balancer // balancer to use for non-routed calls
 	tlsConfig *tls.Config   // tls config to use; may be nil.
 
 	mu         sync.RWMutex
 	assignment *protos.Assignment
 	index      index
+
+	// Map from address to connection. We currently allow just one
+	// connection per address.
+	// Guarded by mu.
+	conns map[string]call.ReplicaConnection
 }
 
 // newRoutingBalancer returns a new routingBalancer.
 func newRoutingBalancer(tlsConfig *tls.Config) *routingBalancer {
-	return &routingBalancer{balancer: call.RoundRobin(), tlsConfig: tlsConfig}
+	return &routingBalancer{
+		balancer:  call.RoundRobin(),
+		tlsConfig: tlsConfig,
+		conns:     map[string]call.ReplicaConnection{},
+	}
 }
 
-// Update implements the call.Balancer interface.
-func (rb *routingBalancer) Update(endpoints []call.Endpoint) {
-	rb.balancer.Update(endpoints)
+// Add adds c to the set of connections we are balancing across.
+func (rb *routingBalancer) Add(c call.ReplicaConnection) {
+	rb.balancer.Add(c)
+
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+	rb.conns[c.Address()] = c
+}
+
+// Remove removes c from the set of connections we are balancing across.
+func (rb *routingBalancer) Remove(c call.ReplicaConnection) {
+	rb.balancer.Remove(c)
+
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+	delete(rb.conns, c.Address())
 }
 
 // update updates the balancer with the provided assignment
@@ -60,7 +82,7 @@ func (rb *routingBalancer) update(assignment *protos.Assignment) {
 }
 
 // Pick implements the call.Balancer interface.
-func (rb *routingBalancer) Pick(opts call.CallOptions) (call.Endpoint, error) {
+func (rb *routingBalancer) Pick(opts call.CallOptions) (call.ReplicaConnection, bool) {
 	if opts.ShardKey == 0 {
 		// If the method we're calling is not sharded (which is guaranteed to
 		// be true for nonsharded components), then the shard key is 0.
@@ -88,17 +110,21 @@ func (rb *routingBalancer) Pick(opts call.CallOptions) (call.Endpoint, error) {
 		return rb.balancer.Pick(opts)
 	}
 
-	// TODO(mwhittaker): Double check that the endpoint in the slice is one of
-	// the endpoints in rb.endpoints.
-	//
-	// TODO(mwhittaker): Parse the endpoints when an assignment is received,
-	// rather than once per call.
-	addr := slice.replicas[rand.Intn(len(slice.replicas))]
-	endpoints, err := parseEndpoints([]string{addr}, rb.tlsConfig)
-	if err != nil {
-		return nil, err
+	// Search for an available ReplicConnection starting at a random offset.
+	// TODO(sanjay):Precompute the set of available ReplicaConnections per slice.
+	offset := rand.Intn(len(slice.replicas))
+	rb.mu.RLock()
+	defer rb.mu.RUnlock()
+	for i, n := 0, len(slice.replicas); i < n; i++ {
+		offset++
+		if offset == n {
+			offset = 0
+		}
+		if c, ok := rb.conns[slice.replicas[offset]]; ok {
+			return c, true
+		}
 	}
-	return endpoints[0], nil
+	return nil, false
 }
 
 // routingResolver is a dummy resolver that returns whatever endpoints are

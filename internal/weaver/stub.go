@@ -27,7 +27,6 @@ type stub struct {
 	component string           // name of the remote component
 	conn      call.Connection  // connection to talk to the remote component
 	methods   []call.MethodKey // keys for the remote component methods
-	balancer  call.Balancer    // if not nil, component load balancer
 	tracer    trace.Tracer     // component tracer
 }
 
@@ -42,7 +41,6 @@ func (s *stub) Tracer() trace.Tracer {
 func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64) ([]byte, error) {
 	opts := call.CallOptions{
 		ShardKey: shardKey,
-		Balancer: s.balancer,
 	}
 	return s.conn.Call(ctx, s.methods[method], args, opts)
 }

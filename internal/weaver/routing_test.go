@@ -39,6 +39,11 @@ func (ne nilEndpoint) Address() string {
 	return ne.Addr
 }
 
+// fakeConn is a fake call.ReplicaConnection used for testing.
+type fakeConn string
+
+func (f fakeConn) Address() string { return string(f) }
+
 // TestRoutingBalancerNoAssignment tests that a routingBalancer with no
 // assignment will use its default balancer instead.
 func TestRoutingBalancerNoAssignment(t *testing.T) {
@@ -47,16 +52,12 @@ func TestRoutingBalancerNoAssignment(t *testing.T) {
 		{ShardKey: 1},
 	} {
 		t.Run(fmt.Sprint(opts.ShardKey), func(t *testing.T) {
-			b := call.BalancerFunc(func([]call.Endpoint, call.CallOptions) (call.Endpoint, error) {
-				return nilEndpoint{"a"}, nil
+			b := call.BalancerFunc(func([]call.ReplicaConnection, call.CallOptions) (call.ReplicaConnection, bool) {
+				return fakeConn("a"), false
 			})
 			rb := routingBalancer{balancer: b}
-			got, err := rb.Pick(opts)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if want := (nilEndpoint{"a"}); got != want {
-				t.Fatalf("rb.Pick(%v): got %v, want %v", opts, got, want)
+			if got, ok := rb.Pick(opts); ok {
+				t.Fatalf("r.Pick unexpectedly returned %s", got.Address())
 			}
 		})
 	}
@@ -65,39 +66,42 @@ func TestRoutingBalancerNoAssignment(t *testing.T) {
 // TestRoutingBalancer tests that a routingBalancer with an assignment will
 // pick endpoints using its assignment.
 func TestRoutingBalancer(t *testing.T) {
-	b := call.BalancerFunc(func([]call.Endpoint, call.CallOptions) (call.Endpoint, error) {
-		return nil, fmt.Errorf("default balancer called")
+	b := call.BalancerFunc(func([]call.ReplicaConnection, call.CallOptions) (call.ReplicaConnection, bool) {
+		t.Fatal("default balancer called")
+		return nil, false
 	})
-	rb := routingBalancer{balancer: b}
+	rb := routingBalancer{balancer: b, conns: map[string]call.ReplicaConnection{}}
 
 	assignment := &protos.Assignment{
 		Slices: []*protos.Assignment_Slice{
 			{
 				Start:    0,
-				Replicas: []string{"tcp://a"},
+				Replicas: []string{"a"},
 			},
 			{
 				Start:    100,
-				Replicas: []string{"tcp://b"},
+				Replicas: []string{"b"},
 			},
 		},
 	}
 	rb.update(assignment)
+	rb.Add(fakeConn("a"))
+	rb.Add(fakeConn("b"))
 
 	for _, test := range []struct {
 		shardKey uint64
-		want     call.NetEndpoint
+		want     string
 	}{
-		{20, call.TCP("a")},
-		{120, call.TCP("b")},
+		{20, "a"},
+		{120, "b"},
 	} {
 		t.Run(fmt.Sprint(test.shardKey), func(t *testing.T) {
-			got, err := rb.Pick(call.CallOptions{ShardKey: test.shardKey})
-			if err != nil {
-				t.Fatal(err)
+			got, ok := rb.Pick(call.CallOptions{ShardKey: test.shardKey})
+			if !ok {
+				t.Fatal("did not find replica")
 			}
-			if got != test.want {
-				t.Fatalf("rb.Pick(%d): got %v, want %v", test.shardKey, got, test.want)
+			if got.Address() != test.want {
+				t.Fatalf("rb.Pick(%d): got %s, want %s", test.shardKey, got.Address(), test.want)
 			}
 		})
 	}

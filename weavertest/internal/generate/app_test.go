@@ -25,7 +25,22 @@ import (
 )
 
 // TODO(mwhittaker): Induce an error in the encoding, decoding, and RPC call.
-func TestErrors(t *testing.T) {
+
+func TestSuccess(t *testing.T) {
+	ctx := context.Background()
+	weavertest.Multi.Test(t, func(t *testing.T, client testApp) {
+		// Do a normal get operation. Verify that the operation succeeds.
+		x, err := client.Get(ctx, "foo", noError)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if x != 42 {
+			t.Fatalf("client.Get: got %d, want 42", x)
+		}
+	})
+}
+
+func TestAppError(t *testing.T) {
 	ctx := context.Background()
 	weavertest.Multi.Test(t, func(t *testing.T, client testApp) {
 		// Trigger an application error. Verify that an application error
@@ -37,18 +52,13 @@ func TestErrors(t *testing.T) {
 		if x != 42 {
 			t.Fatalf("client.Get: got %d, want 42", x)
 		}
+	})
+}
 
-		// Do a normal get operation. Verify that the operation succeeds.
-		x, err = client.Get(ctx, "foo", noError)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if x != 42 {
-			t.Fatalf("client.Get: got %d, want 42", x)
-		}
-
-		// Check custom error.
-		_, err = client.Get(ctx, "custom", customError)
+func TestCustomError(t *testing.T) {
+	ctx := context.Background()
+	weavertest.Multi.Test(t, func(t *testing.T, client testApp) {
+		_, err := client.Get(ctx, "custom", customError)
 		if err == nil {
 			t.Fatal(err)
 		}
@@ -58,9 +68,15 @@ func TestErrors(t *testing.T) {
 		} else if c.key != "custom" {
 			t.Errorf("customError contained wrong key %q, expecting %q", c.key, "custom")
 		}
+	})
+}
 
+func TestPanic(t *testing.T) {
+	t.Skip("weavertest crashes if any component panics, even in another process")
+	ctx := context.Background()
+	weavertest.Multi.Test(t, func(t *testing.T, client testApp) {
 		// Trigger a panic.
-		_, err = client.Get(ctx, "foo", panicError)
+		_, err := client.Get(ctx, "foo", panicError)
 		if err == nil || !errors.Is(err, weaver.RemoteCallError) {
 			t.Fatalf("expected a weaver.RemoteCallError; got: %v", err)
 		}

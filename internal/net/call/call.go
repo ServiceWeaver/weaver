@@ -38,19 +38,19 @@ package call
 //
 // # Client operation
 //
-// A client creates connections to one or more servers and, for every
-// connection, starts a background readResponses() goroutine that reads
-// messages from the connection.
+// For each newly discovered server, the client starts a manage() goroutine
+// that connects to server, and then reads messages from the connection. If the
+// network connection breaks, manage() reconnects (after a retry delay).
 //
 // When the client wants to send an RPC, it selects one of its server
-// connections to use, creates a call component, assigns it a new request-id, and
-// registers the components in a map in the connection. It then sends a request
-// message over the connection and waits for the call component to be marked as
+// connections to use, creates a call object, assigns it a new request-id, and
+// registers the object in a map in the connection. It then sends a request
+// message over the connection and waits for the call object to be marked as
 // done.
 //
-// When the response arrives, it is picked up by readResponses().
-// readResponses() finds the call component corresponding to the
-// request-id in the response, and marks the call component as done which
+// When the response arrives, it is picked up by readAndProcessMessage().
+// readAndProcessMessage() finds the call object corresponding to the
+// request-id in the response, and marks the call object as done which
 // wakes up goroutine that initiated the RPC.
 //
 // If a client is constructed with a non-constant resolver, the client also
@@ -63,9 +63,8 @@ package call
 // requests on a draining connection are allowed to finish. As soon as a
 // draining connection has no active calls, the connection closes itself. If
 // the resolver later returns a new set of endpoints that includes a draining
-// connection that hasn't closed itself, the connection is transitioned out of
-// the draining phase and is once again allowed to process new RPCs.
-
+// connection that hasn't closed itself, the draining connection is turned
+// back into a normal connection.
 import (
 	"bufio"
 	"context"
@@ -88,20 +87,7 @@ import (
 const (
 	// Size of the header included in each message.
 	msgHeaderSize = 16 + 8 + traceHeaderLen // handler_key + deadline + trace_context
-
-	// maxReconnectTries is the maximum number of times a reconnecting
-	// connection will try and create a connection before erroring out.
-	maxReconnectTries = 3
 )
-
-// TODO:
-// - Load balancer
-//   - API to allow changes to set
-//   - health-checks
-//   - track subset that is healthy
-//   - track load info
-//   - data structure for efficient picking (randomize? weighted?)
-//   - pick on call (error if none available)
 
 // Connection allows a client to send RPCs.
 type Connection interface {
@@ -129,32 +115,78 @@ type reconnectingConnection struct {
 
 	// mu guards the following fields and some of the fields in the
 	// clientConnections inside connections and draining.
-	mu          sync.Mutex
-	endpoints   []Endpoint
-	connections map[string]*clientConnection // keys are endpoint addresses
-	draining    map[string]*clientConnection // keys are endpoint addresses
-	closed      bool
+	mu     sync.Mutex
+	conns  map[string]*clientConnection
+	closed bool
 
 	resolver       Resolver
 	cancelResolver func()         // cancels the watchResolver goroutine
 	resolverDone   sync.WaitGroup // used to wait for watchResolver to finish
 }
 
+// connState is the state of a clientConnection (connection to a particular
+// server replica). missing is a special state used for unknown servers. A
+// typical sequence of transitions is:
+//
+//	missing -> disconnected -> checking -> idle <-> active -> draining -> missing
+//
+// The events that can cause state transition are:
+//
+// - register: server has shown up in resolver results
+// - unregister: server has dropped from resolver results
+// - connected: a connection has been successfully made
+// - checked: connection has been successfully checked
+// - callstart: call starts on connection
+// - lastdone: last active call on connection has ended
+// - fail: some protocol error is detected on the connection
+// - close: reconnectingConnection is being closed
+//
+// Each event has a corresponding clientConnection method below. See
+// those methods for the corresponding state transitions.
+type connState int8
+
+const (
+	missing      connState = iota
+	disconnected           // cannot be used for calls
+	checking               // checking new network connection
+	idle                   // can be used for calls, no calls in-flight
+	active                 // can be used for calls, some calls in-flight
+	draining               // some calls in-flight, no new calls should be added
+)
+
+var connStateNames = []string{
+	"missing",
+	"disconnected",
+	"checking",
+	"idle",
+	"active",
+	"draining",
+}
+
+func (s connState) String() string { return connStateNames[s] }
+
 // clientConnection manages one network connection on the client-side.
 type clientConnection struct {
-	logger         *slog.Logger
-	endpoint       Endpoint
-	c              net.Conn
-	cbuf           *bufio.Reader    // Buffered reader wrapped around c
-	wlock          sync.Mutex       // Guards writes to c
-	mu             *sync.Mutex      // Same as reconnectingConnection.mu
-	draining       bool             // is this clientConnection draining?
-	ended          bool             // has this clientConnection ended?
+	// Immutable after construction.
+	rc       *reconnectingConnection // owner
+	canceler func()                  // Used to cancel goroutine handling connection
+	logger   *slog.Logger
+	endpoint Endpoint
+
+	wlock sync.Mutex // Guards writes to c
+
+	// Guarded by rc.mu
+	state          connState        // current connection state
 	loggedShutdown bool             // Have we logged a shutdown error?
+	inBalancer     bool             // Is c registered with the balancer?
+	c              net.Conn         // Active network connection, or nil
+	cbuf           *bufio.Reader    // Buffered reader wrapped around c
 	version        version          // Version number to use for connection
 	calls          map[uint64]*call // In-progress calls
 	lastID         uint64           // Last assigned request ID for a call
 }
+
+var _ ReplicaConnection = &clientConnection{}
 
 // call holds the state for an active call at the client.
 type call struct {
@@ -283,9 +315,7 @@ func Connect(ctx context.Context, resolver Resolver, opts ClientOptions) (Connec
 	// Construct the connection.
 	conn := reconnectingConnection{
 		opts:           opts.withDefaults(),
-		endpoints:      []Endpoint{},
-		connections:    map[string]*clientConnection{},
-		draining:       map[string]*clientConnection{},
+		conns:          map[string]*clientConnection{},
 		resolver:       resolver,
 		cancelResolver: func() {},
 	}
@@ -304,7 +334,7 @@ func Connect(ctx context.Context, resolver Resolver, opts ClientOptions) (Connec
 	if !resolver.IsConstant() && version == nil {
 		return nil, errors.New("non-constant resolver returned a nil version")
 	}
-	if err := conn.updateEndpoints(endpoints); err != nil {
+	if err := conn.updateEndpoints(ctx, endpoints); err != nil {
 		return nil, err
 	}
 
@@ -330,11 +360,8 @@ func (rc *reconnectingConnection) Close() {
 			return
 		}
 		rc.closed = true
-		for _, conn := range rc.connections {
-			conn.endCalls(fmt.Errorf("%w: %s", CommunicationError, "connection closed"))
-		}
-		for _, conn := range rc.draining {
-			conn.endCalls(fmt.Errorf("%w: %s", CommunicationError, "connection closed"))
+		for _, c := range rc.conns {
+			c.close()
 		}
 	}
 	closeWithLock()
@@ -379,12 +406,11 @@ func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []b
 	// connection, we may want to try it again on a different connection. We
 	// may also want to detect that certain connections are bad and avoid them
 	// outright.
-	conn, err := rc.startCall(ctx, rpc, opts)
+	conn, nc, err := rc.startCall(ctx, rpc, opts)
 	if err != nil {
 		return nil, err
 	}
-
-	if err := writeMessage(conn.c, &conn.wlock, requestMessage, rpc.id, hdr[:], arg, rc.opts.WriteFlattenLimit); err != nil {
+	if err := writeMessage(nc, &conn.wlock, requestMessage, rpc.id, hdr[:], arg, rc.opts.WriteFlattenLimit); err != nil {
 		conn.shutdown("client send request", err)
 		conn.endCall(rpc)
 		return nil, fmt.Errorf("%w: %s", CommunicationError, err)
@@ -409,7 +435,7 @@ func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []b
 
 			if !haveDeadline || time.Now().Before(deadline) {
 				// Early cancellation. Tell server about it.
-				if err := writeMessage(conn.c, &conn.wlock, cancelMessage, rpc.id, nil, nil, rc.opts.WriteFlattenLimit); err != nil {
+				if err := writeMessage(nc, &conn.wlock, cancelMessage, rpc.id, nil, nil, rc.opts.WriteFlattenLimit); err != nil {
 					conn.shutdown("client send cancel", err)
 				}
 			}
@@ -443,7 +469,7 @@ func (rc *reconnectingConnection) watchResolver(ctx context.Context, version *Ve
 			// Resolver wishes to be called again after an appropriate delay.
 			continue
 		}
-		if err := rc.updateEndpoints(endpoints); err != nil {
+		if err := rc.updateEndpoints(ctx, endpoints); err != nil {
 			logError(rc.opts.Logger, "watchResolver", err)
 		}
 		version = newVersion
@@ -454,7 +480,7 @@ func (rc *reconnectingConnection) watchResolver(ctx context.Context, version *Ve
 // updateEndpoints updates the set of endpoints. Existing connections are
 // retained, and stale connections are closed.
 // REQUIRES: rc.mu is not held.
-func (rc *reconnectingConnection) updateEndpoints(endpoints []Endpoint) error {
+func (rc *reconnectingConnection) updateEndpoints(ctx context.Context, endpoints []Endpoint) error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 
@@ -462,190 +488,274 @@ func (rc *reconnectingConnection) updateEndpoints(endpoints []Endpoint) error {
 		return fmt.Errorf("updateEndpoints on closed Connection")
 	}
 
-	// Remove fully drained connections since they have been closed already and
-	// cannot be reused.
-	rc.removeDrainedConnections()
-
-	// Retain existing connections.
-	connections := make(map[string]*clientConnection, len(endpoints))
+	// Make new endpoints.
+	keep := make(map[string]struct{}, len(endpoints))
 	for _, endpoint := range endpoints {
 		addr := endpoint.Address()
-		if conn, ok := rc.connections[addr]; ok {
-			connections[addr] = conn
-			delete(rc.connections, addr)
-		} else if conn, ok := rc.draining[addr]; ok {
-			conn.draining = false
-			connections[addr] = conn
-			delete(rc.draining, addr)
-		} else {
-			// If we don't have an existing connection, it will be created
-			// on-demand when Call is invoked. We don't have to insert anything
-			// into rc.connections.
+		keep[addr] = struct{}{}
+		if _, ok := rc.conns[addr]; !ok {
+			// New endpoint, create connection and manage it.
+			ctx, cancel := context.WithCancel(ctx)
+			c := &clientConnection{
+				rc:       rc,
+				canceler: cancel,
+				logger:   rc.opts.Logger,
+				endpoint: endpoint,
+				calls:    map[uint64]*call{},
+				lastID:   0,
+			}
+			rc.conns[addr] = c
+			c.register()
+			go c.manage(ctx)
 		}
 	}
 
-	// Update our state.
-	rc.endpoints = endpoints
-	for addr, conn := range rc.connections {
-		conn.draining = true
-		rc.draining[addr] = conn
+	// Drop old endpoints.
+	for addr, c := range rc.conns {
+		if _, ok := keep[addr]; ok {
+			// Still live, so keep it.
+			continue
+		}
+		c.unregister()
 	}
-	rc.connections = connections
-	rc.opts.Balancer.Update(endpoints)
-
-	// Close draining connections that don't have any pending requests. If a
-	// draining connection does have pending requests, then the connection will
-	// close itself when it finishes processing all of its requests.
-	rc.removeDrainedConnections()
-
-	// TODO(mwhittaker): Close draining connections after a delay?
 
 	return nil
 }
 
-// removeDrainedConnections closes and removes any fully drained connections
-// from rc.draining.
-//
-// REQUIRES: rc.mu is held.
-func (rc *reconnectingConnection) removeDrainedConnections() {
-	for addr, conn := range rc.draining {
-		conn.endIfDrained()
-		if conn.ended {
-			delete(rc.draining, addr)
-		}
-	}
-}
-
 // startCall registers a new in-progress call.
 // REQUIRES: rc.mu is not held.
-func (rc *reconnectingConnection) startCall(ctx context.Context, rpc *call, opts CallOptions) (*clientConnection, error) {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-
-	if rc.closed {
-		return nil, fmt.Errorf("Call on closed Connection")
-	}
-
-	if len(rc.endpoints) == 0 {
-		return nil, fmt.Errorf("%w: no endpoints available", Unreachable)
-	}
-
-	// Note that it is important to hold rc.mu when calling Pick(), and it's
-	// important that we index into rc.connections with addr while still
-	// holding rc.mu. Otherwise, a Pick() call could operate on a stale set of
-	// endpoints and return an endpoint that does not exist in rc.connections.
-	var balancer = rc.opts.Balancer
-	if opts.Balancer != nil {
-		balancer = opts.Balancer
-		balancer.Update(rc.endpoints)
-	}
-
-	// TODO(mwhittaker): Think about the other places where we can perform
-	// automatic retries. We need to be careful about non-idempotent
-	// operations.
-	var connectErr error
-	for i := 0; i < maxReconnectTries; i++ {
-		endpoint, err := balancer.Pick(opts)
-		if err != nil {
-			return nil, err
-		}
-		addr := endpoint.Address()
-
-		if conn, ok := rc.connections[addr]; !ok || conn.ended {
-			c, err := rc.reconnect(ctx, endpoint)
-			if err != nil {
-				connectErr = err
-				continue
-			}
-			rc.connections[addr] = c
+func (rc *reconnectingConnection) startCall(ctx context.Context, rpc *call, opts CallOptions) (*clientConnection, net.Conn, error) {
+	for r := retry.Begin(); r.Continue(ctx); {
+		rc.mu.Lock()
+		if rc.closed {
+			rc.mu.Unlock()
+			return nil, nil, fmt.Errorf("Call on closed Connection")
 		}
 
-		c := rc.connections[addr]
+		replica, ok := rc.opts.Balancer.Pick(opts)
+		if !ok {
+			rc.mu.Unlock()
+			continue
+		}
+
+		c, ok := replica.(*clientConnection)
+		if !ok {
+			rc.mu.Unlock()
+			return nil, nil, fmt.Errorf("internal error: wrong connection type %#v returned by load balancer", replica)
+		}
+
 		c.lastID++
 		rpc.id = c.lastID
 		c.calls[rpc.id] = rpc
-		return c, nil
+		c.callstart()
+		nc := c.c
+		rc.mu.Unlock()
+
+		return c, nc, nil
 	}
-	return nil, connectErr
+
+	return nil, nil, ctx.Err()
 }
 
-// reconnect establishes (or re-establishes) the network connection to the server.
-// REQUIRES: rc.mu is held.
-func (rc *reconnectingConnection) reconnect(ctx context.Context, endpoint Endpoint) (*clientConnection, error) {
-	nc, err := endpoint.Dial(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", CommunicationError, err)
+func (c *clientConnection) Address() string {
+	return c.endpoint.Address()
+}
+
+// State transition actions: all of these are called with rc.mu held.
+
+func (c *clientConnection) register() {
+	switch c.state {
+	case missing:
+		c.setState(disconnected)
+	case draining:
+		// We were attempting to get rid of the old connection, but it
+		// seems like the server-side problem was transient, so we
+		// resurrect the draining connection into a non-draining state.
+		//
+		// New state is active instead of idle since state==draining
+		// implies there is at least one call in-flight.
+		c.setState(active)
 	}
-	conn := &clientConnection{
-		logger:   rc.opts.Logger,
-		endpoint: endpoint,
-		c:        nc,
-		cbuf:     bufio.NewReader(nc),
-		mu:       &rc.mu,
-		version:  initialVersion, // Updated when we hear from server
-		calls:    map[uint64]*call{},
-		lastID:   0,
+}
+
+func (c *clientConnection) unregister() {
+	switch c.state {
+	case disconnected, checking, idle:
+		c.setState(missing)
+	case active:
+		c.setState(draining)
 	}
-	if err := writeVersion(conn.c, &conn.wlock); err != nil {
-		return nil, fmt.Errorf("%w: client send version: %s", CommunicationError, err)
+}
+
+func (c *clientConnection) connected() {
+	switch c.state {
+	case disconnected:
+		c.setState(checking)
 	}
-	go conn.readResponses()
-	return conn, nil
+}
+
+func (c *clientConnection) checked() {
+	switch c.state {
+	case checking:
+		c.setState(idle)
+	}
+}
+
+func (c *clientConnection) callstart() {
+	switch c.state {
+	case idle:
+		c.setState(active)
+	}
+}
+
+func (c *clientConnection) lastdone() {
+	switch c.state {
+	case active:
+		c.setState(idle)
+	case draining:
+		c.setState(missing)
+	}
+}
+
+func (c *clientConnection) fail(details string, err error) {
+	if !c.loggedShutdown {
+		c.loggedShutdown = true
+		logError(c.logger, details, err)
+	}
+	switch c.state {
+	case checking, idle, active:
+		c.setState(disconnected)
+	case draining:
+		c.setState(missing)
+	}
+}
+
+func (c *clientConnection) close() {
+	c.setState(missing)
+}
+
+// checkInvariants verifies clientConnection invariants.
+func (c *clientConnection) checkInvariants() {
+	s := c.state
+
+	// connection in reconnectingConnection.conns iff state not in {missing}
+	if _, ok := c.rc.conns[c.endpoint.Address()]; ok != (s != missing) {
+		panic(fmt.Sprintf("%v connection: wrong connection table presence %v", s, ok))
+	}
+
+	// has net.Conn iff state in {checking, idle, active, draining}
+	if (c.c != nil) != (s == checking || s == idle || s == active || s == draining) {
+		panic(fmt.Sprintf("%v connection: wrong net.Conn %v", s, c.c))
+	}
+
+	// connection is in the balancer iff state in {idle, active}
+	if c.inBalancer != (s == idle || s == active) {
+		panic(fmt.Sprintf("%v connection: wrong balancer presence %v", s, c.inBalancer))
+	}
+
+	// len(calls) > 0 iff state in {active, draining}
+	if (len(c.calls) != 0) != (s == active || s == draining) {
+		panic(fmt.Sprintf("%v connection: wrong number of calls %d", s, len(c.calls)))
+	}
+}
+
+// setState transitions to state s and updates any related state.
+func (c *clientConnection) setState(s connState) {
+	// idle<-> active transitions may happen a lot, so short-circuit them
+	// by avoiding logging and full invariant maintenance.
+	if c.state == active && s == idle {
+		c.state = idle
+		if len(c.calls) != 0 {
+			panic(fmt.Sprintf("%v connection: wrong number of calls %d", s, len(c.calls)))
+		}
+		return
+	} else if c.state == idle && s == active {
+		c.state = active
+		if len(c.calls) == 0 {
+			panic(fmt.Sprintf("%v connection: wrong number of calls %d", s, len(c.calls)))
+		}
+		return
+	}
+
+	c.logger.Info(fmt.Sprintf("connection %p", c), "addr", c.endpoint.Address(), "from", c.state, "to", s, "b", c.inBalancer)
+	c.state = s
+
+	// Fix membership in rc.conns.
+	if s == missing {
+		delete(c.rc.conns, c.endpoint.Address())
+		if c.canceler != nil {
+			c.canceler() // Forces retry loop to end early
+			c.canceler = nil
+		}
+	} // else: caller is responsible for adding c to rc.conns
+
+	// Fix net.Conn presence.
+	if s == missing || s == disconnected {
+		if c.c != nil {
+			c.c.Close()
+			c.c = nil
+			c.cbuf = nil
+		}
+	} // else: caller is responsible for setting c.c and c.cbuf
+
+	// Fix balancer membership.
+	if s == idle || s == active {
+		if !c.inBalancer {
+			c.rc.opts.Balancer.Add(c)
+			c.inBalancer = true
+		}
+	} else {
+		if c.inBalancer {
+			c.rc.opts.Balancer.Remove(c)
+			c.inBalancer = false
+		}
+	}
+
+	// Fix in-flight calls.
+	if s == active || s == draining {
+		// Keep calls live
+	} else {
+		// XXX Pass in detail and/or error
+		c.endCalls(fmt.Errorf("%w: %v", CommunicationError, s))
+	}
+
+	c.checkInvariants()
 }
 
 func (c *clientConnection) endCall(rpc *call) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.rc.mu.Lock()
+	defer c.rc.mu.Unlock()
 	delete(c.calls, rpc.id)
-	c.endIfDrained()
+	if len(c.calls) == 0 {
+		c.lastdone()
+	}
 }
 
 func (c *clientConnection) findAndEndCall(id uint64) *call {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.rc.mu.Lock()
+	defer c.rc.mu.Unlock()
 	rpc := c.calls[id]
 	if rpc != nil {
 		delete(c.calls, id)
-		c.endIfDrained()
+		if len(c.calls) == 0 {
+			c.lastdone()
+		}
 	}
 	return rpc
-}
-
-// endIfDrained closes c if it is a fully drained connection.
-//
-// REQUIRES: c.mu is held.
-func (c *clientConnection) endIfDrained() {
-	// Note that endIfDrained closes c, but it doesn't remove c from
-	// reconnectingConnection.draining. rc.updateEndpoints will remove drained
-	// connections from rc.draining. This approach leaves some drained
-	// connections around, but it simplifies the code. Specifically, a
-	// reconnectingConnection may modify a child clientConnection, but a
-	// clientConnection never modifies its parent reconnectingConnection.
-	if c.draining && len(c.calls) == 0 {
-		c.endCalls(fmt.Errorf("connection drained"))
-	}
 }
 
 // shutdown processes an error detected while operating on a connection.
 // It closes the network connection and cancels all requests in progress on the connection.
 // REQUIRES: c.mu is not held.
 func (c *clientConnection) shutdown(details string, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !c.loggedShutdown {
-		c.loggedShutdown = true
-		logError(c.logger, "shutdown: "+details, err)
-	}
-
-	// Cancel all in-progress calls.
-	c.endCalls(fmt.Errorf("%w: %s: %s", CommunicationError, details, err))
+	c.rc.mu.Lock()
+	defer c.rc.mu.Unlock()
+	c.fail(details, err)
 }
 
 // endCalls closes the network connection and ends any in-progress calls.
 // REQUIRES: c.mu is held.
 func (c *clientConnection) endCalls(err error) {
-	c.c.Close()
-	c.ended = true
 	for id, active := range c.calls {
 		active.err = err
 		atomic.StoreUint32(&active.done, 1)
@@ -654,46 +764,114 @@ func (c *clientConnection) endCalls(err error) {
 	}
 }
 
-// readResponses runs on the client side reading messages sent over a connection by the server.
-func (c *clientConnection) readResponses() {
-	for {
-		mt, id, msg, err := readMessage(c.cbuf)
-		if err != nil {
-			c.shutdown("client read", err)
-			return
-		}
-
-		switch mt {
-		case versionMessage:
-			v, err := getVersion(id, msg)
-			if err != nil {
-				c.shutdown("client read", err)
-				return
-			}
-			c.mu.Lock()
-			c.version = v
-			c.mu.Unlock()
-		case responseMessage, responseError:
-			rpc := c.findAndEndCall(id)
-			if rpc == nil {
-				continue // May have been canceled
-			}
-			if mt == responseError {
-				if err, ok := decodeError(msg); ok {
-					rpc.err = err
-				} else {
-					rpc.err = fmt.Errorf("%w: could not decode error", CommunicationError)
-				}
-			} else {
-				rpc.response = msg
-			}
-			atomic.StoreUint32(&rpc.done, 1)
-			close(rpc.doneSignal)
-		default:
-			c.shutdown("client read", fmt.Errorf("invalid response %d", mt))
-			return
+// manage handles a live clientConnection until it becomes missing.
+func (c *clientConnection) manage(ctx context.Context) {
+	for r := retry.Begin(); r.Continue(ctx); {
+		progress := c.connectOnce(ctx)
+		if progress {
+			r.Reset()
 		}
 	}
+}
+
+// connectOnce dials once to the endpoint and manages the resulting connection.
+// It returns true if some communication happened successfully over the connection.
+func (c *clientConnection) connectOnce(ctx context.Context) bool {
+	// Dial the connection.
+	nc, err := c.endpoint.Dial(ctx)
+	if err != nil {
+		logError(c.logger, "dial", err)
+		return false
+	}
+	defer nc.Close()
+
+	c.rc.mu.Lock()
+	defer c.rc.mu.Unlock() // Also temporarily unlocked below
+	c.c = nc
+	c.cbuf = bufio.NewReader(nc)
+	c.loggedShutdown = false
+	c.connected()
+
+	// Handshake to get the peer version and verify that it is live.
+	if err := c.exchangeVersions(); err != nil {
+		c.fail("handshake", err)
+		return false
+	}
+	c.checked()
+
+	for c.state == idle || c.state == active || c.state == draining {
+		if err := c.readAndProcessMessage(); err != nil {
+			c.fail("client read", err)
+		}
+	}
+	return true
+}
+
+// exchangeVersions sends client version to server and waits for the server version.
+func (c *clientConnection) exchangeVersions() error {
+	nc, buf := c.c, c.cbuf
+
+	// Do not hold mutex while reading from the network.
+	c.rc.mu.Unlock()
+	defer c.rc.mu.Lock()
+
+	if err := writeVersion(nc, &c.wlock); err != nil {
+		return err
+	}
+	mt, id, msg, err := readMessage(buf)
+	if err != nil {
+		return err
+	}
+	if mt != versionMessage {
+		return fmt.Errorf("wrong message type %d, expecting %d", mt, versionMessage)
+	}
+	v, err := getVersion(id, msg)
+	if err != nil {
+		return err
+	}
+	c.version = v
+	return nil
+}
+
+// readAndProcessMessage reads and handles one message sent from the server.
+func (c *clientConnection) readAndProcessMessage() error {
+	buf := c.cbuf
+
+	// Do not hold mutex while reading from the network.
+	c.rc.mu.Unlock()
+	defer c.rc.mu.Lock()
+
+	mt, id, msg, err := readMessage(buf)
+	if err != nil {
+		return err
+	}
+	switch mt {
+	case versionMessage:
+		_, err := getVersion(id, msg)
+		if err != nil {
+			return err
+		}
+		// Ignore versions sent after initial hand-shake
+	case responseMessage, responseError:
+		rpc := c.findAndEndCall(id)
+		if rpc == nil {
+			return nil // May have been canceled
+		}
+		if mt == responseError {
+			if err, ok := decodeError(msg); ok {
+				rpc.err = err
+			} else {
+				rpc.err = fmt.Errorf("%w: could not decode error", CommunicationError)
+			}
+		} else {
+			rpc.response = msg
+		}
+		atomic.StoreUint32(&rpc.done, 1)
+		close(rpc.doneSignal)
+	default:
+		return fmt.Errorf("invalid response %d", mt)
+	}
+	return nil
 }
 
 // readRequests runs on the server side reading messages sent over a connection by the client.
