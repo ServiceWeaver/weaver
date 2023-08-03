@@ -28,9 +28,10 @@ import (
 )
 
 var (
-	dimColor      = colors.Color256(245) // dimmed text color (a light gray)
-	errorColor    = colors.Color256(9)   // error color (a light red)
-	attrNameColor = colors.Color256(141) // attribute name color (a light purple))
+	dimColor       = colors.Color256(245) // dimmed text color (a light gray)
+	errorColor     = colors.Color256(9)   // error color (a light red)
+	attrNameColor  = colors.Color256(245) // attribute name color (a light gray)
+	attrValueColor = colors.Color256(245) // attribute name color (a light gray)
 )
 
 // PrettyPrinter pretty prints log entries. You can safely use a PrettyPrinter
@@ -191,8 +192,8 @@ func (pp *PrettyPrinter) Format(e *protos.LogEntry) string {
 
 		for _, attr := range attrs {
 			pp.b.WriteString(" ")
-			pp.b.WriteString(pp.colorize(attrNameColor, attr.name))
-			fmt.Fprintf(&pp.b, "=%q", attr.value)
+			pp.b.WriteString(pp.colorize(attrNameColor, attr.name+"="))
+			pp.b.WriteString(pp.colorize(attrValueColor, fmt.Sprintf("%q", attr.value)))
 		}
 	}
 
