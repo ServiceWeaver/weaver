@@ -87,10 +87,6 @@ import (
 const (
 	// Size of the header included in each message.
 	msgHeaderSize = 16 + 8 + traceHeaderLen // handler_key + deadline + trace_context
-
-	// maxReconnectTries is the maximum number of times a reconnecting
-	// connection will try and create a connection before erroring out.
-	maxReconnectTries = 3
 )
 
 // Connection allows a client to send RPCs.
@@ -138,7 +134,7 @@ type reconnectingConnection struct {
 //
 // - register: server has shown up in resolver results
 // - unregister: server has dropped from resolver results
-// - connected: a connection has successfully been made
+// - connected: a connection has been successfully made
 // - checked: connection has been successfully checked
 // - callstart: call starts on connection
 // - lastdone: last active call on connection has ended

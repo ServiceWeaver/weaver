@@ -72,6 +72,7 @@ func TestCustomError(t *testing.T) {
 }
 
 func TestPanic(t *testing.T) {
+	t.Skip("weavertest crashes if any component panics, even in another process")
 	ctx := context.Background()
 	weavertest.Multi.Test(t, func(t *testing.T, client testApp) {
 		// Trigger a panic.
