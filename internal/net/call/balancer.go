@@ -23,7 +23,8 @@ type ReplicaConnection interface {
 }
 
 // Balancer manages a set of ReplicaConnections and picks one of them per
-// call. A Balancer should only be used by a single goroutine.
+// call. A Balancer requires external synchronization (no concurrent calls
+// should be made to the same Balancer).
 //
 // TODO(mwhittaker): Right now, balancers have no load information about
 // endpoints. In the short term, we can at least add information about the
