@@ -174,13 +174,13 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	}
 
 	// Serve deployer API requests on the weavelet conn.
-	runAndDie(ctx, "serve weavelet conn", func() error {
+	runAndLog(ctx, "serve weavelet conn", w.syslogger, func() error {
 		return w.conn.Serve(w)
 	})
 
 	// Serve RPC requests from other weavelets.
 	server := &server{Listener: w.conn.Listener(), wlet: w}
-	runAndDie(w.ctx, "handle calls", func() error {
+	runAndLog(w.ctx, "handle calls", w.syslogger, func() error {
 		opts := call.ServerOptions{
 			Logger:                w.syslogger,
 			Tracer:                w.tracer,
@@ -727,13 +727,12 @@ func (s *server) handlers(components []string) (*call.HandlerMap, error) {
 	return hm, nil
 }
 
-// runAndDie runs fn in the background. Errors are fatal unless ctx has been
+// runAndLog runs fn in the background. Errors are printed unless ctx has been
 // canceled.
-func runAndDie(ctx context.Context, msg string, fn func() error) {
+func runAndLog(ctx context.Context, msg string, logger *slog.Logger, fn func() error) {
 	go func() {
 		if err := fn(); err != nil && ctx.Err() == nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
-			os.Exit(1)
+			logger.Error(msg, "err", err)
 		}
 	}()
 }

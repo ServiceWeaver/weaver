@@ -19,6 +19,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/weavertest"
@@ -64,6 +65,9 @@ func TestErrors(t *testing.T) {
 		if err == nil || !errors.Is(err, weaver.RemoteCallError) {
 			t.Fatalf("expected a weaver.RemoteCallError; got: %v", err)
 		}
+		// Delay a little bit to capture a potential shutdown race caused
+		// when the process hosting the remote component exits.
+		time.Sleep(100 * time.Millisecond)
 	})
 }
 
