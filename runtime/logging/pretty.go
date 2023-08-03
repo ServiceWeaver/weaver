@@ -175,7 +175,7 @@ func (pp *PrettyPrinter) Format(e *protos.LogEntry) string {
 
 	// Write the message.
 	pp.b.WriteString("] ")
-	pp.b.WriteString(pp.colorize(levelColor, e.Msg))
+	pp.b.WriteString(pp.colorize(colors.ColorHash(c), e.Msg))
 
 	// Write the attributes, if present.
 	if len(e.Attrs) > 0 {
