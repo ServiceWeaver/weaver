@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -40,20 +41,45 @@ func validateRegistrations(regs []*codegen.Registration) error {
 	for _, reg := range regs {
 		for i := 0; i < reg.Impl.NumField(); i++ {
 			f := reg.Impl.Field(i)
-			if !f.Type.Implements(reflection.Type[interface{ isRef() }]()) {
-				// f is not a Ref[T].
-				continue
-			}
-			v := f.Type.Field(0) // a Ref[T]'s value field
-			if _, ok := intfs[v.Type]; !ok {
-				// T is not a registered component interface.
-				err := fmt.Errorf(
-					"component implementation struct %v has field %v, but component %v was not registered; maybe you forgot to run 'weaver generate'",
-					reg.Impl, f.Type, v.Type,
-				)
-				errs = append(errs, err)
+			switch {
+			case f.Type.Implements(reflection.Type[interface{ isRef() }]()):
+				// f is a weaver.Ref[T].
+				v := f.Type.Field(0) // a Ref[T]'s value field
+				if _, ok := intfs[v.Type]; !ok {
+					// T is not a registered component interface.
+					err := fmt.Errorf(
+						"component implementation struct %v has field %v, but component %v was not registered; maybe you forgot to run 'weaver generate'",
+						reg.Impl, f.Type, v.Type,
+					)
+					errs = append(errs, err)
+				}
+
+			case f.Type == reflection.Type[Listener]():
+				// f is a weaver.Listener.
+				if tag, ok := f.Tag.Lookup("weaver"); ok && !isValidListenerName(tag) {
+					err := fmt.Errorf("component implementation struct %v has invalid listener tag %q", reg.Impl, tag)
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// isValidListenerName returns whether the provided name is a valid
+// weaver.Listener name.
+func isValidListenerName(name string) bool {
+	// We allow valid Go identifiers [1]. This code is taken from [2].
+	//
+	// [1]: https://go.dev/ref/spec#Identifiers
+	// [2]: https://cs.opensource.google/go/go/+/refs/tags/go1.20.6:src/go/token/token.go;l=331-341;drc=19309779ac5e2f5a2fd3cbb34421dafb2855ac21
+	if name == "" {
+		return false
+	}
+	for i, c := range name {
+		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
+			return false
+		}
+	}
+	return true
 }

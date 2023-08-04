@@ -36,7 +36,10 @@ func TestValidateNoRegistrations(t *testing.T) {
 func TestValidateValidRegistrations(t *testing.T) {
 	type foo struct{}
 	type bar struct{}
-	type fooImpl struct{ Ref[bar] }
+	type fooImpl struct {
+		Ref[bar]
+		Listener `weaver:"foo"`
+	}
 	type barImpl struct{ Ref[foo] }
 	regs := []*codegen.Registration{
 		{
@@ -74,5 +77,40 @@ func TestValidateUnregisteredRef(t *testing.T) {
 	const want = "component io.Reader was not registered"
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("validateRegistrations: got %q, want %q", err, want)
+	}
+}
+
+// TestValidateInvalidListenerNames tests that validateRegistrations fails on
+// invalid listener names.
+func TestValidateInvalidListenerNames(t *testing.T) {
+	type foo struct{}
+	type fooImpl struct {
+		_ Listener `weaver:""`             // empty name
+		_ Listener `weaver:" "`            // whitespace name
+		_ Listener `weaver:"foo bar"`      // whitespace in name
+		_ Listener `weaver:"1foo"`         // starts with a digit
+		_ Listener `weaver:".!@#$%^&*()-"` // punctuation
+	}
+	regs := []*codegen.Registration{
+		{
+			Name:  "foo",
+			Iface: reflection.Type[foo](),
+			Impl:  reflection.Type[fooImpl](),
+		},
+	}
+	err := validateRegistrations(regs)
+	if err == nil {
+		t.Fatal("unexpected validateRegistrations success")
+	}
+	for _, want := range []string{
+		`invalid listener tag ""`,
+		`invalid listener tag " "`,
+		`invalid listener tag "foo bar"`,
+		`invalid listener tag "1foo"`,
+		`invalid listener tag ".!@#$%^&*()-"`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("validateRegistrations: got %q, want %q", err, want)
+		}
 	}
 }

@@ -342,6 +342,10 @@ type app struct {
 }
 ```
 
+Listener names must be valid [Go identifiers][identifiers]. For example, the
+names `"foo"`, `"bar42"`, and `"_moo"` are legal, while `""`, `"foo bar"`, and
+`"foo-bar"` are illegal.
+
 Run `go mod tidy` and then `SERVICEWEAVER_CONFIG=weaver.toml go run .`.
 The program should print out the name of the application and a unique
 deployment id. It should then block serving HTTP requests on `localhost:12345`.
@@ -2969,6 +2973,7 @@ runtime benefits of microservices.
 [go_interfaces]: https://go.dev/tour/methods/9
 [hello_app]: https://github.com/ServiceWeaver/weaver/tree/main/examples/hello
 [http_pprof]: https://pkg.go.dev/net/http/pprof
+[identifiers]: https://go.dev/ref/spec#Identifiers
 [isolation]: https://sre.google/workbook/canarying-releases/#dependencies-and-isolation
 [kubernetes]: https://kubernetes.io/
 [logs_explorer]: https://cloud.google.com/logging/docs/view/logs-explorer-interface
