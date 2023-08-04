@@ -622,6 +622,10 @@ func (c *clientConnection) fail(details string, err error) {
 		c.loggedShutdown = true
 		logError(c.logger, details, err)
 	}
+
+	// endCalls here so we can supply good errors.
+	c.endCalls(fmt.Errorf("%w: %s: %s", CommunicationError, details, err))
+
 	switch c.state {
 	case checking, idle, active:
 		c.setState(disconnected)
@@ -631,6 +635,9 @@ func (c *clientConnection) fail(details string, err error) {
 }
 
 func (c *clientConnection) close() {
+	// endCalls here so we can supply good errors.
+	c.endCalls(fmt.Errorf("%w: connection closed", CommunicationError))
+
 	c.setState(missing)
 }
 
@@ -677,7 +684,7 @@ func (c *clientConnection) setState(s connState) {
 		return
 	}
 
-	c.logger.Info(fmt.Sprintf("connection %p", c), "addr", c.endpoint.Address(), "from", c.state, "to", s, "b", c.inBalancer)
+	c.logger.Info("connection", "addr", c.endpoint.Address(), "from", c.state, "to", s)
 	c.state = s
 
 	// Fix membership in rc.conns.
@@ -715,7 +722,6 @@ func (c *clientConnection) setState(s connState) {
 	if s == active || s == draining {
 		// Keep calls live
 	} else {
-		// XXX Pass in detail and/or error
 		c.endCalls(fmt.Errorf("%w: %v", CommunicationError, s))
 	}
 
