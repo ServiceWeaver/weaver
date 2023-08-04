@@ -1020,7 +1020,10 @@ func TestRememberDraining(t *testing.T) {
 	// Launch a separate goroutine to update the endpoints from server 1 to
 	// server 2 to server 3. This makes server 1 and 2 stale. Then, close the
 	// client after a delay.
+	var wait sync.WaitGroup
+	wait.Add(1)
 	go func() {
+		defer wait.Done()
 		time.Sleep(shortDelay)
 		resolver.Endpoints(server2)
 		time.Sleep(delaySlop) // Let the update propagate.
@@ -1035,7 +1038,11 @@ func TestRememberDraining(t *testing.T) {
 		t.Fatalf("bad error: got %v, want %v", err, call.CommunicationError)
 	}
 
-	// Make sure the connection was closed.
+	// Wait for client.Close() to terminate to ensure all connections have had
+	// a chance to get closed.
+	wait.Wait()
+
+	// Make sure the connection is closed.
 	if !m.Closed() {
 		t.Fatalf("draining connection not closed")
 	}
