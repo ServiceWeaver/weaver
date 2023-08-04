@@ -36,8 +36,8 @@ func TestValidateNoRegistrations(t *testing.T) {
 func TestValidateValidRegistrations(t *testing.T) {
 	type foo struct{}
 	type bar struct{}
-	type fooImpl struct{ b Ref[bar] }
-	type barImpl struct{ f Ref[foo] }
+	type fooImpl struct{ Ref[bar] }
+	type barImpl struct{ Ref[foo] }
 	regs := []*codegen.Registration{
 		{
 			Name:  "foo",
@@ -59,7 +59,7 @@ func TestValidateValidRegistrations(t *testing.T) {
 // component has a weaver.Ref on an unregistered component.
 func TestValidateUnregisteredRef(t *testing.T) {
 	type foo struct{}
-	type fooImpl struct{ unregistered Ref[io.Reader] }
+	type fooImpl struct{ Ref[io.Reader] }
 	regs := []*codegen.Registration{
 		{
 			Name:  "foo",
