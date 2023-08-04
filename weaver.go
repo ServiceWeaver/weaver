@@ -157,6 +157,10 @@ func runLocal[T any, _ PointerToMain[T]](ctx context.Context, app func(context.C
 	}
 
 	regs := codegen.Registered()
+	if err := validateRegistrations(regs); err != nil {
+		return err
+	}
+
 	runner, err := weaver.NewSingleWeavelet(ctx, regs, opts)
 	if err != nil {
 		return err
@@ -177,6 +181,10 @@ func runLocal[T any, _ PointerToMain[T]](ctx context.Context, app func(context.C
 
 func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error, bootstrap runtime.Bootstrap) error {
 	regs := codegen.Registered()
+	if err := validateRegistrations(regs); err != nil {
+		return err
+	}
+
 	opts := weaver.RemoteWeaveletOptions{}
 	runner, err := weaver.NewRemoteWeavelet(ctx, regs, bootstrap, opts)
 	if err != nil {
