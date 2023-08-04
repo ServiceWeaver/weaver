@@ -986,7 +986,8 @@ func TestCloseDraining(t *testing.T) {
 		t.Fatalf("bad error: got %v, want %v", err, call.CommunicationError)
 	}
 
-	// Make sure the connection was closed.
+	// Make sure the connection is closed soon.
+	time.Sleep(shortDelay)
 	if !m.Closed() {
 		t.Fatalf("draining connection not closed")
 	}
