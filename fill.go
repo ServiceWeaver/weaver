@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
@@ -101,7 +100,7 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 
 		// The listener's name is the field name, unless a tag is present.
 		name := t.Name
-		if tag := t.Tag.Get("weaver"); tag != "" {
+		if tag, ok := t.Tag.Lookup("weaver"); ok {
 			if !isValidListenerName(tag) {
 				return fmt.Errorf("FillListeners: listener tag %s is not a valid Go identifier", tag)
 			}
@@ -121,24 +120,6 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 		l.proxyAddr = proxyAddr
 	}
 	return nil
-}
-
-// isValidListenerName returns whether the provided name is a valid
-// weaver.Listener name.
-func isValidListenerName(name string) bool {
-	// We allow valid Go identifiers [1]. This code is taken from [2].
-	//
-	// [1]: https://go.dev/ref/spec#Identifiers
-	// [2]: https://cs.opensource.google/go/go/+/refs/tags/go1.20.6:src/go/token/token.go;l=331-341;drc=19309779ac5e2f5a2fd3cbb34421dafb2855ac21
-	if name == "" {
-		return false
-	}
-	for i, c := range name {
-		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
-			return false
-		}
-	}
-	return true
 }
 
 // setPossiblyUnexported sets dst to value. It is equivalent to
