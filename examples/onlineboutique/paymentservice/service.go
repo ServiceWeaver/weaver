@@ -50,5 +50,5 @@ type impl struct {
 // Charge charges the given amount of money to the given credit card, returning
 // the transaction id.
 func (s *impl) Charge(ctx context.Context, amount money.T, card CreditCardInfo) (string, error) {
-	return charge(amount, card, s.Logger())
+	return charge(amount, card, s.Logger(ctx))
 }

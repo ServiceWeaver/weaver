@@ -50,7 +50,7 @@ func (s *impl) Init(context.Context) error {
 
 // GetSupportedCurrencies returns the list of supported currencies.
 func (s *impl) GetSupportedCurrencies(ctx context.Context) ([]string, error) {
-	s.Logger().Info("Getting supported currencies...")
+	s.Logger(ctx).Info("Getting supported currencies...")
 	return maps.Keys(s.conversionMap), nil
 }
 

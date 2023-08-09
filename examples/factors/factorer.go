@@ -46,8 +46,8 @@ func (f *factorer) Init(_ context.Context) error {
 	return err
 }
 
-func (f *factorer) Factors(_ context.Context, x int) ([]int, error) {
-	f.Logger().Debug("Factor", "pid", os.Getpid(), "x", x)
+func (f *factorer) Factors(ctx context.Context, x int) ([]int, error) {
+	f.Logger(ctx).Debug("Factor", "pid", os.Getpid(), "x", x)
 
 	// Sanity check arguments.
 	if x <= 0 {

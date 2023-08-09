@@ -68,7 +68,7 @@ type impl struct {
 	reloadCatalog bool
 }
 
-func (s *impl) Init(context.Context) error {
+func (s *impl) Init(ctx context.Context) error {
 	var extraLatency time.Duration
 	if extra := os.Getenv("EXTRA_LATENCY"); extra != "" {
 		v, err := time.ParseDuration(extra)
@@ -76,7 +76,7 @@ func (s *impl) Init(context.Context) error {
 			return fmt.Errorf("failed to parse EXTRA_LATENCY (%s) as time.Duration: %+v", v, err)
 		}
 		extraLatency = v
-		s.Logger().Info("extra latency enabled", "duration", extraLatency)
+		s.Logger(ctx).Info("extra latency enabled", "duration", extraLatency)
 	}
 	s.extraLatency = extraLatency
 	_, err := s.refreshCatalogFile()
@@ -89,13 +89,13 @@ func (s *impl) Init(context.Context) error {
 	go func() {
 		for {
 			sig := <-sigs
-			s.Logger().Info("Received signal", "signal", sig)
+			s.Logger(ctx).Info("Received signal", "signal", sig)
 			reload := false
 			if sig == syscall.SIGUSR1 {
 				reload = true
-				s.Logger().Info("Enable catalog reloading")
+				s.Logger(ctx).Info("Enable catalog reloading")
 			} else {
-				s.Logger().Info("Disable catalog reloading")
+				s.Logger(ctx).Info("Disable catalog reloading")
 			}
 			s.mu.Lock()
 			s.reloadCatalog = reload

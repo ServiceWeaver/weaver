@@ -16,6 +16,7 @@ package cartservice
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ServiceWeaver/weaver"
 )
@@ -35,26 +36,55 @@ type T interface {
 type impl struct {
 	weaver.Implements[T]
 	cache weaver.Ref[cartCache]
-	store *cartStore
-}
-
-func (s *impl) Init(context.Context) error {
-	store, err := newCartStore(s.Logger(), s.cache.Get())
-	s.store = store
-	return err
 }
 
 // AddItem adds a given item to the user's cart.
 func (s *impl) AddItem(ctx context.Context, userID string, item CartItem) error {
-	return s.store.AddItem(ctx, userID, item.ProductID, item.Quantity)
+	s.Logger(ctx).Info("AddItem called", "userID", userID, "productID", item.ProductID, "quantity", item.Quantity)
+	// Get the cart from the cache.
+	cart, err := s.cache.Get().Get(ctx, userID)
+	if err != nil {
+		if errors.Is(err, errNotFound{}) { // cache miss
+			cart = nil
+		} else {
+			return err
+		}
+	}
+
+	// Copy the cart since the cache may be local, and we don't want to
+	// overwrite the cache value directly.
+	copy := make([]CartItem, 0, len(cart)+1)
+	found := false
+	for _, x := range cart {
+		if x.ProductID == item.ProductID {
+			x.Quantity += item.Quantity
+			found = true
+		}
+		copy = append(copy, x)
+	}
+	if !found {
+		copy = append(copy, CartItem{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+		})
+	}
+
+	return s.cache.Get().Add(ctx, userID, copy)
 }
 
 // GetCart returns the items in the user's cart.
 func (s *impl) GetCart(ctx context.Context, userID string) ([]CartItem, error) {
-	return s.store.GetCart(ctx, userID)
+	s.Logger(ctx).Info("GetCart called", "userID", userID)
+	cart, err := s.cache.Get().Get(ctx, userID)
+	if err != nil && errors.Is(err, errNotFound{}) {
+		return []CartItem{}, nil
+	}
+	return cart, err
 }
 
 // EmptyCart empties the user's cart.
 func (s *impl) EmptyCart(ctx context.Context, userID string) error {
-	return s.store.EmptyCart(ctx, userID)
+	s.Logger(ctx).Info("EmptyCart called", "userID", userID)
+	_, err := s.cache.Get().Remove(ctx, userID)
+	return err
 }

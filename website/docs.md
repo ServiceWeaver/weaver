@@ -879,9 +879,9 @@ type adder struct {
     weaver.Implements[Adder]
 }
 
-func (a *adder) Add(_ context.Context, x, y int) (int, error) {
+func (a *adder) Add(ctx context.Context, x, y int) (int, error) {
     // adder embeds weaver.Implements[Adder] which provides the Logger method.
-    logger := a.Logger()
+    logger := a.Logger(ctx)
     logger.Debug("A debug log.")
     logger.Info("An info log.")
     logger.Error("An error log.", fmt.Errorf("an error"))
