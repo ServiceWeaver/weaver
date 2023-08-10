@@ -1049,6 +1049,7 @@ github.com/ServiceWeaver/weaver/website/blog/deployers/multi
     context
     flag
     fmt
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging

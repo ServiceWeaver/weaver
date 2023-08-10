@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
@@ -55,8 +56,8 @@ var deploymentId = uuid.New().String()
 func main() {
 	flag.Parse()
 	d := &deployer{handlers: map[string]*handler{}}
-	d.spawn("main") //nolint:errcheck // omitted for brevity
-	select {}       // block forever
+	d.spawn(runtime.Main) //nolint:errcheck // omitted for brevity
+	select {}             // block forever
 }
 
 // spawn spawns a weavelet to host the provided component (if one hasn't
@@ -66,20 +67,20 @@ func (d *deployer) spawn(component string) (*handler, error) {
 	defer d.mu.Unlock()
 
 	// Check if a weavelet has already been spawned.
-	h, ok := d.handlers[component]
-	if ok {
+	if h, ok := d.handlers[component]; ok {
 		// The weavelet has already been spawned.
 		return h, nil
 	}
 
 	// Spawn a weavelet in a subprocess to host the component.
 	info := &protos.EnvelopeInfo{
-		App:           "app",               // the application name
-		DeploymentId:  deploymentId,        // the deployment id
-		Id:            uuid.New().String(), // the weavelet id
-		SingleProcess: false,               // is the app a single process?
-		SingleMachine: true,                // is the app on a single machine?
-		RunMain:       component == "main", // should the weavelet run main?
+		App:           "app",                     // the application name
+		DeploymentId:  deploymentId,              // the deployment id
+		Id:            uuid.New().String(),       // the weavelet id
+		SingleProcess: false,                     // is the app a single process?
+		SingleMachine: true,                      // is the app on a single machine?
+		Mtls:          false,                     // don't enable mtls
+		RunMain:       component == runtime.Main, // should the weavelet run main?
 	}
 	config := &protos.AppConfig{
 		Name:   "app",       // the application name
@@ -89,7 +90,7 @@ func (d *deployer) spawn(component string) (*handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	h = &handler{
+	h := &handler{
 		deployer: d,
 		envelope: envelope,
 		address:  envelope.WeaveletInfo().DialAddr,
@@ -138,18 +139,6 @@ func (h *handler) ExportListener(_ context.Context, req *protos.ExportListenerRe
 	return &protos.ExportListenerReply{}, nil
 }
 
-func (*handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
-	panic("unused")
-}
-
-func (*handler) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
-	panic("unused")
-}
-
-func (*handler) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
-	panic("unused")
-}
-
 // Responsibility 3: Telemetry.
 func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	pp := logging.NewPrettyPrinter(colors.Enabled())
@@ -160,4 +149,20 @@ func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) erro
 func (h *handler) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	// This simplified deployer drops traces on the floor.
 	return nil
+}
+
+// Responsibility 4: Security.
+func (*handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
+	panic("unused")
+}
+
+func (*handler) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
+	panic("unused")
+}
+
+func (*handler) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	// This deployer doesn't enable mTLS.
+	panic("unused")
 }

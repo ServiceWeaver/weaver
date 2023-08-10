@@ -1,7 +1,7 @@
 # How to Implement a Service Weaver Deployer
 
 <div class="blog-author">Michael Whittaker</div>
-<div class="blog-date">April 5, 2023</div>
+<div class="blog-date">April 5, 2023 (Updated August 10, 2023)</div>
 
 Service Weaver allows you to deploy an application in many different ways. For
 example, you can deploy an application in a [single process][singleprocess],
@@ -63,8 +63,8 @@ weavelet 3 on address 3.3.3.3 to execute the method.
 ## Deployers
 
 A deployer distributes a Service Weaver application by launching and managing a
-set of weavelets. Managing weavelets involves three main responsibilities
-related to (1) components, (2) listeners, and (3) telemetry.
+set of weavelets. Managing weavelets involves four main responsibilities
+related to (1) components, (2) listeners, (3) telemetry, and (4) security.
 
 1. **Components**. A deployer starts weavelets and tells them which components
    to host. A deployer also ensures that weavelets know the addresses of other
@@ -82,6 +82,11 @@ related to (1) components, (2) listeners, and (3) telemetry.
 
 3. **Telemetry**. A deployer collects, aggregates, and exports all telemetry
    produced by weavelets. This includes logs, metrics, traces, and profiles.
+
+4. **Security**. A deployer can optionally enable [mTLS][mtls] between
+   components. When mTLS is enabled, a deployer is responsible for distributing
+   and validating certificates. To keeps things as simple as possible, we'll
+   leave mTLS disabled for the remainder of this article.
 
 A deployer and a weavelet communicate by exchanging protocol buffers over a pair
 of Unix pipes.  We call the part of a deployer that communicates with a weavelet
@@ -106,6 +111,11 @@ type EnvelopeHandler interface {
     // Telemetry.
     HandleLogEntry(context.Context, *protos.LogEntry) error
     HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
+
+    // Security.
+    GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
+    VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
+    VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 }
 ```
 
@@ -173,6 +183,9 @@ Next, we implement a `spawn` method that spawns a weavelet to host a component.
 3. We call `envelope.Serve` to handle requests from the weavelet.
 
 ```go
+// The unique id of the application deployment.
+var deploymentId = uuid.New().String()
+
 // spawn spawns a weavelet to host the provided component (if one hasn't
 // already spawned) and returns a handler to the weavelet.
 func (d *deployer) spawn(component string) (*handler, error) {
@@ -180,20 +193,20 @@ func (d *deployer) spawn(component string) (*handler, error) {
     defer d.mu.Unlock()
 
     // Check if a weavelet has already been spawned.
-    h, ok := d.handlers[component]
-    if ok {
+    if h, ok := d.handlers[component]; ok {
         // The weavelet has already been spawned.
         return h, nil
     }
 
     // Spawn a weavelet in a subprocess to host the component.
     info := &protos.EnvelopeInfo{
-        App:           "app",               // the application name
-        DeploymentId:  deploymentId,        // the deployment id
-        Id:            uuid.New().String(), // the weavelet id
-        SingleProcess: false,               // is the app a single process?
-        SingleMachine: true,                // is the app on a single machine?
-        RunMain:       component == "main", // should the weavelet run main?
+        App:           "app",                     // the application name
+        DeploymentId:  deploymentId,              // the deployment id
+        Id:            uuid.New().String(),       // the weavelet id
+        SingleProcess: false,                     // is the app a single process?
+        SingleMachine: true,                      // is the app on a single machine?
+        Mtls:          false,                     // don't enable mtls
+        RunMain:       component == runtime.Main, // should the weavelet run main?
     }
     config := &protos.AppConfig{
         Name:   "app",       // the application name
@@ -203,7 +216,7 @@ func (d *deployer) spawn(component string) (*handler, error) {
     if err != nil {
         return nil, err
     }
-    h = &handler{
+    h := &handler{
         deployer: d,
         envelope: envelope,
         address:  envelope.WeaveletInfo().DialAddr,
@@ -314,7 +327,7 @@ func (h *handler) ExportListener(_ context.Context, req *protos.ExportListenerRe
 
 ### Telemetry
 
-Finally, we implement the telemetry methods. All logs produced by a weavelet are
+Next, we implement the telemetry methods. All logs produced by a weavelet are
 received by the `HandleLogEntry` method. Our deployer uses a pretty printer from
 Service Weaver's `logging` library to print the logs to stdout. Similarly, all
 traces produced by a weavelet are received by the `HandleTraceSpans` function.
@@ -328,7 +341,7 @@ func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) erro
     return nil
 }
 
-func (h *handler) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error {
+func (h *handler) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
     // This simplified deployer drops traces on the floor.
     return nil
 }
@@ -337,6 +350,30 @@ func (h *handler) HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error 
 <div class="note">
 <a href="https://github.com/ServiceWeaver/weaver/blob/main/internal/tool/multi/deployer.go"><code>weaver multi</code></a> writes logs and traces to files. <a href="https://github.com/ServiceWeaver/weaver-gke/blob/main/internal/babysitter/babysitter.go"><code>weaver gke</code></a> exports logs and traces to <a href="https://cloud.google.com/logging">Cloud Logging</a> and <a href="https://cloud.google.com/trace">Cloud Trace</a>.
 </div>
+
+### Security
+
+Because our deployer does not enable mTLS, we can leave `GetSelfCertificate`,
+`VerifyClientCertificate`, and `VerifyServerCertificate` unimplemented. They
+will never be called.
+
+```go
+// Responsibility 4: Security.
+func (*handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+    // This deployer doesn't enable mTLS.
+    panic("unused")
+}
+
+func (*handler) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+    // This deployer doesn't enable mTLS.
+    panic("unused")
+}
+
+func (*handler) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+    // This deployer doesn't enable mTLS.
+    panic("unused")
+}
+```
 
 ### Main
 
@@ -347,7 +384,7 @@ Finally, we implement a `main` function for the deployer. We create a
 func main() {
     flag.Parse()
     d := &deployer{handlers: map[string]*handler{}}
-    d.spawn("main")
+    d.spawn(runtime.Main)
     select {} // block forever
 }
 ```
@@ -365,9 +402,8 @@ The multiprocess deployer in the previous section was designed to be as simple
 as possible. Real-world deployers, on the other hand, require a number of more
 advanced features. Enumerating and explaining how to implement these features is
 beyond the scope of this blog post, but we'll summarize some advanced features
-here. You can also review the implementations of our [`weaver
-multi`][weaver_github] and [`weaver gke`][weaver_gke_github] deployers as
-reference.
+here. You can review the implementations of our [`weaver multi`][weaver_github]
+and [`weaver gke`][weaver_gke_github] deployers for reference.
 
 - **Longevity and Persistence**. The multiprocess deployer in the previous
   section lived only as long as the application it deployed. Real-world
@@ -384,6 +420,12 @@ reference.
   Multi-machine deployers will have to implement their own health-checking to
   detect machine failures.
 
+- **Configuration**. A user can write [a TOML config file][config] to configure
+  the components in their application and to configure the deployer that deploys
+  their application. A deployer should parse this config file using
+  [`runtime.ParseConfig`][ParseConfig] and pass the relevant sections to the
+  weavelets via an [`EnvelopeInfo`][EnvelopeInfo].
+
 - **Routing**. A deployer should support [routed components][routing] by
   monitoring the load on routed components and generating [routing
   assignments][Assignment] that balance this load. You can use the
@@ -392,6 +434,11 @@ reference.
 - **Rollouts**. A deployer should implement [versioned rollouts][versioning],
   allowing one version of an application to be rolled out as a replacement to a
   previously running version.
+
+- **Security**. If you're writing a deployer that deploys applications on an
+  unsecured network, you should consider enabling mTLS and implementing the
+  `GetSelfCertificate`, `VerifyClientCertificate`, and `VerifyServerCertificate`
+  methods.
 
 - **Tooling**. A deployer should provide tooling to inspect and debug the state
   of an application. `weaver multi status`, `weaver multi dashboard`, and
@@ -619,19 +666,22 @@ sending protobufs over a pair of pipes. For even more details, refer to
 [Envelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope
 [GetHealth]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetHealth
 [GetLoad]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetLoad
-[Run]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Run
 [ListenerOptions]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#ListenerOptions
 [Listener]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Listener
 [NewEnvelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#NewEnvelope
+[ParseConfig]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime#ParseConfig
 [ReplicaToRegister]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#ReplicaToRegister
+[Run]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Run
 [WeaveletInfo]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletInfo
 [WeaveletMsg]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletMsg
 [cloud_logging]: https://cloud.google.com/logging
 [cloud_trace]: https://cloud.google.com/trace
 [colocation]: ../docs.html#config-files
 [components]: ../docs.html#components
+[config]: ../docs.html#components-config
 [exec]: https://pkg.go.dev/os/exec
 [gke]: ../docs.html#gke
+[mtls]: https://www.cloudflare.com/learning/access-management/what-is-mutual-tls/
 [multi_deployer]: https://github.com/ServiceWeaver/weaver/blob/main/website/blog/deployers/multi/main.go
 [multiprocess]: ../docs.html#multiprocess
 [pipes_deployer]: https://github.com/ServiceWeaver/weaver/blob/main/website/blog/deployers/pipes/main.go
