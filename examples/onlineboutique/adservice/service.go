@@ -46,15 +46,15 @@ type impl struct {
 	ads map[string]Ad
 }
 
-func (s *impl) Init(context.Context) error {
-	s.Logger().Info("Ad Service started")
+func (s *impl) Init(ctx context.Context) error {
+	s.Logger(ctx).Info("Ad Service started")
 	s.ads = createAdsMap()
 	return nil
 }
 
 // GetAds returns a list of ads that best match the given context keywords.
 func (s *impl) GetAds(ctx context.Context, keywords []string) ([]Ad, error) {
-	s.Logger().Info("received ad request", "keywords", keywords)
+	s.Logger(ctx).Info("received ad request", "keywords", keywords)
 	span := trace.SpanFromContext(ctx)
 	var allAds []Ad
 	if len(keywords) > 0 {

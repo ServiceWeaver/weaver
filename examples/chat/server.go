@@ -45,7 +45,7 @@ type server struct {
 
 func serve(ctx context.Context, s *server) error {
 	s.httpServer.Handler = instrument(s.label, s)
-	s.Logger().Debug("Chat service available", "address", s.chat)
+	s.Logger(ctx).Debug("Chat service available", "address", s.chat)
 	return s.httpServer.Serve(s.chat)
 }
 

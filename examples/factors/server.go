@@ -31,7 +31,7 @@ type server struct {
 
 func serve(ctx context.Context, s *server) error {
 	http.Handle("/", weaver.InstrumentHandlerFunc("/", s.handleFactors))
-	s.Logger().Info("factors server running", "addr", s.lis)
+	s.Logger(ctx).Info("factors server running", "addr", s.lis)
 	return http.Serve(s.lis, nil)
 }
 

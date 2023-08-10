@@ -35,7 +35,7 @@ type server struct {
 func serve(ctx context.Context, s *server) error {
 	s.mux.Handle("/", weaver.InstrumentHandlerFunc("collatz", s.handle))
 	s.mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-	s.Logger().Debug("Collatz service available", "address", s.lis)
+	s.Logger(ctx).Debug("Collatz service available", "address", s.lis)
 	return http.Serve(s.lis, &s.mux)
 }
 

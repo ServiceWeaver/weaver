@@ -55,7 +55,7 @@ type impl struct {
 }
 
 func (s *impl) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (types.Order, error) {
-	s.Logger().Info("[PlaceOrder]", "user_id", req.UserID, "user_currency", req.UserCurrency)
+	s.Logger(ctx).Info("[PlaceOrder]", "user_id", req.UserID, "user_currency", req.UserCurrency)
 
 	prep, err := s.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserID, req.UserCurrency, req.Address)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *impl) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (types.Ord
 	if err != nil {
 		return types.Order{}, fmt.Errorf("failed to charge card: %w", err)
 	}
-	s.Logger().Info("payment went through", "transaction_id", txID)
+	s.Logger(ctx).Info("payment went through", "transaction_id", txID)
 
 	shippingTrackingID, err := s.shippingService.Get().ShipOrder(ctx, req.Address, prep.cartItems)
 	if err != nil {
@@ -95,9 +95,9 @@ func (s *impl) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (types.Ord
 	}
 
 	if err := s.emailService.Get().SendOrderConfirmation(ctx, req.Email, order); err != nil {
-		s.Logger().Error("failed to send order confirmation", "err", err, "email", req.Email)
+		s.Logger(ctx).Error("failed to send order confirmation", "err", err, "email", req.Email)
 	} else {
-		s.Logger().Info("order confirmation email sent", "email", req.Email)
+		s.Logger(ctx).Info("order confirmation email sent", "email", req.Email)
 	}
 	return order, nil
 }

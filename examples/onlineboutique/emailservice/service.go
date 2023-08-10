@@ -52,11 +52,11 @@ func (s *impl) SendOrderConfirmation(ctx context.Context, email string, order ty
 		return err
 	}
 	confirmation := buf.String()
-	return s.sendEmail(email, confirmation)
+	return s.sendEmail(ctx, email, confirmation)
 }
 
-func (s *impl) sendEmail(email, confirmation string) error {
-	s.Logger().Info(fmt.Sprintf(
+func (s *impl) sendEmail(ctx context.Context, email, confirmation string) error {
+	s.Logger(ctx).Info(fmt.Sprintf(
 		"A request to send email confirmation to %s has been received:\n%s",
 		email, confirmation))
 	return nil

@@ -100,15 +100,15 @@ func Serve(ctx context.Context, s *Server) error {
 	// Autodetect GCP
 	addrs, err := net.LookupHost("metadata.google.internal.")
 	if err == nil && len(addrs) >= 0 {
-		s.Logger().Debug("Detected Google metadata server, setting ENV_PLATFORM to GCP.", "address", addrs)
+		s.Logger(ctx).Debug("Detected Google metadata server, setting ENV_PLATFORM to GCP.", "address", addrs)
 		env = "gcp"
 	}
-	s.Logger().Debug("ENV_PLATFORM", "platform", env)
+	s.Logger(ctx).Debug("ENV_PLATFORM", "platform", env)
 	s.platform = platformDetails{}
 	s.platform.setPlatformDetails(strings.ToLower(env))
 	s.hostname, err = os.Hostname()
 	if err != nil {
-		s.Logger().Debug(`cannot get hostname for frontend: using "unknown"`)
+		s.Logger(ctx).Debug(`cannot get hostname for frontend: using "unknown"`)
 		s.hostname = "unknown"
 	}
 
@@ -154,10 +154,10 @@ func Serve(ctx context.Context, s *Server) error {
 	var handler http.Handler = r
 	// TODO(spetrovic): Use the Service Weaver per-component config to provisionaly
 	// add these stats.
-	handler = ensureSessionID(handler)           // add session ID
-	handler = newLogHandler(s.Logger(), handler) // add logging
+	handler = ensureSessionID(handler)              // add session ID
+	handler = newLogHandler(s.Logger(ctx), handler) // add logging
 	s.handler = handler
 
-	s.Logger().Debug("Frontend available", "addr", s.boutique)
+	s.Logger(ctx).Debug("Frontend available", "addr", s.boutique)
 	return http.Serve(s.boutique, s.handler)
 }

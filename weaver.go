@@ -37,6 +37,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/slog"
 )
 
@@ -240,8 +241,18 @@ type Implements[T any] struct {
 }
 
 // Logger returns a logger that associates its log entries with this component.
-func (i Implements[T]) Logger() *slog.Logger {
-	return i.logger
+// Log entries are labeled with any OpenTelemetry trace id and span id in the
+// provided context.
+func (i Implements[T]) Logger(ctx context.Context) *slog.Logger {
+	logger := i.logger
+	s := trace.SpanContextFromContext(ctx)
+	if s.HasTraceID() {
+		logger = logger.With("traceid", s.TraceID().String())
+	}
+	if s.HasSpanID() {
+		logger = logger.With("spanid", s.SpanID().String())
+	}
+	return logger
 }
 
 func (i *Implements[T]) setLogger(logger *slog.Logger) {

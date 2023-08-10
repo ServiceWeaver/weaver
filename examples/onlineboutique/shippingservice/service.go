@@ -43,8 +43,8 @@ type impl struct {
 
 // GetQuote produces a shipping quote (cost) in USD.
 func (s *impl) GetQuote(ctx context.Context, addr Address, items []cartservice.CartItem) (money.T, error) {
-	s.Logger().Info("[GetQuote] received request")
-	defer s.Logger().Info("[GetQuote] completed request")
+	s.Logger(ctx).Info("[GetQuote] received request")
+	defer s.Logger(ctx).Info("[GetQuote] completed request")
 
 	// 1. Generate a quote based on the total number of items to be shipped.
 	quote := createQuoteFromCount(len(items))
@@ -60,8 +60,8 @@ func (s *impl) GetQuote(ctx context.Context, addr Address, items []cartservice.C
 // ShipOrder mocks that the requested items will be shipped.
 // It supplies a tracking ID for notional lookup of shipment delivery status.
 func (s *impl) ShipOrder(ctx context.Context, addr Address, items []cartservice.CartItem) (string, error) {
-	s.Logger().Info("[ShipOrder] received request")
-	defer s.Logger().Info("[ShipOrder] completed request")
+	s.Logger(ctx).Info("[ShipOrder] received request")
+	defer s.Logger(ctx).Info("[ShipOrder] completed request")
 
 	// Create a Tracking ID.
 	baseAddress := fmt.Sprintf("%s, %s, %s", addr.StreetAddress, addr.City, addr.State)

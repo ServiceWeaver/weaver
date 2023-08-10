@@ -9,6 +9,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+    go.opentelemetry.io/otel/trace
     golang.org/x/exp/slog
     math/rand
     net
@@ -169,7 +170,6 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/cartservice
     github.com/hashicorp/golang-lru/v2
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
     reflect
 github.com/ServiceWeaver/weaver/examples/onlineboutique/checkoutservice
     context
