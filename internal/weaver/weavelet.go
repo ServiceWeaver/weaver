@@ -21,7 +21,7 @@ import (
 // A Weavelet is an agent that hosts a set of components.
 type Weavelet interface {
 	// GetIntf returns a handle to the component with the provided interface
-	// type. For example, given component interface Foo, GetImpl(Foo) returns a
+	// type. For example, given component interface Foo, GetIntf(Foo) returns a
 	// value of type Foo.
 	GetIntf(t reflect.Type) (any, error)
 
