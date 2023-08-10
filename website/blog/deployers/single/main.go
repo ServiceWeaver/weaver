@@ -115,6 +115,7 @@ func (d *deployer) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	return nil
 }
 
+// Responsibility 4: Security.
 func (*deployer) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
 	// This deployer doesn't enable mTLS.
 	panic("unused")

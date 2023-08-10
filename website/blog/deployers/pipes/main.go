@@ -62,7 +62,7 @@ func run(ctx context.Context, binary string) error {
 	// https://pkg.go.dev/os/exec#Cmd for details.
 	cmd := exec.Command(binary)
 	cmd.ExtraFiles = []*os.File{weaveletReader, weaveletWriter}
-	cmd.Env = []string{"ENVELOPE_TO_WEAVELET_FD=3", "WEAVELET_TO_ENVELOPE_FD=4"}
+	cmd.Env = append(cmd.Environ(), "ENVELOPE_TO_WEAVELET_FD=3", "WEAVELET_TO_ENVELOPE_FD=4")
 	if err := cmd.Start(); err != nil {
 		return err
 	}
