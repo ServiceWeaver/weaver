@@ -233,10 +233,8 @@ type Implements[T any] struct {
 }
 
 // Logger returns a logger that associates its log entries with this component.
-//
 // Log entries are labeled with any OpenTelemetry trace id and span id in the
-// provided context. Thus, you should not re-use the returned logger across two
-// methods that may be a part of a different trace or span.
+// provided context.
 func (i Implements[T]) Logger(ctx context.Context) *slog.Logger {
 	logger := i.logger
 	s := trace.SpanContextFromContext(ctx)
