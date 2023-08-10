@@ -1045,6 +1045,7 @@ github.com/ServiceWeaver/weaver/weavertest/internal/simple
     reflect
     strings
     sync
+github.com/ServiceWeaver/weaver/website/blog/deployers
 github.com/ServiceWeaver/weaver/website/blog/deployers/multi
     context
     flag
