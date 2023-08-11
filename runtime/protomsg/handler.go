@@ -19,12 +19,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/metrics"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 )
 

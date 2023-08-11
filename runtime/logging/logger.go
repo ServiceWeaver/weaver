@@ -18,6 +18,7 @@ package logging
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 	"sync"
@@ -26,7 +27,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
 )
 
 // Options configures the log entries produced by a logger.

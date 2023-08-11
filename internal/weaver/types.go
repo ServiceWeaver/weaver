@@ -15,10 +15,9 @@
 package weaver
 
 import (
+	"log/slog"
 	"net"
 	"reflect"
-
-	"golang.org/x/exp/slog"
 )
 
 var (

@@ -72,6 +72,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -81,7 +82,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
 )
 
 const (
@@ -229,7 +229,7 @@ func Serve(ctx context.Context, l Listener, opts ServerOptions) error {
 	opts = opts.withDefaults()
 	ss := &serverState{opts: opts}
 	defer ss.stop()
-	l = &onceCloseListener{Listener: l}
+	l = &onceCloseListener{Listener: l, closer: sync.OnceValue(l.Close)}
 
 	// Arrange to close the listener when the context is canceled.
 	go func() {
@@ -251,18 +251,13 @@ func Serve(ctx context.Context, l Listener, opts ServerOptions) error {
 }
 
 // onceCloseListener wraps a Listener, protecting it from multiple Close calls.
-// TODO: replace with sync.OnceValues which should be available in go1.21
 type onceCloseListener struct {
 	Listener
-	once     sync.Once
-	closeErr error
+	closer func() error // Must be result of sync.OnceValue
 }
 
 func (oc *onceCloseListener) Close() error {
-	oc.once.Do(func() {
-		oc.closeErr = oc.Listener.Close()
-	})
-	return oc.closeErr
+	return oc.closer()
 }
 
 // ServeOn serves client requests received over an already established

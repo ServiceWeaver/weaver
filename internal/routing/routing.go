@@ -19,11 +19,11 @@ package routing
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/slices"
 )
 
 // FormatAssignment pretty formats the provided assignment.

@@ -16,13 +16,12 @@ package protomsg
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
-
-	"golang.org/x/exp/slog"
 )
 
 func TestPanicHandler(t *testing.T) {

@@ -16,12 +16,11 @@ package proxy
 
 import (
 	"errors"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"sync"
-
-	"golang.org/x/exp/slog"
 )
 
 // Proxy is an HTTP proxy that forwards traffic to a set of backends.

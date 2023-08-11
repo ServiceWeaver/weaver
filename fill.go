@@ -16,12 +16,12 @@ package weaver
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"reflect"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
-	"golang.org/x/exp/slog"
 )
 
 func init() {

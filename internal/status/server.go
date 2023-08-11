@@ -17,13 +17,13 @@ package status
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/slog"
 )
 
 const (
