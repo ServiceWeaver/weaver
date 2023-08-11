@@ -106,7 +106,6 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
-		SingleProcess: true,
 		SingleMachine: true,
 	}
 

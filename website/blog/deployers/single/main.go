@@ -56,11 +56,6 @@ func deploy(binary string) error {
 		Id:            uuid.New().String(), // the weavelet id
 		SingleMachine: true,                // is the app on a single machine?
 		RunMain:       true,                // should the weavelet run main?
-
-		// Note that we could set SingleProcess to true, but if we did, the
-		// envelope wouldn't receive any requests. We set it to false to
-		// demonstrate the weavelet-envelope interaction.
-		SingleProcess: false, // is the app a single process?
 	}
 	config := &protos.AppConfig{
 		Name:   "app",  // the application name

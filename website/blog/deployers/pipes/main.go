@@ -73,7 +73,6 @@ func run(ctx context.Context, binary string) error {
 			App:           "app",               // the application name
 			DeploymentId:  uuid.New().String(), // the deployment id
 			Id:            uuid.New().String(), // the weavelet id
-			SingleProcess: false,               // is the app a single process?
 			SingleMachine: true,                // is the app on a single machine?
 			RunMain:       true,                // should the weavelet run main?
 		},

@@ -123,7 +123,6 @@ func wlet(binary string, args ...string) (*protos.EnvelopeInfo, *protos.AppConfi
 		App:           "app",
 		DeploymentId:  uuid.New().String(),
 		Id:            uuid.New().String(),
-		SingleProcess: true,
 		SingleMachine: true,
 	}
 	config := &protos.AppConfig{Binary: binary, Args: args}

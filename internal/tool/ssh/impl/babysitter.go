@@ -91,12 +91,11 @@ func RunBabysitter(ctx context.Context) error {
 
 	// Start the envelope.
 	wlet := &protos.EnvelopeInfo{
-		App:           info.Deployment.App.Name,
-		DeploymentId:  info.Deployment.Id,
-		Id:            id,
-		Sections:      info.Deployment.App.Sections,
-		SingleProcess: info.Deployment.SingleProcess,
-		RunMain:       info.RunMain,
+		App:          info.Deployment.App.Name,
+		DeploymentId: info.Deployment.Id,
+		Id:           id,
+		Sections:     info.Deployment.App.Sections,
+		RunMain:      info.RunMain,
 	}
 	e, err := envelope.NewEnvelope(ctx, wlet, info.Deployment.App)
 	if err != nil {

@@ -41,7 +41,7 @@ func init() {
 	// the values of version.ModuleVersion and version.DeployerVersion. If the
 	// string is not a constant---if we try to use fmt.Sprintf, for
 	// example---it will not be embedded in a Service Weaver binary.
-	versionData = "⟦wEaVeRvErSiOn:module=v0.19.0;deployer=v0.18.0⟧"
+	versionData = "⟦wEaVeRvErSiOn:module=v0.20.0;deployer=v0.20.0⟧"
 }
 
 // rodata returns the read-only data section of the provided binary.

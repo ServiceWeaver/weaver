@@ -154,7 +154,6 @@ message EnvelopeInfo {
   string deployment_id = 2;          // globally unique deployment id
   string id = 3;                     // globally unique weavelet id
   map<string, string> sections = 4;  // See AppConfig.Sections.
-  bool single_process = 5;           // a single-process deployment?
   bool single_machine = 6;           // a single-machine deployment?
   bool run_main = 7;                 // run the main function?
 

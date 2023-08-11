@@ -95,7 +95,6 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 		App:           appConfig.Name,
 		DeploymentId:  uuid.New().String(),
 		Sections:      appConfig.Sections,
-		SingleProcess: false,
 		SingleMachine: true,
 	}
 

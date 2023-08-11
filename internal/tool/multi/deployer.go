@@ -327,7 +327,6 @@ func (d *deployer) startColocationGroup(g *group) error {
 			DeploymentId:  d.deploymentId,
 			Id:            uuid.New().String(),
 			Sections:      d.config.App.Sections,
-			SingleProcess: false,
 			SingleMachine: true,
 			RunMain:       g.started[runtime.Main],
 			Mtls:          d.config.Mtls,
