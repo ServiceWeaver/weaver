@@ -98,7 +98,6 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
 	}
 	wc.winfo = &protos.WeaveletInfo{
 		DialAddr: dialAddr,
-		Pid:      int64(os.Getpid()),
 		Version: &protos.SemVer{
 			Major: version.DeployerMajor,
 			Minor: version.DeployerMinor,

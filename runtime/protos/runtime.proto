@@ -176,11 +176,6 @@ message WeaveletInfo {
   // weavelets as part of their RoutingInfo.
   string dial_addr = 1;
 
-  // Pid for the weavelet OS process.
-  //
-  // TODO(mwhittaker): Remove pid.
-  int64 pid = 2;
-
   // The deployer API version of the weavelet.
   SemVer version = 3;
 }

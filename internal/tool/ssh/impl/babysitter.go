@@ -107,7 +107,7 @@ func RunBabysitter(ctx context.Context) error {
 	// compiled binary.
 	winfo := e.WeaveletInfo()
 
-	if err := b.registerReplica(winfo); err != nil {
+	if err := b.registerReplica(winfo, e.Pid()); err != nil {
 		return err
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
@@ -179,7 +179,7 @@ func (b *babysitter) ActivateComponent(_ context.Context, req *protos.ActivateCo
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
+func (b *babysitter) registerReplica(info *protos.WeaveletInfo, pid int) error {
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
@@ -187,7 +187,7 @@ func (b *babysitter) registerReplica(info *protos.WeaveletInfo) error {
 		Request: &ReplicaToRegister{
 			Group:   b.info.Group,
 			Address: info.DialAddr,
-			Pid:     info.Pid,
+			Pid:     int64(pid),
 		},
 	}); err != nil {
 		return err

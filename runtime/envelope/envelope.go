@@ -262,6 +262,11 @@ func (e *Envelope) toggleProfiling(expected bool) bool {
 	return true
 }
 
+// Pid returns the process id of the subprocess.
+func (e *Envelope) Pid() int {
+	return e.cmd.Process.Pid
+}
+
 // WeaveletInfo returns information about the started weavelet.
 func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
 	return e.conn.WeaveletInfo()

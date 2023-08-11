@@ -351,7 +351,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 			d.stop(err)
 			return err
 		})
-		if err := d.registerReplica(g, wlet); err != nil {
+		if err := d.registerReplica(g, wlet, e.Pid()); err != nil {
 			return err
 		}
 		if err := e.UpdateComponents(components); err != nil {
@@ -506,14 +506,14 @@ func (d *deployer) activateComponent(req *protos.ActivateComponentRequest) error
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
+func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo, pid int) error {
 	// Update addresses and pids.
 	if g.addresses[info.DialAddr] {
 		// Replica already registered.
 		return nil
 	}
 	g.addresses[info.DialAddr] = true
-	g.pids = append(g.pids, info.Pid)
+	g.pids = append(g.pids, int64(pid))
 
 	// Update all assignments.
 	replicas := maps.Keys(g.addresses)
