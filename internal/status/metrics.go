@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	dtool "github.com/ServiceWeaver/weaver/runtime/tool"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // MetricsCommand returns a "metrics" subcommand that pretty prints the metrics

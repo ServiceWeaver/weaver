@@ -10,7 +10,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
+    log/slog
     math/rand
     net
     net/http
@@ -226,8 +226,8 @@ github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/runtime/retry
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
     io
+    log/slog
     net
     strings
     sync
@@ -244,7 +244,7 @@ github.com/ServiceWeaver/weaver/internal/proto
     google.golang.org/protobuf/proto
 github.com/ServiceWeaver/weaver/internal/proxy
     errors
-    golang.org/x/exp/slog
+    log/slog
     math/rand
     net/http
     net/http/httputil
@@ -261,8 +261,8 @@ github.com/ServiceWeaver/weaver/internal/register
 github.com/ServiceWeaver/weaver/internal/routing
     fmt
     github.com/ServiceWeaver/weaver/runtime/protos
-    golang.org/x/exp/slices
     math
+    slices
     sort
     strings
 github.com/ServiceWeaver/weaver/internal/status
@@ -288,19 +288,19 @@ github.com/ServiceWeaver/weaver/internal/status
     github.com/google/pprof/profile
     github.com/pkg/browser
     golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
     html/template
     io
+    log/slog
     net
     net/http
     os
     path/filepath
     reflect
     regexp
+    slices
     sort
     strings
     sync
@@ -404,19 +404,19 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
     golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     golang.org/x/sync/errgroup
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
     io
+    log/slog
     net
     net/http
     os
     os/signal
     path/filepath
     reflect
+    slices
     sync
     syscall
     time
@@ -491,17 +491,17 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime/traces
     github.com/google/uuid
     golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
+    log/slog
     net
     net/http
     os
     os/exec
     path/filepath
     reflect
+    slices
     sync
     syscall
     time
@@ -554,9 +554,8 @@ github.com/ServiceWeaver/weaver/internal/weaver
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     google.golang.org/protobuf/types/known/timestamppb
+    log/slog
     math
     math/rand
     net
@@ -565,6 +564,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     os/signal
     path/filepath
     reflect
+    slices
     sort
     strings
     sync
@@ -660,11 +660,11 @@ github.com/ServiceWeaver/weaver/runtime/logging
     github.com/google/cel-go/checker/decls
     github.com/google/cel-go/common/operators
     github.com/google/uuid
-    golang.org/x/exp/slog
     google.golang.org/genproto/googleapis/api/expr/v1alpha1
     google.golang.org/protobuf/proto
     google.golang.org/protobuf/types/known/timestamppb
     io
+    log/slog
     os
     path/filepath
     reflect
@@ -680,9 +680,9 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     golang.org/x/exp/maps
-    golang.org/x/exp/slices
     math
     reflect
+    slices
     sort
     sync
     sync/atomic
@@ -725,9 +725,9 @@ github.com/ServiceWeaver/weaver/runtime/protomsg
     fmt
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
-    golang.org/x/exp/slog
     google.golang.org/protobuf/proto
     io
+    log/slog
     math
     net/http
     runtime/debug
@@ -798,12 +798,12 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     golang.org/x/exp/maps
-    golang.org/x/exp/slices
     golang.org/x/sync/errgroup
     os
     reflect
     regexp
     runtime
+    slices
     strings
     sync
     testing

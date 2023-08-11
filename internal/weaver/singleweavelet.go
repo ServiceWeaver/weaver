@@ -17,6 +17,7 @@ package weaver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -43,7 +44,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
