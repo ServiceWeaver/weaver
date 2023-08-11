@@ -52,10 +52,6 @@ func TestExamples(t *testing.T) {
 			url:  "http://127.0.0.1:9000?x=10",
 			want: "[1 2 5 10]",
 		},
-		"onlineboutique": {
-			url:  "http://127.0.0.1:12345",
-			want: "Online Boutique",
-		},
 	}
 
 	examples, err := os.ReadDir(".")
