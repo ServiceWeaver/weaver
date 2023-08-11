@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 // FormatAssignment pretty formats the provided assignment.

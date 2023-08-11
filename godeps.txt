@@ -10,7 +10,7 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
+    log/slog
     math/rand
     net
     net/http
@@ -157,7 +157,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/adservice
     go.opentelemetry.io/otel/attribute
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/maps
+    maps
     math/rand
     reflect
     strings
@@ -200,7 +200,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/currencyservice
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/maps
+    maps
     math
     reflect
     strconv
@@ -235,9 +235,9 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/frontend
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/google/uuid
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
     html/template
     io/fs
+    log/slog
     math/rand
     net
     net/http
@@ -258,7 +258,7 @@ github.com/ServiceWeaver/weaver/examples/onlineboutique/paymentservice
     github.com/google/uuid
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
+    log/slog
     reflect
     strings
     time
@@ -400,8 +400,8 @@ github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/runtime/retry
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/slog
     io
+    log/slog
     net
     strings
     sync
@@ -418,7 +418,7 @@ github.com/ServiceWeaver/weaver/internal/proto
     google.golang.org/protobuf/proto
 github.com/ServiceWeaver/weaver/internal/proxy
     errors
-    golang.org/x/exp/slog
+    log/slog
     math/rand
     net/http
     net/http/httputil
@@ -435,8 +435,8 @@ github.com/ServiceWeaver/weaver/internal/register
 github.com/ServiceWeaver/weaver/internal/routing
     fmt
     github.com/ServiceWeaver/weaver/runtime/protos
-    golang.org/x/exp/slices
     math
+    slices
     sort
     strings
 github.com/ServiceWeaver/weaver/internal/status
@@ -461,20 +461,20 @@ github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/runtime/traces
     github.com/google/pprof/profile
     github.com/pkg/browser
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
     html/template
     io
+    log/slog
+    maps
     net
     net/http
     os
     path/filepath
     reflect
     regexp
+    slices
     sort
     strings
     sync
@@ -492,7 +492,7 @@ github.com/ServiceWeaver/weaver/internal/tool/callgraph
     fmt
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/logging
-    golang.org/x/exp/maps
+    maps
     sort
     strings
 github.com/ServiceWeaver/weaver/internal/tool/certs
@@ -527,10 +527,10 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     go/parser
     go/token
     go/types
-    golang.org/x/exp/maps
     golang.org/x/tools/go/packages
     golang.org/x/tools/go/types/typeutil
     io
+    maps
     os
     path
     path/filepath
@@ -577,20 +577,20 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/traces
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     golang.org/x/sync/errgroup
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
     io
+    log/slog
+    maps
     net
     net/http
     os
     os/signal
     path/filepath
     reflect
+    slices
     sync
     syscall
     time
@@ -635,8 +635,8 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
-    golang.org/x/exp/maps
     io
+    maps
     os
     os/exec
     os/signal
@@ -664,18 +664,18 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/traces
     github.com/google/uuid
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     google.golang.org/protobuf/reflect/protoreflect
     google.golang.org/protobuf/runtime/protoimpl
     google.golang.org/protobuf/types/known/timestamppb
+    log/slog
+    maps
     net
     net/http
     os
     os/exec
     path/filepath
     reflect
+    slices
     sync
     syscall
     time
@@ -727,10 +727,9 @@ github.com/ServiceWeaver/weaver/internal/weaver
     go.opentelemetry.io/otel/sdk/trace
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
-    golang.org/x/exp/slog
     google.golang.org/protobuf/types/known/timestamppb
+    log/slog
+    maps
     math
     math/rand
     net
@@ -739,6 +738,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     os/signal
     path/filepath
     reflect
+    slices
     sort
     strings
     sync
@@ -834,11 +834,11 @@ github.com/ServiceWeaver/weaver/runtime/logging
     github.com/google/cel-go/checker/decls
     github.com/google/cel-go/common/operators
     github.com/google/uuid
-    golang.org/x/exp/slog
     google.golang.org/genproto/googleapis/api/expr/v1alpha1
     google.golang.org/protobuf/proto
     google.golang.org/protobuf/types/known/timestamppb
     io
+    log/slog
     os
     path/filepath
     reflect
@@ -853,10 +853,10 @@ github.com/ServiceWeaver/weaver/runtime/metrics
     fmt
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
+    maps
     math
     reflect
+    slices
     sort
     sync
     sync/atomic
@@ -886,7 +886,7 @@ github.com/ServiceWeaver/weaver/runtime/prometheus
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
-    golang.org/x/exp/maps
+    maps
     math
     sort
     strconv
@@ -899,9 +899,9 @@ github.com/ServiceWeaver/weaver/runtime/protomsg
     fmt
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
-    golang.org/x/exp/slog
     google.golang.org/protobuf/proto
     io
+    log/slog
     math
     net/http
     runtime/debug
@@ -971,13 +971,13 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
-    golang.org/x/exp/maps
-    golang.org/x/exp/slices
     golang.org/x/sync/errgroup
+    maps
     os
     reflect
     regexp
     runtime
+    slices
     strings
     sync
     testing

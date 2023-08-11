@@ -21,7 +21,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 type InvalidCreditCardErr struct{}

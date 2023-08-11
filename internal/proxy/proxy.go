@@ -21,7 +21,7 @@ import (
 	"net/http/httputil"
 	"sync"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // Proxy is an HTTP proxy that forwards traffic to a set of backends.

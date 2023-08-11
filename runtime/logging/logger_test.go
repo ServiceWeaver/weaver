@@ -25,7 +25,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 func TestTestLogger(t *testing.T) {

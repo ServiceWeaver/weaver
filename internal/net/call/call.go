@@ -81,7 +81,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 const (

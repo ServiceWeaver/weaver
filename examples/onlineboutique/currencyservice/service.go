@@ -24,7 +24,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
-	"golang.org/x/exp/maps"
+	"maps"
 )
 
 var (

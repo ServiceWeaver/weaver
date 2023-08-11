@@ -34,9 +34,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/traces"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
+	"maps"
+	"slices"
+	"log/slog"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/ServiceWeaver/weaver/internal/proto"

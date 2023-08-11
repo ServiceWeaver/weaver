@@ -18,7 +18,7 @@ import (
 	"net"
 	"reflect"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 var (

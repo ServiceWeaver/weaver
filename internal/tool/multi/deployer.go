@@ -40,9 +40,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"github.com/google/uuid"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
+	"maps"
+	"slices"
+	"log/slog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

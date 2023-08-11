@@ -39,7 +39,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 type resolverMaker func(...call.Endpoint) call.Resolver

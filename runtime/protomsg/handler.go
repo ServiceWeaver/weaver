@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/metrics"
-	"golang.org/x/exp/slog"
+	"log/slog"
 	"google.golang.org/protobuf/proto"
 )
 

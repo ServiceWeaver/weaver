@@ -27,7 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 // Runner runs user-supplied testing code as a weaver application.

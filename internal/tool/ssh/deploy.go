@@ -30,7 +30,7 @@ import (
 	"syscall"
 
 	"github.com/google/uuid"
-	"golang.org/x/exp/maps"
+	"maps"
 
 	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh/impl"

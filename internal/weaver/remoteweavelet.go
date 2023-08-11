@@ -38,9 +38,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
+	"maps"
+	"slices"
+	"log/slog"
 )
 
 // readyMethodKey holds the key for a method used to check if a backend is ready.

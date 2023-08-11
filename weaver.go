@@ -38,7 +38,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 //go:generate ./dev/protoc.sh internal/status/status.proto

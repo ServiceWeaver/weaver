@@ -25,7 +25,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/maps"
+	"maps"
 )
 
 // escaper is used to format the labels according to [1]. Prometheus labels can

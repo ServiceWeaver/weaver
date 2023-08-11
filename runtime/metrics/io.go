@@ -19,7 +19,7 @@ import (
 	"math"
 
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/maps"
+	"maps"
 )
 
 // An Exporter produces MetricUpdates summarizing the change in metrics over

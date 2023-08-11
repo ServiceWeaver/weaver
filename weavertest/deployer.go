@@ -27,7 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-	"golang.org/x/exp/maps"
+	"maps"
 	"golang.org/x/sync/errgroup"
 )
 

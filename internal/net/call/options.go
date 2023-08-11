@@ -20,7 +20,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // ClientOptions are the options to configure an RPC client.

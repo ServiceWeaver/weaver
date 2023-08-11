@@ -35,7 +35,7 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/productcatalogservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/shippingservice"
 	"github.com/ServiceWeaver/weaver/examples/onlineboutique/types/money"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 const (

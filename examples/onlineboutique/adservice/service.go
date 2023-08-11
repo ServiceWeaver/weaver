@@ -19,7 +19,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"golang.org/x/exp/maps"
+	"maps"
 
 	"github.com/ServiceWeaver/weaver"
 	"go.opentelemetry.io/otel/attribute"

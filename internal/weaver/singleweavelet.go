@@ -43,7 +43,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/traces"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slog"
+	"log/slog"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

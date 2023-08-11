@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 func TestPanicHandler(t *testing.T) {

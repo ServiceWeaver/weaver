@@ -23,7 +23,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
-	"golang.org/x/exp/maps"
+	"maps"
 )
 
 // Mermaid returns a Mermaid diagram, https://mermaid.js.org/, of the component

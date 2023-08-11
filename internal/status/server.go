@@ -23,7 +23,7 @@ import (
 	imetrics "github.com/ServiceWeaver/weaver/runtime/prometheus"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	protos "github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 const (

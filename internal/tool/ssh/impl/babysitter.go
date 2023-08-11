@@ -30,7 +30,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/google/uuid"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // babysitter starts and manages weavelets belonging to a single colocation

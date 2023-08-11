@@ -21,7 +21,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 func init() {
