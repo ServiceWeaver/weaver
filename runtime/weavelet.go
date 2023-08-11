@@ -37,8 +37,5 @@ func CheckEnvelopeInfo(w *protos.EnvelopeInfo) error {
 	if w.Id == "" {
 		return fmt.Errorf("EnvelopeInfo: missing weavelet id")
 	}
-	if w.SingleProcess && !w.SingleMachine {
-		return fmt.Errorf("EnvelopeInfo: single process but not single machine")
-	}
 	return nil
 }

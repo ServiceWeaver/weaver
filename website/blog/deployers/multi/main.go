@@ -77,7 +77,6 @@ func (d *deployer) spawn(component string) (*handler, error) {
 		App:           "app",                     // the application name
 		DeploymentId:  deploymentId,              // the deployment id
 		Id:            uuid.New().String(),       // the weavelet id
-		SingleProcess: false,                     // is the app a single process?
 		SingleMachine: true,                      // is the app on a single machine?
 		Mtls:          false,                     // don't enable mtls
 		RunMain:       component == runtime.Main, // should the weavelet run main?

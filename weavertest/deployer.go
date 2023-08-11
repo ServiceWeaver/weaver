@@ -161,7 +161,6 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 		DeploymentId:  d.wlet.DeploymentId,
 		Id:            uuid.New().String(),
 		Sections:      d.wlet.Sections,
-		SingleProcess: d.wlet.SingleProcess,
 		SingleMachine: d.wlet.SingleMachine,
 	}
 	bootstrap := runtime.Bootstrap{
@@ -358,7 +357,6 @@ func (d *deployer) startGroup(g *group) error {
 			DeploymentId:  d.wlet.DeploymentId,
 			Id:            uuid.New().String(),
 			Sections:      d.wlet.Sections,
-			SingleProcess: d.wlet.SingleProcess,
 			SingleMachine: d.wlet.SingleMachine,
 		}
 		handler := &handler{

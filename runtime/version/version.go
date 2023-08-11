@@ -28,7 +28,7 @@ const (
 	//
 	// [1]: https://go.dev/doc/modules/version-numbers
 	ModuleMajor = 0
-	ModuleMinor = 19
+	ModuleMinor = 20
 	ModulePatch = 0
 
 	// Note that there is currently no way to programmatically get the version
@@ -50,7 +50,7 @@ const (
 	// the deployer API in v0.13.0 of Service Weaver, then we leave the
 	// deployer API at v0.12.0.
 	DeployerMajor = 0
-	DeployerMinor = 18
+	DeployerMinor = 20
 
 	// The version of the codegen API. As with the deployer API, we assign a
 	// new version every time we change how code is generated, and we use
