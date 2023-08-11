@@ -26,14 +26,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ["1.21"]
+        version: ["stable"]
         command: ["build", "vet", "lint", "test", "testrace"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.version }}
           cache: true
@@ -61,13 +61,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ["1.21"]
+        version: ["stable"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.version }}
           cache: true
