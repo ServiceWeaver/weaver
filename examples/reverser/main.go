@@ -26,12 +26,9 @@ import (
 
 //go:generate ../../cmd/weaver/weaver generate
 
-var (
-	address = flag.String("address", ":9000", "Reverser server local address")
+//go:embed index.html
+var indexHtml string // index.html served on "/"
 
-	//go:embed index.html
-	indexHtml string // index.html served on "/"
-)
 
 func main() {
 	// Initialize the Service Weaver application.
