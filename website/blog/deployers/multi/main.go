@@ -74,12 +74,12 @@ func (d *deployer) spawn(component string) (*handler, error) {
 
 	// Spawn a weavelet in a subprocess to host the component.
 	info := &protos.EnvelopeInfo{
-		App:           "app",                     // the application name
-		DeploymentId:  deploymentId,              // the deployment id
-		Id:            uuid.New().String(),       // the weavelet id
-		SingleMachine: true,                      // is the app on a single machine?
-		Mtls:          false,                     // don't enable mtls
-		RunMain:       component == runtime.Main, // should the weavelet run main?
+		App:             "app",                     // the application name
+		DeploymentId:    deploymentId,              // the deployment id
+		Id:              uuid.New().String(),       // the weavelet id
+		Mtls:            false,                     // don't enable mtls
+		RunMain:         component == runtime.Main, // should the weavelet run main?
+		InternalAddress: "localhost:0",             // internal address of the weavelet
 	}
 	config := &protos.AppConfig{
 		Name:   "app",       // the application name

@@ -157,11 +157,11 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 	}
 	// Run an envelope connection to the main co-location group.
 	wlet := &protos.EnvelopeInfo{
-		App:           d.wlet.App,
-		DeploymentId:  d.wlet.DeploymentId,
-		Id:            uuid.New().String(),
-		Sections:      d.wlet.Sections,
-		SingleMachine: d.wlet.SingleMachine,
+		App:             d.wlet.App,
+		DeploymentId:    d.wlet.DeploymentId,
+		Id:              uuid.New().String(),
+		Sections:        d.wlet.Sections,
+		InternalAddress: "localhost:0",
 	}
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
@@ -353,11 +353,11 @@ func (d *deployer) startGroup(g *group) error {
 	for r := 0; r < DefaultReplication; r++ {
 		// Start the weavelet.
 		wlet := &protos.EnvelopeInfo{
-			App:           d.wlet.App,
-			DeploymentId:  d.wlet.DeploymentId,
-			Id:            uuid.New().String(),
-			Sections:      d.wlet.Sections,
-			SingleMachine: d.wlet.SingleMachine,
+			App:             d.wlet.App,
+			DeploymentId:    d.wlet.DeploymentId,
+			Id:              uuid.New().String(),
+			Sections:        d.wlet.Sections,
+			InternalAddress: "localhost:0",
 		}
 		handler := &handler{
 			deployer:   d,

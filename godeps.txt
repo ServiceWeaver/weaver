@@ -192,7 +192,6 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     google.golang.org/protobuf/proto
     io
     net
-    os
     runtime/pprof
     sync
     time

@@ -120,10 +120,10 @@ func checkFile() error {
 // wlet returns a EnvelopeInfo and AppConfig for testing.
 func wlet(binary string, args ...string) (*protos.EnvelopeInfo, *protos.AppConfig) {
 	weavelet := &protos.EnvelopeInfo{
-		App:           "app",
-		DeploymentId:  uuid.New().String(),
-		Id:            uuid.New().String(),
-		SingleMachine: true,
+		App:             "app",
+		DeploymentId:    uuid.New().String(),
+		Id:              uuid.New().String(),
+		InternalAddress: "localhost:0",
 	}
 	config := &protos.AppConfig{Binary: binary, Args: args}
 	return weavelet, config

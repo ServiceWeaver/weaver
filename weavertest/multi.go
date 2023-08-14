@@ -92,10 +92,10 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 	}
 
 	wlet := &protos.EnvelopeInfo{
-		App:           appConfig.Name,
-		DeploymentId:  uuid.New().String(),
-		Sections:      appConfig.Sections,
-		SingleMachine: true,
+		App:             appConfig.Name,
+		DeploymentId:    uuid.New().String(),
+		Sections:        appConfig.Sections,
+		InternalAddress: "localhost:0",
 	}
 
 	// Launch the deployer.
