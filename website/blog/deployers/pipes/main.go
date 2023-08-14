@@ -70,11 +70,11 @@ func run(ctx context.Context, binary string) error {
 	// Step 2. Send an EnvelopeInfo to the weavelet.
 	info := &protos.EnvelopeMsg{
 		EnvelopeInfo: &protos.EnvelopeInfo{
-			App:           "app",               // the application name
-			DeploymentId:  uuid.New().String(), // the deployment id
-			Id:            uuid.New().String(), // the weavelet id
-			SingleMachine: true,                // is the app on a single machine?
-			RunMain:       true,                // should the weavelet run main?
+			App:             "app",               // the application name
+			DeploymentId:    uuid.New().String(), // the deployment id
+			Id:              uuid.New().String(), // the weavelet id
+			RunMain:         true,                // should the weavelet run main?
+			InternalAddress: "localhost:0",       // internal address of the weavelet
 		},
 	}
 	if err := protomsg.Write(envelopeWriter, info); err != nil {

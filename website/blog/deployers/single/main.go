@@ -51,11 +51,11 @@ func main() {
 func deploy(binary string) error {
 	// Spawn the weavelet.
 	info := &protos.EnvelopeInfo{
-		App:           "app",               // the application name
-		DeploymentId:  uuid.New().String(), // the deployment id
-		Id:            uuid.New().String(), // the weavelet id
-		SingleMachine: true,                // is the app on a single machine?
-		RunMain:       true,                // should the weavelet run main?
+		App:             "app",               // the application name
+		DeploymentId:    uuid.New().String(), // the deployment id
+		Id:              uuid.New().String(), // the weavelet id
+		RunMain:         true,                // should the weavelet run main?
+		InternalAddress: "localhost:0",       // internal address of the weavelet
 	}
 	config := &protos.AppConfig{
 		Name:   "app",  // the application name

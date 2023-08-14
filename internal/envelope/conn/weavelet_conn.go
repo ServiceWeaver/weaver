@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"runtime/pprof"
 	"time"
 
@@ -86,7 +85,7 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
 	}
 
 	// Second, send WeaveletInfo.
-	lis, err := listen(wc.einfo)
+	lis, err := net.Listen("tcp", wc.einfo.InternalAddress)
 	if err != nil {
 		wc.conn.cleanup(err)
 		return nil, err
@@ -343,21 +342,4 @@ func Profile(req *protos.GetProfileRequest) ([]byte, error) {
 		return nil, fmt.Errorf("unspecified profile collection type")
 	}
 	return buf.Bytes(), nil
-}
-
-func listen(info *protos.EnvelopeInfo) (net.Listener, error) {
-	// Pick a hostname to listen on.
-	host := "localhost"
-	if !info.SingleMachine {
-		// TODO(mwhittaker): Right now, we resolve our hostname to get a
-		// dialable IP address. Double check that this always works.
-		var err error
-		host, err = os.Hostname()
-		if err != nil {
-			return nil, fmt.Errorf("error getting local hostname: %w", err)
-		}
-	}
-
-	// Create the listener
-	return net.Listen("tcp", fmt.Sprintf("%s:%d", host, info.InternalPort))
 }

@@ -1,7 +1,7 @@
 # How to Implement a Service Weaver Deployer
 
 <div class="blog-author">Michael Whittaker</div>
-<div class="blog-date">April 5, 2023 (Updated August 10, 2023)</div>
+<div class="blog-date">April 5, 2023 (Updated August 14, 2023)</div>
 
 Service Weaver allows you to deploy an application in many different ways. For
 example, you can deploy an application in a [single process][singleprocess],
@@ -200,13 +200,13 @@ func (d *deployer) spawn(component string) (*handler, error) {
 
     // Spawn a weavelet in a subprocess to host the component.
     info := &protos.EnvelopeInfo{
-        App:           "app",                     // the application name
-        DeploymentId:  deploymentId,              // the deployment id
-        Id:            uuid.New().String(),       // the weavelet id
-        SingleProcess: false,                     // is the app a single process?
-        SingleMachine: true,                      // is the app on a single machine?
-        Mtls:          false,                     // don't enable mtls
-        RunMain:       component == runtime.Main, // should the weavelet run main?
+        App:             "app",                     // the application name
+        DeploymentId:    deploymentId,              // the deployment id
+        Id:              uuid.New().String(),       // the weavelet id
+        SingleProcess:   false,                     // is the app a single process?
+        Mtls:            false,                     // don't enable mtls
+        RunMain:         component == runtime.Main, // should the weavelet run main?
+        InternalAddress: "localhost:0",             // internal address of the weavelet
     }
     config := &protos.AppConfig{
         Name:   "app",       // the application name

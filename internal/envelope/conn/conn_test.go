@@ -103,10 +103,10 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 
 	// Construct the conns.
 	wlet := &protos.EnvelopeInfo{
-		App:           "app",
-		DeploymentId:  uuid.New().String(),
-		Id:            uuid.New().String(),
-		SingleMachine: true,
+		App:             "app",
+		DeploymentId:    uuid.New().String(),
+		Id:              uuid.New().String(),
+		InternalAddress: "localhost:0",
 	}
 
 	// NOTE: We must start the weavelet conn in a separate goroutine because
@@ -123,7 +123,6 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		created <- struct{}{}
 		err = w.Serve(nil)
 		weaveletDone <- err
-
 	}()
 
 	e, err := conn.NewEnvelopeConn(ctx, eReader, eWriter, wlet)

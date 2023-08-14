@@ -154,19 +154,20 @@ message EnvelopeInfo {
   string deployment_id = 2;          // globally unique deployment id
   string id = 3;                     // globally unique weavelet id
   map<string, string> sections = 4;  // See AppConfig.Sections.
-  bool single_machine = 6;           // a single-machine deployment?
   bool run_main = 7;                 // run the main function?
 
   // Should weavelets establish mTLS connections with each other?
   bool mtls = 8;
 
-  // Port on which the internal network listener for the weavelet should listen on.
+  // Address on which the weavelet's internal network listener should listen on
+  // (e.g., "localhost:12345", ":0"). If the address is empty, it defaults to
+  // ":0", like net.Listen.
   //
   // Note that for some deployers, the internal network listener can listen on
   // an arbitrary port (don't set the port number). However, for deployers where
   // listeners are prestarted (e.g., Kubernetes deployers), the port number
   // should be propagated from the deployer.
-  int32 internal_port = 9;
+  string internal_address = 10;
 }
 
 // WeaveletInfo is the information provided by a weavelet to an envelope during
