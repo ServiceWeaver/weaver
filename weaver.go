@@ -198,9 +198,7 @@ func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.
 		}
 		return app(ctx, main.(*T))
 	}
-
-	<-ctx.Done()
-	return ctx.Err()
+	return runner.Wait()
 }
 
 // Implements[T] is a type that is be embedded inside a component

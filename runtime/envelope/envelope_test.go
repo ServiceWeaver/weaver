@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 				return nil
 			},
 			"writetraces": func() error { return writeTraces(conn) },
-			"serve_conn":  func() error { return conn.Serve(nil) },
+			"serve_conn":  func() error { return conn.Serve(context.Background(), nil) },
 		}
 		fn, ok := cmds[cmd]
 		if !ok {
@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "subprocess: %v\n", err)
 			os.Exit(1)
 		}
-		conn.Serve(nil)
+		conn.Serve(context.Background(), nil)
 	}
 
 	var err error

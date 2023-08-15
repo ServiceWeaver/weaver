@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -40,6 +39,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/maps"
+	"golang.org/x/sync/errgroup"
 )
 
 // readyMethodKey holds the key for a method used to check if a backend is ready.
@@ -56,6 +56,7 @@ type RemoteWeaveletOptions struct {
 // the single process deployer.
 type RemoteWeavelet struct {
 	ctx       context.Context       // shuts down the weavelet when canceled
+	servers   *errgroup.Group       // background servers
 	opts      RemoteWeaveletOptions // options
 	conn      *conn.WeaveletConn    // connection to envelope
 	syslogger *slog.Logger          // system logger
@@ -112,8 +113,10 @@ type listener struct {
 // specified in the provided registrations. bootstrap is used to establish a
 // connection with an envelope.
 func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootstrap runtime.Bootstrap, opts RemoteWeaveletOptions) (*RemoteWeavelet, error) {
+	servers, ctx := errgroup.WithContext(ctx)
 	w := &RemoteWeavelet{
 		ctx:              ctx,
+		servers:          servers,
 		opts:             opts,
 		componentsByName: map[string]*component{},
 		componentsByIntf: map[reflect.Type]*component{},
@@ -173,24 +176,38 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	}
 
 	// Serve deployer API requests on the weavelet conn.
-	runAndDie(ctx, "serve weavelet conn", func() error {
-		return w.conn.Serve(w)
+	servers.Go(func() error {
+		if err := w.conn.Serve(ctx, w); err != nil {
+			w.syslogger.Error("weavelet conn failed", "err", err)
+			return err
+		}
+		return nil
 	})
 
 	// Serve RPC requests from other weavelets.
-	server := &server{Listener: w.conn.Listener(), wlet: w}
-	runAndDie(w.ctx, "handle calls", func() error {
+	servers.Go(func() error {
+		server := &server{Listener: w.conn.Listener(), wlet: w}
 		opts := call.ServerOptions{
 			Logger:                w.syslogger,
 			Tracer:                w.tracer,
 			InlineHandlerDuration: 20 * time.Microsecond,
 			WriteFlattenLimit:     4 << 10,
 		}
-		return call.Serve(w.ctx, server, opts)
+		if err := call.Serve(w.ctx, server, opts); err != nil {
+			w.syslogger.Error("RPC server failed", "err", err)
+			return err
+		}
+		return nil
 	})
 
 	w.syslogger.Debug(fmt.Sprintf("🧶 weavelet started on %s", w.conn.WeaveletInfo().DialAddr))
 	return w, nil
+}
+
+// Wait waits for the RemoteWeavelet to fully shut down after its context has
+// been cancelled.
+func (w *RemoteWeavelet) Wait() error {
+	return w.servers.Wait()
 }
 
 // GetIntf implements the Weavelet interface.
@@ -721,17 +738,6 @@ func (s *server) handlers(components []string) (*call.HandlerMap, error) {
 		return nil, nil
 	})
 	return hm, nil
-}
-
-// runAndDie runs fn in the background. Errors are fatal unless ctx has been
-// canceled.
-func runAndDie(ctx context.Context, msg string, fn func() error) {
-	go func() {
-		if err := fn(); err != nil && ctx.Err() == nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
-			os.Exit(1)
-		}
-	}()
 }
 
 // waitUntilReady blocks until a successful call to the "ready" method is made

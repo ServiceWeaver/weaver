@@ -178,6 +178,10 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 			if err := cleanup(); err != nil {
 				// Since we are cleaning up, the test passed and we are
 				// just seeing expected shutdown errors.
+				//
+				// TODO(mwhittaker): Some of the errors returned by cleanup()
+				// were produced before the context was cancelled. We should
+				// fail the test in this case.
 				t.Log("cleanup", err)
 			}
 		}
@@ -211,13 +215,21 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		cleanup = multiCleanup
 
 		opts := weaver.RemoteWeaveletOptions{Fakes: fakes}
-		runner, err = weaver.NewRemoteWeavelet(ctx, codegen.Registered(), bootstrap, opts)
+		wlet, err := weaver.NewRemoteWeavelet(ctx, codegen.Registered(), bootstrap, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
+		cleanup = func() error {
+			if err := multiCleanup(); err != nil {
+				return err
+			}
+			// TODO(mwhittaker): Run Wait before cleanup to detect errors that
+			// happen before we cancel the context.
+			return wlet.Wait()
+		}
+		runner = wlet
 	}
 
 	if err := body(ctx, runner); err != nil {

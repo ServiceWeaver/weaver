@@ -16,6 +16,7 @@ package conn
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -111,9 +112,14 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
 
 // Serve accepts RPC requests from the envelope. Requests are handled serially
 // in the order they are received.
-func (w *WeaveletConn) Serve(h WeaveletHandler) error {
+func (w *WeaveletConn) Serve(ctx context.Context, h WeaveletHandler) error {
+	go func() {
+		<-ctx.Done()
+		w.conn.cleanup(ctx.Err())
+	}()
+
 	msg := &protos.EnvelopeMsg{}
-	for {
+	for ctx.Err() == nil {
 		if err := w.conn.recv(msg); err != nil {
 			return err
 		}
@@ -121,6 +127,7 @@ func (w *WeaveletConn) Serve(h WeaveletHandler) error {
 			return err
 		}
 	}
+	return ctx.Err()
 }
 
 // EnvelopeInfo returns the EnvelopeInfo received from the envelope.
