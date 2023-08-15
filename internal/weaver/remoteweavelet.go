@@ -422,31 +422,28 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 		}
 		components = append(components, c)
 	}
-	if len(components) == 0 {
-		return &protos.UpdateComponentsReply{}, errors.Join(errs...)
-	}
 
 	// Create components in a separate goroutine. A component's Init function
 	// may be slow or block. It may also trigger pipe communication. We want to
 	// avoid blocking and pipe communication in this handler as it could cause
 	// deadlocks in a deployer.
 	//
-	// TODO(mwhittaker): Start every component in its own goroutine? This way,
-	// constructors that block don't prevent other components from starting.
-	//
 	// TODO(mwhittaker): Document that handlers shouldn't retain access to the
 	// arguments passed to them.
-	go func() {
-		for i, c := range components {
+	for i, c := range components {
+		i := i
+		c := c
+		go func() {
 			w.syslogger.Debug(fmt.Sprintf("Updating component %s", shortened[i]))
 			if _, err := w.GetImpl(c.reg.Impl); err != nil {
 				// TODO(mwhittaker): Propagate errors.
 				w.syslogger.Error(fmt.Sprintf("Failed to update component %v", shortened[i]), "err", err)
-				continue
+				return
 			}
 			w.syslogger.Debug(fmt.Sprintf("Updated component %s", shortened[i]))
-		}
-	}()
+		}()
+	}
+
 	return &protos.UpdateComponentsReply{}, errors.Join(errs...)
 }
 

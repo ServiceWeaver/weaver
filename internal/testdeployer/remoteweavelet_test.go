@@ -36,10 +36,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// TODO(mwhittaker):
+// TODO(mwhittaker): In addition to the tests that are currently failing, here
+// are some situations where it's unclear what a weavelet should do.
 //
-// - Component with a failing Init method.
-// - Component with a blocking Init method.
+// - A component method call panics.
+// - A component's Init method fails.
 
 var (
 	componenta = "github.com/ServiceWeaver/weaver/internal/testdeployer/a"
