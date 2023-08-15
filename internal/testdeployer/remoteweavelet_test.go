@@ -27,7 +27,9 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -40,20 +42,104 @@ import (
 // - Component with a failing Init method.
 // - Component with a blocking Init method.
 
-// deployer is a test deployer that spawns one weavelet which hosts all
-// components.
-type deployer struct {
-	t                *testing.T             // underlying unit test
-	ctx              context.Context        // context used to spawn weavelet
-	cancel           context.CancelFunc     // cancels weavelet
+var (
+	componenta = "github.com/ServiceWeaver/weaver/internal/testdeployer/a"
+	componentb = "github.com/ServiceWeaver/weaver/internal/testdeployer/b"
+	componentc = "github.com/ServiceWeaver/weaver/internal/testdeployer/c"
+	colocated  = map[string][]string{"1": {componenta, componentb, componentc}}
+)
+
+// A weavelet is a connection to a RemoteWeavelet running in this process.
+type weavelet struct {
+	cancel           context.CancelFunc     // shuts down the weavelet
 	toWeaveletReader *os.File               // reader end of pipe to weavelet
 	toWeaveletWriter *os.File               // writer end of pipe to weavelet
 	toEnvelopeReader *os.File               // reader end of pipe to envelope
 	toEnvelopeWriter *os.File               // writer end of pipe to envelope
 	env              *conn.EnvelopeConn     // envelope
 	wlet             *weaver.RemoteWeavelet // weavelet
-	logger           *logging.TestLogger    // logger
 	threads          *errgroup.Group        // background threads
+}
+
+// spawn spawns a weavelet with the provided info and handler.
+func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.EnvelopeHandler) (*weavelet, error) {
+	// Create pipes to the weavelet.
+	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("spawn: %w", err)
+	}
+	toEnvelopeReader, toEnvelopeWriter, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("spawn: %w", err)
+	}
+
+	// conn.NewEnvelopeConn blocks performing a handshake with the weavelet, so
+	// we have to run it in a separate goroutine.
+	ctx, cancel := context.WithCancel(ctx)
+	threads, ctx := errgroup.WithContext(ctx)
+	errs := make(chan error)
+	var env *conn.EnvelopeConn
+	go func() {
+		var err error
+		env, err = conn.NewEnvelopeConn(ctx, toEnvelopeReader, toWeaveletWriter, info)
+		errs <- err
+	}()
+
+	// Create the weavelet.
+	wlet, err := weaver.NewRemoteWeavelet(
+		ctx,
+		codegen.Registered(),
+		runtime.Bootstrap{ToWeaveletFile: toWeaveletReader, ToEnvelopeFile: toEnvelopeWriter},
+		weaver.RemoteWeaveletOptions{},
+	)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("spawn: NewRemoteWeavelet: %w", err)
+	}
+
+	// Wait for the EnvelopeConn to finish the handshake.
+	if err := <-errs; err != nil {
+		cancel()
+		return nil, fmt.Errorf("spawn: NewEnvelopeConn: %v", err)
+	}
+
+	// Monitor the envelope and weavelet in background threads. Discard errors
+	// after the context has been cancelled, as those are expected.
+	threads.Go(func() error {
+		if err := wlet.Wait(); err != nil && ctx.Err() == nil {
+			return err
+		}
+		return nil
+	})
+	threads.Go(func() error {
+		if err := env.Serve(handler); err != nil && ctx.Err() == nil {
+			return err
+		}
+		return nil
+	})
+
+	return &weavelet{
+		cancel:           cancel,
+		toWeaveletReader: toWeaveletReader,
+		toWeaveletWriter: toWeaveletWriter,
+		toEnvelopeReader: toEnvelopeReader,
+		toEnvelopeWriter: toEnvelopeWriter,
+		env:              env,
+		wlet:             wlet,
+		threads:          threads,
+	}, nil
+}
+
+// deployer is a simple testing deployer that spawns all weavelets in the
+// current process.
+type deployer struct {
+	t         *testing.T           // underlying unit test
+	ctx       context.Context      // context used to spawn weavelets
+	cancel    context.CancelFunc   // shuts down the deployer and all weavelets
+	logger    *logging.TestLogger  // logger
+	placement map[string][]string  // weavelet -> components
+	placedAt  map[string][]string  // component -> weavelets
+	weavelets map[string]*weavelet // weavelets
 
 	// A unit test can override the following envelope methods to do things
 	// like inject errors or return invalid values.
@@ -61,6 +147,88 @@ type deployer struct {
 	activateComponent  func(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error)
 	getListenerAddress func(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error)
 	exportListener     func(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
+}
+
+// deploy creates a new test deployer.
+//
+// # Placement
+//
+// placement is a map from weavelet names to component names. It describes how
+// many weavelets to run, what to name them, and which components the weavelets
+// should host. For example, the following placement creates a single weavelet
+// that hosts components a, b, and c:
+//
+//	map[string][]string{"1": {componenta, componentb, componentc}}
+//
+// The following placement creates three weavelets, each with its own
+// component:
+//
+//	map[string][]string{
+//	    "1": {componenta},
+//	    "2": {componentb},
+//	    "3": {componentc},
+//	}
+//
+// The following placement replicates a, b, and c across two weavelets:
+//
+//	map[string][]string{
+//	    "1": {componenta, componentb, componentc},
+//	    "2": {componenta, componentb, componentc},
+//	}
+func deploy(t *testing.T, ctx context.Context, placement map[string][]string) *deployer {
+	return deployWithInfo(t, ctx, placement, &protos.EnvelopeInfo{
+		App:             "remoteweavelet_test.go",
+		DeploymentId:    fmt.Sprint(os.Getpid()),
+		InternalAddress: "localhost:0",
+	})
+}
+
+// deployWithInfo is identical to deploy but with an additional EnvelopeInfo
+// argument.
+func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]string, info *protos.EnvelopeInfo) *deployer {
+	t.Helper()
+
+	// Invert placement.
+	placedAt := map[string][]string{}
+	for name, components := range placement {
+		for _, component := range components {
+			placedAt[component] = append(placedAt[component], name)
+		}
+	}
+
+	// Create the deployer.
+	ctx, cancel := context.WithCancel(ctx)
+	d := &deployer{
+		t:         t,
+		ctx:       ctx,
+		cancel:    cancel,
+		logger:    logging.NewTestLogger(t, testing.Verbose()),
+		placement: placement,
+		placedAt:  placedAt,
+		weavelets: map[string]*weavelet{},
+	}
+
+	// Spawn the weavelets.
+	for name := range placement {
+		info := protomsg.Clone(info)
+		info.Id = uuid.New().String()
+		weavelet, err := spawn(ctx, info, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.weavelets[name] = weavelet
+	}
+	return d
+}
+
+// shutdown shuts down a deployer and its weavelets.
+func (d *deployer) shutdown() {
+	d.cancel()
+	for _, weavelet := range d.weavelets {
+		if err := weavelet.threads.Wait(); err != nil {
+			d.t.Fatal(err)
+		}
+	}
 }
 
 // ActivateComponent implements the EnvelopeHandler interface.
@@ -71,26 +239,37 @@ func (d *deployer) ActivateComponent(ctx context.Context, req *protos.ActivateCo
 		return d.activateComponent(ctx, req)
 	}
 
-	// Because there is only one weavelet which hosts all components, we route
-	// all requests locally.
-	routing := &protos.UpdateRoutingInfoRequest{
-		RoutingInfo: &protos.RoutingInfo{
+	// Start the requested component.
+	components := &protos.UpdateComponentsRequest{Components: []string{req.Component}}
+	replicas := []string{}
+	for _, name := range d.placedAt[req.Component] {
+		weavelet := d.weavelets[name]
+		if _, err := weavelet.wlet.UpdateComponents(components); err != nil {
+			return nil, err
+		}
+		replicas = append(replicas, weavelet.env.WeaveletInfo().DialAddr)
+	}
+
+	// For simplicity, route locally if there is a single weavelet, and route
+	// remotely otherwise. We also report routing info to all weavelets, not
+	// just those that called ActivateComponent.
+	routing := &protos.UpdateRoutingInfoRequest{}
+	if len(d.placement) == 1 {
+		routing.RoutingInfo = &protos.RoutingInfo{
 			Component: req.Component,
 			Local:     true,
-		},
+		}
+	} else {
+		routing.RoutingInfo = &protos.RoutingInfo{
+			Component: req.Component,
+			Replicas:  replicas,
+		}
 	}
-	if _, err := d.wlet.UpdateRoutingInfo(routing); err != nil {
-		return nil, err
+	for _, weavelet := range d.weavelets {
+		if _, err := weavelet.wlet.UpdateRoutingInfo(routing); err != nil {
+			return nil, err
+		}
 	}
-
-	// Start the requested component.
-	components := &protos.UpdateComponentsRequest{
-		Components: []string{req.Component},
-	}
-	if _, err := d.wlet.UpdateComponents(components); err != nil {
-		return nil, err
-	}
-
 	return &protos.ActivateComponentReply{}, nil
 }
 
@@ -143,115 +322,22 @@ func (d *deployer) VerifyServerCertificate(context.Context, *protos.VerifyServer
 	return nil, nil
 }
 
-// deploy creates a new test deployer with a single spawned weavelet.
-func deploy(t *testing.T, ctx context.Context) *deployer {
-	return deployWithInfo(t, ctx, &protos.EnvelopeInfo{
-		App:             "remoteweavelet_test.go",
-		DeploymentId:    fmt.Sprint(os.Getpid()),
-		Id:              uuid.New().String(),
-		InternalAddress: "localhost:0",
-	})
-}
-
-// deploy creates a new test deployer with a single spawned weavelet. The
-// deployer relays the provided EnvelopeInfo to the weavelet.
-func deployWithInfo(t *testing.T, ctx context.Context, info *protos.EnvelopeInfo) *deployer {
-	t.Helper()
-	ctx, cancel := context.WithCancel(ctx)
-	threads, ctx := errgroup.WithContext(ctx)
-
-	// Create pipes to the weavelet.
-	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	toEnvelopeReader, toEnvelopeWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// TODO(mwhittaker): Make sure to close these. This is a bit tricky because
-	// if we close a pipe to the weavelet, it will os.Exit.
-
-	// conn.NewEnvelopeConn blocks performing a handshake with the weavelet, so
-	// we have to run it in a separate goroutine.
-	errs := make(chan error)
-	var env *conn.EnvelopeConn
-	go func() {
-		var err error
-		env, err = conn.NewEnvelopeConn(ctx, toEnvelopeReader, toWeaveletWriter, info)
-		errs <- err
-	}()
-
-	// Create the weavelet.
-	wlet, err := weaver.NewRemoteWeavelet(
-		ctx,
-		codegen.Registered(),
-		runtime.Bootstrap{ToWeaveletFile: toWeaveletReader, ToEnvelopeFile: toEnvelopeWriter},
-		weaver.RemoteWeaveletOptions{},
-	)
-	if err != nil {
-		t.Fatalf("NewRemoteWeavelet: %v", err)
-	}
-
-	// Wait for the EnvelopeConn to finish the handshake.
-	if err := <-errs; err != nil {
-		t.Fatalf("NewEnvelopeConn: %v", err)
-	}
-
-	d := &deployer{
-		t:                t,
-		ctx:              ctx,
-		cancel:           cancel,
-		toWeaveletReader: toWeaveletReader,
-		toWeaveletWriter: toWeaveletWriter,
-		toEnvelopeReader: toEnvelopeReader,
-		toEnvelopeWriter: toEnvelopeWriter,
-		env:              env,
-		wlet:             wlet,
-		logger:           logging.NewTestLogger(t, testing.Verbose()),
-		threads:          threads,
-	}
-
-	// Monitor the envelope and weavelet in background threads. Discard errors
-	// after the context has been cancelled, as those are expected.
-	threads.Go(func() error {
-		if err := wlet.Wait(); err != nil && ctx.Err() == nil {
-			return err
-		}
-		return nil
-	})
-	threads.Go(func() error {
-		if err := env.Serve(d); err != nil && ctx.Err() == nil {
-			return err
-		}
-		return nil
-	})
-
-	return d
-}
-
-// shutdown shuts down a deployer and its weavelet.
-func (d *deployer) shutdown() {
-	d.cancel()
-	if err := d.threads.Wait(); err != nil {
-		d.t.Fatal(err)
-	}
-}
-
 // testComponents tests that the components spawned by d are working properly.
 func testComponents(d *deployer) {
 	d.t.Helper()
 	const want = 42
-	x, err := d.wlet.GetIntf(reflection.Type[a]())
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	got, err := x.(a).A(d.ctx, want)
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	if got != want {
-		d.t.Fatalf("A(%d): got %d, want %d", want, got, want)
+	for _, name := range d.placedAt[componenta] {
+		x, err := d.weavelets[name].wlet.GetIntf(reflection.Type[a]())
+		if err != nil {
+			d.t.Fatal(err)
+		}
+		got, err := x.(a).A(d.ctx, want)
+		if err != nil {
+			d.t.Fatal(err)
+		}
+		if got != want {
+			d.t.Fatalf("A(%d): got %d, want %d", want, got, want)
+		}
 	}
 }
 
@@ -311,30 +397,29 @@ func TestInvalidHandshake(t *testing.T) {
 
 func TestClosePipes(t *testing.T) {
 	// Note that d.shutdown will fail because we close the pipes below, so we
-	// instead call d.cancel() and d.thrads.Wait() directly.
-	d := deploy(t, context.Background())
+	// instead call d.cancel() and d.weavelets["1"].threads.Wait() directly.
+	d := deploy(t, context.Background(), colocated)
 	defer d.cancel()
-	defer d.threads.Wait()
+	defer d.weavelets["1"].threads.Wait()
 	testComponents(d)
 
 	// Close the pipes to the weavelet. The weavelet should error out.
-	d.toWeaveletWriter.Close()
-	d.toEnvelopeReader.Close()
-	if err := d.wlet.Wait(); err == nil {
+	d.weavelets["1"].toWeaveletWriter.Close()
+	d.weavelets["1"].toEnvelopeReader.Close()
+	if err := d.weavelets["1"].wlet.Wait(); err == nil {
 		t.Fatal("unexpected success")
 	}
 }
 
 func TestLocalhostWeaveletAddress(t *testing.T) {
 	// Start the weavelet with internal address "localhost:12345".
-	d := deployWithInfo(t, context.Background(), &protos.EnvelopeInfo{
+	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
-		Id:              uuid.New().String(),
 		InternalAddress: "localhost:12345",
 	})
 	defer d.shutdown()
-	got := d.env.WeaveletInfo().DialAddr
+	got := d.weavelets["1"].env.WeaveletInfo().DialAddr
 	const want = "tcp://127.0.0.1:12345"
 	if got != want {
 		t.Fatalf("DialAddr: got %q, want %q", got, want)
@@ -355,29 +440,39 @@ func TestHostnameWeaveletAddress(t *testing.T) {
 		t.Fatalf("net.LookupIP(%q): no IPs", hostname)
 	}
 
-	d := deployWithInfo(t, context.Background(), &protos.EnvelopeInfo{
+	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
-		Id:              uuid.New().String(),
 		InternalAddress: fmt.Sprintf("%s:12345", ips[0]),
 	})
 	defer d.shutdown()
-	got := d.env.WeaveletInfo().DialAddr
+	got := d.weavelets["1"].env.WeaveletInfo().DialAddr
 	want := fmt.Sprintf("tcp://%v:12345", ips[0])
 	if got != want {
 		t.Fatalf("DialAddr: got %q, want %q", got, want)
 	}
 }
 
-func TestErrorFreeExecution(t *testing.T) {
-	d := deploy(t, context.Background())
+func TestErrorFreeColocatedExecution(t *testing.T) {
+	d := deploy(t, context.Background(), colocated)
+	defer d.shutdown()
+	testComponents(d)
+}
+
+func TestErrorFreeDistributedExecution(t *testing.T) {
+	placement := map[string][]string{
+		"1": {componenta, componentb},
+		"2": {componentb, componentc},
+		"3": {componenta, componentc},
+	}
+	d := deploy(t, context.Background(), placement)
 	defer d.shutdown()
 	testComponents(d)
 }
 
 func TestFailActivateComponent(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Fail ActivateComponent a number of times.
@@ -390,11 +485,11 @@ func TestFailActivateComponent(t *testing.T) {
 		}
 
 		routing := &protos.UpdateRoutingInfoRequest{RoutingInfo: &protos.RoutingInfo{Component: req.Component, Local: true}}
-		if _, err := d.wlet.UpdateRoutingInfo(routing); err != nil {
+		if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err != nil {
 			return nil, err
 		}
 		components := &protos.UpdateComponentsRequest{Components: []string{req.Component}}
-		if _, err := d.wlet.UpdateComponents(components); err != nil {
+		if _, err := d.weavelets["1"].wlet.UpdateComponents(components); err != nil {
 			return nil, err
 		}
 		return &protos.ActivateComponentReply{}, nil
@@ -407,7 +502,7 @@ func TestFailGetListenerAddress(t *testing.T) {
 	t.Skip("TODO(mwhittaker): Make this test pass.")
 
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Fail GetListenerAddress a number of times.
@@ -428,7 +523,7 @@ func TestGetListenerAddressReturnsInvalidAddress(t *testing.T) {
 	t.Skip("TODO(mwhittaker): Make this test pass.")
 
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Return an invalid listener a number of times.
@@ -456,7 +551,7 @@ func TestGetListenerAddressReturnsAddressAlreadyInUse(t *testing.T) {
 	defer lis.Close()
 
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Tell the weavelet to listen on port 45678 a number of times.
@@ -474,7 +569,7 @@ func TestGetListenerAddressReturnsAddressAlreadyInUse(t *testing.T) {
 
 func TestFailExportListener(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Fail ExportListener a number of times.
@@ -495,7 +590,7 @@ func TestExportListenerReturnsError(t *testing.T) {
 	t.Skip("TODO(mwhittaker): Make this test pass.")
 
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Return an error from ExportListener a number of times.
@@ -514,12 +609,12 @@ func TestExportListenerReturnsError(t *testing.T) {
 
 func TestUpdateMissingComponents(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with components that don't exist.
 	components := &protos.UpdateComponentsRequest{Components: []string{"foo", "bar"}}
-	if _, err := d.wlet.UpdateComponents(components); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateComponents(components); err == nil {
 		t.Fatal("unexpected success")
 	}
 
@@ -528,19 +623,15 @@ func TestUpdateMissingComponents(t *testing.T) {
 
 func TestUpdateExistingComponents(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 	testComponents(d)
 
 	// Update the weavelet with components that have already been started.
 	components := &protos.UpdateComponentsRequest{
-		Components: []string{
-			"github.com/ServiceWeaver/weaver/internal/testdeployer/a",
-			"github.com/ServiceWeaver/weaver/internal/testdeployer/b",
-			"github.com/ServiceWeaver/weaver/internal/testdeployer/c",
-		},
+		Components: []string{componenta, componentb, componentc},
 	}
-	if _, err := d.wlet.UpdateComponents(components); err != nil {
+	if _, err := d.weavelets["1"].wlet.UpdateComponents(components); err != nil {
 		t.Fatal(err)
 	}
 
@@ -549,12 +640,12 @@ func TestUpdateExistingComponents(t *testing.T) {
 
 func TestUpdateNilRoutingInfo(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with a nil routing info.
 	routing := &protos.UpdateRoutingInfoRequest{}
-	if _, err := d.wlet.UpdateRoutingInfo(routing); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err == nil {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 
@@ -563,7 +654,7 @@ func TestUpdateNilRoutingInfo(t *testing.T) {
 
 func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with routing info for a component that doesn't
@@ -574,7 +665,7 @@ func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
 			Local:     true,
 		},
 	}
-	if _, err := d.wlet.UpdateRoutingInfo(routing); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err == nil {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 
@@ -583,18 +674,18 @@ func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
 
 func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with routing info for a component that has hasn't
 	// started yet.
 	routing := &protos.UpdateRoutingInfoRequest{
 		RoutingInfo: &protos.RoutingInfo{
-			Component: "github.com/ServiceWeaver/weaver/internal/testdeployer/a",
+			Component: componenta,
 			Local:     true,
 		},
 	}
-	if _, err := d.wlet.UpdateRoutingInfo(routing); err != nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err != nil {
 		t.Fatal(err)
 	}
 	testComponents(d)
@@ -602,7 +693,7 @@ func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
 
 func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
 	ctx := context.Background()
-	d := deploy(t, ctx)
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 	testComponents(d)
 
@@ -611,10 +702,10 @@ func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
 	// that is not allowed and should fail.
 	routing := &protos.UpdateRoutingInfoRequest{
 		RoutingInfo: &protos.RoutingInfo{
-			Component: "github.com/ServiceWeaver/weaver/internal/testdeployer/a",
+			Component: componenta,
 		},
 	}
-	if _, err := d.wlet.UpdateRoutingInfo(routing); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err == nil {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 	testComponents(d)
