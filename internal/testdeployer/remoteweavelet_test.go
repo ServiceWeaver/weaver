@@ -21,6 +21,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
@@ -37,8 +38,6 @@ import (
 
 // TODO(mwhittaker):
 //
-// - Hook up two weavelets then cancel one of them.
-// - Update routing info with bad routing info.
 // - Component with a failing Init method.
 // - Component with a blocking Init method.
 
@@ -471,8 +470,7 @@ func TestErrorFreeDistributedExecution(t *testing.T) {
 }
 
 func TestFailActivateComponent(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Fail ActivateComponent a number of times.
@@ -501,8 +499,7 @@ func TestFailActivateComponent(t *testing.T) {
 func TestFailGetListenerAddress(t *testing.T) {
 	t.Skip("TODO(mwhittaker): Make this test pass.")
 
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Fail GetListenerAddress a number of times.
@@ -522,8 +519,7 @@ func TestFailGetListenerAddress(t *testing.T) {
 func TestGetListenerAddressReturnsInvalidAddress(t *testing.T) {
 	t.Skip("TODO(mwhittaker): Make this test pass.")
 
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Return an invalid listener a number of times.
@@ -550,8 +546,7 @@ func TestGetListenerAddressReturnsAddressAlreadyInUse(t *testing.T) {
 	}
 	defer lis.Close()
 
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Tell the weavelet to listen on port 45678 a number of times.
@@ -568,8 +563,7 @@ func TestGetListenerAddressReturnsAddressAlreadyInUse(t *testing.T) {
 }
 
 func TestFailExportListener(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Fail ExportListener a number of times.
@@ -589,8 +583,7 @@ func TestFailExportListener(t *testing.T) {
 func TestExportListenerReturnsError(t *testing.T) {
 	t.Skip("TODO(mwhittaker): Make this test pass.")
 
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Return an error from ExportListener a number of times.
@@ -608,8 +601,7 @@ func TestExportListenerReturnsError(t *testing.T) {
 }
 
 func TestUpdateMissingComponents(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with components that don't exist.
@@ -622,8 +614,7 @@ func TestUpdateMissingComponents(t *testing.T) {
 }
 
 func TestUpdateExistingComponents(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 	testComponents(d)
 
@@ -639,8 +630,7 @@ func TestUpdateExistingComponents(t *testing.T) {
 }
 
 func TestUpdateNilRoutingInfo(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with a nil routing info.
@@ -653,8 +643,7 @@ func TestUpdateNilRoutingInfo(t *testing.T) {
 }
 
 func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with routing info for a component that doesn't
@@ -673,8 +662,7 @@ func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
 }
 
 func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with routing info for a component that has hasn't
@@ -692,8 +680,7 @@ func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
 }
 
 func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
-	ctx := context.Background()
-	d := deploy(t, ctx, colocated)
+	d := deploy(t, context.Background(), colocated)
 	defer d.shutdown()
 	testComponents(d)
 
@@ -709,4 +696,87 @@ func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 	testComponents(d)
+}
+
+func TestFailReplica(t *testing.T) {
+	placement := map[string][]string{
+		"1": {componenta},
+		"2": {componentb, componentc},
+		"3": {componentb, componentc},
+	}
+	d := deploy(t, context.Background(), placement)
+	defer d.shutdown()
+	testComponents(d)
+
+	// Kill replica 3.
+	d.weavelets["3"].cancel()
+	if err := d.weavelets["3"].threads.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	testComponents(d)
+}
+
+func TestUpdateBadRoutingInfo(t *testing.T) {
+	placement := map[string][]string{
+		"1": {componenta},
+		"2": {componentb},
+		"3": {componentc},
+	}
+	d := deploy(t, context.Background(), placement)
+	defer d.shutdown()
+
+	// When activating components, provide incorrect routing info. Later, send
+	// the correct routing info. Incorrect routing info should stall, but not
+	// crash the weavelets.
+	var mu sync.Mutex
+	var activateErr error
+	d.activateComponent = func(ctx context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
+		// Update the component.
+		components := &protos.UpdateComponentsRequest{Components: []string{req.Component}}
+		weavelets := map[string]*weavelet{
+			componenta: d.weavelets["1"],
+			componentb: d.weavelets["2"],
+			componentc: d.weavelets["3"],
+		}
+		weavelet := weavelets[req.Component]
+		if _, err := weavelet.wlet.UpdateComponents(components); err != nil {
+			return nil, err
+		}
+
+		// Provide incorrect routing info.
+		routing := &protos.UpdateRoutingInfoRequest{
+			RoutingInfo: &protos.RoutingInfo{
+				Component: req.Component,
+				Replicas:  []string{"tcp://1.1.1.1:9999"},
+			},
+		}
+		for _, weavelet := range d.weavelets {
+			if _, err := weavelet.wlet.UpdateRoutingInfo(routing); err != nil {
+				return nil, err
+			}
+		}
+
+		// Update to the correct routing info after a short delay.
+		routing.RoutingInfo.Replicas = []string{weavelet.env.WeaveletInfo().DialAddr}
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			for _, weavelet := range d.weavelets {
+				if _, err := weavelet.wlet.UpdateRoutingInfo(routing); err != nil {
+					mu.Lock()
+					activateErr = err
+					mu.Unlock()
+				}
+			}
+		}()
+
+		return &protos.ActivateComponentReply{}, nil
+	}
+
+	testComponents(d)
+	d.shutdown()
+
+	if activateErr != nil {
+		t.Fatal(activateErr)
+	}
 }
