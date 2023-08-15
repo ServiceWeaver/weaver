@@ -44,12 +44,12 @@ $ go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
 ```
 
 `go install` installs the `weaver` command to `$GOBIN`, which defaults to
-`$GOPATH/bin`. Make sure this directory is included in your `PATH`. You can
+`$HOME/go/bin`. Make sure this directory is included in your `PATH`. You can
 accomplish this, for example, by adding the following to your `.bashrc` and
 running `source ~/.bashrc`:
 
 ```console
-$ export PATH="$PATH:$GOPATH/bin"
+$ export PATH="$PATH:$HOME/go/bin"
 ```
 
 If the installation was successful, you should be able to run `weaver --help`:
