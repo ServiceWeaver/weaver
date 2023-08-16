@@ -409,11 +409,9 @@ func (w *SingleWeavelet) Status(context.Context) (*status.Status, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	// TODO(mwhittaker): The main process should probably be registered like
-	// any other process?
 	pid := int64(os.Getpid())
 	stats := w.stats.GetStatsStatusz()
-	components := []*status.Component{{Name: "main", Pids: []int64{pid}}}
+	var components []*status.Component
 	for component := range w.components {
 		c := &status.Component{
 			Name: component,
