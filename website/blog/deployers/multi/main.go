@@ -56,8 +56,8 @@ var deploymentId = uuid.New().String()
 func main() {
 	flag.Parse()
 	d := &deployer{handlers: map[string]*handler{}}
-	d.spawn(runtime.Main) //nolint:errcheck // omitted for brevity
-	select {}             // block forever
+	d.spawn(runtime.Main)
+	select {} // block forever
 }
 
 // spawn spawns a weavelet to host the provided component (if one hasn't
@@ -97,10 +97,10 @@ func (d *deployer) spawn(component string) (*handler, error) {
 
 	go func() {
 		// Inform the weavelet of the component it should host.
-		envelope.UpdateComponents([]string{component}) //nolint:errcheck // omitted for brevity
+		envelope.UpdateComponents([]string{component})
 
 		// Handle messages from the weavelet.
-		envelope.Serve(h) //nolint:errcheck // omitted for brevity
+		envelope.Serve(h)
 	}()
 
 	// Return the handler.
@@ -118,7 +118,7 @@ func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateCompo
 	}
 
 	// Tell the weavelet the address of the requested component.
-	h.envelope.UpdateRoutingInfo(&protos.RoutingInfo{ //nolint:errcheck // omitted for brevity
+	h.envelope.UpdateRoutingInfo(&protos.RoutingInfo{
 		Component: req.Component,
 		Replicas:  []string{spawned.address},
 	})

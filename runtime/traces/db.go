@@ -130,7 +130,7 @@ func (d *DB) Store(ctx context.Context, app, version string, spans *protos.Trace
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck // supplanted by errs below
+	defer tx.Rollback()
 	var errs []error
 	for _, span := range spans.Span {
 		if isRootSpan(span) {

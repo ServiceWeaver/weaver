@@ -10,7 +10,7 @@
 #       generate        -- Generates code
 #       build           -- Builds the module
 #       vet             -- Runs go vet
-#       lint            -- Runs golangci-lint
+#       lint            -- Runs staticcheck
 #       test            -- Tests the module
 #       testrace        -- Tests the module for data races
 #
@@ -53,16 +53,16 @@ function cmd_vet() {
 }
 
 function cmd_lint() {
-  if ! exists golangci-lint; then
-    printf "golangci-lint not found; install via\ngo install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2\n" >&2
+  if ! exists staticcheck; then
+    printf "staticcheck not found; install via\ngo install honnef.co/go/tools/cmd/staticcheck@0.4.3\n" >&2
     exit 1
   fi
 
-  golangci-lint --timeout=10m run ./...
+  staticcheck ./...
 
   # Run unused check while skipping uses found in tests. This helps us
   # identify non-test code that is only used from tests.
-  golangci-lint --timeout=10m run --enable unused --tests=false ./...
+  staticcheck -tests=false ./...
 }
 
 function cmd_test() {

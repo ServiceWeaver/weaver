@@ -178,7 +178,7 @@ func (e *EnvelopeConn) Serve(h EnvelopeHandler) error {
 		}
 	})
 
-	e.running.Wait() //nolint:errcheck // supplanted by e.err
+	e.running.Wait()
 	return e.err
 }
 
@@ -381,7 +381,7 @@ func checkVersion(v *protos.SemVer) error {
 	}
 	got := version.SemVer{Major: int(v.Major), Minor: int(v.Minor), Patch: int(v.Patch)}
 	if got != version.DeployerVersion {
-		return fmt.Errorf("version mismatch: deployer's deployer API version %s is incompatible with app' deployer API version %s.", version.DeployerVersion, got)
+		return fmt.Errorf("version mismatch: deployer's deployer API version %s is incompatible with app' deployer API version %s", version.DeployerVersion, got)
 	}
 	return nil
 }

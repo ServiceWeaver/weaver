@@ -103,7 +103,7 @@ func TestValidLabels(t *testing.T) {
 
 func TestInvalidLabels(t *testing.T) {
 	type t1 = string             // not a struct
-	type t2 = struct{ x string } //nolint:unused // unexported field
+	type t2 = struct{ x string } //lint:ignore U1000 unexported field
 	type t3 = struct {           // duplicate field
 		X string `weaver:"Z"`
 		Y string `weaver:"Z"`

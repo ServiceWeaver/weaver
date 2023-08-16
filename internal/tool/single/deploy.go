@@ -91,7 +91,7 @@ func deploy(ctx context.Context, args []string) error {
 	go func() {
 		<-killed
 		if cmd.Process != nil {
-			cmd.Process.Kill() //nolint:errcheck
+			cmd.Process.Kill()
 		}
 		os.Exit(1)
 	}()

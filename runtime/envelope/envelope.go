@@ -236,7 +236,7 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 		return err
 	})
 
-	running.Wait() //nolint:errcheck // supplanted by stopErr
+	running.Wait()
 
 	// Wait for the weavelet command to finish. This needs to be done after
 	// we're done reading from stdout/stderr pipes, per comments on

@@ -77,7 +77,7 @@ func main() {
 		generateFlags.Usage = func() {
 			fmt.Fprintln(os.Stderr, generate.Usage)
 		}
-		generateFlags.Parse(flag.Args()[1:]) //nolint:errcheck // does os.Exit on error
+		generateFlags.Parse(flag.Args()[1:])
 		if err := generate.Generate(".", flag.Args()[1:], generate.Options{}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -109,7 +109,7 @@ Description:
 [2]: https://github.blog/2022-02-14-include-diagrams-markdown-files-mermaid/`
 		flags := flag.NewFlagSet("callgraph", flag.ExitOnError)
 		flags.Usage = func() { fmt.Fprintln(os.Stderr, usage) }
-		flags.Parse(flag.Args()[1:]) //nolint:errcheck
+		flags.Parse(flag.Args()[1:])
 		if flags.NArg() == 0 {
 			fmt.Fprintln(os.Stderr, "ERROR: no binary provided.")
 		}
