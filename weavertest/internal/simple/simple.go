@@ -122,7 +122,6 @@ type server struct {
 }
 
 func (s *server) Init(ctx context.Context) error {
-	//nolint:nolintlint,typecheck // golangci-lint false positive on Go tip
 	s.addr = s.hello.String()
 	s.proxy = s.hello.ProxyAddr()
 

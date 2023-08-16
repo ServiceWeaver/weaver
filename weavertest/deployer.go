@@ -220,7 +220,7 @@ func (d *deployer) stopLocked(err error) {
 // cleanup cleans up all of the running envelopes' state.
 func (d *deployer) cleanup() error {
 	d.ctxCancel()
-	d.running.Wait() //nolint:errcheck // supplanted by b.err
+	d.running.Wait()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.err

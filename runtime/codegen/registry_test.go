@@ -110,7 +110,7 @@ type B interface{}
 
 type aimpl struct {
 	weaver.Implements[A]
-	b weaver.Ref[B] //nolint:nolintlint,unused // present just for call graph extraction
+	b weaver.Ref[B] //lint:ignore U1000 present just for call graph extraction
 }
 
 type bimpl struct {

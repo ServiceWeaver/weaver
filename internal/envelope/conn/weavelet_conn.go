@@ -185,7 +185,6 @@ func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.Envelo
 		go func() {
 			data, err := Profile(req)
 			// Reply with profile data.
-			//nolint:errcheck //errMsg will be returned on next send
 			w.conn.send(&protos.WeaveletMsg{
 				Id:              -id,
 				Error:           errstring(err),

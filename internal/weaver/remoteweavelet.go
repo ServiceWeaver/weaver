@@ -533,7 +533,7 @@ func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
 		},
 		Write: func(entry *protos.LogEntry) {
 			// TODO(mwhittaker): Propagate error.
-			w.conn.SendLogEntry(entry) //nolint:errcheck
+			w.conn.SendLogEntry(entry)
 		},
 	})
 }

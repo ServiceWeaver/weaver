@@ -213,7 +213,7 @@ func writeLabels(w *bytes.Buffer, labels map[string]string,
 	separator := "{"
 	for _, l := range sortedLabels {
 		w.WriteString(separator + l + `="`)
-		escaper.WriteString(w, labels[l]) //nolint:errcheck // bytes.Buffer.Write does not error
+		escaper.WriteString(w, labels[l])
 		w.WriteByte('"')
 		separator = ","
 	}

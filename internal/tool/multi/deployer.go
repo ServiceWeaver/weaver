@@ -272,7 +272,7 @@ func (d *deployer) computeGroups() error {
 //
 // REQUIRES: d.mu is NOT held.
 func (d *deployer) wait() error {
-	d.running.Wait() //nolint:errcheck // supplanted by b.err
+	d.running.Wait()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.err

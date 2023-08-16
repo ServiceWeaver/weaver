@@ -75,10 +75,10 @@ func (d *deployer) ActivateComponent(_ context.Context, req *protos.ActivateComp
 	d.components = append(d.components, req.Component)
 
 	// Tell the weavelet to run the component.
-	d.envelope.UpdateComponents(d.components) //nolint:errcheck // omitted for brevity
+	d.envelope.UpdateComponents(d.components)
 
 	// Tell the weavelet to route requests to the component locally.
-	d.envelope.UpdateRoutingInfo(&protos.RoutingInfo{ //nolint:errcheck // omitted for brevity
+	d.envelope.UpdateRoutingInfo(&protos.RoutingInfo{
 		Component: req.Component,
 		Local:     true,
 	})

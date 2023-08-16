@@ -232,7 +232,9 @@ type Implements[T any] struct {
 	// The component_interface_type field exists to make it possible.
 	//
 	// [1]: https://github.com/golang/go/issues/54393.
-	component_interface_type T //nolint:unused
+	//
+	//lint:ignore U1000 See comment above.
+	component_interface_type T
 
 	// We embed implementsImpl so that component implementation structs
 	// implement the Unrouted interface by default but implement the
@@ -263,7 +265,7 @@ func (i *Implements[T]) setLogger(logger *slog.Logger) {
 // package. It exists so that a component struct that embeds Implements[T]
 // implements the InstanceOf[T] interface.
 //
-//nolint:unused
+//lint:ignore U1000 implements is used by InstanceOf.
 func (Implements[T]) implements(T) {}
 
 // InstanceOf[T] is the interface implemented by a struct that embeds
@@ -477,7 +479,7 @@ type WithRouter[T any] struct{}
 
 // routedBy(T) implements the RoutedBy[T] interface.
 //
-//nolint:unused
+//lint:ignore U1000 routedBy is used by RoutedBy and Unrouted.
 func (WithRouter[T]) routedBy(T) {}
 
 // RoutedBy[T] is the interface implemented by a struct that embeds

@@ -55,8 +55,6 @@ import (
 
 //go:generate ../../cmd/weaver/weaver generate
 
-var localAddr = flag.String("local_addr", "localhost:9000", "Collatz server local address")
-
 func main() {
 	flag.Parse()
 	if err := weaver.Run(context.Background(), serve); err != nil {

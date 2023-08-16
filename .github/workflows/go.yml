@@ -41,12 +41,12 @@ jobs:
       - name: Cache linter
         uses: actions/cache@v3
         with:
-          path: ~/go/bin/golangci-lint
-          key: golangci-lint-v1.51.2
+          path: ~/go/bin/staticcheck
+          key: staticcheck-v0.4.3
         if: ${{ matrix.command == 'lint' }}
 
       - name: Install linter
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.4.3
         if: ${{ matrix.command == 'lint' }}
 
       - name: Build the weaver binary

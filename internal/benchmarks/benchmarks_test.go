@@ -26,7 +26,6 @@ import (
 	"io"
 	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/weavertest"
@@ -360,10 +359,6 @@ func BenchmarkPing(b *testing.B) {
 			})
 		})
 	}
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }
 
 // TestBenchmark is a test to ensure that BenchmarkPing works correctly.

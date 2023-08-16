@@ -33,7 +33,7 @@ import (
 // version into a Service Weaver binary. We split declaring and assigning
 // versionData to prevent the compiler from erasing it.
 //
-//nolint:unused
+//lint:ignore U1000 See comment above.
 var versionData string
 
 func init() {
