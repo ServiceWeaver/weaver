@@ -320,9 +320,8 @@ func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 		g.mu.Unlock()
 		for _, component := range cs {
 			c := &status.Component{
-				Name:  component,
-				Group: g.name,
-				Pids:  pids,
+				Name: component,
+				Pids: pids,
 			}
 			components = append(components, c)
 
