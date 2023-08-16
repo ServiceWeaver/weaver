@@ -51,6 +51,7 @@ var (
 	cancelWaitKey = call.MakeMethodKey("", "cancelwait")
 	sleepKey      = call.MakeMethodKey("", "sleep")
 	traceKey      = call.MakeMethodKey("", "trace")
+	customKey     = call.MakeMethodKey("", "custom")
 	handlers      = makeHandlerMap()
 	tlsConfig     = makeTLSConfig()
 
@@ -70,6 +71,7 @@ func makeHandlerMap() *call.HandlerMap {
 	m.Set("", "error", errorHandler)
 	m.Set("", "cancelwait", cancelWaitHandler)
 	m.Set("", "sleep", sleepHandler)
+	m.Set("", "custom", customHandler)
 	return m
 }
 
@@ -189,6 +191,49 @@ func whoHandler(name string) call.Handler {
 	return func(context.Context, []byte) ([]byte, error) {
 		return []byte(name), nil
 	}
+}
+
+// Registered function that should be used on server-side of some RPCs.
+var (
+	registeredFuncsMu     sync.Mutex
+	registeredFuncs       = map[int]func(context.Context) ([]byte, error){}
+	nextRegisteredFuncKey int
+)
+
+// runAtServer makes an RPC to client and arranges to run fn() on the
+// server-side as the handler for that RPC.
+func runAtServer(ctx context.Context, client call.Connection, opts call.CallOptions, fn func(context.Context) ([]byte, error)) ([]byte, error) {
+	// Register fn in registeredFuncs and send its key as the RPC argument.
+	registeredFuncsMu.Lock()
+	key := nextRegisteredFuncKey
+	nextRegisteredFuncKey++
+	registeredFuncs[key] = fn
+	registeredFuncsMu.Unlock()
+
+	defer func() {
+		registeredFuncsMu.Lock()
+		delete(registeredFuncs, key)
+		registeredFuncsMu.Unlock()
+	}()
+
+	return client.Call(ctx, customKey, []byte(fmt.Sprint(key)), opts)
+}
+
+// customHandler reads an integer key from arg and runs registeredFuncs[key].
+func customHandler(ctx context.Context, arg []byte) ([]byte, error) {
+	key, err := strconv.Atoi(string(arg))
+	if err != nil {
+		return nil, fmt.Errorf("customHandler: bad argument %v (must be a number)", string(arg))
+	}
+
+	registeredFuncsMu.Lock()
+	fn, ok := registeredFuncs[key]
+	registeredFuncsMu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("customHandler: function %d not found", key)
+	}
+
+	return fn(ctx)
 }
 
 func errorHandler(_ context.Context, arg []byte) ([]byte, error) {
@@ -434,8 +479,8 @@ func (ct *callTester) fork(fn func()) {
 	}()
 }
 
-// startTCPServer starts a TCP server and returns its address.
-func (ct *callTester) startTCPServer() string {
+// startTCPServer starts a TCP server and returns its endpoint.
+func (ct *callTester) startTCPServer() call.Endpoint {
 	t := ct.t
 	t.Helper()
 	lis, err := net.Listen("tcp", ":0")
@@ -450,7 +495,18 @@ func (ct *callTester) startTCPServer() string {
 			t.Errorf("unexpected error from Serve: %v", err)
 		}
 	})
-	return lis.Addr().String()
+	return call.TCP(lis.Addr().String())
+}
+
+// connect creates a client connected via the specified resolver.
+func (ct *callTester) connect(resolver call.Resolver) call.Connection {
+	t := ct.t
+	t.Helper()
+	client, err := call.Connect(ct.ctx, resolver, call.ClientOptions{Logger: logger(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
 }
 
 // waitUntil repeatedly calls f until it returns true, with a small delay
@@ -1116,9 +1172,8 @@ func TestInitiallyUnhealthyEndpoint(t *testing.T) {
 
 	// Start a good server and a bad server.
 	ct := startTest(t)
-	badAddr, goodAddr := ct.startTCPServer(), ct.startTCPServer()
-	bad := hangingEndpoint{call.TCP(badAddr)}
-	good := call.TCP(goodAddr)
+	s1, s2 := ct.startTCPServer(), ct.startTCPServer()
+	bad, good := hangingEndpoint{s1}, s2
 	resolver := call.NewConstantResolver(bad, good)
 
 	// Connect via a balancer whose picking decision we control.
@@ -1439,6 +1494,71 @@ func TestResolverError(t *testing.T) {
 
 	if n := resolver.Get(); n > 10000 {
 		t.Fatalf("Resolve called too many times: %d times", n)
+	}
+}
+
+func TestNoRetry(t *testing.T) {
+	ct := startTest(t)
+	client := ct.connect(call.NewConstantResolver(ct.startTCPServer()))
+
+	type testCase struct {
+		name   string // Test case name
+		inject error  // Error to return from server side
+	}
+	for _, c := range []testCase{
+		{"success", nil},
+		{"communication", call.CommunicationError},
+		{"unreachable", call.CommunicationError},
+		{"non-retriable-error", os.ErrInvalid},
+	} {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			_, err := runAtServer(ct.ctx, client, call.CallOptions{Retry: false}, func(context.Context) ([]byte, error) {
+				return nil, c.inject
+			})
+			if !errors.Is(err, c.inject) {
+				t.Fatalf("got %v calls, expecting %v", err, c.inject)
+			}
+		})
+	}
+}
+
+func TestRetry(t *testing.T) {
+	ct := startTest(t)
+	client := ct.connect(call.NewConstantResolver(ct.startTCPServer()))
+
+	// Use a server handler that returns a specified sequence of errors.
+	type testCase struct {
+		name          string  // Test case name
+		errors        []error // Sequence of errors to return from repeated calls
+		expectedCalls int     // Number of expected calls
+	}
+	for _, c := range []testCase{
+		{"success", []error{nil, os.ErrInvalid}, 1},
+		{"eventual-success", []error{call.CommunicationError, nil, os.ErrInvalid}, 2},
+		{"communication", []error{call.CommunicationError, os.ErrInvalid}, 2},
+		{"unreachable", []error{call.Unreachable, os.ErrInvalid}, 2},
+		{"non-retriable-error", []error{os.ErrPermission, os.ErrInvalid}, 1},
+	} {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			var count atomic.Int32
+			_, err := runAtServer(ct.ctx, client, call.CallOptions{Retry: true}, func(context.Context) ([]byte, error) {
+				i := int(count.Add(1)) - 1
+				if i >= len(c.errors) {
+					i = len(c.errors) - 1 // Return last error repeatedly
+				}
+				return nil, c.errors[i]
+			})
+			t.Logf("got %v after %d calls", err, count.Load())
+			n := int(count.Load())
+			if n != c.expectedCalls {
+				t.Fatalf("got %d calls, expecting %d", n, c.expectedCalls)
+			}
+			if !errors.Is(err, c.errors[c.expectedCalls-1]) {
+				t.Fatalf("got %v after %d calls, expecting %v", err, count.Load(), c.errors[n-1])
+			}
+		})
 	}
 }
 
