@@ -640,9 +640,8 @@ func (d *deployer) Status(context.Context) (*status.Status, error) {
 	for _, group := range d.groups {
 		for component := range group.started {
 			c := &status.Component{
-				Name:  component,
-				Group: group.name,
-				Pids:  slices.Clone(group.pids),
+				Name: component,
+				Pids: slices.Clone(group.pids),
 			}
 			components = append(components, c)
 

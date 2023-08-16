@@ -210,9 +210,6 @@ func (d *dashboard) handleDeployment(w http.ResponseWriter, r *http.Request) {
 	// on the deployment page.
 	sort.Slice(status.Components, func(i, j int) bool {
 		ci, cj := status.Components[i], status.Components[j]
-		if ci.Group != cj.Group {
-			return ci.Group < cj.Group
-		}
 		return ci.Name < cj.Name
 	})
 	for _, component := range status.Components {

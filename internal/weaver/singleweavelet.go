@@ -416,9 +416,8 @@ func (w *SingleWeavelet) Status(context.Context) (*status.Status, error) {
 	components := []*status.Component{{Name: "main", Pids: []int64{pid}}}
 	for component := range w.components {
 		c := &status.Component{
-			Name:  component,
-			Group: "main",
-			Pids:  []int64{pid},
+			Name: component,
+			Pids: []int64{pid},
 		}
 		components = append(components, c)
 
