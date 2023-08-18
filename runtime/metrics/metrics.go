@@ -111,7 +111,7 @@ func (m *MetricSnapshot) MetricValue() *protos.MetricValue {
 	}
 }
 
-// MetricSnapshot converts a MetricSnapshot to its proto equivalent.
+// ToProto converts a MetricSnapshot to its proto equivalent.
 func (m *MetricSnapshot) ToProto() *protos.MetricSnapshot {
 	return &protos.MetricSnapshot{
 		Id:     m.Id,

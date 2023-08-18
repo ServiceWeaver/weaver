@@ -31,7 +31,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// The default number of times a component is replicated.
+// DefaultReplication is the default number of times a component is replicated.
 //
 // TODO(mwhittaker): Include this in the Options struct?
 const DefaultReplication = 2
