@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"sync"
 
+	core "github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
@@ -348,16 +349,18 @@ func (s *Simulator) step() {
 		runOp = iota
 		deliverCall
 		deliverReply
+		deliverCallError
+		deliverReplyError
 	)
 	var candidates []int
 	if s.numOps < s.opts.NumOps {
 		candidates = append(candidates, runOp)
 	}
 	if len(s.calls) > 0 {
-		candidates = append(candidates, deliverCall)
+		candidates = append(candidates, deliverCall, deliverCallError)
 	}
 	if len(s.replies) > 0 {
-		candidates = append(candidates, deliverReply)
+		candidates = append(candidates, deliverReply, deliverReplyError)
 	}
 	if len(candidates) == 0 {
 		return
@@ -386,6 +389,26 @@ func (s *Simulator) step() {
 		var reply *reply
 		reply, s.replies = pop(s.rand, s.replies)
 		reply.call.reply <- reply
+		close(reply.call.reply)
+
+	case deliverCallError:
+		// TODO(mwhittaker): Implement co-location. Don't return
+		// RemoteCallErrors between co-located components.
+		var call *call
+		call, s.calls = pop(s.rand, s.calls)
+		call.reply <- &reply{
+			call:    call,
+			returns: returnError(call.component, call.method, core.RemoteCallError),
+		}
+
+	case deliverReplyError:
+		// TODO(mwhittaker): Implement co-location. Don't return
+		// RemoteCallErrors between co-located components.
+		var reply *reply
+		reply, s.replies = pop(s.rand, s.replies)
+		reply.returns = returnError(reply.call.component, reply.call.method, core.RemoteCallError)
+		reply.call.reply <- reply
+		close(reply.call.reply)
 
 	default:
 		panic(fmt.Errorf("unrecognized candidate %v", x))
@@ -447,4 +470,22 @@ func (s *Simulator) deliverCall(call *call) {
 	})
 	s.mu.Unlock()
 	s.step()
+}
+
+// returnError returns a slice of reflect.Values compatible with the return
+// type of the provided method. The final return value is the provided error.
+// All other return values are zero initialized.
+func returnError(component reflect.Type, method string, err error) []reflect.Value {
+	m, ok := component.MethodByName(method)
+	if !ok {
+		panic(fmt.Errorf("method %s.%s not found", component, method))
+	}
+	t := m.Type
+	n := t.NumOut()
+	returns := make([]reflect.Value, n)
+	for i := 0; i < n-1; i++ {
+		returns[i] = reflect.Zero(t.Out(i))
+	}
+	returns[n-1] = reflect.ValueOf(err)
+	return returns
 }
