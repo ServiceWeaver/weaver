@@ -822,12 +822,12 @@ func (g *generator) generate() error {
 		fn := func(format string, args ...interface{}) {
 			fmt.Fprintln(&body, fmt.Sprintf(format, args...))
 		}
-		g.generateVersionCheck(fn)
 		g.generateRegisteredComponents(fn)
 		g.generateInstanceChecks(fn)
 		g.generateRouterChecks(fn)
 		g.generateLocalStubs(fn)
 		g.generateClientStubs(fn)
+		g.generateVersionCheck(fn)
 		g.generateServerStubs(fn)
 		g.generateReflectStubs(fn)
 		g.generateAutoMarshalMethods(fn)
@@ -929,10 +929,12 @@ func (g *generator) generateVersionCheck(p printFn) {
 	//
 	//     var _ codegen.LatestVersion = codegen.Version[[0][1]struct{}]("You used ...")
 	p(``)
+	p(`// Note that "weaver generate" will always generate the error message below.`)
+	p(`// Everything is okay. The error message is only relevant if you see it when`)
+	p(`// you run "go build" or "go run".`)
 	p(`var _ %s = %s[[%d][%d]struct{}](%s)`,
 		g.codegen().qualify("LatestVersion"), g.codegen().qualify("Version"),
 		version.CodegenMajor, version.CodegenMinor,
-
 		fmt.Sprintf("`"+`
 
 ERROR: You generated this file with 'weaver generate' %s (codegen
