@@ -140,7 +140,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 func canonicalizeConfig(c *protos.AppConfig, dir string) error {
 	// Fill in the application name if necessary.
 	bin := c.GetBinary()
-	if c.Name == "" {
+	if c.Name == "" && bin != "" {
 		c.Name = filepath.Base(bin)
 	}
 
