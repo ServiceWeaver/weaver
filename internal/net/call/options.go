@@ -59,6 +59,10 @@ type ServerOptions struct {
 
 // CallOptions are call-specific options.
 type CallOptions struct {
+	// Retry indicates whether or not calls that failed due to communication
+	// errors should be retried.
+	Retry bool
+
 	// ShardKey, if not 0, is the shard key that a Balancer can use to route a
 	// call. A Balancer can always choose to ignore the ShardKey.
 	//

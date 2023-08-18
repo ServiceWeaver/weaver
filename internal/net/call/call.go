@@ -369,8 +369,22 @@ func (rc *reconnectingConnection) Close() {
 	rc.resolverDone.Wait()
 }
 
-// Call makes an RPC over connection c.
+// Call makes an RPC over connection c, retrying it on network errors if retries are allowed.
 func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []byte, opts CallOptions) ([]byte, error) {
+	if !opts.Retry {
+		return rc.callOnce(ctx, h, arg, opts)
+	}
+	for r := retry.Begin(); r.Continue(ctx); {
+		response, err := rc.callOnce(ctx, h, arg, opts)
+		if errors.Is(err, Unreachable) || errors.Is(err, CommunicationError) {
+			continue
+		}
+		return response, err
+	}
+	return nil, ctx.Err()
+}
+
+func (rc *reconnectingConnection) callOnce(ctx context.Context, h MethodKey, arg []byte, opts CallOptions) ([]byte, error) {
 	var hdr [msgHeaderSize]byte
 	copy(hdr[0:], h[:])
 	deadline, haveDeadline := ctx.Deadline()
@@ -395,12 +409,6 @@ func (rc *reconnectingConnection) Call(ctx context.Context, h MethodKey, arg []b
 	rpc.doneSignal = make(chan struct{})
 
 	// TODO: Arrange to obey deadline in any reconnection done inside startCall.
-	//
-	// TODO(mwhittaker): Right now, every RPC call is tried on a single server
-	// connection. If the call fails, it is not retried. If a call fails on a
-	// connection, we may want to try it again on a different connection. We
-	// may also want to detect that certain connections are bad and avoid them
-	// outright.
 	conn, nc, err := rc.startCall(ctx, rpc, opts)
 	if err != nil {
 		return nil, err
