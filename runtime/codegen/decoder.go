@@ -68,7 +68,7 @@ func (d *Decoder) DecodeProto(value proto.Message) {
 	}
 }
 
-// DecodeBinaryMarshaler deserializes the value from a byte slice using
+// DecodeBinaryUnmarshaler deserializes the value from a byte slice using
 // UnmarshalBinary.
 func (d *Decoder) DecodeBinaryUnmarshaler(value encoding.BinaryUnmarshaler) {
 	if err := value.UnmarshalBinary(d.Bytes()); err != nil {
