@@ -20,9 +20,11 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
@@ -119,6 +121,83 @@ func TestCancelledSimulation(t *testing.T) {
 		}
 	case <-failAfter:
 		t.Fatal("simulation not cancelled promptly")
+	}
+}
+
+// errorCounter is a fake implementation of the divMod component. See
+// TestInjectedErrors for usage.
+type errorCounter struct {
+	mu       sync.Mutex
+	id       int
+	executed map[int]struct{}
+	errored  map[int]struct{}
+}
+
+func (e *errorCounter) DivMod(_ context.Context, x, _ int) (int, int, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.executed[x] = struct{}{}
+	return 0, 0, nil
+}
+
+func (e *errorCounter) NextId() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.id++
+	return e.id
+}
+
+func (e *errorCounter) Errored(x int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.errored[x] = struct{}{}
+}
+
+func TestInjectedErrors(t *testing.T) {
+	counter := &errorCounter{
+		executed: map[int]struct{}{},
+		errored:  map[int]struct{}{},
+	}
+
+	// An injected RemoteCallError can happen before or after a call is
+	// executed. Record the calls that error out without executing and the
+	// calls that error out after executing. Both should happen.
+	opts := Options{
+		NumReplicas: 10,
+		NumOps:      1000,
+		Fakes:       map[reflect.Type]any{reflection.Type[divMod](): counter},
+	}
+	sim := simulator(t, opts)
+	RegisterOp(sim, Op[struct{}]{
+		Name: "divmod",
+		Gen:  func(r *rand.Rand) struct{} { return struct{}{} },
+		Func: func(ctx context.Context, _ struct{}, dm divMod) error {
+			id := counter.NextId()
+			_, _, err := dm.DivMod(ctx, id, id)
+			if errors.Is(err, weaver.RemoteCallError) {
+				counter.Errored(id)
+			}
+			return nil
+		},
+	})
+	if err := sim.Simulate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	failedWithoutExecuting := 0
+	failedAfterExecuting := 0
+	for id := range counter.errored {
+		if _, ok := counter.executed[id]; ok {
+			failedAfterExecuting++
+		} else {
+			failedWithoutExecuting++
+		}
+	}
+	if failedWithoutExecuting == 0 {
+		t.Error("no calls failed without executing")
+	}
+	if failedAfterExecuting == 0 {
+		t.Error("no calls failed after executing")
 	}
 }
 
