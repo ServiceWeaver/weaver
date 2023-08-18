@@ -103,7 +103,7 @@ $ cd hello/
 $ go mod init hello
 ```
 
-Then, create a file called `hello.go` with the following contents:
+Then, create a file called `main.go` with the following contents:
 
 ```go
 package main
