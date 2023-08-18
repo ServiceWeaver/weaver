@@ -277,10 +277,14 @@ github.com/ServiceWeaver/weaver/internal/sim
     github.com/ServiceWeaver/weaver/runtime/protos
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    golang.org/x/exp/constraints
+    golang.org/x/exp/maps
+    golang.org/x/sync/errgroup
     log/slog
     math/rand
     net
     reflect
+    slices
     sync
 github.com/ServiceWeaver/weaver/internal/status
     bytes

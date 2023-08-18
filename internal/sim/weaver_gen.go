@@ -16,50 +16,130 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/swapper",
-		Iface: reflect.TypeOf((*swapper)(nil)).Elem(),
-		Impl:  reflect.TypeOf(swapperImpl{}),
+		Name:  "github.com/ServiceWeaver/weaver/internal/sim/blocker",
+		Iface: reflect.TypeOf((*blocker)(nil)).Elem(),
+		Impl:  reflect.TypeOf(blockerImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return swapper_local_stub{impl: impl.(swapper), tracer: tracer, swapMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/swapper", Method: "Swap", Remote: false})}
+			return blocker_local_stub{impl: impl.(blocker), tracer: tracer, blockMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/blocker", Method: "Block", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return swapper_client_stub{stub: stub, swapMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/swapper", Method: "Swap", Remote: true})}
+			return blocker_client_stub{stub: stub, blockMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/blocker", Method: "Block", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return swapper_server_stub{impl: impl.(swapper), addLoad: addLoad}
+			return blocker_server_stub{impl: impl.(blocker), addLoad: addLoad}
 		},
 		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
-			return swapper_reflect_stub{caller: caller}
+			return blocker_reflect_stub{caller: caller}
 		},
 		RefData: "",
+	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/internal/sim/div",
+		Iface: reflect.TypeOf((*div)(nil)).Elem(),
+		Impl:  reflect.TypeOf(divImpl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return div_local_stub{impl: impl.(div), tracer: tracer, divMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/div", Method: "Div", Remote: false})}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return div_client_stub{stub: stub, divMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/div", Method: "Div", Remote: true})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return div_server_stub{impl: impl.(div), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return div_reflect_stub{caller: caller}
+		},
+		RefData: "⟦972edc6b:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/div→github.com/ServiceWeaver/weaver/internal/sim/identity⟧\n",
+	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/internal/sim/divMod",
+		Iface: reflect.TypeOf((*divMod)(nil)).Elem(),
+		Impl:  reflect.TypeOf(divModImpl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return divMod_local_stub{impl: impl.(divMod), tracer: tracer, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/divMod", Method: "DivMod", Remote: false})}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return divMod_client_stub{stub: stub, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/divMod", Method: "DivMod", Remote: true})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return divMod_server_stub{impl: impl.(divMod), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return divMod_reflect_stub{caller: caller}
+		},
+		RefData: "⟦1fbf09ec:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/divMod→github.com/ServiceWeaver/weaver/internal/sim/div⟧\n⟦c2f088a8:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/divMod→github.com/ServiceWeaver/weaver/internal/sim/mod⟧\n",
+	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/internal/sim/identity",
+		Iface: reflect.TypeOf((*identity)(nil)).Elem(),
+		Impl:  reflect.TypeOf(identityImpl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return identity_local_stub{impl: impl.(identity), tracer: tracer, identityMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/identity", Method: "Identity", Remote: false})}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return identity_client_stub{stub: stub, identityMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/identity", Method: "Identity", Remote: true})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return identity_server_stub{impl: impl.(identity), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return identity_reflect_stub{caller: caller}
+		},
+		RefData: "",
+	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/internal/sim/mod",
+		Iface: reflect.TypeOf((*mod)(nil)).Elem(),
+		Impl:  reflect.TypeOf(modImpl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return mod_local_stub{impl: impl.(mod), tracer: tracer, modMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/mod", Method: "Mod", Remote: false})}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return mod_client_stub{stub: stub, modMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/mod", Method: "Mod", Remote: true})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return mod_server_stub{impl: impl.(mod), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return mod_reflect_stub{caller: caller}
+		},
+		RefData: "⟦1dff5ab5:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/mod→github.com/ServiceWeaver/weaver/internal/sim/identity⟧\n",
 	})
 }
 
 // weaver.InstanceOf checks.
-var _ weaver.InstanceOf[swapper] = (*swapperImpl)(nil)
+var _ weaver.InstanceOf[blocker] = (*blockerImpl)(nil)
+var _ weaver.InstanceOf[div] = (*divImpl)(nil)
+var _ weaver.InstanceOf[divMod] = (*divModImpl)(nil)
+var _ weaver.InstanceOf[identity] = (*identityImpl)(nil)
+var _ weaver.InstanceOf[mod] = (*modImpl)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = (*swapperImpl)(nil)
+var _ weaver.Unrouted = (*blockerImpl)(nil)
+var _ weaver.Unrouted = (*divImpl)(nil)
+var _ weaver.Unrouted = (*divModImpl)(nil)
+var _ weaver.Unrouted = (*identityImpl)(nil)
+var _ weaver.Unrouted = (*modImpl)(nil)
 
 // Local stub implementations.
 
-type swapper_local_stub struct {
-	impl        swapper
-	tracer      trace.Tracer
-	swapMetrics *codegen.MethodMetrics
+type blocker_local_stub struct {
+	impl         blocker
+	tracer       trace.Tracer
+	blockMetrics *codegen.MethodMetrics
 }
 
-// Check that swapper_local_stub implements the swapper interface.
-var _ swapper = (*swapper_local_stub)(nil)
+// Check that blocker_local_stub implements the blocker interface.
+var _ blocker = (*blocker_local_stub)(nil)
 
-func (s swapper_local_stub) Swap(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+func (s blocker_local_stub) Block(ctx context.Context) (err error) {
 	// Update metrics.
-	begin := s.swapMetrics.Begin()
-	defer func() { s.swapMetrics.End(begin, err != nil, 0, 0) }()
+	begin := s.blockMetrics.Begin()
+	defer func() { s.blockMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "sim.swapper.Swap", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "sim.blocker.Block", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -69,29 +149,265 @@ func (s swapper_local_stub) Swap(ctx context.Context, a0 int, a1 int) (r0 int, r
 		}()
 	}
 
-	return s.impl.Swap(ctx, a0, a1)
+	return s.impl.Block(ctx)
+}
+
+type div_local_stub struct {
+	impl       div
+	tracer     trace.Tracer
+	divMetrics *codegen.MethodMetrics
+}
+
+// Check that div_local_stub implements the div interface.
+var _ div = (*div_local_stub)(nil)
+
+func (s div_local_stub) Div(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
+	// Update metrics.
+	begin := s.divMetrics.Begin()
+	defer func() { s.divMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "sim.div.Div", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.Div(ctx, a0, a1)
+}
+
+type divMod_local_stub struct {
+	impl          divMod
+	tracer        trace.Tracer
+	divModMetrics *codegen.MethodMetrics
+}
+
+// Check that divMod_local_stub implements the divMod interface.
+var _ divMod = (*divMod_local_stub)(nil)
+
+func (s divMod_local_stub) DivMod(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+	// Update metrics.
+	begin := s.divModMetrics.Begin()
+	defer func() { s.divModMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "sim.divMod.DivMod", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.DivMod(ctx, a0, a1)
+}
+
+type identity_local_stub struct {
+	impl            identity
+	tracer          trace.Tracer
+	identityMetrics *codegen.MethodMetrics
+}
+
+// Check that identity_local_stub implements the identity interface.
+var _ identity = (*identity_local_stub)(nil)
+
+func (s identity_local_stub) Identity(ctx context.Context, a0 int) (r0 int, err error) {
+	// Update metrics.
+	begin := s.identityMetrics.Begin()
+	defer func() { s.identityMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "sim.identity.Identity", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.Identity(ctx, a0)
+}
+
+type mod_local_stub struct {
+	impl       mod
+	tracer     trace.Tracer
+	modMetrics *codegen.MethodMetrics
+}
+
+// Check that mod_local_stub implements the mod interface.
+var _ mod = (*mod_local_stub)(nil)
+
+func (s mod_local_stub) Mod(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
+	// Update metrics.
+	begin := s.modMetrics.Begin()
+	defer func() { s.modMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "sim.mod.Mod", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.Mod(ctx, a0, a1)
 }
 
 // Client stub implementations.
 
-type swapper_client_stub struct {
-	stub        codegen.Stub
-	swapMetrics *codegen.MethodMetrics
+type blocker_client_stub struct {
+	stub         codegen.Stub
+	blockMetrics *codegen.MethodMetrics
 }
 
-// Check that swapper_client_stub implements the swapper interface.
-var _ swapper = (*swapper_client_stub)(nil)
+// Check that blocker_client_stub implements the blocker interface.
+var _ blocker = (*blocker_client_stub)(nil)
 
-func (s swapper_client_stub) Swap(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+func (s blocker_client_stub) Block(ctx context.Context) (err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
-	begin := s.swapMetrics.Begin()
-	defer func() { s.swapMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+	begin := s.blockMetrics.Begin()
+	defer func() { s.blockMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "sim.swapper.Swap", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "sim.blocker.Block", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	var shardKey uint64
+
+	// Call the remote method.
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, nil, shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	err = dec.Error()
+	return
+}
+
+type div_client_stub struct {
+	stub       codegen.Stub
+	divMetrics *codegen.MethodMetrics
+}
+
+// Check that div_client_stub implements the div interface.
+var _ div = (*div_client_stub)(nil)
+
+func (s div_client_stub) Div(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.divMetrics.Begin()
+	defer func() { s.divMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "sim.div.Div", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Preallocate a buffer of the right size.
+	size := 0
+	size += 8
+	size += 8
+	enc := codegen.NewEncoder()
+	enc.Reset(size)
+
+	// Encode arguments.
+	enc.Int(a0)
+	enc.Int(a1)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.Int()
+	err = dec.Error()
+	return
+}
+
+type divMod_client_stub struct {
+	stub          codegen.Stub
+	divModMetrics *codegen.MethodMetrics
+}
+
+// Check that divMod_client_stub implements the divMod interface.
+var _ divMod = (*divMod_client_stub)(nil)
+
+func (s divMod_client_stub) DivMod(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.divModMetrics.Begin()
+	defer func() { s.divModMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "sim.divMod.DivMod", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -141,6 +457,136 @@ func (s swapper_client_stub) Swap(ctx context.Context, a0 int, a1 int) (r0 int, 
 	return
 }
 
+type identity_client_stub struct {
+	stub            codegen.Stub
+	identityMetrics *codegen.MethodMetrics
+}
+
+// Check that identity_client_stub implements the identity interface.
+var _ identity = (*identity_client_stub)(nil)
+
+func (s identity_client_stub) Identity(ctx context.Context, a0 int) (r0 int, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.identityMetrics.Begin()
+	defer func() { s.identityMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "sim.identity.Identity", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Preallocate a buffer of the right size.
+	size := 0
+	size += 8
+	enc := codegen.NewEncoder()
+	enc.Reset(size)
+
+	// Encode arguments.
+	enc.Int(a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.Int()
+	err = dec.Error()
+	return
+}
+
+type mod_client_stub struct {
+	stub       codegen.Stub
+	modMetrics *codegen.MethodMetrics
+}
+
+// Check that mod_client_stub implements the mod interface.
+var _ mod = (*mod_client_stub)(nil)
+
+func (s mod_client_stub) Mod(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.modMetrics.Begin()
+	defer func() { s.modMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "sim.mod.Mod", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Preallocate a buffer of the right size.
+	size := 0
+	size += 8
+	size += 8
+	enc := codegen.NewEncoder()
+	enc.Reset(size)
+
+	// Encode arguments.
+	enc.Int(a0)
+	enc.Int(a1)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.Int()
+	err = dec.Error()
+	return
+}
+
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
@@ -166,25 +612,62 @@ please file an issue at https://github.com/ServiceWeaver/weaver/issues.
 
 // Server stub implementations.
 
-type swapper_server_stub struct {
-	impl    swapper
+type blocker_server_stub struct {
+	impl    blocker
 	addLoad func(key uint64, load float64)
 }
 
-// Check that swapper_server_stub implements the codegen.Server interface.
-var _ codegen.Server = (*swapper_server_stub)(nil)
+// Check that blocker_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*blocker_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
-func (s swapper_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s blocker_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
-	case "Swap":
-		return s.swap
+	case "Block":
+		return s.block
 	default:
 		return nil
 	}
 }
 
-func (s swapper_server_stub) swap(ctx context.Context, args []byte) (res []byte, err error) {
+func (s blocker_server_stub) block(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	appErr := s.impl.Block(ctx)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+type div_server_stub struct {
+	impl    div
+	addLoad func(key uint64, load float64)
+}
+
+// Check that div_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*div_server_stub)(nil)
+
+// GetStubFn implements the codegen.Server interface.
+func (s div_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "Div":
+		return s.div
+	default:
+		return nil
+	}
+}
+
+func (s div_server_stub) div(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -202,7 +685,52 @@ func (s swapper_server_stub) swap(ctx context.Context, args []byte) (res []byte,
 	// TODO(rgrandl): The deferred function above will recover from panics in the
 	// user code: fix this.
 	// Call the local method.
-	r0, r1, appErr := s.impl.Swap(ctx, a0, a1)
+	r0, appErr := s.impl.Div(ctx, a0, a1)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Int(r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+type divMod_server_stub struct {
+	impl    divMod
+	addLoad func(key uint64, load float64)
+}
+
+// Check that divMod_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*divMod_server_stub)(nil)
+
+// GetStubFn implements the codegen.Server interface.
+func (s divMod_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "DivMod":
+		return s.divMod
+	default:
+		return nil
+	}
+}
+
+func (s divMod_server_stub) divMod(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 int
+	a0 = dec.Int()
+	var a1 int
+	a1 = dec.Int()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, r1, appErr := s.impl.DivMod(ctx, a0, a1)
 
 	// Encode the results.
 	enc := codegen.NewEncoder()
@@ -212,37 +740,173 @@ func (s swapper_server_stub) swap(ctx context.Context, args []byte) (res []byte,
 	return enc.Data(), nil
 }
 
+type identity_server_stub struct {
+	impl    identity
+	addLoad func(key uint64, load float64)
+}
+
+// Check that identity_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*identity_server_stub)(nil)
+
+// GetStubFn implements the codegen.Server interface.
+func (s identity_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "Identity":
+		return s.identity
+	default:
+		return nil
+	}
+}
+
+func (s identity_server_stub) identity(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 int
+	a0 = dec.Int()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.Identity(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Int(r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+type mod_server_stub struct {
+	impl    mod
+	addLoad func(key uint64, load float64)
+}
+
+// Check that mod_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*mod_server_stub)(nil)
+
+// GetStubFn implements the codegen.Server interface.
+func (s mod_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "Mod":
+		return s.mod
+	default:
+		return nil
+	}
+}
+
+func (s mod_server_stub) mod(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 int
+	a0 = dec.Int()
+	var a1 int
+	a1 = dec.Int()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.Mod(ctx, a0, a1)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Int(r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
 // Reflect stub implementations.
 
-type swapper_reflect_stub struct {
+type blocker_reflect_stub struct {
 	caller func(string, context.Context, []any, []any) error
 }
 
-// Check that swapper_reflect_stub implements the swapper interface.
-var _ swapper = (*swapper_reflect_stub)(nil)
+// Check that blocker_reflect_stub implements the blocker interface.
+var _ blocker = (*blocker_reflect_stub)(nil)
 
-func (s swapper_reflect_stub) Swap(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
-	err = s.caller("Swap", ctx, []any{a0, a1}, []any{&r0, &r1})
+func (s blocker_reflect_stub) Block(ctx context.Context) (err error) {
+	err = s.caller("Block", ctx, []any{}, []any{})
+	return
+}
+
+type div_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that div_reflect_stub implements the div interface.
+var _ div = (*div_reflect_stub)(nil)
+
+func (s div_reflect_stub) Div(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
+	err = s.caller("Div", ctx, []any{a0, a1}, []any{&r0})
+	return
+}
+
+type divMod_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that divMod_reflect_stub implements the divMod interface.
+var _ divMod = (*divMod_reflect_stub)(nil)
+
+func (s divMod_reflect_stub) DivMod(ctx context.Context, a0 int, a1 int) (r0 int, r1 int, err error) {
+	err = s.caller("DivMod", ctx, []any{a0, a1}, []any{&r0, &r1})
+	return
+}
+
+type identity_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that identity_reflect_stub implements the identity interface.
+var _ identity = (*identity_reflect_stub)(nil)
+
+func (s identity_reflect_stub) Identity(ctx context.Context, a0 int) (r0 int, err error) {
+	err = s.caller("Identity", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+type mod_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that mod_reflect_stub implements the mod interface.
+var _ mod = (*mod_reflect_stub)(nil)
+
+func (s mod_reflect_stub) Mod(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
+	err = s.caller("Mod", ctx, []any{a0, a1}, []any{&r0})
 	return
 }
 
 // AutoMarshal implementations.
 
-var _ codegen.AutoMarshal = (*swapperError)(nil)
+var _ codegen.AutoMarshal = (*zeroError)(nil)
 
-type __is_swapperError[T ~struct{ weaver.AutoMarshal }] struct{}
+type __is_zeroError[T ~struct{ weaver.AutoMarshal }] struct{}
 
-var _ __is_swapperError[swapperError]
+var _ __is_zeroError[zeroError]
 
-func (x *swapperError) WeaverMarshal(enc *codegen.Encoder) {
+func (x *zeroError) WeaverMarshal(enc *codegen.Encoder) {
 	if x == nil {
-		panic(fmt.Errorf("swapperError.WeaverMarshal: nil receiver"))
+		panic(fmt.Errorf("zeroError.WeaverMarshal: nil receiver"))
 	}
 }
 
-func (x *swapperError) WeaverUnmarshal(dec *codegen.Decoder) {
+func (x *zeroError) WeaverUnmarshal(dec *codegen.Decoder) {
 	if x == nil {
-		panic(fmt.Errorf("swapperError.WeaverUnmarshal: nil receiver"))
+		panic(fmt.Errorf("zeroError.WeaverUnmarshal: nil receiver"))
 	}
 }
-func init() { codegen.RegisterSerializable[*swapperError]() }
+func init() { codegen.RegisterSerializable[*zeroError]() }

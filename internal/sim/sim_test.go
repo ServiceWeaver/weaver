@@ -16,56 +16,111 @@ package sim
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math/rand"
 	"testing"
-
-	"github.com/ServiceWeaver/weaver/internal/reflection"
+	"time"
 )
 
-func simulator(t *testing.T) *Simulator {
+type pair struct {
+	x, y int
+}
+
+func simulator(t *testing.T, opts Options) *Simulator {
 	t.Helper()
-	sim, err := New(Options{NumReplicas: 2})
+	sim, err := New(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return sim
 }
 
-func TestSim(t *testing.T) {
-	type pair struct {
-		x, y int
-	}
-
-	sim := simulator(t)
-	x, err := sim.GetIntf(reflection.Type[swapper]())
-	if err != nil {
+func TestSuccessfulSimulation(t *testing.T) {
+	// Run the simulator, ignoring any errors. The simulation as a whole should
+	// pass.
+	sim := simulator(t, Options{NumReplicas: 10, NumOps: 1000})
+	RegisterOp(sim, Op[pair]{
+		Name: "divmod",
+		Gen: func(r *rand.Rand) pair {
+			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
+		},
+		Func: func(ctx context.Context, p pair, dm divMod) error {
+			div, mod, err := dm.DivMod(ctx, p.x, p.y)
+			if err != nil {
+				// Swallow errors.
+				return nil
+			}
+			if div != p.x/p.y {
+				return fmt.Errorf("div %d/%d: got %d, want %d", p.x, p.y, div, p.x/p.y)
+			}
+			if mod != p.x%p.y {
+				return fmt.Errorf("mod %d%%%d: got %d, want %d", p.x, p.y, mod, p.x%p.y)
+			}
+			return nil
+		},
+	})
+	if err := sim.Simulate(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestUnsuccessfulSimulation(t *testing.T) {
+	// Run the simulator, erroring out if we ever have a zero denominator. The
+	// simulation as a whole should fail with extremely high likelihood.
+	sim := simulator(t, Options{NumReplicas: 10, NumOps: 1000})
 	RegisterOp(sim, Op[pair]{
-		Name: "swap",
+		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
 			return pair{rand.Intn(100), rand.Intn(100)}
 		},
-		Func: func(ctx context.Context, p pair, s swapper) error {
-			_, _, err := s.Swap(ctx, p.x, p.y)
+		Func: func(ctx context.Context, p pair, dm divMod) error {
+			_, _, err := dm.DivMod(ctx, p.x, p.y)
 			return err
 		},
 	})
-	swapper := x.(swapper)
-	x, y, err := swapper.Swap(context.Background(), 1, 2)
-	if x != 2 {
-		t.Errorf("x: got %d, want 2", x)
+	if err := sim.Simulate(context.Background()); err == nil {
+		t.Fatal("unexpected success")
 	}
-	if y != 1 {
-		t.Errorf("y: got %d, want 1", y)
-	}
-	if err != (swapperError{}) {
-		t.Errorf("err: got %v, want %v", err, swapperError{})
+}
+
+func TestCancelledSimulation(t *testing.T) {
+	// Run a blocking simulation and cancel it.
+	sim := simulator(t, Options{NumReplicas: 10, NumOps: 1000})
+	RegisterOp(sim, Op[struct{}]{
+		Name: "block",
+		Gen: func(r *rand.Rand) struct{} {
+			return struct{}{}
+		},
+		Func: func(ctx context.Context, _ struct{}, b blocker) error {
+			b.Block(ctx)
+			return ctx.Err()
+		},
+	})
+
+	const delay = 100 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), delay)
+	defer cancel()
+	errs := make(chan error)
+	go func() { errs <- sim.Simulate(ctx) }()
+
+	failBefore := time.Now().Add(delay / 2)
+	failAfter := time.After(delay * 2)
+	select {
+	case err := <-errs:
+		if !errors.Is(err, ctx.Err()) {
+			t.Fatalf("error: got %v, want %v", err, ctx.Err())
+		}
+		if time.Now().Before(failBefore) {
+			t.Fatal("simulation cancelled prematurely")
+		}
+	case <-failAfter:
+		t.Fatal("simulation not cancelled promptly")
 	}
 }
 
 func TestDuplicateOp(t *testing.T) {
-	sim := simulator(t)
+	sim := simulator(t, Options{NumReplicas: 2, NumOps: 100})
 	sim.ops["foo"] = op{}
 	validateOp(sim, Op[int]{
 		Name: "foo",
@@ -127,7 +182,8 @@ func TestValidateOp(t *testing.T) {
 	}
 	for name, op := range ops {
 		t.Run(name, func(t *testing.T) {
-			if _, err := validateOp(simulator(t), op); err == nil {
+			opts := Options{NumReplicas: 2, NumOps: 100}
+			if _, err := validateOp(simulator(t, opts), op); err == nil {
 				t.Fatal("unexpected success")
 			}
 		})

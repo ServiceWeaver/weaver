@@ -32,6 +32,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"golang.org/x/sync/errgroup"
 )
 
 // An Op[T] is a randomized operation performed as part of a simulation.
@@ -62,33 +63,66 @@ type Op[T any] struct {
 type Options struct {
 	Seed           int64  // the simulator's seed
 	NumReplicas    int    // the number of replicas of every component
+	NumOps         int    // the number of ops to run
 	ConfigFilename string // TOML config filename
 	Config         string // TOML config contents
 }
 
 // Simulator deterministically simulates a Service Weaver application.
 type Simulator struct {
-	opts       Options
-	config     *protos.AppConfig
-	regs       []*codegen.Registration
-	regsByIntf map[reflect.Type]*codegen.Registration
-	components map[string][]any
-	ops        map[string]op
+	opts       Options                                // simulator options
+	config     *protos.AppConfig                      // application config
+	regs       []*codegen.Registration                // registered components
+	regsByIntf map[reflect.Type]*codegen.Registration // regs, by component interface
+	components map[string][]any                       // component replicas
+	ops        map[string]op                          // registered ops
 
-	mu   sync.Mutex
-	rand *rand.Rand
+	ctx   context.Context // simulation context
+	group *errgroup.Group // group with all running goroutines
+
+	mu      sync.Mutex // guards the following fields
+	rand    *rand.Rand // random number generator
+	numOps  int        // number of spawned ops
+	calls   []*call    // pending calls
+	replies []*reply   // pending replies
 }
 
 // op is a non-generic Op[T].
 type op struct {
-	t    reflect.Type // the T in Op[T]
-	name string       // Op.Name
-	gen  any          // Op.Gen
-	f    any          // Op.Func
+	t          reflect.Type   // the T in Op[T]
+	name       string         // Op.Name
+	gen        reflect.Value  // Op.Gen
+	f          reflect.Value  // Op.Func
+	components []reflect.Type // Op.Func component argument types
+}
+
+// call is a pending method call.
+type call struct {
+	component reflect.Type    // the component being called
+	method    string          // the method being called
+	args      []reflect.Value // the call's arguments
+	reply     chan *reply     // a channel to receive the call's reply
+}
+
+// reply is a pending method reply.
+type reply struct {
+	call    *call           // the corresponding call
+	returns []reflect.Value // the call's return values
 }
 
 // New returns a new Simulator.
 func New(opts Options) (*Simulator, error) {
+	// Validate options.
+	//
+	// TODO(mwhittaker): In the final simulator API, we will pick a number of
+	// replicas and number of operations for the user.
+	if opts.NumReplicas <= 0 {
+		return nil, fmt.Errorf("sim.New: NumReplicas (%d) <= 0", opts.NumReplicas)
+	}
+	if opts.NumOps <= 0 {
+		return nil, fmt.Errorf("sim.New: NumOps (%d) <= 0", opts.NumOps)
+	}
+
 	// Index registrations.
 	regs := codegen.Registered()
 	regsByIntf := map[reflect.Type]*codegen.Registration{}
@@ -118,7 +152,7 @@ func New(opts Options) (*Simulator, error) {
 	}
 
 	// Create component replicas.
-	for _, reg := range regs {
+	for _, reg := range regsByIntf {
 		for i := 0; i < opts.NumReplicas; i++ {
 			// Create the component implementation.
 			v := reflect.New(reg.Impl)
@@ -140,7 +174,7 @@ func New(opts Options) (*Simulator, error) {
 
 			// Fill ref fields.
 			if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
-				return s.GetIntf(t)
+				return s.getIntf(t)
 			}); err != nil {
 				return nil, err
 			}
@@ -166,6 +200,63 @@ func New(opts Options) (*Simulator, error) {
 	}
 
 	return s, nil
+}
+
+// getIntf returns a handle to the component of the provided type.
+func (s *Simulator) getIntf(t reflect.Type) (any, error) {
+	reg, ok := s.regsByIntf[t]
+	if !ok {
+		return nil, fmt.Errorf("component %v not found", t)
+	}
+	call := func(method string, ctx context.Context, args []any, returns []any) error {
+		return s.call(reg, method, ctx, args, returns)
+	}
+	return reg.ReflectStubFn(call), nil
+}
+
+// call executes a component method call against a random replica.
+func (s *Simulator) call(reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
+	// Convert the arguments to reflect.Values.
+	in := make([]reflect.Value, 1+len(args))
+	in[0] = reflect.ValueOf(ctx)
+	for i, arg := range args {
+		in[i+1] = reflect.ValueOf(arg)
+	}
+
+	// Record the call.
+	reply := make(chan *reply, 1)
+	s.mu.Lock()
+	s.calls = append(s.calls, &call{
+		component: reg.Iface,
+		method:    method,
+		args:      in,
+		reply:     reply,
+	})
+	s.mu.Unlock()
+
+	// Take a step and wait for the call to finish.
+	s.step()
+	var out []reflect.Value
+	select {
+	case r := <-reply:
+		out = r.returns
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	}
+
+	// Populate return values.
+	if len(returns) != len(out)-1 {
+		panic(fmt.Errorf("invalid number of returns: want %d, got %d", len(out)-1, len(returns)))
+	}
+	for i := 0; i < len(returns); i++ {
+		// Note that returns[i] has static type any but dynamic type *T for
+		// some T. out[i] has dynamic type T.
+		reflect.ValueOf(returns[i]).Elem().Set(out[i])
+	}
+	if x := out[len(out)-1].Interface(); x != nil {
+		return x.(error)
+	}
+	return nil
 }
 
 // RegisterOp registers an operation with the provided simulator. RegisterOp
@@ -207,10 +298,12 @@ func validateOp[T any](s *Simulator, o Op[T]) (op, error) {
 	if t.In(1) != reflection.Type[T]() {
 		return op{}, fmt.Errorf("op %q func's second argument is not %v: %T", o.Name, reflection.Type[T](), o.Func)
 	}
+	var components []reflect.Type
 	for i := 2; i < t.NumIn(); i++ {
 		if _, ok := s.regsByIntf[t.In(i)]; !ok {
 			return op{}, fmt.Errorf("op %q func argument %d is not a registered component: %T", o.Name, i, o.Func)
 		}
+		components = append(components, t.In(i))
 	}
 	if t.NumOut() != 1 {
 		return op{}, fmt.Errorf("op %q func does not have exactly one return: %T", o.Name, o.Func)
@@ -220,54 +313,133 @@ func validateOp[T any](s *Simulator, o Op[T]) (op, error) {
 	}
 
 	return op{
-		t:    reflection.Type[T](),
-		name: o.Name,
-		gen:  o.Gen,
-		f:    o.Func,
+		t:          reflection.Type[T](),
+		name:       o.Name,
+		gen:        reflect.ValueOf(o.Gen),
+		f:          reflect.ValueOf(o.Func),
+		components: components,
 	}, nil
 }
 
-// GetIntf implements the Weavelet interface.
-func (s *Simulator) GetIntf(t reflect.Type) (any, error) {
-	reg, ok := s.regsByIntf[t]
-	if !ok {
-		return nil, fmt.Errorf("component %v not found", t)
-	}
-	call := func(method string, ctx context.Context, args []any, returns []any) error {
-		return s.call(reg, method, ctx, args, returns)
-	}
-	return reg.ReflectStubFn(call), nil
+// Simulate executes a single simulation.
+func (s *Simulator) Simulate(ctx context.Context) error {
+	s.group, s.ctx = errgroup.WithContext(ctx)
+	s.step()
+	return s.group.Wait()
 }
 
-// call executes a component method call against a random replica.
-func (s *Simulator) call(reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
-	// Pick a replica to execute the call.
-	replicas := s.components[reg.Name]
+// step performs one step of a simulation.
+func (s *Simulator) step() {
 	s.mu.Lock()
-	i := s.rand.Intn(len(replicas))
+	defer s.mu.Unlock()
+
+	if s.ctx.Err() != nil {
+		// The simulation has been cancelled.
+		return
+	}
+
+	// Compute the set of candidate steps.
+	const (
+		runOp = iota
+		deliverCall
+		deliverReply
+	)
+	var candidates []int
+	if s.numOps < s.opts.NumOps {
+		candidates = append(candidates, runOp)
+	}
+	if len(s.calls) > 0 {
+		candidates = append(candidates, deliverCall)
+	}
+	if len(s.replies) > 0 {
+		candidates = append(candidates, deliverReply)
+	}
+	if len(candidates) == 0 {
+		return
+	}
+
+	// Randomly execute a step.
+	switch x := candidates[s.rand.Intn(len(candidates))]; x {
+	case runOp:
+		s.numOps++
+		// TODO(mwhittaker): Store ops in a slice instead of a map so that
+		// picking them is efficient.
+		o := pickValue(s.rand, s.ops)
+		s.group.Go(func() error {
+			return s.runOp(s.ctx, o)
+		})
+
+	case deliverCall:
+		var call *call
+		call, s.calls = pop(s.rand, s.calls)
+		s.group.Go(func() error {
+			s.deliverCall(call)
+			return nil
+		})
+
+	case deliverReply:
+		var reply *reply
+		reply, s.replies = pop(s.rand, s.replies)
+		reply.call.reply <- reply
+
+	default:
+		panic(fmt.Errorf("unrecognized candidate %v", x))
+	}
+}
+
+// runOp runs the provided operation.
+func (s *Simulator) runOp(ctx context.Context, o op) error {
+	// Call the op's Gen function to generate a random value. Lock s.mu because
+	// s.rand is not safe for concurrent use by multiple goroutines.
+	s.mu.Lock()
+	val := o.gen.Call([]reflect.Value{reflect.ValueOf(s.rand)})[0]
 	s.mu.Unlock()
 
-	// Convert the arguments to reflect.Values.
-	in := make([]reflect.Value, 1+len(args))
-	in[0] = reflect.ValueOf(ctx)
-	for i, arg := range args {
-		in[i+1] = reflect.ValueOf(arg)
+	// Construct arguments for func(context.Context, T, [Component]...).
+	args := make([]reflect.Value, 2+len(o.components))
+	args[0] = reflect.ValueOf(ctx)
+	args[1] = val
+	for i, component := range o.components {
+		c, err := s.getIntf(component)
+		if err != nil {
+			return err
+		}
+		args[2+i] = reflect.ValueOf(c)
 	}
 
-	// Call the method.
-	out := reflect.ValueOf(replicas[i]).MethodByName(method).Call(in)
-
-	// Populate return values.
-	if len(returns) != len(out)-1 {
-		panic(fmt.Errorf("invalid number of returns: want %d, got %d", len(out)-1, len(returns)))
-	}
-	for i := 0; i < len(returns); i++ {
-		// Note that returns[i] has static type any but dynamic type *T for
-		// some T. out[i] has dynamic type T.
-		reflect.ValueOf(returns[i]).Elem().Set(out[i])
-	}
-	if x := out[len(out)-1].Interface(); x != nil {
+	// Invoke the op.
+	if x := o.f.Call(args)[0].Interface(); x != nil {
+		// If an op returns a non-nil error, abort the simulation and don't
+		// take another step. Because the runOp function is running inside an
+		// errgroup.Group, the returned error will cancel all goroutines.
 		return x.(error)
 	}
+	// If the op succeeded, take another step.
+	s.step()
 	return nil
+}
+
+// deliverCall delivers the provided pending method call.
+func (s *Simulator) deliverCall(call *call) {
+	reg, ok := s.regsByIntf[call.component]
+	if !ok {
+		panic(fmt.Errorf("component %v not found", call.component))
+	}
+
+	// Pick a replica to execute the call.
+	s.mu.Lock()
+	replica := pick(s.rand, s.components[reg.Name])
+	s.mu.Unlock()
+
+	// Call the component method.
+	returns := reflect.ValueOf(replica).MethodByName(call.method).Call(call.args)
+
+	// Record the reply and take a step.
+	s.mu.Lock()
+	s.replies = append(s.replies, &reply{
+		call:    call,
+		returns: returns,
+	})
+	s.mu.Unlock()
+	s.step()
 }
