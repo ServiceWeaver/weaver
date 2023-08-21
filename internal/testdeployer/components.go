@@ -41,7 +41,7 @@ type c interface {
 
 type aimpl struct {
 	weaver.Implements[a]
-	lis weaver.Listener //nolint:unused
+	lis weaver.Listener //lint:ignore U1000 used in remoteweavelet_test.go
 	b   weaver.Ref[b]
 }
 

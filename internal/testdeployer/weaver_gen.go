@@ -13,10 +13,10 @@ import (
 	"reflect"
 )
 
-var _ codegen.LatestVersion = codegen.Version[[0][17]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' v0.20.0 (codegen
-version v0.17.0). The generated code is incompatible with the version of the
+version v0.20.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
@@ -48,6 +48,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(a), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return a_reflect_stub{caller: caller}
+		},
 		RefData: "⟦d473cf51:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/testdeployer/a→github.com/ServiceWeaver/weaver/internal/testdeployer/b⟧\n⟦83f71f4e:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/internal/testdeployer/a→lis⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -63,6 +66,9 @@ func init() {
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(b), addLoad: addLoad}
 		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return b_reflect_stub{caller: caller}
+		},
 		RefData: "⟦54fc5958:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/testdeployer/b→github.com/ServiceWeaver/weaver/internal/testdeployer/c⟧\n",
 	})
 	codegen.Register(codegen.Registration{
@@ -77,6 +83,9 @@ func init() {
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return c_server_stub{impl: impl.(c), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return c_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
@@ -504,4 +513,42 @@ func (s c_server_stub) c(ctx context.Context, args []byte) (res []byte, err erro
 	enc.Int(r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
+}
+
+// Reflect stub implementations.
+
+type a_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that a_reflect_stub implements the a interface.
+var _ a = (*a_reflect_stub)(nil)
+
+func (s a_reflect_stub) A(ctx context.Context, a0 int) (r0 int, err error) {
+	err = s.caller("A", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+type b_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that b_reflect_stub implements the b interface.
+var _ b = (*b_reflect_stub)(nil)
+
+func (s b_reflect_stub) B(ctx context.Context, a0 int) (r0 int, err error) {
+	err = s.caller("B", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+type c_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that c_reflect_stub implements the c interface.
+var _ c = (*c_reflect_stub)(nil)
+
+func (s c_reflect_stub) C(ctx context.Context, a0 int) (r0 int, err error) {
+	err = s.caller("C", ctx, []any{a0}, []any{&r0})
+	return
 }
