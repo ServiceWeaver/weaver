@@ -34,6 +34,13 @@ type test struct {
 }
 
 func TestExamples(t *testing.T) {
+	// Build the weaver binary.
+	cmd := exec.Command("go", "build")
+	cmd.Dir = "../cmd/weaver"
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
 	testCases := map[string]test{
 		// TODO(mwhittaker): Add helloworld example.
 		"hello": {
