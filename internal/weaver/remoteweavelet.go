@@ -405,6 +405,9 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 		}
 		components = append(components, c)
 	}
+	if len(components) == 0 {
+		return &protos.UpdateComponentsReply{}, errors.Join(errs...)
+	}
 
 	// Create components in a separate goroutine. A component's Init function
 	// may be slow or block. It may also trigger pipe communication. We want to
@@ -416,20 +419,17 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 	//
 	// TODO(mwhittaker): Document that handlers shouldn't retain access to the
 	// arguments passed to them.
-	if len(components) > 0 {
-		go func() {
-			for i, c := range components {
-				w.syslogger.Debug(fmt.Sprintf("Updating component %s", shortened[i]))
-				if _, err := w.GetImpl(c.reg.Impl); err != nil {
-					// TODO(mwhittaker): Propagate errors.
-					w.syslogger.Error(fmt.Sprintf("Failed to update component %v", shortened[i]), "err", err)
-					continue
-				}
-				w.syslogger.Debug(fmt.Sprintf("Updated component %s", shortened[i]))
+	go func() {
+		for i, c := range components {
+			w.syslogger.Debug(fmt.Sprintf("Updating component %s", shortened[i]))
+			if _, err := w.GetImpl(c.reg.Impl); err != nil {
+				// TODO(mwhittaker): Propagate errors.
+				w.syslogger.Error(fmt.Sprintf("Failed to update component %v", shortened[i]), "err", err)
+				continue
 			}
-		}()
-	}
-
+			w.syslogger.Debug(fmt.Sprintf("Updated component %s", shortened[i]))
+		}
+	}()
 	return &protos.UpdateComponentsReply{}, errors.Join(errs...)
 }
 
