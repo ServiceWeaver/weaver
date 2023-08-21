@@ -516,8 +516,6 @@ func TestUpdateExistingComponents(t *testing.T) {
 }
 
 func TestUpdateNilRoutingInfo(t *testing.T) {
-	t.Skip("TODO(mwhittaker): Make this test pass.")
-
 	ctx := context.Background()
 	d := deploy(t, ctx)
 	go d.env.Serve(d)
@@ -571,8 +569,6 @@ func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
 }
 
 func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
-	t.Skip("TODO(mwhittaker): Make this test pass.")
-
 	ctx := context.Background()
 	d := deploy(t, ctx)
 	go d.env.Serve(d)
