@@ -145,7 +145,7 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 			t.Fatal(err)
 		}
 		err = <-weaveletDone
-		if err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "file already closed") {
 			t.Fatal("weavelet failed", err)
 		}
 	})
