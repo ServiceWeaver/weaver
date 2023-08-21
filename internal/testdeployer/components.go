@@ -41,7 +41,7 @@ type c interface {
 
 type aimpl struct {
 	weaver.Implements[a]
-	lis weaver.Listener
+	lis weaver.Listener //nolint:unused
 	b   weaver.Ref[b]
 }
 

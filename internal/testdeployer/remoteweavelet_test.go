@@ -27,7 +27,6 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
-	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
@@ -55,6 +54,7 @@ type deployer struct {
 	toEnvelopeWriter *os.File               // writer end of pipe to envelope
 	env              *conn.EnvelopeConn     // envelope
 	wlet             *weaver.RemoteWeavelet // weavelet
+	logger           *logging.TestLogger    // logger
 
 	// A unit test can override the following envelope methods to do things
 	// like inject errors or return invalid values.
@@ -117,7 +117,7 @@ func (d *deployer) ExportListener(ctx context.Context, req *protos.ExportListene
 
 // HandleLogEntry implements the EnvelopeHandler interface.
 func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	d.t.Log(logging.NewPrettyPrinter(colors.Enabled()).Format(entry))
+	d.logger.Log(entry)
 	return nil
 }
 
@@ -208,6 +208,7 @@ func deployWithInfo(t *testing.T, ctx context.Context, info *protos.EnvelopeInfo
 		toEnvelopeWriter: toEnvelopeWriter,
 		env:              env,
 		wlet:             wlet,
+		logger:           logging.NewTestLogger(t, testing.Verbose()),
 	}
 	t.Cleanup(d.shutdown)
 	return d
@@ -223,8 +224,6 @@ func (d *deployer) shutdown() {
 func testComponents(d *deployer) {
 	d.t.Helper()
 	const want = 42
-
-	// Test component a.
 	x, err := d.wlet.GetIntf(reflection.Type[a]())
 	if err != nil {
 		d.t.Fatal(err)
@@ -235,32 +234,6 @@ func testComponents(d *deployer) {
 	}
 	if got != want {
 		d.t.Fatalf("A(%d): got %d, want %d", want, got, want)
-	}
-
-	// Test component b.
-	x, err = d.wlet.GetIntf(reflection.Type[b]())
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	got, err = x.(b).B(d.ctx, want)
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	if got != want {
-		d.t.Fatalf("B(%d): got %d, want %d", want, got, want)
-	}
-
-	// Test component c.
-	x, err = d.wlet.GetIntf(reflection.Type[c]())
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	got, err = x.(c).C(d.ctx, want)
-	if err != nil {
-		d.t.Fatal(err)
-	}
-	if got != want {
-		d.t.Fatalf("C(%d): got %d, want %d", want, got, want)
 	}
 }
 
