@@ -60,12 +60,11 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 		}()
 
 		opts := weaver.RemoteWeaveletOptions{}
-		_, err := weaver.NewRemoteWeavelet(ctx, codegen.Registered(), bootstrap, opts)
+		wlet, err := weaver.NewRemoteWeavelet(ctx, codegen.Registered(), bootstrap, opts)
 		if err != nil {
 			panic(err)
 		}
-		<-ctx.Done() // Wait for parent process
-		return runtime.Bootstrap{}, nil, ctx.Err()
+		return runtime.Bootstrap{}, nil, wlet.Wait()
 	}
 
 	// Construct AppConfig and EnvelopeInfo.
