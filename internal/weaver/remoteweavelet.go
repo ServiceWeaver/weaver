@@ -429,28 +429,24 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
 func (w *RemoteWeavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
+	if req.RoutingInfo == nil {
+		w.syslogger.Error("Failed to update nil routing info")
+		return nil, fmt.Errorf("nil RoutingInfo")
+	}
+	info := req.RoutingInfo
+
 	defer func() {
-		name := "?"
-		routing := "?"
-		if req.RoutingInfo != nil {
-			name = logging.ShortenComponent(req.RoutingInfo.Component)
-			if req.RoutingInfo.Local {
-				routing = "local"
-			} else {
-				routing = fmt.Sprint(req.RoutingInfo.Replicas)
-			}
+		name := logging.ShortenComponent(info.Component)
+		routing := fmt.Sprint(info.Replicas)
+		if info.Local {
+			routing = "local"
 		}
 		if err != nil {
-			w.syslogger.Debug(fmt.Sprintf("Failed to update routing info for %q to %s", name, routing), "err", err)
+			w.syslogger.Error(fmt.Sprintf("Failed to update routing info for %q to %s", name, routing), "err", err)
 		} else {
 			w.syslogger.Debug(fmt.Sprintf("Updated routing info for %q to %s", name, routing))
 		}
 	}()
-
-	if req.RoutingInfo == nil {
-		return nil, fmt.Errorf("nil RoutingInfo")
-	}
-	info := req.RoutingInfo
 
 	c, err := w.getComponent(info.Component)
 	if err != nil {
