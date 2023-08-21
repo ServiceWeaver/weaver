@@ -714,6 +714,21 @@ func TestFailReplica(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Update routing info to exclude replica 3.
+	for _, wlet := range []string{"1", "2"} {
+		for _, component := range []string{componentb, componentc} {
+			routing := &protos.UpdateRoutingInfoRequest{
+				RoutingInfo: &protos.RoutingInfo{
+					Component: component,
+					Replicas:  []string{d.weavelets["2"].env.WeaveletInfo().DialAddr},
+				},
+			}
+			if _, err := d.weavelets[wlet].wlet.UpdateRoutingInfo(routing); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
 	testComponents(d)
 }
 
