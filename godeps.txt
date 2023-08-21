@@ -571,7 +571,6 @@ github.com/ServiceWeaver/weaver/internal/weaver
     os/signal
     path/filepath
     reflect
-    slices
     sort
     strings
     sync

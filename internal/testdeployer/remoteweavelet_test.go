@@ -483,12 +483,8 @@ func TestUpdateMissingComponents(t *testing.T) {
 
 	// Update the weavelet with components that don't exist.
 	components := &protos.UpdateComponentsRequest{Components: []string{"foo", "bar"}}
-	if _, err := d.wlet.UpdateComponents(components); err != nil {
-		// TODO(mwhittaker): Right now, UpdateComponents always returns nil and
-		// updates components in the background. This is to avoid inducing
-		// deadlock in deployers. We should probably return an error here when
-		// possible.
-		t.Fatal(err)
+	if _, err := d.wlet.UpdateComponents(components); err == nil {
+		t.Fatal("unexpected success")
 	}
 
 	testComponents(d)

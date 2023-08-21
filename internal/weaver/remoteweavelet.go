@@ -24,7 +24,6 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -392,6 +391,24 @@ func (w *RemoteWeavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, 
 
 // UpdateComponents implements the conn.WeaverHandler interface.
 func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
+	var errs []error
+	var components []*component
+	var shortened []string
+	for _, component := range req.Components {
+		short := fmt.Sprintf("%q", logging.ShortenComponent(component))
+		shortened = append(shortened, short)
+		c, err := w.getComponent(component)
+		if err != nil {
+			w.syslogger.Error(fmt.Sprintf("Failed to update component %s", short), "err", err)
+			errs = append(errs, err)
+			continue
+		}
+		components = append(components, c)
+	}
+	if len(components) == 0 {
+		return &protos.UpdateComponentsReply{}, errors.Join(errs...)
+	}
+
 	// Create components in a separate goroutine. A component's Init function
 	// may be slow or block. It may also trigger pipe communication. We want to
 	// avoid blocking and pipe communication in this handler as it could cause
@@ -402,29 +419,18 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 	//
 	// TODO(mwhittaker): Document that handlers shouldn't retain access to the
 	// arguments passed to them.
-	components := slices.Clone(req.Components)
 	go func() {
-		shortened := make([]string, len(components))
 		for i, c := range components {
-			shortened[i] = fmt.Sprintf("%q", logging.ShortenComponent(c))
-		}
-		w.syslogger.Debug(fmt.Sprintf("Updating components %v", shortened))
-		for _, component := range components {
-			c, err := w.getComponent(component)
-			if err != nil {
+			w.syslogger.Debug(fmt.Sprintf("Updating component %s", shortened[i]))
+			if _, err := w.GetImpl(c.reg.Impl); err != nil {
 				// TODO(mwhittaker): Propagate errors.
-				w.syslogger.Debug(fmt.Sprintf("Failed to update components %v", shortened), "err", err)
-				return
+				w.syslogger.Error(fmt.Sprintf("Failed to update component %v", shortened[i]), "err", err)
+				continue
 			}
-			if _, err = w.GetImpl(c.reg.Impl); err != nil {
-				// TODO(mwhittaker): Propagate errors.
-				w.syslogger.Debug(fmt.Sprintf("Failed to update components %v", shortened), "err", err)
-				return
-			}
+			w.syslogger.Debug(fmt.Sprintf("Updated component %s", shortened[i]))
 		}
-		w.syslogger.Debug(fmt.Sprintf("Updated components %v", shortened))
 	}()
-	return &protos.UpdateComponentsReply{}, nil
+	return &protos.UpdateComponentsReply{}, errors.Join(errs...)
 }
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
