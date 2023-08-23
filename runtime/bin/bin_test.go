@@ -26,7 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestReadComponentGraph(t *testing.T) {
+func TestReadComponentGraphFoo(t *testing.T) {
 	for _, test := range []struct{ os, arch string }{
 		{"linux", "amd64"},
 		{"windows", "amd64"},
