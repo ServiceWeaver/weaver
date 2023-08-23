@@ -510,6 +510,16 @@ func extractComponent(opt Options, pkg *packages.Package, file *ast.File, tset *
 		return nil, err
 	}
 
+	// Check that listener names are unique.
+	seenLis := map[string]struct{}{}
+	for _, lis := range listeners {
+		if _, ok := seenLis[lis]; ok {
+			return nil, errorf(pkg.Fset, spec.Pos(),
+				"component implementation %s declares multiple listeners with name %s. Please disambiguate.", formatType(pkg, impl), lis)
+		}
+		seenLis[lis] = struct{}{}
+	}
+
 	// Warn the user if the component has a mistyped Init method. Init methods
 	// are supposed to have type "func(context.Context) error", but it's easy
 	// to forget to add a context.Context argument or error return. Without

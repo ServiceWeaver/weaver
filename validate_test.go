@@ -34,18 +34,21 @@ func TestValidateNoRegistrations(t *testing.T) {
 // TestValidateValidRegistrations tests that validateRegistrations succeeds on
 // a set of valid registrations.
 func TestValidateValidRegistrations(t *testing.T) {
-	type foo struct{}
-	type bar struct{}
+	type foo interface{}
+	type bar interface{}
 	type fooImpl struct {
 		Ref[bar]
-		Listener `weaver:"foo"`
+		Listener `weaver:"lis1"`
+		_        Listener `weaver:"lis2"`
+		lis3     Listener //lint:ignore U1000 Present for code generation.
 	}
 	type barImpl struct{ Ref[foo] }
 	regs := []*codegen.Registration{
 		{
-			Name:  "foo",
-			Iface: reflection.Type[foo](),
-			Impl:  reflection.Type[fooImpl](),
+			Name:      "foo",
+			Iface:     reflection.Type[foo](),
+			Impl:      reflection.Type[fooImpl](),
+			Listeners: []string{"lis1", "lis2", "lis3"},
 		},
 		{
 			Name:  "bar",
@@ -61,7 +64,7 @@ func TestValidateValidRegistrations(t *testing.T) {
 // TestValidateUnregisteredRef tests that validateRegistrations fails when a
 // component has a weaver.Ref on an unregistered component.
 func TestValidateUnregisteredRef(t *testing.T) {
-	type foo struct{}
+	type foo interface{}
 	type fooImpl struct{ Ref[io.Reader] }
 	regs := []*codegen.Registration{
 		{
@@ -83,7 +86,7 @@ func TestValidateUnregisteredRef(t *testing.T) {
 // TestValidateInvalidListenerNames tests that validateRegistrations fails on
 // invalid listener names.
 func TestValidateInvalidListenerNames(t *testing.T) {
-	type foo struct{}
+	type foo interface{}
 	type fooImpl struct {
 		_ Listener `weaver:""`             // empty name
 		_ Listener `weaver:" "`            // whitespace name
@@ -108,6 +111,38 @@ func TestValidateInvalidListenerNames(t *testing.T) {
 		`invalid listener tag "foo bar"`,
 		`invalid listener tag "1foo"`,
 		`invalid listener tag ".!@#$%^&*()-"`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("validateRegistrations: got %q, want %q", err, want)
+		}
+	}
+}
+
+// TestValidateUnregisteredListeners tests that validateRegistrations fails on
+// listener names that haven't been registered.
+func TestValidateUnregisteredListener(t *testing.T) {
+	type foo interface{}
+	type fooImpl struct {
+		foo Listener //lint:ignore U1000 Present for code generation.
+		bar Listener //lint:ignore U1000 Present for code generation.
+		baz Listener //lint:ignore U1000 Present for code generation.
+	}
+
+	regs := []*codegen.Registration{
+		{
+			Name:      "foo",
+			Iface:     reflection.Type[foo](),
+			Impl:      reflection.Type[fooImpl](),
+			Listeners: []string{"foo"},
+		},
+	}
+	err := validateRegistrations(regs)
+	if err == nil {
+		t.Fatal("unexpected validateRegistrations success")
+	}
+	for _, want := range []string{
+		`listener bar hasn't been registered`,
+		`listener baz hasn't been registered`,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("validateRegistrations: got %q, want %q", err, want)
