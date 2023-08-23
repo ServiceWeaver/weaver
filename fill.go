@@ -101,7 +101,7 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 		// The listener's name is the field name, unless a tag is present.
 		name := t.Name
 		if tag, ok := t.Tag.Lookup("weaver"); ok {
-			if !isValidListenerName(tag) {
+			if !isValidListenerName(name) {
 				return fmt.Errorf("FillListeners: listener tag %s is not a valid Go identifier", tag)
 			}
 			name = tag

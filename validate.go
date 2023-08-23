@@ -22,6 +22,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"golang.org/x/exp/slices"
 )
 
 // validateRegistrations validates the provided registrations, returning an
@@ -48,7 +49,7 @@ func validateRegistrations(regs []*codegen.Registration) error {
 				if _, ok := intfs[v.Type]; !ok {
 					// T is not a registered component interface.
 					err := fmt.Errorf(
-						"component implementation struct %v has field %v, but component %v was not registered; maybe you forgot to run 'weaver generate'",
+						"component implementation struct %v has component reference field %v, but component %v was not registered; maybe you forgot to run 'weaver generate'",
 						reg.Impl, f.Type, v.Type,
 					)
 					errs = append(errs, err)
@@ -56,8 +57,17 @@ func validateRegistrations(regs []*codegen.Registration) error {
 
 			case f.Type == reflection.Type[Listener]():
 				// f is a weaver.Listener.
-				if tag, ok := f.Tag.Lookup("weaver"); ok && !isValidListenerName(tag) {
-					err := fmt.Errorf("component implementation struct %v has invalid listener tag %q", reg.Impl, tag)
+				name := f.Name
+				if tag, ok := f.Tag.Lookup("weaver"); ok {
+					if !isValidListenerName(tag) {
+						err := fmt.Errorf("component implementation struct %v has invalid listener tag %q", reg.Impl, tag)
+						errs = append(errs, err)
+						continue
+					}
+					name = tag
+				}
+				if !slices.Contains(reg.Listeners, name) {
+					err := fmt.Errorf("component implementation struct %v has a listener field %v, but listener %v hasn't been registered; maybe you forgot to run 'weaver generate'", reg.Impl, name, name)
 					errs = append(errs, err)
 				}
 			}
