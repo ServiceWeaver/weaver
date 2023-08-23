@@ -27,12 +27,17 @@ import (
 )
 
 func TestReadComponentGraph(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range []struct{ os, arch string }{
 		{"linux", "amd64"},
 		{"windows", "amd64"},
 		{"darwin", "arm64"},
 	} {
+		test := test
 		t.Run(fmt.Sprintf("%s/%s", test.os, test.arch), func(t *testing.T) {
+			t.Parallel()
+
 			// Build the binary for os/arch.
 			d := t.TempDir()
 			binary := filepath.Join(d, "bin")
@@ -81,12 +86,17 @@ func TestReadComponentGraph(t *testing.T) {
 }
 
 func TestReadListeners(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range []struct{ os, arch string }{
 		{"linux", "amd64"},
 		{"windows", "amd64"},
 		{"darwin", "arm64"},
 	} {
+		test := test
 		t.Run(fmt.Sprintf("%s/%s", test.os, test.arch), func(t *testing.T) {
+			t.Parallel()
+
 			// Build the binary for os/arch.
 			d := t.TempDir()
 			binary := filepath.Join(d, "bin")
@@ -152,12 +162,17 @@ func TestExtractVersion(t *testing.T) {
 }
 
 func TestReadVersion(t *testing.T) {
+	t.Parallel()
+
 	for _, test := range []struct{ os, arch string }{
 		{"linux", "amd64"},
 		{"windows", "amd64"},
 		{"darwin", "arm64"},
 	} {
+		test := test
 		t.Run(fmt.Sprintf("%s/%s", test.os, test.arch), func(t *testing.T) {
+			t.Parallel()
+
 			// Build the binary for os/arch.
 			d := t.TempDir()
 			binary := filepath.Join(d, "bin")
