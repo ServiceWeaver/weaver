@@ -219,18 +219,8 @@ func entries(t *testing.T, n int, q Query) []*protos.LogEntry {
 	return es
 }
 
-func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		panic(err)
-	}
-	logdir = dir
-	defer os.RemoveAll(logdir)
-	os.Exit(m.Run())
-}
-
 func TestFileCatter(t *testing.T) {
-	os.RemoveAll(logdir)
+	logdir = t.TempDir()
 	ctx := ctx(t)
 
 	// Log.
@@ -255,7 +245,7 @@ func TestFileCatter(t *testing.T) {
 }
 
 func TestFileFollowerLogThenFollow(t *testing.T) {
-	os.RemoveAll(logdir)
+	logdir = t.TempDir()
 	ctx := ctx(t)
 
 	// Log.
@@ -282,7 +272,7 @@ func TestFileFollowerLogThenFollow(t *testing.T) {
 func TestFileFollowerFollowThenLog(t *testing.T) {
 	for _, q := range matching {
 		t.Run(q, func(t *testing.T) {
-			os.RemoveAll(logdir)
+			logdir = t.TempDir()
 			ctx := ctx(t)
 
 			// Log with staggering, after a delay.
@@ -310,7 +300,7 @@ func TestFileFollowerFollowThenLog(t *testing.T) {
 func TestFileFollowerLogAndFollow(t *testing.T) {
 	for _, q := range matching {
 		t.Run(q, func(t *testing.T) {
-			os.RemoveAll(logdir)
+			logdir = t.TempDir()
 			ctx := ctx(t)
 
 			// Log with staggering, right away.
@@ -338,7 +328,7 @@ func TestFileFollowerLogAndFollow(t *testing.T) {
 func TestFileFollowerNoMatches(t *testing.T) {
 	for _, q := range notMatching {
 		t.Run(q, func(t *testing.T) {
-			os.RemoveAll(logdir)
+			logdir = t.TempDir()
 			ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 			defer cancel()
 
