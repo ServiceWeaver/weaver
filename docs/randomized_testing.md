@@ -37,10 +37,10 @@ especially valuable, as many failure inducing corner cases are extremely
 pathological and hard to think of. [Even well studied and heavily scrutinized
 protocols tend to have subtle bugs][protocol_bugs].
 
-## Overview
+## Types of Randomized Testing
 
-In this document, we describe three ways to introduce randomized property-based
-testing to Service Weaver. This doc borrows heavily from [*Testing Distributed
+In this section, we describe three ways to introduce randomized property-based
+testing to Service Weaver. We borrow heavily from [*Testing Distributed
 Systems*][testing_distributed_systems] by [Andrey Satarin][asatarin].
 
 The various approaches differ in the following ways.
@@ -51,7 +51,7 @@ The various approaches differ in the following ways.
 - How concurrently do things run?
 - How complex are the APIs?
 
-## Jepsen Testing
+### Jepsen Testing
 
 With [Jepsen][jepsen]-style testing, we run a Service Weaver application with
 components in their own containers. We execute random client requests against
@@ -83,7 +83,7 @@ execution is impossible due to the non-determinism introduced by executing
 requests and failures in parallel (this is a problem even if the code itself is
 deterministic). Running an app across a set of containers can also be slow.
 
-## Deterministic Simulation
+### Deterministic Simulation
 
 With [deterministic simulation][deterministic_simulation], we run a Service
 Weaver application all within a single process. We execute random client
@@ -140,7 +140,7 @@ Implementing deterministic simulation is also more complex than implementing
 Jepsen-style tests, as the simulator has to cleverly inject itself into the code
 at every method call.
 
-## Chaos Testing
+### Chaos Testing
 
 [Chaos testing][chaos_monkey] a Service Weaver app is similar to Jepsen testing
 it. We run the application in a set of containers, run a random workload against
@@ -159,7 +159,7 @@ The pro and con of chaos testing is that we cannot test complex properties
 (e.g., linearizability) or complex failures. This makes chaos testing easier to
 reason about but also less expressive.
 
-## Proposal
+### Proposal
 
 I propose we introduce deterministic simulation style testing to weavertest.
 Later, we may be able to implement Jepsen-style testing as well using the same
@@ -167,6 +167,250 @@ or very similar API. Both deterministic testing and Jepsen testing require
 roughly the same things from the user (which operations to run, how to generate
 arguments to these operations, which failures to inject, which properties to
 check).
+
+## API
+
+In this section, we propose three options for a deterministic simulation API.
+Consider an application with components `A`, and `B`:
+
+```go
+// Component A
+type A interface { A(context.Context, int) (int, error) }
+type a struct{ weaver.Implements[A] }
+func (*a) A(context.Context, int) (int, error) { ... }
+
+// Component B
+type B interface { B(context.Context) error }
+type b struct{ weaver.Implements[B] }
+func (*b) B(context.Context) error { ... }
+
+// Component B fake.
+type fakeb struct{}
+func (*fakeb) B(context.Context) error { ... }
+```
+
+We want to simulate this application against a workload with the following
+characteristics:
+
+- We have two operations, or ops, to run. One calls `A.A` on randomly generated
+  integers, and the other calls `B.B`.
+- We want to fake component `B`.
+- We have some state that we update as the test runs. Specifically, we
+  want to record the set of all successful calls to `A.A`.
+
+### Option 1
+
+Option 1 is shown below. We call `sim.RegisterState[T]` to register a function
+that returns a freshly initialized piece of state of type `T`. We call
+`sim.RegisterFake[T]` to register a fake for component `T`. We call
+`sim.RegisterOp[T]` to register an operation. Every operation has
+
+- a name,
+- a way to randomly generate a value of type `T`, and
+- the body of the operation, which receives the state, the randomly
+  generated value of type `T`, and any components it needs to execute.
+
+Finally, we run the simulator. It's important to note that `s.Run()` runs many
+simulations, potentially on many threads. This is why `RegisterState` and
+`RegisterFake` take functions as arguments. The simulator has to create a new
+state and new fake for every simulation.
+
+```go
+func TestWorkload(t *testing.T) {
+    // Create the simulator.
+    s, err := sim.New(sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // Register state of type map[int]int.
+    sim.RegisterState(s, func() map[int]int {
+        return map[int]int{}
+    })
+
+    // Register a fake for component B.
+    sim.RegisterFake[B](s, func() B {
+        return &fakeb{}
+    })
+
+    // Register an op to call A.A.
+    sim.RegisterOp(s, sim.Op[int]{
+        Name: "CallA",
+        Gen:  func(*rand.Rand) int { ... },
+        Func: func(ctx context.Context, replies map[int]int, x int, a A) error {
+            if y, err := a.A(ctx, x); err == nil {
+                replies[x] = y
+            }
+            return nil
+        },
+    })
+
+    // Register an op to call B.B.
+    sim.RegisterOp(s, sim.Op[struct{}]{
+        Name: "CallB",
+        Gen:  func(*rand.Rand) struct{} { ... },
+        Func: func(ctx context.Context, _ map[int]int, _ struct{}, b B) error {
+            b.B(ctx)
+            return nil
+        },
+    })
+
+    // Run the simulator for 10 seconds.
+    results, err := s.Run(10*time.Second)
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
+**Pros.**
+This API is very direct. It leverages the Go type system when possible
+(`RegisterState[T]`, `RegisterFake[T]`, `Op[T]`), but does lean on reflection in
+places.
+
+**Cons.**
+This API is unergonomic. Threading state through every single op, even those
+that don't need it, is cumbersome. Registering state and fakes through generator
+functions is also a bit awkward. Fakes don't have a way to read or write the
+state, which can be very useful for some tests.
+
+### Option 2
+
+Option 2 is shown below. `s.Run` mirrors `T.Run` from the `testing` package. We
+call `s.Run` with a lambda that performs a single simulation. Inside the lambda,
+state is represented as local variables. Fakes are registered as values,
+rather than constructor functions. Ops are the same as in Option 1, except that
+they don't need to take state as an argument.
+
+```go
+func TestWorkload(t *testing.T) {
+    // Create the simulator.
+    s, err := sim.New(sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // Run the simulator for 10 seconds.
+    results, err := s.Run(10*time.Second, func(s *sim.Sim) error {
+        // State is a local variable.
+        replies := map[int]int{}
+
+        // Register a fake value.
+        sim.RegisterFake[B](s, &fakeb{})
+
+        // Register an op to call A.A.
+        sim.RegisterOp(s, sim.Op[int]{
+            Name: "CallA",
+            Gen:  func(*rand.Rand) int { ... },
+            Func: func(ctx context.Context, x int, a A) error {
+                if y, err := a.A(ctx, x); err == nil {
+                    replies[x] = y
+                }
+                return nil
+            },
+        })
+
+        // Register an op to call B.B.
+        sim.RegisterOp(s, sim.Op[struct{}]{
+            Name: "CallB",
+            Gen:  func(*rand.Rand) struct{} { ... },
+            Func: func(ctx context.Context, _ struct{}, b B) error {
+                b.B(ctx)
+                return nil
+            },
+        })
+
+        // Run a single simulation.
+        return s.Run()
+    })
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
+**Pros.**
+The main benefit of this approach is that state is represented as local
+variables, and fakes are registered by value.
+
+**Cons.**
+This API has two distinct simulator types: one to run a bunch of simulations and
+one to run a single simulation. The API cannot prevent someone from registering
+different state, fakes, and ops for every individual simulation, which is not
+intended. More generally, it's a bit odd that you keep re-registering everything
+for every individual simulation.
+
+### Option 3
+
+Option 3 is shown below. This option wraps all the logic of the workload into
+the `Workload` struct, which is passed to the `sim.New[T]` function. The
+`Workload` struct has `weaver.Ref`s to the components needed in the test. It
+also has fields for any state.
+
+- Method `FakeB` returns a fake for component `B`. Generally, method `FakeFoo`
+  returns a fake for component `Foo`.
+- Method `GenCallA` generates the random values passed to `CallA`. Generally,
+  `GenFoo` generates the random values passed to `Foo`.
+- Methods `CallA` and `CallB` are the body of the ops. Generally, all exported
+  methods that don't begin with `Fake` or `Gen` are ops.
+
+```go
+type Workload struct {
+    a weaver.Ref[A]
+    b weaver.Ref[B]
+    replies map[int]int
+}
+
+func (w *Workload) Init(context.Context) error {
+    w.replies = map[int]int{}
+    return nil
+}
+
+func (w *Workload) FakeB(context.Context) B {
+    return &fakeb{}
+}
+
+func (w *Workload) CallA(ctx context.Context, x int) error {
+    if y, err := w.a.Get().A(ctx, x); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+
+func (*Workload) GenCallA(r *rand.Rand) int {
+    ...
+}
+
+func (w *Workload) CallB(ctx context.Context) error {
+    w.b.Get().B(ctx)
+    return nil
+}
+
+func TestWorkload(t *testing.T) {
+    s, err := sim.New[Workload](sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+    results, err := s.Simulate(10 * time.Second)
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
+**Pros.**
+This API is arguably more ergonomic than the other options.
+
+**Cons.**
+This option is very magical. Rather than calling library functions like
+`sim.RegisterOp`, for example, you have to know the special syntax to create an
+op.
+
+### Decision
+
+NOTE(mwhittaker): I don't love any of these options. I have a slight preference
+for Option 3, but am very open to other ideas or ways to improve an existing
+option.
 
 [asatarin]: https://twitter.com/asatarin
 [chaos_monkey]: https://netflix.github.io/chaosmonkey/
