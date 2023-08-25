@@ -38,6 +38,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/plugin"
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/traces"
@@ -49,6 +50,8 @@ import (
 
 // The default number of times a component is replicated.
 const defaultReplication = 2
+
+var plugins *plugin.Plugins
 
 // A deployer manages an application deployment.
 type deployer struct {
@@ -537,18 +540,27 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo, pid int)
 }
 
 // HandleLogEntry implements the envelope.EnvelopeHandler interface.
-func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
+func (d *deployer) HandleLogEntry(ctx context.Context, entry *protos.LogEntry) error {
+	if plugins.HandleLogEntry != nil {
+		return plugins.HandleLogEntry(ctx, entry)
+	}
 	d.logsDB.Add(entry)
 	return nil
 }
 
 // HandleTraceSpans implements the envelope.EnvelopeHandler interface.
 func (d *deployer) HandleTraceSpans(ctx context.Context, spans *protos.TraceSpans) error {
+	if plugins.HandleTraceSpans != nil {
+		return plugins.HandleTraceSpans(ctx, spans)
+	}
 	return d.traceDB.Store(ctx, d.config.App.Name, d.deploymentId, spans)
 }
 
 // GetListenerAddress implements the envelope.EnvelopeHandler interface.
-func (d *deployer) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+func (d *deployer) GetListenerAddress(ctx context.Context, req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	if plugins.GetListenerAddress != nil {
+		return plugins.GetListenerAddress(ctx, req)
+	}
 	return &protos.GetListenerAddressReply{Address: "localhost:0"}, nil
 }
 

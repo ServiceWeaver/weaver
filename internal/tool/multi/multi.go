@@ -24,6 +24,7 @@ import (
 	itool "github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/plugin"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 )
 
@@ -70,3 +71,8 @@ var (
 		"version":   itool.VersionCmd("weaver multi"),
 	}
 )
+
+func Run(p *plugin.Plugins) {
+	plugins = p
+	tool.Run("weaver multi", Commands)
+}
