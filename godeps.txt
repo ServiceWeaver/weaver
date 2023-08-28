@@ -267,6 +267,8 @@ github.com/ServiceWeaver/weaver/internal/routing
     strings
 github.com/ServiceWeaver/weaver/internal/sim
     context
+    crypto/sha256
+    encoding/json
     errors
     fmt
     github.com/ServiceWeaver/weaver
@@ -285,6 +287,8 @@ github.com/ServiceWeaver/weaver/internal/sim
     log/slog
     math/rand
     net
+    os
+    path/filepath
     reflect
     slices
     sort
