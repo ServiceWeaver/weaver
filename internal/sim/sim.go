@@ -24,6 +24,8 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
+	"sort"
+	"strings"
 	"sync"
 
 	core "github.com/ServiceWeaver/weaver"
@@ -32,7 +34,9 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -691,4 +695,86 @@ func returnError(component reflect.Type, method string, err error) []reflect.Val
 	}
 	returns[n-1] = reflect.ValueOf(err)
 	return returns
+}
+
+// Mermaid returns a [mermaid][1] diagram that illustrates a simulation
+// history.
+//
+// TODO(mwhittaker): Arrange replicas in topological order.
+//
+// [1]: https://mermaid.js.org/
+func (r *Results) Mermaid() string {
+	// Some abbreviations to save typing.
+	shorten := logging.ShortenComponent
+	commas := func(xs []string) string { return strings.Join(xs, ", ") }
+
+	// Gather the set of all ops and replicas.
+	type replica struct {
+		component string
+		replica   int
+	}
+	var ops []OpStart
+	replicas := map[replica]struct{}{}
+	calls := map[int]Call{}
+	returns := map[int]Return{}
+	for _, event := range r.History {
+		switch x := event.(type) {
+		case OpStart:
+			ops = append(ops, x)
+		case Call:
+			calls[x.SpanId] = x
+		case DeliverCall:
+			call := calls[x.SpanId]
+			replicas[replica{call.Component, x.Replica}] = struct{}{}
+		case Return:
+			returns[x.SpanId] = x
+		}
+	}
+
+	// Create the diagram.
+	var b strings.Builder
+	fmt.Fprintln(&b, "sequenceDiagram")
+
+	// Create ops.
+	for _, op := range ops {
+		fmt.Fprintf(&b, "    participant op%d as Op %d\n", op.TraceId, op.TraceId)
+	}
+
+	// Create component replicas.
+	sorted := maps.Keys(replicas)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].component != sorted[j].component {
+			return sorted[i].component < sorted[j].component
+		}
+		return sorted[i].replica < sorted[j].replica
+	})
+	for _, replica := range sorted {
+		fmt.Fprintf(&b, "    participant %s%d as %s %d\n", replica.component, replica.replica, shorten(replica.component), replica.replica)
+	}
+
+	// Create events.
+	for _, event := range r.History {
+		switch x := event.(type) {
+		case OpStart:
+			fmt.Fprintf(&b, "    note right of op%d: %s(%s)\n", x.TraceId, x.Name, commas(x.Args))
+		case OpFinish:
+			fmt.Fprintf(&b, "    note right of op%d: return %s\n", x.TraceId, x.Error)
+		case Call:
+			fmt.Fprintf(&b, "    note right of %s%d: block on %s.%s(%s)\n", x.Caller, x.Replica, shorten(x.Component), x.Method, commas(x.Args))
+			calls[x.SpanId] = x
+		case DeliverCall:
+			call := calls[x.SpanId]
+			fmt.Fprintf(&b, "    %s%d->>%s%d: %s.%s(%s)\n", call.Caller, call.Replica, call.Component, x.Replica, shorten(call.Component), call.Method, commas(call.Args))
+		case Return:
+			fmt.Fprintf(&b, "    note right of %s%d: block on return %s\n", x.Component, x.Replica, commas(x.Returns))
+		case DeliverReturn:
+			call := calls[x.SpanId]
+			ret := returns[x.SpanId]
+			fmt.Fprintf(&b, "    %s%d->>%s%d: return %s\n", ret.Component, ret.Replica, call.Caller, call.Replica, commas(ret.Returns))
+		case DeliverError:
+			call := calls[x.SpanId]
+			fmt.Fprintf(&b, "    note right of %s%d: RemoteCallError\n", call.Caller, call.Replica)
+		}
+	}
+	return b.String()
 }
