@@ -319,24 +319,24 @@ func TestValidateOp(t *testing.T) {
 	}
 }
 
-func TestExtractIds(t *testing.T) {
-	const traceId = 42
-	const spanId = 9001
-	ctx := withIds(context.Background(), traceId, spanId)
-	if got, _ := extractIds(ctx); got != traceId {
-		t.Errorf("trace id: got %d, want %d", got, traceId)
+func TestExtractIDs(t *testing.T) {
+	const traceID = 42
+	const spanID = 9001
+	ctx := withIDs(context.Background(), traceID, spanID)
+	if got, _ := extractIDs(ctx); got != traceID {
+		t.Errorf("trace id: got %d, want %d", got, traceID)
 	}
-	if _, got := extractIds(ctx); got != spanId {
-		t.Errorf("span id: got %d, want %d", got, spanId)
+	if _, got := extractIDs(ctx); got != spanID {
+		t.Errorf("span id: got %d, want %d", got, spanID)
 	}
 }
 
-func TestExtractIdsOnInvalidContext(t *testing.T) {
-	traceId, spanId := extractIds(context.Background())
-	if traceId != 0 {
-		t.Errorf("trace id: got %d, want 0", traceId)
+func TestExtractIDsOnInvalidContext(t *testing.T) {
+	traceID, spanID := extractIDs(context.Background())
+	if traceID != 0 {
+		t.Errorf("trace id: got %d, want 0", traceID)
 	}
-	if spanId != 0 {
-		t.Errorf("span id: got %d, want 0", spanId)
+	if spanID != 0 {
+		t.Errorf("span id: got %d, want 0", spanID)
 	}
 }

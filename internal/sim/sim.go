@@ -88,8 +88,8 @@ type Simulator struct {
 	calls       []*call    // pending calls
 	replies     []*reply   // pending replies
 	history     []Event    // history of events
-	nextTraceId int        // next trace id
-	nextSpanId  int        // next span id
+	nextTraceID int        // next trace id
+	nextSpanID  int        // next span id
 }
 
 // An Event represents an atomic step of a simulation.
@@ -99,23 +99,23 @@ type Event interface {
 
 // OpStart represents the start of an op.
 type OpStart struct {
-	TraceId int      // trace id
-	SpanId  int      // span id
+	TraceID int      // trace id
+	SpanID  int      // span id
 	Name    string   // op name
 	Args    []string // op arguments
 }
 
 // OpFinish represents the finish of an op.
 type OpFinish struct {
-	TraceId int    // trace id
-	SpanId  int    // span id
+	TraceID int    // trace id
+	SpanID  int    // span id
 	Error   string // returned error message
 }
 
 // Call represents a component method call.
 type Call struct {
-	TraceId   int      // trace id
-	SpanId    int      // span id
+	TraceID   int      // trace id
+	SpanID    int      // span id
 	Caller    string   // calling component (or "op")
 	Replica   int      // calling component replica (or op number)
 	Component string   // component being called
@@ -125,16 +125,16 @@ type Call struct {
 
 // DeliverCall represents a component method call being delivered.
 type DeliverCall struct {
-	TraceId   int    // trace id
-	SpanId    int    // span id
+	TraceID   int    // trace id
+	SpanID    int    // span id
 	Component string // component being called
 	Replica   int    // component replica being called
 }
 
 // Return represents a component method call returning.
 type Return struct {
-	TraceId   int      // trace id
-	SpanId    int      // span id
+	TraceID   int      // trace id
+	SpanID    int      // span id
 	Component string   // component returning
 	Replica   int      // component replica returning
 	Returns   []string // return values
@@ -142,14 +142,14 @@ type Return struct {
 
 // DeliverReturn represents the delivery of a method return.
 type DeliverReturn struct {
-	TraceId int // trace id
-	SpanId  int // span id
+	TraceID int // trace id
+	SpanID  int // span id
 }
 
 // DeliverError represents the injection of an error.
 type DeliverError struct {
-	TraceId int // trace id
-	SpanId  int // span id
+	TraceID int // trace id
+	SpanID  int // span id
 }
 
 func (OpStart) isEvent()       {}
@@ -159,6 +159,14 @@ func (DeliverCall) isEvent()   {}
 func (Return) isEvent()        {}
 func (DeliverReturn) isEvent() {}
 func (DeliverError) isEvent()  {}
+
+var _ Event = OpStart{}
+var _ Event = OpFinish{}
+var _ Event = Call{}
+var _ Event = DeliverCall{}
+var _ Event = Return{}
+var _ Event = DeliverReturn{}
+var _ Event = DeliverError{}
 
 // Results are the results of running a simulation.
 type Results struct {
@@ -177,8 +185,8 @@ type op struct {
 
 // call is a pending method call.
 type call struct {
-	traceId   int
-	spanId    int
+	traceID   int
+	spanID    int
 	component reflect.Type    // the component being called
 	method    string          // the method being called
 	args      []reflect.Value // the call's arguments
@@ -192,27 +200,27 @@ type reply struct {
 }
 
 // We store trace and span ids in the context using the following keys.
-type traceIdKey struct{}
-type spanIdKey struct{}
+type traceIDKey struct{}
+type spanIDKey struct{}
 
-// withIds returns a context embedded with the provided trace and span id.
-func withIds(ctx context.Context, traceId, spanId int) context.Context {
-	ctx = context.WithValue(ctx, traceIdKey{}, traceId)
-	return context.WithValue(ctx, spanIdKey{}, spanId)
+// withIDs returns a context embedded with the provided trace and span id.
+func withIDs(ctx context.Context, traceID, spanID int) context.Context {
+	ctx = context.WithValue(ctx, traceIDKey{}, traceID)
+	return context.WithValue(ctx, spanIDKey{}, spanID)
 }
 
-// extractIds returns the trace and span id embedded in the provided context.
+// extractIDs returns the trace and span id embedded in the provided context.
 // If the provided context does not have embedded trace and span ids,
-// extractIds returns 0, 0.
-func extractIds(ctx context.Context) (int, int) {
-	var traceId, spanId int
-	if x := ctx.Value(traceIdKey{}); x != nil {
-		traceId = x.(int)
+// extractIDs returns 0, 0.
+func extractIDs(ctx context.Context) (int, int) {
+	var traceID, spanID int
+	if x := ctx.Value(traceIDKey{}); x != nil {
+		traceID = x.(int)
 	}
-	if x := ctx.Value(spanIdKey{}); x != nil {
-		spanId = x.(int)
+	if x := ctx.Value(spanIDKey{}); x != nil {
+		spanID = x.(int)
 	}
-	return traceId, spanId
+	return traceID, spanID
 }
 
 // New returns a new Simulator.
@@ -256,8 +264,8 @@ func New(opts Options) (*Simulator, error) {
 		rand:       rand.New(rand.NewSource(opts.Seed)),
 
 		// Start both trace and span ids at 1 to reserve 0 as an invalid id.
-		nextTraceId: 1,
-		nextSpanId:  1,
+		nextTraceID: 1,
+		nextSpanID:  1,
 	}
 
 	// Create component replicas.
@@ -341,13 +349,13 @@ func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, 
 	// Record the call.
 	reply := make(chan *reply, 1)
 	s.mu.Lock()
-	traceId, _ := extractIds(ctx)
-	spanId := s.nextSpanId
-	s.nextSpanId++
+	traceID, _ := extractIDs(ctx)
+	spanID := s.nextSpanID
+	s.nextSpanID++
 
 	s.calls = append(s.calls, &call{
-		traceId:   traceId,
-		spanId:    spanId,
+		traceID:   traceID,
+		spanID:    spanID,
 		component: reg.Iface,
 		method:    method,
 		args:      in,
@@ -355,8 +363,8 @@ func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, 
 	})
 
 	s.history = append(s.history, Call{
-		TraceId:   traceId,
-		SpanId:    spanId,
+		TraceID:   traceID,
+		SpanID:    spanID,
 		Caller:    caller,
 		Replica:   replica,
 		Component: reg.Name,
@@ -520,8 +528,8 @@ func (s *Simulator) step() {
 		var reply *reply
 		reply, s.replies = pop(s.rand, s.replies)
 		s.history = append(s.history, DeliverReturn{
-			TraceId: reply.call.traceId,
-			SpanId:  reply.call.spanId,
+			TraceID: reply.call.traceID,
+			SpanID:  reply.call.spanID,
 		})
 		reply.call.reply <- reply
 		close(reply.call.reply)
@@ -532,8 +540,8 @@ func (s *Simulator) step() {
 		var call *call
 		call, s.calls = pop(s.rand, s.calls)
 		s.history = append(s.history, DeliverError{
-			TraceId: call.traceId,
-			SpanId:  call.spanId,
+			TraceID: call.traceID,
+			SpanID:  call.spanID,
 		})
 		call.reply <- &reply{
 			call:    call,
@@ -547,8 +555,8 @@ func (s *Simulator) step() {
 		var reply *reply
 		reply, s.replies = pop(s.rand, s.replies)
 		s.history = append(s.history, DeliverError{
-			TraceId: reply.call.traceId,
-			SpanId:  reply.call.spanId,
+			TraceID: reply.call.traceID,
+			SpanID:  reply.call.spanID,
 		})
 		reply.returns = returnError(reply.call.component, reply.call.method, core.RemoteCallError)
 		reply.call.reply <- reply
@@ -567,12 +575,12 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 	val := o.gen.Call([]reflect.Value{reflect.ValueOf(s.rand)})[0]
 
 	// Record an OpStart event.
-	traceId, spanId := s.nextTraceId, s.nextSpanId
-	s.nextTraceId++
-	s.nextSpanId++
+	traceID, spanID := s.nextTraceID, s.nextSpanID
+	s.nextTraceID++
+	s.nextSpanID++
 	s.history = append(s.history, OpStart{
-		TraceId: traceId,
-		SpanId:  spanId,
+		TraceID: traceID,
+		SpanID:  spanID,
 		Name:    o.name,
 		Args:    []string{fmt.Sprint(val.Interface())},
 	})
@@ -580,10 +588,10 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 
 	// Construct arguments for func(context.Context, T, [Component]...).
 	args := make([]reflect.Value, 2+len(o.components))
-	args[0] = reflect.ValueOf(withIds(ctx, traceId, spanId))
+	args[0] = reflect.ValueOf(withIDs(ctx, traceID, spanID))
 	args[1] = val
 	for i, component := range o.components {
-		c, err := s.getIntf(component, "op", traceId)
+		c, err := s.getIntf(component, "op", traceID)
 		if err != nil {
 			return err
 		}
@@ -603,8 +611,8 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 	}
 	s.mu.Lock()
 	s.history = append(s.history, OpFinish{
-		TraceId: traceId,
-		SpanId:  spanId,
+		TraceID: traceID,
+		SpanID:  spanID,
 		Error:   msg,
 	})
 	s.mu.Unlock()
@@ -635,8 +643,8 @@ func (s *Simulator) deliverCall(call *call) {
 
 	// Record a DeliverCall event.
 	s.history = append(s.history, DeliverCall{
-		TraceId:   call.traceId,
-		SpanId:    call.spanId,
+		TraceID:   call.traceID,
+		SpanID:    call.spanID,
 		Component: reg.Name,
 		Replica:   index,
 	})
@@ -657,8 +665,8 @@ func (s *Simulator) deliverCall(call *call) {
 	})
 
 	s.history = append(s.history, Return{
-		TraceId:   call.traceId,
-		SpanId:    call.spanId,
+		TraceID:   call.traceID,
+		SpanID:    call.spanID,
 		Component: reg.Name,
 		Replica:   index,
 		Returns:   strings,
