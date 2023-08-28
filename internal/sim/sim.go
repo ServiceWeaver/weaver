@@ -722,12 +722,12 @@ func (r *Results) Mermaid() string {
 		case OpStart:
 			ops = append(ops, x)
 		case Call:
-			calls[x.SpanId] = x
+			calls[x.SpanID] = x
 		case DeliverCall:
-			call := calls[x.SpanId]
+			call := calls[x.SpanID]
 			replicas[replica{call.Component, x.Replica}] = struct{}{}
 		case Return:
-			returns[x.SpanId] = x
+			returns[x.SpanID] = x
 		}
 	}
 
@@ -737,7 +737,7 @@ func (r *Results) Mermaid() string {
 
 	// Create ops.
 	for _, op := range ops {
-		fmt.Fprintf(&b, "    participant op%d as Op %d\n", op.TraceId, op.TraceId)
+		fmt.Fprintf(&b, "    participant op%d as Op %d\n", op.TraceID, op.TraceID)
 	}
 
 	// Create component replicas.
@@ -756,24 +756,19 @@ func (r *Results) Mermaid() string {
 	for _, event := range r.History {
 		switch x := event.(type) {
 		case OpStart:
-			fmt.Fprintf(&b, "    note right of op%d: %s(%s)\n", x.TraceId, x.Name, commas(x.Args))
+			fmt.Fprintf(&b, "    note right of op%d: [%d:%d] %s(%s)\n", x.TraceID, x.TraceID, x.SpanID, x.Name, commas(x.Args))
 		case OpFinish:
-			fmt.Fprintf(&b, "    note right of op%d: return %s\n", x.TraceId, x.Error)
-		case Call:
-			fmt.Fprintf(&b, "    note right of %s%d: block on %s.%s(%s)\n", x.Caller, x.Replica, shorten(x.Component), x.Method, commas(x.Args))
-			calls[x.SpanId] = x
+			fmt.Fprintf(&b, "    note right of op%d: [%d:%d] return %s\n", x.TraceID, x.TraceID, x.SpanID, x.Error)
 		case DeliverCall:
-			call := calls[x.SpanId]
-			fmt.Fprintf(&b, "    %s%d->>%s%d: %s.%s(%s)\n", call.Caller, call.Replica, call.Component, x.Replica, shorten(call.Component), call.Method, commas(call.Args))
-		case Return:
-			fmt.Fprintf(&b, "    note right of %s%d: block on return %s\n", x.Component, x.Replica, commas(x.Returns))
+			call := calls[x.SpanID]
+			fmt.Fprintf(&b, "    %s%d->>%s%d: [%d:%d] %s.%s(%s)\n", call.Caller, call.Replica, call.Component, x.Replica, x.TraceID, x.SpanID, shorten(call.Component), call.Method, commas(call.Args))
 		case DeliverReturn:
-			call := calls[x.SpanId]
-			ret := returns[x.SpanId]
-			fmt.Fprintf(&b, "    %s%d->>%s%d: return %s\n", ret.Component, ret.Replica, call.Caller, call.Replica, commas(ret.Returns))
+			call := calls[x.SpanID]
+			ret := returns[x.SpanID]
+			fmt.Fprintf(&b, "    %s%d->>%s%d: [%d:%d] return %s\n", ret.Component, ret.Replica, call.Caller, call.Replica, x.TraceID, x.SpanID, commas(ret.Returns))
 		case DeliverError:
-			call := calls[x.SpanId]
-			fmt.Fprintf(&b, "    note right of %s%d: RemoteCallError\n", call.Caller, call.Replica)
+			call := calls[x.SpanID]
+			fmt.Fprintf(&b, "    note right of %s%d: [%d:%d] RemoteCallError\n", call.Caller, call.Replica, x.TraceID, x.SpanID)
 		}
 	}
 	return b.String()
