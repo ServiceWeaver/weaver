@@ -82,11 +82,96 @@ type Simulator struct {
 	ctx   context.Context // simulation context
 	group *errgroup.Group // group with all running goroutines
 
-	mu      sync.Mutex // guards the following fields
-	rand    *rand.Rand // random number generator
-	numOps  int        // number of spawned ops
-	calls   []*call    // pending calls
-	replies []*reply   // pending replies
+	mu          sync.Mutex // guards the following fields
+	rand        *rand.Rand // random number generator
+	numOps      int        // number of spawned ops
+	calls       []*call    // pending calls
+	replies     []*reply   // pending replies
+	history     []Event    // history of events
+	nextTraceID int        // next trace id
+	nextSpanID  int        // next span id
+}
+
+// An Event represents an atomic step of a simulation.
+type Event interface {
+	isEvent()
+}
+
+// OpStart represents the start of an op.
+type OpStart struct {
+	TraceID int      // trace id
+	SpanID  int      // span id
+	Name    string   // op name
+	Args    []string // op arguments
+}
+
+// OpFinish represents the finish of an op.
+type OpFinish struct {
+	TraceID int    // trace id
+	SpanID  int    // span id
+	Error   string // returned error message
+}
+
+// Call represents a component method call.
+type Call struct {
+	TraceID   int      // trace id
+	SpanID    int      // span id
+	Caller    string   // calling component (or "op")
+	Replica   int      // calling component replica (or op number)
+	Component string   // component being called
+	Method    string   // method being called
+	Args      []string // method arguments
+}
+
+// DeliverCall represents a component method call being delivered.
+type DeliverCall struct {
+	TraceID   int    // trace id
+	SpanID    int    // span id
+	Component string // component being called
+	Replica   int    // component replica being called
+}
+
+// Return represents a component method call returning.
+type Return struct {
+	TraceID   int      // trace id
+	SpanID    int      // span id
+	Component string   // component returning
+	Replica   int      // component replica returning
+	Returns   []string // return values
+}
+
+// DeliverReturn represents the delivery of a method return.
+type DeliverReturn struct {
+	TraceID int // trace id
+	SpanID  int // span id
+}
+
+// DeliverError represents the injection of an error.
+type DeliverError struct {
+	TraceID int // trace id
+	SpanID  int // span id
+}
+
+func (OpStart) isEvent()       {}
+func (OpFinish) isEvent()      {}
+func (Call) isEvent()          {}
+func (DeliverCall) isEvent()   {}
+func (Return) isEvent()        {}
+func (DeliverReturn) isEvent() {}
+func (DeliverError) isEvent()  {}
+
+var _ Event = OpStart{}
+var _ Event = OpFinish{}
+var _ Event = Call{}
+var _ Event = DeliverCall{}
+var _ Event = Return{}
+var _ Event = DeliverReturn{}
+var _ Event = DeliverError{}
+
+// Results are the results of running a simulation.
+type Results struct {
+	Err     error   // first non-nil error returned by an op
+	History []Event // a history of all simulation events
 }
 
 // op is a non-generic Op[T].
@@ -100,6 +185,8 @@ type op struct {
 
 // call is a pending method call.
 type call struct {
+	traceID   int
+	spanID    int
 	component reflect.Type    // the component being called
 	method    string          // the method being called
 	args      []reflect.Value // the call's arguments
@@ -110,6 +197,30 @@ type call struct {
 type reply struct {
 	call    *call           // the corresponding call
 	returns []reflect.Value // the call's return values
+}
+
+// We store trace and span ids in the context using the following keys.
+type traceIDKey struct{}
+type spanIDKey struct{}
+
+// withIDs returns a context embedded with the provided trace and span id.
+func withIDs(ctx context.Context, traceID, spanID int) context.Context {
+	ctx = context.WithValue(ctx, traceIDKey{}, traceID)
+	return context.WithValue(ctx, spanIDKey{}, spanID)
+}
+
+// extractIDs returns the trace and span id embedded in the provided context.
+// If the provided context does not have embedded trace and span ids,
+// extractIDs returns 0, 0.
+func extractIDs(ctx context.Context) (int, int) {
+	var traceID, spanID int
+	if x := ctx.Value(traceIDKey{}); x != nil {
+		traceID = x.(int)
+	}
+	if x := ctx.Value(spanIDKey{}); x != nil {
+		spanID = x.(int)
+	}
+	return traceID, spanID
 }
 
 // New returns a new Simulator.
@@ -151,6 +262,10 @@ func New(opts Options) (*Simulator, error) {
 		components: map[string][]any{},
 		ops:        map[string]op{},
 		rand:       rand.New(rand.NewSource(opts.Seed)),
+
+		// Start both trace and span ids at 1 to reserve 0 as an invalid id.
+		nextTraceID: 1,
+		nextSpanID:  1,
 	}
 
 	// Create component replicas.
@@ -180,7 +295,7 @@ func New(opts Options) (*Simulator, error) {
 
 			// Fill ref fields.
 			if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
-				return s.getIntf(t)
+				return s.getIntf(t, reg.Name, i)
 			}); err != nil {
 				return nil, err
 			}
@@ -209,34 +324,52 @@ func New(opts Options) (*Simulator, error) {
 }
 
 // getIntf returns a handle to the component of the provided type.
-func (s *Simulator) getIntf(t reflect.Type) (any, error) {
+func (s *Simulator) getIntf(t reflect.Type, caller string, replica int) (any, error) {
 	reg, ok := s.regsByIntf[t]
 	if !ok {
 		return nil, fmt.Errorf("component %v not found", t)
 	}
 	call := func(method string, ctx context.Context, args []any, returns []any) error {
-		return s.call(reg, method, ctx, args, returns)
+		return s.call(caller, replica, reg, method, ctx, args, returns)
 	}
 	return reg.ReflectStubFn(call), nil
 }
 
 // call executes a component method call against a random replica.
-func (s *Simulator) call(reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
+func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
 	// Convert the arguments to reflect.Values.
 	in := make([]reflect.Value, 1+len(args))
 	in[0] = reflect.ValueOf(ctx)
+	strings := make([]string, len(args))
 	for i, arg := range args {
 		in[i+1] = reflect.ValueOf(arg)
+		strings[i] = fmt.Sprint(arg)
 	}
 
 	// Record the call.
 	reply := make(chan *reply, 1)
 	s.mu.Lock()
+	traceID, _ := extractIDs(ctx)
+	spanID := s.nextSpanID
+	s.nextSpanID++
+
 	s.calls = append(s.calls, &call{
+		traceID:   traceID,
+		spanID:    spanID,
 		component: reg.Iface,
 		method:    method,
 		args:      in,
 		reply:     reply,
+	})
+
+	s.history = append(s.history, Call{
+		TraceID:   traceID,
+		SpanID:    spanID,
+		Caller:    caller,
+		Replica:   replica,
+		Component: reg.Name,
+		Method:    method,
+		Args:      strings,
 	})
 	s.mu.Unlock()
 
@@ -327,11 +460,17 @@ func validateOp[T any](s *Simulator, o Op[T]) (op, error) {
 	}, nil
 }
 
-// Simulate executes a single simulation.
-func (s *Simulator) Simulate(ctx context.Context) error {
+// Simulate executes a single simulation. Simulate returns an error if the
+// simulation fails to execute properly. If the simulation executes properly
+// and successfuly finds an invariant violation, no error is returned, but the
+// invariant violation is reported as an error in the returned Results.
+func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 	s.group, s.ctx = errgroup.WithContext(ctx)
 	s.step()
-	return s.group.Wait()
+	// TODO(mwhittaker): Distinguish between cancelled context and failed
+	// execution.
+	err := s.group.Wait()
+	return &Results{Err: err, History: s.history}, nil
 }
 
 // step performs one step of a simulation.
@@ -388,6 +527,10 @@ func (s *Simulator) step() {
 	case deliverReply:
 		var reply *reply
 		reply, s.replies = pop(s.rand, s.replies)
+		s.history = append(s.history, DeliverReturn{
+			TraceID: reply.call.traceID,
+			SpanID:  reply.call.spanID,
+		})
 		reply.call.reply <- reply
 		close(reply.call.reply)
 
@@ -396,16 +539,25 @@ func (s *Simulator) step() {
 		// RemoteCallErrors between co-located components.
 		var call *call
 		call, s.calls = pop(s.rand, s.calls)
+		s.history = append(s.history, DeliverError{
+			TraceID: call.traceID,
+			SpanID:  call.spanID,
+		})
 		call.reply <- &reply{
 			call:    call,
 			returns: returnError(call.component, call.method, core.RemoteCallError),
 		}
+		close(call.reply)
 
 	case deliverReplyError:
 		// TODO(mwhittaker): Implement co-location. Don't return
 		// RemoteCallErrors between co-located components.
 		var reply *reply
 		reply, s.replies = pop(s.rand, s.replies)
+		s.history = append(s.history, DeliverError{
+			TraceID: reply.call.traceID,
+			SpanID:  reply.call.spanID,
+		})
 		reply.returns = returnError(reply.call.component, reply.call.method, core.RemoteCallError)
 		reply.call.reply <- reply
 		close(reply.call.reply)
@@ -421,14 +573,25 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 	// s.rand is not safe for concurrent use by multiple goroutines.
 	s.mu.Lock()
 	val := o.gen.Call([]reflect.Value{reflect.ValueOf(s.rand)})[0]
+
+	// Record an OpStart event.
+	traceID, spanID := s.nextTraceID, s.nextSpanID
+	s.nextTraceID++
+	s.nextSpanID++
+	s.history = append(s.history, OpStart{
+		TraceID: traceID,
+		SpanID:  spanID,
+		Name:    o.name,
+		Args:    []string{fmt.Sprint(val.Interface())},
+	})
 	s.mu.Unlock()
 
 	// Construct arguments for func(context.Context, T, [Component]...).
 	args := make([]reflect.Value, 2+len(o.components))
-	args[0] = reflect.ValueOf(ctx)
+	args[0] = reflect.ValueOf(withIDs(ctx, traceID, spanID))
 	args[1] = val
 	for i, component := range o.components {
-		c, err := s.getIntf(component)
+		c, err := s.getIntf(component, "op", traceID)
 		if err != nil {
 			return err
 		}
@@ -436,12 +599,31 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 	}
 
 	// Invoke the op.
+	var err error
 	if x := o.f.Call(args)[0].Interface(); x != nil {
+		err = x.(error)
+	}
+
+	// Record an OpFinish event.
+	msg := "<nil>"
+	if err != nil {
+		msg = err.Error()
+	}
+	s.mu.Lock()
+	s.history = append(s.history, OpFinish{
+		TraceID: traceID,
+		SpanID:  spanID,
+		Error:   msg,
+	})
+	s.mu.Unlock()
+
+	if err != nil {
 		// If an op returns a non-nil error, abort the simulation and don't
 		// take another step. Because the runOp function is running inside an
 		// errgroup.Group, the returned error will cancel all goroutines.
-		return x.(error)
+		return err
 	}
+
 	// If the op succeeded, take another step.
 	s.step()
 	return nil
@@ -456,17 +638,38 @@ func (s *Simulator) deliverCall(call *call) {
 
 	// Pick a replica to execute the call.
 	s.mu.Lock()
-	replica := pick(s.rand, s.components[reg.Name])
+	index := s.rand.Intn(len(s.components[reg.Name]))
+	replica := s.components[reg.Name][index]
+
+	// Record a DeliverCall event.
+	s.history = append(s.history, DeliverCall{
+		TraceID:   call.traceID,
+		SpanID:    call.spanID,
+		Component: reg.Name,
+		Replica:   index,
+	})
 	s.mu.Unlock()
 
 	// Call the component method.
 	returns := reflect.ValueOf(replica).MethodByName(call.method).Call(call.args)
+	strings := make([]string, len(returns))
+	for i, ret := range returns {
+		strings[i] = fmt.Sprint(ret.Interface())
+	}
 
 	// Record the reply and take a step.
 	s.mu.Lock()
 	s.replies = append(s.replies, &reply{
 		call:    call,
 		returns: returns,
+	})
+
+	s.history = append(s.history, Return{
+		TraceID:   call.traceID,
+		SpanID:    call.spanID,
+		Component: reg.Name,
+		Replica:   index,
+		Returns:   strings,
 	})
 	s.mu.Unlock()
 	s.step()

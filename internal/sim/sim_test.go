@@ -65,7 +65,7 @@ func TestSuccessfulSimulation(t *testing.T) {
 			return nil
 		},
 	})
-	if err := sim.Simulate(context.Background()); err != nil {
+	if results, err := sim.Simulate(context.Background()); err != nil || results.Err != nil {
 		t.Fatal(err)
 	}
 }
@@ -84,7 +84,7 @@ func TestUnsuccessfulSimulation(t *testing.T) {
 			return err
 		},
 	})
-	if err := sim.Simulate(context.Background()); err == nil {
+	if results, err := sim.Simulate(context.Background()); err == nil && results.Err == nil {
 		t.Fatal("unexpected success")
 	}
 }
@@ -107,7 +107,14 @@ func TestCancelledSimulation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), delay)
 	defer cancel()
 	errs := make(chan error)
-	go func() { errs <- sim.Simulate(ctx) }()
+	go func() {
+		results, err := sim.Simulate(ctx)
+		if err != nil {
+			errs <- err
+		} else {
+			errs <- results.Err
+		}
+	}()
 
 	failBefore := time.Now().Add(delay / 2)
 	failAfter := time.After(delay * 2)
@@ -180,7 +187,7 @@ func TestInjectedErrors(t *testing.T) {
 			return nil
 		},
 	})
-	if err := sim.Simulate(context.Background()); err != nil {
+	if results, err := sim.Simulate(context.Background()); err != nil || results.Err != nil {
 		t.Fatal(err)
 	}
 
@@ -236,7 +243,7 @@ func TestFakes(t *testing.T) {
 			return nil
 		},
 	})
-	if err := sim.Simulate(context.Background()); err != nil {
+	if results, err := sim.Simulate(context.Background()); err != nil || results.Err != nil {
 		t.Fatal(err)
 	}
 }
@@ -309,5 +316,27 @@ func TestValidateOp(t *testing.T) {
 				t.Fatal("unexpected success")
 			}
 		})
+	}
+}
+
+func TestExtractIDs(t *testing.T) {
+	const traceID = 42
+	const spanID = 9001
+	ctx := withIDs(context.Background(), traceID, spanID)
+	if got, _ := extractIDs(ctx); got != traceID {
+		t.Errorf("trace id: got %d, want %d", got, traceID)
+	}
+	if _, got := extractIDs(ctx); got != spanID {
+		t.Errorf("span id: got %d, want %d", got, spanID)
+	}
+}
+
+func TestExtractIDsOnInvalidContext(t *testing.T) {
+	traceID, spanID := extractIDs(context.Background())
+	if traceID != 0 {
+		t.Errorf("trace id: got %d, want 0", traceID)
+	}
+	if spanID != 0 {
+		t.Errorf("span id: got %d, want 0", spanID)
 	}
 }
