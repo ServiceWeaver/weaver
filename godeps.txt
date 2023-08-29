@@ -275,6 +275,7 @@ github.com/ServiceWeaver/weaver/internal/sim
     github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
@@ -286,6 +287,8 @@ github.com/ServiceWeaver/weaver/internal/sim
     net
     reflect
     slices
+    sort
+    strings
     sync
 github.com/ServiceWeaver/weaver/internal/status
     bytes
