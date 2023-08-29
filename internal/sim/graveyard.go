@@ -88,10 +88,11 @@ const version = 1
 
 // GraveyardEntry is a set of failing inputs persisted for later execution.
 type GraveyardEntry struct {
-	Version     int   `json:"version"`
-	Seed        int64 `json:"seed"`
-	NumReplicas int   `json:"num_replicas"`
-	NumOps      int   `json:"num_ops"`
+	Version     int     `json:"version"`
+	Seed        int64   `json:"seed"`
+	NumReplicas int     `json:"num_replicas"`
+	NumOps      int     `json:"num_ops"`
+	FailureRate float64 `json:"failure_rate"`
 }
 
 // readGraveyard reads all the graveyard entries stored in the provided directory.

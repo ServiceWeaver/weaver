@@ -45,7 +45,12 @@ func simulator(t *testing.T, opts Options) *Simulator {
 func TestSuccessfulSimulation(t *testing.T) {
 	// Run the simulator, ignoring any errors. The simulation as a whole should
 	// pass.
-	sim := simulator(t, Options{NumReplicas: 10, NumOps: 1000})
+	opts := Options{
+		NumReplicas: 10,
+		NumOps:      1000,
+		FailureRate: 0.1,
+	}
+	sim := simulator(t, opts)
 	RegisterOp(sim, Op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
@@ -66,15 +71,24 @@ func TestSuccessfulSimulation(t *testing.T) {
 			return nil
 		},
 	})
-	if results, err := sim.Simulate(context.Background()); err != nil || results.Err != nil {
+	results, err := sim.Simulate(context.Background())
+	if err != nil {
 		t.Fatal(err)
+	}
+	if results.Err != nil {
+		t.Fatal(results.Err)
 	}
 }
 
 func TestUnsuccessfulSimulation(t *testing.T) {
 	// Run the simulator, erroring out if we ever have a zero denominator. The
 	// simulation as a whole should fail with extremely high likelihood.
-	sim := simulator(t, Options{NumReplicas: 10, NumOps: 1000})
+	opts := Options{
+		NumReplicas: 10,
+		NumOps:      1000,
+		FailureRate: 0.1,
+	}
+	sim := simulator(t, opts)
 	RegisterOp(sim, Op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
@@ -101,6 +115,7 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 			Seed:        entry.Seed,
 			NumReplicas: entry.NumReplicas,
 			NumOps:      entry.NumOps,
+			FailureRate: entry.FailureRate,
 		}
 		sim := simulator(t, opts)
 		RegisterOp(sim, Op[pair]{
@@ -161,6 +176,63 @@ func TestCancelledSimulation(t *testing.T) {
 	}
 }
 
+func TestFailureRateZero(t *testing.T) {
+	// With FailureRate set to zero, no operation should fail.
+	opts := Options{
+		NumReplicas: 10,
+		NumOps:      1000,
+		FailureRate: 0.0,
+	}
+	sim := simulator(t, opts)
+	RegisterOp(sim, Op[pair]{
+		Name: "divmod",
+		Gen: func(r *rand.Rand) pair {
+			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
+		},
+		Func: func(ctx context.Context, p pair, dm divMod) error {
+			_, _, err := dm.DivMod(ctx, p.x, p.y)
+			return err
+		},
+	})
+	results, err := sim.Simulate(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results.Err != nil {
+		t.Fatal(results.Err)
+	}
+}
+
+func TestFailureRateOne(t *testing.T) {
+	// With FailureRate set to one, all operations should fail.
+	opts := Options{
+		NumReplicas: 10,
+		NumOps:      1000,
+		FailureRate: 1.0,
+	}
+	sim := simulator(t, opts)
+	RegisterOp(sim, Op[pair]{
+		Name: "divmod",
+		Gen: func(r *rand.Rand) pair {
+			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
+		},
+		Func: func(ctx context.Context, p pair, dm divMod) error {
+			_, _, err := dm.DivMod(ctx, p.x, p.y)
+			if err == nil {
+				return fmt.Errorf("unexpected success")
+			}
+			return nil
+		},
+	})
+	results, err := sim.Simulate(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results.Err != nil {
+		t.Fatal(results.Err)
+	}
+}
+
 // errorCounter is a fake implementation of the divMod component. See
 // TestInjectedErrors for usage.
 type errorCounter struct {
@@ -202,6 +274,7 @@ func TestInjectedErrors(t *testing.T) {
 	opts := Options{
 		NumReplicas: 10,
 		NumOps:      1000,
+		FailureRate: 0.5,
 		Fakes:       map[reflect.Type]any{reflection.Type[divMod](): counter},
 	}
 	sim := simulator(t, opts)

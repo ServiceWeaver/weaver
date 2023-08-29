@@ -63,3 +63,13 @@ func pickValue[K constraints.Ordered, V any](r *rand.Rand, kvs map[K]V) V {
 	}
 	return kvs[pickKey(r, kvs)]
 }
+
+// flip returns true with probability p. For example, flip(0) always returns
+// false, flip(1) always returns true, and flip(0.5) returns true half the
+// time. flip panics if p is not in the range [0, 1].
+func flip(r *rand.Rand, p float64) bool {
+	if p < 0 || p > 1 {
+		panic(fmt.Errorf("flip: probability %f not in range [0, 1.0]", p))
+	}
+	return r.Float64() <= p
+}
