@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -34,7 +35,7 @@ type pair struct {
 
 func simulator(t *testing.T, opts Options) *Simulator {
 	t.Helper()
-	sim, err := New(opts)
+	sim, err := New(t.Name(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +87,35 @@ func TestUnsuccessfulSimulation(t *testing.T) {
 	})
 	if results, err := sim.Simulate(context.Background()); err == nil && results.Err == nil {
 		t.Fatal("unexpected success")
+	}
+}
+
+func TestSimulateGraveyardEntries(t *testing.T) {
+	// This test re-runs failed UnsuccessfulSimulation simulations.
+	graveyard, err := readGraveyard(filepath.Join("testdata", "sim", "TestUnsuccessfulSimulation"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range graveyard {
+		opts := Options{
+			Seed:        entry.Seed,
+			NumReplicas: entry.NumReplicas,
+			NumOps:      entry.NumOps,
+		}
+		sim := simulator(t, opts)
+		RegisterOp(sim, Op[pair]{
+			Name: "divmod",
+			Gen: func(r *rand.Rand) pair {
+				return pair{rand.Intn(100), rand.Intn(100)}
+			},
+			Func: func(ctx context.Context, p pair, dm divMod) error {
+				_, _, err := dm.DivMod(ctx, p.x, p.y)
+				return err
+			},
+		})
+		if results, err := sim.Simulate(context.Background()); err == nil && results.Err == nil {
+			t.Fatal("unexpected success")
+		}
 	}
 }
 

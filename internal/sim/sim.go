@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"net"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -76,6 +77,7 @@ type Options struct {
 
 // Simulator deterministically simulates a Service Weaver application.
 type Simulator struct {
+	name       string                                 // test name
 	opts       Options                                // simulator options
 	config     *protos.AppConfig                      // application config
 	regs       []*codegen.Registration                // registered components
@@ -228,7 +230,7 @@ func extractIDs(ctx context.Context) (int, int) {
 }
 
 // New returns a new Simulator.
-func New(opts Options) (*Simulator, error) {
+func New(name string, opts Options) (*Simulator, error) {
 	// Validate options.
 	//
 	// TODO(mwhittaker): In the final simulator API, we will pick a number of
@@ -258,7 +260,10 @@ func New(opts Options) (*Simulator, error) {
 	}
 
 	// Create simulator.
+	//
+	// TODO(mwhittaker): Take a *testing.T and use the test name as the name.
 	s := &Simulator{
+		name:       name,
 		opts:       opts,
 		config:     app,
 		regs:       regs,
@@ -474,6 +479,17 @@ func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 	// TODO(mwhittaker): Distinguish between cancelled context and failed
 	// execution.
 	err := s.group.Wait()
+	if err != nil {
+		entry := GraveyardEntry{
+			Version:     version,
+			Seed:        s.opts.Seed,
+			NumReplicas: s.opts.NumReplicas,
+			NumOps:      s.opts.NumOps,
+		}
+		// TODO(mwhittaker): Escape names.
+		dir := filepath.Join("testdata", "sim", s.name)
+		writeGraveyardEntry(dir, entry)
+	}
 	return &Results{Err: err, History: s.history}, nil
 }
 
