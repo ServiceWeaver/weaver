@@ -31,12 +31,12 @@ import (
 // created, the first thing it does is load and re-simulate all graveyard
 // entries.
 //
-// We borrow the design of go's fuzzing library' corpus with only minor changes
-// [1]. When a simulator runs as part of a test named TestFoo, it stores its
-// graveyard entries in testdata/sim/TestFoo. Every graveyard entry is a file
-// containing a JSON-encoded GraveyardEntry. Filenames are derived from the
-// hash of the contents of the graveyard entry. Here's an example testdata
-// directory:
+// We borrow the design of go's fuzzing library's corpus with only minor
+// changes [1]. When a simulator runs as part of a test named TestFoo, it
+// stores its graveyard entries in testdata/sim/TestFoo. Every graveyard entry
+// is a file containing a JSON-encoded GraveyardEntry. Filenames are derived
+// from the hash of the contents of the graveyard entry. Here's an example
+// testdata directory:
 //
 //     testdata/
 //     └── sim
