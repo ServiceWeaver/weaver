@@ -480,7 +480,7 @@ func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 	// execution.
 	err := s.group.Wait()
 	if err != nil {
-		entry := CorpusEntry{
+		entry := GraveyardEntry{
 			Version:     version,
 			Seed:        s.opts.Seed,
 			NumReplicas: s.opts.NumReplicas,
@@ -488,7 +488,7 @@ func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 		}
 		// TODO(mwhittaker): Escape names.
 		dir := filepath.Join("testdata", "sim", s.name)
-		writeCorpusEntry(dir, entry)
+		writeGraveyardEntry(dir, entry)
 	}
 	return &Results{Err: err, History: s.history}, nil
 }

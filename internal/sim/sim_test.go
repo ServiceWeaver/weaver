@@ -90,13 +90,13 @@ func TestUnsuccessfulSimulation(t *testing.T) {
 	}
 }
 
-func TestSimulateCorpusEntries(t *testing.T) {
+func TestSimulateGraveyardEntries(t *testing.T) {
 	// This test re-runs failed UnsuccessfulSimulation simulations.
-	corpus, err := readCorpus(filepath.Join("testdata", "sim", "TestUnsuccessfulSimulation"))
+	graveyard, err := readGraveyard(filepath.Join("testdata", "sim", "TestUnsuccessfulSimulation"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, entry := range corpus {
+	for _, entry := range graveyard {
 		opts := Options{
 			Seed:        entry.Seed,
 			NumReplicas: entry.NumReplicas,
