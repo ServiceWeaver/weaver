@@ -70,6 +70,7 @@ type Options struct {
 	Seed           int64                // the simulator's seed
 	NumReplicas    int                  // the number of replicas of every component
 	NumOps         int                  // the number of ops to run
+	FailureRate    float64              // the fraction of calls to artificially fail
 	ConfigFilename string               // TOML config filename
 	Config         string               // TOML config contents
 	Fakes          map[reflect.Type]any // fake component implementations
@@ -189,10 +190,30 @@ type op struct {
 	components []reflect.Type // Op.Func component argument types
 }
 
+// fate dictates if and how a call should fail.
+type fate int
+
+const (
+	// Don't fail the call.
+	dontFail fate = iota
+
+	// Fail the call before it is delivered to a component replica. In this
+	// case, the method call does not execute at all.
+	failBeforeDelivery
+
+	// Fail the call after it has been delivered to a component replica. In
+	// this case, the method call will fail after fully executing.
+	//
+	// TODO(mwhittaker): Deliver a method call, and then fail it while it is
+	// still executing.
+	failAfterDelivery
+)
+
 // call is a pending method call.
 type call struct {
 	traceID   int
 	spanID    int
+	fate      fate            // whether to fail the operation
 	component reflect.Type    // the component being called
 	method    string          // the method being called
 	args      []reflect.Value // the call's arguments
@@ -362,9 +383,23 @@ func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, 
 	spanID := s.nextSpanID
 	s.nextSpanID++
 
+	// Determine the fate of the call.
+	fate := dontFail
+	if flip(s.rand, s.opts.FailureRate) {
+		// TODO(mwhittaker): Have two parameters to control the rate of failing
+		// before and after delivery? This level of control might be
+		// unnecessary. For now, we pick between them equiprobably.
+		if flip(s.rand, 0.5) {
+			fate = failBeforeDelivery
+		} else {
+			fate = failAfterDelivery
+		}
+	}
+
 	s.calls = append(s.calls, &call{
 		traceID:   traceID,
 		spanID:    spanID,
+		fate:      fate,
 		component: reg.Iface,
 		method:    method,
 		args:      in,
@@ -485,6 +520,7 @@ func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 			Seed:        s.opts.Seed,
 			NumReplicas: s.opts.NumReplicas,
 			NumOps:      s.opts.NumOps,
+			FailureRate: s.opts.FailureRate,
 		}
 		// TODO(mwhittaker): Escape names.
 		dir := filepath.Join("testdata", "sim", s.name)
@@ -508,18 +544,16 @@ func (s *Simulator) step() {
 		runOp = iota
 		deliverCall
 		deliverReply
-		deliverCallError
-		deliverReplyError
 	)
 	var candidates []int
 	if s.numOps < s.opts.NumOps {
 		candidates = append(candidates, runOp)
 	}
 	if len(s.calls) > 0 {
-		candidates = append(candidates, deliverCall, deliverCallError)
+		candidates = append(candidates, deliverCall)
 	}
 	if len(s.replies) > 0 {
-		candidates = append(candidates, deliverReply, deliverReplyError)
+		candidates = append(candidates, deliverReply)
 	}
 	if len(candidates) == 0 {
 		return
@@ -539,6 +573,22 @@ func (s *Simulator) step() {
 	case deliverCall:
 		var call *call
 		call, s.calls = pop(s.rand, s.calls)
+
+		if call.fate == failBeforeDelivery {
+			// Fail the call before delivering it.
+			s.history = append(s.history, DeliverError{
+				TraceID: call.traceID,
+				SpanID:  call.spanID,
+			})
+			call.reply <- &reply{
+				call:    call,
+				returns: returnError(call.component, call.method, core.RemoteCallError),
+			}
+			close(call.reply)
+			return
+		}
+
+		// Deliver the call.
 		s.group.Go(func() error {
 			s.deliverCall(call)
 			return nil
@@ -547,38 +597,24 @@ func (s *Simulator) step() {
 	case deliverReply:
 		var reply *reply
 		reply, s.replies = pop(s.rand, s.replies)
+
+		if reply.call.fate == failAfterDelivery {
+			// Fail the call after delivering it.
+			s.history = append(s.history, DeliverError{
+				TraceID: reply.call.traceID,
+				SpanID:  reply.call.spanID,
+			})
+			reply.returns = returnError(reply.call.component, reply.call.method, core.RemoteCallError)
+			reply.call.reply <- reply
+			close(reply.call.reply)
+			return
+		}
+
+		// Return successfully.
 		s.history = append(s.history, DeliverReturn{
 			TraceID: reply.call.traceID,
 			SpanID:  reply.call.spanID,
 		})
-		reply.call.reply <- reply
-		close(reply.call.reply)
-
-	case deliverCallError:
-		// TODO(mwhittaker): Implement co-location. Don't return
-		// RemoteCallErrors between co-located components.
-		var call *call
-		call, s.calls = pop(s.rand, s.calls)
-		s.history = append(s.history, DeliverError{
-			TraceID: call.traceID,
-			SpanID:  call.spanID,
-		})
-		call.reply <- &reply{
-			call:    call,
-			returns: returnError(call.component, call.method, core.RemoteCallError),
-		}
-		close(call.reply)
-
-	case deliverReplyError:
-		// TODO(mwhittaker): Implement co-location. Don't return
-		// RemoteCallErrors between co-located components.
-		var reply *reply
-		reply, s.replies = pop(s.rand, s.replies)
-		s.history = append(s.history, DeliverError{
-			TraceID: reply.call.traceID,
-			SpanID:  reply.call.spanID,
-		})
-		reply.returns = returnError(reply.call.component, reply.call.method, core.RemoteCallError)
 		reply.call.reply <- reply
 		close(reply.call.reply)
 
