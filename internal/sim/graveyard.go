@@ -93,6 +93,7 @@ type GraveyardEntry struct {
 	NumReplicas int     `json:"num_replicas"`
 	NumOps      int     `json:"num_ops"`
 	FailureRate float64 `json:"failure_rate"`
+	YieldRate   float64 `json:"yield_rate"`
 }
 
 // readGraveyard reads all the graveyard entries stored in the provided directory.
