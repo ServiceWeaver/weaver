@@ -94,7 +94,7 @@ type Simulator struct {
 	rand        *rand.Rand       // random number generator
 	current     int              // currently running op
 	numStarted  int              // number of started ops
-	notFinished map[int]struct{} // not finished op trace ids (a set for efficient removal)
+	notFinished *ints            // not finished op trace ids, optimized for removal and sampling
 	calls       map[int][]*call  // pending calls, by trace id
 	replies     map[int][]*reply // pending replies, by trace id
 	history     []Event          // history of events
@@ -289,10 +289,6 @@ func New(name string, opts Options) (*Simulator, error) {
 	// Create simulator.
 	//
 	// TODO(mwhittaker): Take a *testing.T and use the test name as the name.
-	notFinished := map[int]struct{}{}
-	for traceID := 1; traceID < opts.NumOps+1; traceID++ {
-		notFinished[traceID] = struct{}{}
-	}
 	s := &Simulator{
 		name:       name,
 		opts:       opts,
@@ -302,11 +298,10 @@ func New(name string, opts Options) (*Simulator, error) {
 		components: map[string][]any{},
 		ops:        map[string]op{},
 		rand:       rand.New(rand.NewSource(opts.Seed)),
-
 		// Start both trace and span ids at 1 to reserve 0 as an invalid id.
-		current:     0,
+		current:     1,
 		numStarted:  0,
-		notFinished: notFinished,
+		notFinished: newInts(1, 1+opts.NumOps),
 		calls:       map[int][]*call{},
 		replies:     map[int][]*reply{},
 		nextTraceID: 1,
@@ -555,16 +550,14 @@ func (s *Simulator) step() {
 		return
 	}
 
-	if len(s.notFinished) == 0 {
+	if s.notFinished.size() == 0 {
 		// The simulation is finished.
 		return
 	}
 
-	if _, ok := s.notFinished[s.current]; !ok || flip(s.rand, s.opts.YieldRate) {
+	if !s.notFinished.has(s.current) || flip(s.rand, s.opts.YieldRate) {
 		// Yield execution to a (potentially) different op.
-		//
-		// TODO(mwhittaker): This is super slow. Optimize it.
-		s.current = pickKey(s.rand, s.notFinished)
+		s.current = s.notFinished.pick(s.rand)
 	}
 
 	if s.current > s.numStarted {
@@ -707,7 +700,7 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 		SpanID:  spanID,
 		Error:   msg,
 	})
-	delete(s.notFinished, traceID)
+	s.notFinished.remove(traceID)
 	s.mu.Unlock()
 
 	if err != nil {
