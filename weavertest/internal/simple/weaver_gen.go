@@ -15,10 +15,11 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:   "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
-		Iface:  reflect.TypeOf((*Destination)(nil)).Elem(),
-		Impl:   reflect.TypeOf(destination{}),
-		Routed: true,
+		Name:    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+		Iface:   reflect.TypeOf((*Destination)(nil)).Elem(),
+		Impl:    reflect.TypeOf(destination{}),
+		Routed:  true,
+		NoRetry: []int{2, 3},
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return destination_local_stub{impl: impl.(Destination), tracer: tracer, getAllMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "GetAll", Remote: false}), getpidMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Getpid", Remote: false}), recordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "Record", Remote: false}), routedRecordMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination", Method: "RoutedRecord", Remote: false})}
 		},
@@ -53,9 +54,10 @@ func init() {
 		RefData: "⟦1e2dce71:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/weavertest/internal/simple/Server→hello⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
-		Iface: reflect.TypeOf((*Source)(nil)).Elem(),
-		Impl:  reflect.TypeOf(source{}),
+		Name:    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
+		Iface:   reflect.TypeOf((*Source)(nil)).Elem(),
+		Impl:    reflect.TypeOf(source{}),
+		NoRetry: []int{0},
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return source_local_stub{impl: impl.(Source), tracer: tracer, emitMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source", Method: "Emit", Remote: false})}
 		},

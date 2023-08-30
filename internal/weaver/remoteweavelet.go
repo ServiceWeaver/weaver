@@ -47,7 +47,8 @@ var readyMethodKey = call.MakeMethodKey("", "ready")
 
 // RemoteWeaveletOptions configure a RemoteWeavelet.
 type RemoteWeaveletOptions struct {
-	Fakes map[reflect.Type]any // component fakes, by component interface type
+	Fakes         map[reflect.Type]any // component fakes, by component interface type
+	InjectRetries int                  // Number of artificial retries to inject per retriable call
 }
 
 // RemoteWeavelet is a weavelet that runs some components locally, but
@@ -374,10 +375,11 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 	w.syslogger.Debug(fmt.Sprintf("Connected to remote component %q", name))
 
 	return &stub{
-		component: reg.Name,
-		conn:      conn,
-		methods:   makeStubMethods(reg),
-		tracer:    w.tracer,
+		component:     reg.Name,
+		conn:          conn,
+		methods:       makeStubMethods(reg),
+		tracer:        w.tracer,
+		injectRetries: w.opts.InjectRetries,
 	}, nil
 }
 
