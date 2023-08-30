@@ -73,3 +73,64 @@ func flip(r *rand.Rand, p float64) bool {
 	}
 	return r.Float64() <= p
 }
+
+// ints represents a remove-only set of integers in the range [low, high).
+type ints struct {
+	low, high int
+
+	// The integers in the set in no particular order.
+	elements []int
+
+	// indices[x-low] is the index of element x in elements, or -1 if x is not
+	// in the set.
+	indices []int
+}
+
+// newInts returns a new set of integers in the range [low, high).
+// newInts panics if low >= high.
+func newInts(low, high int) *ints {
+	if low >= high {
+		panic(fmt.Errorf("newInts: low (%d) >= high (%d)", low, high))
+	}
+
+	n := high - low
+	elements := make([]int, n)
+	indices := make([]int, n)
+	for i := 0; i < n; i++ {
+		elements[i] = low + i
+		indices[i] = i
+	}
+	return &ints{low, high, elements, indices}
+}
+
+// has returns whether the provided integer is in the set.
+func (i *ints) has(x int) bool {
+	return i.low <= x && x < i.high && i.indices[x-i.low] != -1
+}
+
+// size returns the size of the set.
+func (i *ints) size() int {
+	return len(i.elements)
+}
+
+// pick returns a random element of the set.
+func (i *ints) pick(r *rand.Rand) int {
+	return i.elements[r.Intn(len(i.elements))]
+}
+
+// remove removes the provided element from the set. remove is a noop if the
+// provided element is not in the set.
+func (i *ints) remove(x int) {
+	if !i.has(x) {
+		return
+	}
+
+	// Swap x with the last element in the set.
+	n := len(i.elements)          // number of elements
+	j := i.indices[x-i.low]       // index of x
+	last := i.elements[n-1]       // last element in the set
+	i.elements[j] = last          // move the last element to where x was
+	i.elements = i.elements[:n-1] // shrink the slice
+	i.indices[last-i.low] = j     // update the last element's index
+	i.indices[x-i.low] = -1       // update x's index
+}
