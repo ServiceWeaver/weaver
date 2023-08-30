@@ -194,9 +194,19 @@ type op struct {
 type fate int
 
 const (
-	dontFail           fate = iota // dont fail a call
-	failBeforeDelivery             // fail a call before it is delivered
-	failAfterDelivery              // fail a call after it is delivered
+	// Don't fail the call.
+	dontFail fate = iota
+
+	// Fail the call before it is delivered to a component replica. In this
+	// case, the method call does not execute at all.
+	failBeforeDelivery
+
+	// Fail the call after it has been delivered to a component replica. In
+	// this case, the method call will fail after fully executing.
+	//
+	// TODO(mwhittaker): Deliver a method call, and then fail it while it is
+	// still executing.
+	failAfterDelivery
 )
 
 // call is a pending method call.
