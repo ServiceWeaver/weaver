@@ -94,9 +94,9 @@ type Simulator struct {
 	rand        *rand.Rand       // random number generator
 	current     int              // currently running op
 	numStarted  int              // number of started ops
-	notFinished map[int]struct{} // set of not finished ops
-	calls       map[int][]*call  // pending calls, by op id
-	replies     map[int][]*reply // pending replies, by op id
+	notFinished map[int]struct{} // not finished op trace ids (a set for efficient removal)
+	calls       map[int][]*call  // pending calls, by trace id
+	replies     map[int][]*reply // pending replies, by trace id
 	history     []Event          // history of events
 	nextTraceID int              // next trace id
 	nextSpanID  int              // next span id
@@ -290,8 +290,8 @@ func New(name string, opts Options) (*Simulator, error) {
 	//
 	// TODO(mwhittaker): Take a *testing.T and use the test name as the name.
 	notFinished := map[int]struct{}{}
-	for i := 1; i < opts.NumOps+1; i++ {
-		notFinished[i] = struct{}{}
+	for traceID := 1; traceID < opts.NumOps+1; traceID++ {
+		notFinished[traceID] = struct{}{}
 	}
 	s := &Simulator{
 		name:       name,
