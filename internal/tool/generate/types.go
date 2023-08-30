@@ -889,6 +889,10 @@ func isWeaverAutoMarshal(t types.Type) bool {
 	return isWeaverType(t, "AutoMarshal", 0)
 }
 
+func isWeaverNotRetriable(t types.Type) bool {
+	return isWeaverType(t, "NotRetriable", 0)
+}
+
 func isString(t types.Type) bool {
 	b, ok := t.(*types.Basic)
 	return ok && b.Kind() == types.String

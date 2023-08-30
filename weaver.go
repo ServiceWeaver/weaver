@@ -535,3 +535,5 @@ type AutoMarshal struct{}
 
 func (AutoMarshal) WeaverMarshal(*codegen.Encoder)   {}
 func (AutoMarshal) WeaverUnmarshal(*codegen.Decoder) {}
+
+type NotRetriable interface{}

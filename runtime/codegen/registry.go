@@ -59,6 +59,7 @@ type Registration struct {
 	Impl      reflect.Type // implementation type (struct)
 	Routed    bool         // True if calls to this component should be routed
 	Listeners []string     // the names of any weaver.Listeners
+	NoRetry   []int        // indices of methods that should not be retried
 
 	// Functions that return different types of stubs.
 	LocalStubFn   func(impl any, caller string, tracer trace.Tracer) any

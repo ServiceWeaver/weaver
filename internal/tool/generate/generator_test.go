@@ -226,11 +226,11 @@ func TestGenerator(t *testing.T) {
 				if strings.Contains(output, expect) {
 					continue
 				}
-				t.Errorf("output does not contain expected string %q", expect)
+				t.Errorf("output does not contain expected string %q in\n%s", expect, output)
 			}
 			for _, unexpect := range unexpected {
 				if strings.Contains(output, unexpect) {
-					t.Errorf("output contains unexpected string %q", unexpect)
+					t.Errorf("output contains unexpected string %q in \n%s", unexpect, output)
 				}
 			}
 		})
