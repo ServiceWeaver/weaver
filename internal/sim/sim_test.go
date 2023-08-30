@@ -360,12 +360,14 @@ func TestFakes(t *testing.T) {
 
 func TestDuplicateOp(t *testing.T) {
 	sim := simulator(t, Options{NumReplicas: 2, NumOps: 100})
-	sim.ops["foo"] = op{}
-	validateOp(sim, Op[int]{
+	sim.ops = []op{{name: "foo"}}
+	if _, err := validateOp(sim, Op[int]{
 		Name: "foo",
 		Gen:  func(*rand.Rand) int { return 42 },
 		Func: func(*rand.Rand) error { return nil },
-	})
+	}); err == nil {
+		t.Fatal("unexpected success")
+	}
 }
 
 func TestValidateOp(t *testing.T) {
