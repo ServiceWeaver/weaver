@@ -17,10 +17,6 @@ package sim
 import (
 	"fmt"
 	"math/rand"
-	"slices"
-
-	"golang.org/x/exp/constraints"
-	"golang.org/x/exp/maps"
 )
 
 // pop pops and returns a randomly selected element from the provided slice.
@@ -41,27 +37,6 @@ func pick[T any](r *rand.Rand, xs []T) T {
 		panic(fmt.Errorf("pick: empty slice"))
 	}
 	return xs[r.Intn(len(xs))]
-}
-
-// pickKey returns a randomly selected key from the provided map. pickKey
-// panics if the provided map is empty.
-func pickKey[K constraints.Ordered, V any](r *rand.Rand, kvs map[K]V) K {
-	if len(kvs) == 0 {
-		panic(fmt.Errorf("pickKey: empty map"))
-	}
-	keys := maps.Keys(kvs)
-	// Sort the keys to make sure pickKey is deterministic.
-	slices.Sort(keys)
-	return pick(r, keys)
-}
-
-// pickValue returns a randomly selected value from the provided map. pickValue
-// panics if the provided map is empty.
-func pickValue[K constraints.Ordered, V any](r *rand.Rand, kvs map[K]V) V {
-	if len(kvs) == 0 {
-		panic(fmt.Errorf("pickValue: empty map"))
-	}
-	return kvs[pickKey(r, kvs)]
 }
 
 // flip returns true with probability p. For example, flip(0) always returns

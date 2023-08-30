@@ -85,7 +85,7 @@ type Simulator struct {
 	regs       []*codegen.Registration                // registered components
 	regsByIntf map[reflect.Type]*codegen.Registration // regs, by component interface
 	components map[string][]any                       // component replicas
-	ops        map[string]op                          // registered ops
+	ops        []op                                   // registered ops
 
 	ctx   context.Context // simulation context
 	group *errgroup.Group // group with all running goroutines
@@ -296,7 +296,6 @@ func New(name string, opts Options) (*Simulator, error) {
 		regs:       regs,
 		regsByIntf: regsByIntf,
 		components: map[string][]any{},
-		ops:        map[string]op{},
 		rand:       rand.New(rand.NewSource(opts.Seed)),
 		// Start both trace and span ids at 1 to reserve 0 as an invalid id.
 		current:     1,
@@ -459,13 +458,15 @@ func RegisterOp[T any](s *Simulator, o Op[T]) {
 	if err != nil {
 		panic(err)
 	}
-	s.ops[op.name] = op
+	s.ops = append(s.ops, op)
 }
 
 // validateOp validates the provided Op[T] and converts it to an op.
 func validateOp[T any](s *Simulator, o Op[T]) (op, error) {
-	if _, ok := s.ops[o.Name]; ok {
-		return op{}, fmt.Errorf("duplicate registration of op %q", o.Name)
+	for _, existing := range s.ops {
+		if existing.name == o.Name {
+			return op{}, fmt.Errorf("duplicate registration of op %q", o.Name)
+		}
 	}
 
 	// TODO(mwhittaker): Improve error messages.
@@ -567,10 +568,7 @@ func (s *Simulator) step() {
 		s.numStarted++
 
 		// Start the op.
-		//
-		// TODO(mwhittaker): Store ops in a slice so that picking them is
-		// faster.
-		o := pickValue(s.rand, s.ops)
+		o := pick(s.rand, s.ops)
 		s.group.Go(func() error {
 			return s.runOp(s.ctx, o)
 		})
