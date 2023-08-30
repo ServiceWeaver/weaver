@@ -49,6 +49,7 @@ func TestSuccessfulSimulation(t *testing.T) {
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.1,
+		YieldRate:   0.5,
 	}
 	sim := simulator(t, opts)
 	RegisterOp(sim, Op[pair]{
@@ -87,6 +88,7 @@ func TestUnsuccessfulSimulation(t *testing.T) {
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.1,
+		YieldRate:   0.5,
 	}
 	sim := simulator(t, opts)
 	RegisterOp(sim, Op[pair]{
@@ -116,6 +118,7 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 			NumReplicas: entry.NumReplicas,
 			NumOps:      entry.NumOps,
 			FailureRate: entry.FailureRate,
+			YieldRate:   entry.YieldRate,
 		}
 		sim := simulator(t, opts)
 		RegisterOp(sim, Op[pair]{
@@ -182,6 +185,7 @@ func TestFailureRateZero(t *testing.T) {
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.0,
+		YieldRate:   0.5,
 	}
 	sim := simulator(t, opts)
 	RegisterOp(sim, Op[pair]{
@@ -209,6 +213,7 @@ func TestFailureRateOne(t *testing.T) {
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 1.0,
+		YieldRate:   0.5,
 	}
 	sim := simulator(t, opts)
 	RegisterOp(sim, Op[pair]{
@@ -275,6 +280,7 @@ func TestInjectedErrors(t *testing.T) {
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.5,
+		YieldRate:   0.5,
 		Fakes:       map[reflect.Type]any{reflection.Type[divMod](): counter},
 	}
 	sim := simulator(t, opts)
@@ -321,6 +327,7 @@ func TestFakes(t *testing.T) {
 	opts := Options{
 		NumReplicas: 10,
 		NumOps:      1000,
+		YieldRate:   0.5,
 		Fakes: map[reflect.Type]any{
 			reflection.Type[divMod](): fakeDivMod{},
 		},

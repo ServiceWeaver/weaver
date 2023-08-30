@@ -71,6 +71,7 @@ type Options struct {
 	NumReplicas    int                  // the number of replicas of every component
 	NumOps         int                  // the number of ops to run
 	FailureRate    float64              // the fraction of calls to artificially fail
+	YieldRate      float64              // the probability that an op yields after a step
 	ConfigFilename string               // TOML config filename
 	Config         string               // TOML config contents
 	Fakes          map[reflect.Type]any // fake component implementations
@@ -89,14 +90,16 @@ type Simulator struct {
 	ctx   context.Context // simulation context
 	group *errgroup.Group // group with all running goroutines
 
-	mu          sync.Mutex // guards the following fields
-	rand        *rand.Rand // random number generator
-	numOps      int        // number of spawned ops
-	calls       []*call    // pending calls
-	replies     []*reply   // pending replies
-	history     []Event    // history of events
-	nextTraceID int        // next trace id
-	nextSpanID  int        // next span id
+	mu          sync.Mutex       // guards the following fields
+	rand        *rand.Rand       // random number generator
+	current     int              // currently running op
+	numStarted  int              // number of started ops
+	notFinished map[int]struct{} // not finished op trace ids (a set for efficient removal)
+	calls       map[int][]*call  // pending calls, by trace id
+	replies     map[int][]*reply // pending replies, by trace id
+	history     []Event          // history of events
+	nextTraceID int              // next trace id
+	nextSpanID  int              // next span id
 }
 
 // An Event represents an atomic step of a simulation.
@@ -226,6 +229,9 @@ type reply struct {
 	returns []reflect.Value // the call's return values
 }
 
+// TODO(mwhittaker): If a user doesn't propagate contexts correctly, we lose
+// trace and span ids. Detect this and return an error.
+
 // We store trace and span ids in the context using the following keys.
 type traceIDKey struct{}
 type spanIDKey struct{}
@@ -283,6 +289,10 @@ func New(name string, opts Options) (*Simulator, error) {
 	// Create simulator.
 	//
 	// TODO(mwhittaker): Take a *testing.T and use the test name as the name.
+	notFinished := map[int]struct{}{}
+	for traceID := 1; traceID < opts.NumOps+1; traceID++ {
+		notFinished[traceID] = struct{}{}
+	}
 	s := &Simulator{
 		name:       name,
 		opts:       opts,
@@ -294,6 +304,11 @@ func New(name string, opts Options) (*Simulator, error) {
 		rand:       rand.New(rand.NewSource(opts.Seed)),
 
 		// Start both trace and span ids at 1 to reserve 0 as an invalid id.
+		current:     0,
+		numStarted:  0,
+		notFinished: notFinished,
+		calls:       map[int][]*call{},
+		replies:     map[int][]*reply{},
 		nextTraceID: 1,
 		nextSpanID:  1,
 	}
@@ -396,7 +411,7 @@ func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, 
 		}
 	}
 
-	s.calls = append(s.calls, &call{
+	s.calls[traceID] = append(s.calls[traceID], &call{
 		traceID:   traceID,
 		spanID:    spanID,
 		fate:      fate,
@@ -521,6 +536,7 @@ func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 			NumReplicas: s.opts.NumReplicas,
 			NumOps:      s.opts.NumOps,
 			FailureRate: s.opts.FailureRate,
+			YieldRate:   s.opts.YieldRate,
 		}
 		// TODO(mwhittaker): Escape names.
 		dir := filepath.Join("testdata", "sim", s.name)
@@ -539,20 +555,49 @@ func (s *Simulator) step() {
 		return
 	}
 
-	// Compute the set of candidate steps.
+	if len(s.notFinished) == 0 {
+		// The simulation is finished.
+		return
+	}
+
+	if _, ok := s.notFinished[s.current]; !ok || flip(s.rand, s.opts.YieldRate) {
+		// Yield execution to a (potentially) different op.
+		//
+		// TODO(mwhittaker): This is super slow. Optimize it.
+		s.current = pickKey(s.rand, s.notFinished)
+	}
+
+	if s.current > s.numStarted {
+		// Make sure to start ops in increasing order. Op 1 starts first, then
+		// Op 2, and so on.
+		s.current = s.numStarted + 1
+		s.numStarted++
+
+		// Start the op.
+		//
+		// TODO(mwhittaker): Store ops in a slice so that picking them is
+		// faster.
+		o := pickValue(s.rand, s.ops)
+		s.group.Go(func() error {
+			return s.runOp(s.ctx, o)
+		})
+		return
+	}
+
+	if len(s.calls[s.current]) == 0 && len(s.replies[s.current]) == 0 {
+		// This should be impossible. If it ever happens, there's a bug.
+		panic(fmt.Errorf("op %d has no pending calls or replies", s.current))
+	}
+
 	const (
-		runOp = iota
-		deliverCall
+		deliverCall = iota
 		deliverReply
 	)
 	var candidates []int
-	if s.numOps < s.opts.NumOps {
-		candidates = append(candidates, runOp)
-	}
-	if len(s.calls) > 0 {
+	if len(s.calls[s.current]) > 0 {
 		candidates = append(candidates, deliverCall)
 	}
-	if len(s.replies) > 0 {
+	if len(s.replies[s.current]) > 0 {
 		candidates = append(candidates, deliverReply)
 	}
 	if len(candidates) == 0 {
@@ -561,18 +606,9 @@ func (s *Simulator) step() {
 
 	// Randomly execute a step.
 	switch x := candidates[s.rand.Intn(len(candidates))]; x {
-	case runOp:
-		s.numOps++
-		// TODO(mwhittaker): Store ops in a slice instead of a map so that
-		// picking them is efficient.
-		o := pickValue(s.rand, s.ops)
-		s.group.Go(func() error {
-			return s.runOp(s.ctx, o)
-		})
-
 	case deliverCall:
 		var call *call
-		call, s.calls = pop(s.rand, s.calls)
+		call, s.calls[s.current] = pop(s.rand, s.calls[s.current])
 
 		if call.fate == failBeforeDelivery {
 			// Fail the call before delivering it.
@@ -596,7 +632,7 @@ func (s *Simulator) step() {
 
 	case deliverReply:
 		var reply *reply
-		reply, s.replies = pop(s.rand, s.replies)
+		reply, s.replies[s.current] = pop(s.rand, s.replies[s.current])
 
 		if reply.call.fate == failAfterDelivery {
 			// Fail the call after delivering it.
@@ -671,6 +707,7 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 		SpanID:  spanID,
 		Error:   msg,
 	})
+	delete(s.notFinished, traceID)
 	s.mu.Unlock()
 
 	if err != nil {
@@ -715,7 +752,7 @@ func (s *Simulator) deliverCall(call *call) {
 
 	// Record the reply and take a step.
 	s.mu.Lock()
-	s.replies = append(s.replies, &reply{
+	s.replies[call.traceID] = append(s.replies[call.traceID], &reply{
 		call:    call,
 		returns: returns,
 	})
