@@ -24,10 +24,15 @@ import (
 
 // stub holds information about a client stub to the remote component.
 type stub struct {
-	component string           // name of the remote component
-	conn      call.Connection  // connection to talk to the remote component
-	methods   []call.MethodKey // keys for the remote component methods
-	tracer    trace.Tracer     // component tracer
+	component string          // name of the remote component
+	conn      call.Connection // connection to talk to the remote component
+	methods   []stubMethod    // per method info
+	tracer    trace.Tracer    // component tracer
+}
+
+type stubMethod struct {
+	key   call.MethodKey // key for remote component method
+	retry bool           // Whether or not the method should be retred
 }
 
 var _ codegen.Stub = &stub{}
@@ -39,8 +44,28 @@ func (s *stub) Tracer() trace.Tracer {
 
 // Run implements the codegen.Stub interface.
 func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64) ([]byte, error) {
+	m := s.methods[method]
 	opts := call.CallOptions{
+		// TODO(sanjay): Enable retries after weavertest supports retry injection
+		// so we can spot method methods that should be marked as non-retriable.
+		// Retry:    m.retry,
 		ShardKey: shardKey,
 	}
-	return s.conn.Call(ctx, s.methods[method], args, opts)
+	return s.conn.Call(ctx, m.key, args, opts)
+}
+
+// makeStubMethods returns a slice of stub methods for the component methods of reg.
+func makeStubMethods(reg *codegen.Registration) []stubMethod {
+	// Construct method info slice.
+	n := reg.Iface.NumMethod()
+	methods := make([]stubMethod, n)
+	for i := 0; i < n; i++ {
+		mname := reg.Iface.Method(i).Name
+		methods[i].key = call.MakeMethodKey(reg.Name, mname)
+		methods[i].retry = true // Retry by default
+	}
+	for _, m := range reg.NoRetry {
+		methods[m].retry = false
+	}
+	return methods
 }

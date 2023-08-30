@@ -247,6 +247,19 @@ func newGenerator(opt Options, pkg *packages.Package, fset *token.FileSet, autom
 			components[c.fullIntfName()] = c
 		}
 	}
+
+	// Find method attributes.
+	for _, file := range pkg.Syntax {
+		filename := fset.Position(file.Package).Filename
+		if filepath.Base(filename) == generatedCodeFile {
+			// Ignore weaver_gen.go files.
+			continue
+		}
+		if err := findMethodAttributes(pkg, file, components); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -290,6 +303,74 @@ func findComponents(opt Options, pkg *packages.Package, f *ast.File, tset *typeS
 		}
 	}
 	return components, errors.Join(errs...)
+}
+
+func findMethodAttributes(pkg *packages.Package, f *ast.File, components map[string]*component) error {
+	// Look for declarations of the form:
+	//	var _ weaver.NotRetriable = Component.Method
+	var errs []error
+	for _, decl := range f.Decls {
+		gendecl, ok := decl.(*ast.GenDecl)
+		if !ok || gendecl.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gendecl.Specs {
+			valspec, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			typeAndValue, ok := pkg.TypesInfo.Types[valspec.Type]
+			if !ok {
+				continue
+			}
+			t := typeAndValue.Type
+			if !isWeaverNotRetriable(t) {
+				continue
+			}
+			for _, val := range valspec.Values {
+				// We allow non-blank vars for uniformity.
+				comp, method, ok := findComponentMethod(pkg, components, val)
+				if !ok {
+					errs = append(errs, errorf(pkg.Fset, valspec.Pos(), "weaver.NonRetriable should only be assigned a value that identifies a method of a component implemented by this package"))
+					continue
+				}
+				if comp.noretry == nil {
+					comp.noretry = map[string]struct{}{}
+				}
+				comp.noretry[method] = struct{}{}
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// findComponentMethod returns the component and method if val is an expression of
+// the form C.M where C is a component listed in components and C has a method named M.
+func findComponentMethod(pkg *packages.Package, components map[string]*component, val ast.Expr) (*component, string, bool) {
+	sel, ok := val.(*ast.SelectorExpr)
+	if !ok {
+		return nil, "", false
+	}
+	ctypeval, ok := pkg.TypesInfo.Types[sel.X]
+	if !ok {
+		return nil, "", false
+	}
+	ctype, ok := ctypeval.Type.(*types.Named)
+	if !ok {
+		return nil, "", false
+	}
+	cname := fullName(ctype)
+	c, ok := components[cname]
+	if !ok {
+		return nil, "", false
+	}
+	method := sel.Sel.Name
+	for _, m := range c.methods() {
+		if m.Name() == method {
+			return c, method, true
+		}
+	}
+	return nil, "", false
 }
 
 // findAutoMarshals returns the types in the provided file which embed the
@@ -595,14 +676,15 @@ func getListenerNamesFromStructField(pkg *packages.Package, f *ast.Field) ([]str
 //	}
 //	type router struct{}
 type component struct {
-	intf          *types.Named    // component interface
-	impl          *types.Named    // component implementation
-	router        *types.Named    // router, or nil if there is no router
-	routingKey    types.Type      // routing key, or nil if there is no router
-	routedMethods map[string]bool // the set of methods with a routing function
-	isMain        bool            // intf is weaver.Main
-	refs          []*types.Named  // List of T where a weaver.Ref[T] field is in impl struct
-	listeners     []string        // Names of listener fields declared in impl struct
+	intf          *types.Named        // component interface
+	impl          *types.Named        // component implementation
+	router        *types.Named        // router, or nil if there is no router
+	routingKey    types.Type          // routing key, or nil if there is no router
+	routedMethods map[string]bool     // the set of methods with a routing function
+	isMain        bool                // intf is weaver.Main
+	refs          []*types.Named      // List of T where a weaver.Ref[T] field is in impl struct
+	listeners     []string            // Names of listener fields declared in impl struct
+	noretry       map[string]struct{} // Methods that should not be retried
 }
 
 func fullName(t *types.Named) string {
@@ -1161,6 +1243,9 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 			}
 			p(`		Listeners: []string{%s},`, strings.Join(listeners, ", "))
 		}
+		if len(comp.noretry) > 0 {
+			p(`		NoRetry: []int{%s},`, noRetryString(comp))
+		}
 		p(`		LocalStubFn: %s,`, localStubFn)
 		p(`		ClientStubFn: %s,`, clientStubFn)
 		p(`		ServerStubFn: %s,`, serverStubFn)
@@ -1169,6 +1254,24 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 		p(`	})`)
 	}
 	p(`}`)
+}
+
+// noRetryString generates a string of the form "i_1, i_2, ... i_n" where the
+// individual elements are the indices of methods in comp.retry that should not
+// be retried.
+func noRetryString(comp *component) string {
+	list := make([]int, 0, len(comp.noretry))
+	for i, m := range comp.methods() {
+		if _, ok := comp.noretry[m.Name()]; ok {
+			list = append(list, i)
+		}
+	}
+	sort.Ints(list)
+	strs := make([]string, 0, len(list))
+	for _, i := range list {
+		strs = append(strs, strconv.Itoa(i))
+	}
+	return strings.Join(strs, ", ")
 }
 
 // generateLocalStubs generates code that creates stubs for the local components.

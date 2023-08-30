@@ -373,18 +373,10 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 	}
 	w.syslogger.Debug(fmt.Sprintf("Connected to remote component %q", name))
 
-	// Construct the keys for the methods.
-	n := reg.Iface.NumMethod()
-	methods := make([]call.MethodKey, n)
-	for i := 0; i < n; i++ {
-		mname := reg.Iface.Method(i).Name
-		methods[i] = call.MakeMethodKey(reg.Name, mname)
-	}
-
 	return &stub{
 		component: reg.Name,
 		conn:      conn,
-		methods:   methods,
+		methods:   makeStubMethods(reg),
 		tracer:    w.tracer,
 	}, nil
 }

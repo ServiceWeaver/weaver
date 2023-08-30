@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/ServiceWeaver/weaver/internal/net/call"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/google/go-cmp/cmp"
 )
@@ -132,8 +133,10 @@ func TestCall(t *testing.T) {
 
 			// Call the method.
 			stub := stub{
-				conn:    &localClient{fn: test.fn},
-				methods: []call.MethodKey{call.MakeMethodKey("", "test")},
+				conn: &localClient{fn: test.fn},
+				methods: []stubMethod{
+					{key: call.MakeMethodKey("", "test")},
+				},
 			}
 			out, err := stub.Run(context.Background(), 0, enc.Data(), 0)
 			if err != nil {
@@ -176,8 +179,10 @@ func TestErrorArgsNotEncoded(t *testing.T) {
 		}
 
 		stub := stub{
-			conn:    &localClient{fn: fn},
-			methods: []call.MethodKey{call.MakeMethodKey("", "test")},
+			conn: &localClient{fn: fn},
+			methods: []stubMethod{
+				{key: call.MakeMethodKey("", "test")},
+			},
 		}
 		_, err := stub.Run(context.Background(), 0, nil, 0)
 		return err
@@ -211,8 +216,10 @@ func TestErrorResultsNotDecoded(t *testing.T) {
 	}
 
 	stub := stub{
-		conn:    &localClient{fn: fn},
-		methods: []call.MethodKey{call.MakeMethodKey("", "test")},
+		conn: &localClient{fn: fn},
+		methods: []stubMethod{
+			{key: call.MakeMethodKey("", "test")},
+		},
 	}
 	if _, err := stub.Run(context.Background(), 0, enc.Data(), 0); err != nil {
 		t.Fatal(err)
@@ -222,6 +229,28 @@ func TestErrorResultsNotDecoded(t *testing.T) {
 		if val, ok := reflect.ValueOf(resPtr).Elem().Interface().(string); !ok || val != "" {
 			t.Errorf("result expected to be empty; it was: %v", val)
 		}
+	}
+}
+
+func TestStubMethodRetries(t *testing.T) {
+	reg := &codegen.Registration{
+		Name: "TestInterface",
+		Iface: reflection.Type[interface {
+			A()
+			B()
+			C()
+			D()
+		}](),
+		NoRetry: []int{1, 3},
+	}
+	want := []bool{true, false, true, false} // Which methods should be retriable?
+	methods := makeStubMethods(reg)
+	got := make([]bool, len(methods))
+	for i, m := range methods {
+		got[i] = m.retry
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("retry vector (-want,+got):\n%s\n", diff)
 	}
 }
 
