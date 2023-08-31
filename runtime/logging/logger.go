@@ -135,10 +135,11 @@ type TB interface {
 
 // TestLogger implements a logger for tests.
 type TestLogger struct {
-	t        TB         // logs until t finishes
-	verbose  bool       // show logs?
-	mu       sync.Mutex // guards finished
-	finished bool       // has t finished?
+	t        TB             // logs until t finishes
+	verbose  bool           // show logs?
+	pp       *PrettyPrinter // formats log entries
+	mu       sync.Mutex     // guards finished
+	finished bool           // has t finished?
 }
 
 // Log logs the provided log entry using t.t.Log while the test is running and
@@ -147,11 +148,7 @@ func (t *TestLogger) Log(entry *protos.LogEntry) {
 	if entry.TimeMicros == 0 {
 		entry.TimeMicros = time.Now().UnixMicro()
 	}
-
-	// We create a new pretty printer for every message to disable dimming and
-	// indenting. When multiple log outputs from different weavelets are
-	// intermixed in a test, dimming and indenting can get confusing.
-	msg := NewPrettyPrinter(colors.Enabled()).Format(entry)
+	msg := t.pp.Format(entry)
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -178,7 +175,8 @@ func (t *TestLogger) Log(entry *protos.LogEntry) {
 
 // NewTestLogger returns a new TestLogger.
 func NewTestLogger(t TB, verbose bool) *TestLogger {
-	logger := &TestLogger{t: t, verbose: verbose}
+	pp := NewPrettyPrinter(colors.Enabled())
+	logger := &TestLogger{t: t, pp: pp, verbose: verbose}
 	t.Cleanup(func() {
 		logger.mu.Lock()
 		defer logger.mu.Unlock()
