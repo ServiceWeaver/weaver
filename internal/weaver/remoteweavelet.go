@@ -138,7 +138,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	info := w.conn.EnvelopeInfo()
 
 	// Set up logging.
-	w.syslogger = w.logger(fmt.Sprintf("weavelet-%s", logging.Shorten(info.Id)), "serviceweaver/system", "")
+	w.syslogger = w.logger("weavelet", "serviceweaver/system", "")
 
 	// Set up tracing.
 	exporter := traceio.NewWriter(w.conn.SendTraceSpans)

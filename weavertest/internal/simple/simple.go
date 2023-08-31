@@ -72,12 +72,18 @@ type destination struct {
 
 var pid = os.Getpid()
 
+func (d *destination) Init(ctx context.Context) error {
+	d.Logger(ctx).Info("init")
+	return nil
+}
+
 func (d *destination) Getpid(_ context.Context) (int, error) {
 	return pid, nil
 }
 
 // Record adds a message.
-func (d *destination) Record(_ context.Context, file, msg string) error {
+func (d *destination) Record(ctx context.Context, file, msg string) error {
+	d.Logger(ctx).Info("record", "msg", msg)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

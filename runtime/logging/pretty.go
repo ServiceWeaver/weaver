@@ -184,6 +184,9 @@ func (pp *PrettyPrinter) Format(e *protos.LogEntry) string {
 		attrs := make([]attr, 0, len(e.Attrs)/2)
 		for i := 0; i+1 < len(e.Attrs); i += 2 {
 			name, value := e.Attrs[i], e.Attrs[i+1]
+			if name == "serviceweaver/system" {
+				continue // Aleady implied by component name
+			}
 			attrs = append(attrs, attr{name, value})
 		}
 		sort.Slice(attrs, func(i, j int) bool {
