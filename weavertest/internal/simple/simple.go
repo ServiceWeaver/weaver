@@ -52,6 +52,12 @@ type Destination interface {
 	RoutedRecord(_ context.Context, file, msg string) error
 }
 
+var (
+	_ weaver.NotRetriable = Source.Emit
+	_ weaver.NotRetriable = Destination.Record
+	_ weaver.NotRetriable = Destination.RoutedRecord
+)
+
 type destRouter struct{}
 
 func (r destRouter) RoutedRecord(_ context.Context, file, msg string) string {

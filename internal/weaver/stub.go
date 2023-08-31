@@ -24,10 +24,11 @@ import (
 
 // stub holds information about a client stub to the remote component.
 type stub struct {
-	component string          // name of the remote component
-	conn      call.Connection // connection to talk to the remote component
-	methods   []stubMethod    // per method info
-	tracer    trace.Tracer    // component tracer
+	component     string          // name of the remote component
+	conn          call.Connection // connection to talk to the remote component
+	methods       []stubMethod    // per method info
+	tracer        trace.Tracer    // component tracer
+	injectRetries int             // Number of artificial retries per retriable call
 }
 
 type stubMethod struct {
@@ -43,15 +44,21 @@ func (s *stub) Tracer() trace.Tracer {
 }
 
 // Run implements the codegen.Stub interface.
-func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64) ([]byte, error) {
+func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64) (result []byte, err error) {
 	m := s.methods[method]
 	opts := call.CallOptions{
-		// TODO(sanjay): Enable retries after weavertest supports retry injection
-		// so we can spot method methods that should be marked as non-retriable.
-		// Retry:    m.retry,
+		Retry:    m.retry,
 		ShardKey: shardKey,
 	}
-	return s.conn.Call(ctx, m.key, args, opts)
+	n := 1
+	if m.retry {
+		n += s.injectRetries
+	}
+	for i := 0; i < n; i++ {
+		result, err = s.conn.Call(ctx, m.key, args, opts)
+		// No backoff since these retries are fake ones injected for testing.
+	}
+	return
 }
 
 // makeStubMethods returns a slice of stub methods for the component methods of reg.

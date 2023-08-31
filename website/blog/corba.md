@@ -139,7 +139,7 @@ freeze until it is repaired.
 While Service Weaver remote method calls *look* like local method calls, they do
 not *act* like them.
 
-- Remote methods return an error on network and participant failures.  The
+- Remote methods may return an error on network and participant failures.  The
   developer is responsible for handling such errors.
 - Every remote method's first argument is a `context.Context`. The
   developer is responsible for setting deadlines on these contexts to detect and

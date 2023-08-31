@@ -80,6 +80,11 @@ type SQLStore interface {
 	GetImage(ctx context.Context, _ string, image ImageID) ([]byte, error)
 }
 
+var (
+	_ weaver.NotRetriable = SQLStore.CreateThread
+	_ weaver.NotRetriable = SQLStore.CreatePost
+)
+
 type config struct {
 	Driver string `toml:"db_driver"` // Name of the database driver.
 	URI    string `toml:"db_uri"`    // Database server URI.

@@ -70,9 +70,10 @@ func init() {
 		RefData: "⟦7e1a0aa0:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/SQLStore⟧\n⟦ae108c0d:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/ImageScaler⟧\n⟦c86a1d44:wEaVeReDgE:github.com/ServiceWeaver/weaver/Main→github.com/ServiceWeaver/weaver/examples/chat/LocalCache⟧\n⟦7b9a3b0b:wEaVeRlIsTeNeRs:github.com/ServiceWeaver/weaver/Main→chat⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
-		Iface: reflect.TypeOf((*SQLStore)(nil)).Elem(),
-		Impl:  reflect.TypeOf(sqlStore{}),
+		Name:    "github.com/ServiceWeaver/weaver/examples/chat/SQLStore",
+		Iface:   reflect.TypeOf((*SQLStore)(nil)).Elem(),
+		Impl:    reflect.TypeOf(sqlStore{}),
+		NoRetry: []int{0, 1},
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: false}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: false}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: false}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: false})}
 		},

@@ -631,11 +631,12 @@ func (f *foo) Init(context.Context) error {
 
 ## Semantics
 
-When implementing a component, there are three semantic details to keep in mind:
+When implementing a component, there are a few semantic details to keep in mind:
 
 1.  A component's state is not persisted.
 2.  A component's methods may be invoked concurrently.
 3.  There may be multiple replicas of a component.
+4.  Component methods may be retried automatically by default.
 
 Take the following `Cache` component for example, which maintains an in-memory
 key-value cache.
@@ -695,10 +696,30 @@ if errors.Is(err, weaver.RemoteCallError) {
 
 Note that if a method call returns an error with an embedded
 `weaver.RemoteCallError`, it does *not* mean that the method never executed. The
-method may have executed partially or fully. Thus, you must be careful retrying
-method calls that result in a `weaver.RemoteCallError`. Ensuring that all
-methods are either read-only or idempotent is one way to ensure safe retries,
-for example. Service Weaver does not automatically retry method calls that fail.
+method may have executed partially, or fully, or multiple times due to automatic
+retries.
+
+On network errors, a component method call may be retried automatically by
+Service Weaver. This may cause a single method call to turn into multiple
+executions of that method. In practice, many methods (e.g., read-only or
+idempotent methods) work correctly even when executed more than once per call,
+and this automatic retrying can help make the application more robust in the
+presence of failures.
+
+However some methods should not be retried automatically. E.g., if our cache was
+extended with a method that appends a string to a cached value, automatic
+retrying could cause multiple copies of the argument to be appended to the
+cached value. Such methods can be specially marked to prevent automatic retries.
+
+```go
+type Cache interface{
+    ...
+    Append(context.Context, key, val string) error
+}
+
+// Do not retry Cache.Append.
+var _ weaver.NotRetriable = Cache.Append
+```
 
 ## Listeners
 
