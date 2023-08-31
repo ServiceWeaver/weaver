@@ -201,7 +201,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		return nil
 	})
 
-	w.syslogger.Debug(fmt.Sprintf("🧶 weavelet started on %s", w.conn.WeaveletInfo().DialAddr))
+	w.syslogger.Debug("🧶 weavelet started", "addr", w.conn.WeaveletInfo().DialAddr)
 	return w, nil
 }
 
@@ -227,7 +227,7 @@ func (w *RemoteWeavelet) getIntf(t reflect.Type, requester string) (any, error) 
 	// Activate the component.
 	c.activateInit.Do(func() {
 		name := logging.ShortenComponent(c.reg.Name)
-		w.syslogger.Debug(fmt.Sprintf("Activating component %q", name))
+		w.syslogger.Debug("Activating", "component", name)
 		errMsg := fmt.Sprintf("cannot activate component %q", c.reg.Name)
 		c.activateErr = w.repeatedly(w.ctx, errMsg, func() error {
 			request := &protos.ActivateComponentRequest{
@@ -237,9 +237,9 @@ func (w *RemoteWeavelet) getIntf(t reflect.Type, requester string) (any, error) 
 			return w.conn.ActivateComponentRPC(request)
 		})
 		if c.activateErr != nil {
-			w.syslogger.Error(fmt.Sprintf("Failed to activate component %q", name), "err", c.activateErr)
+			w.syslogger.Error("Failed to activate", "component", name, "err", c.activateErr)
 		} else {
-			w.syslogger.Debug(fmt.Sprintf("Activated component %q", name))
+			w.syslogger.Debug("Activated", "component", name)
 		}
 	})
 	if c.activateErr != nil {
@@ -272,13 +272,13 @@ func (w *RemoteWeavelet) GetImpl(t reflect.Type) (any, error) {
 
 	c.implInit.Do(func() {
 		name := logging.ShortenComponent(c.reg.Name)
-		w.syslogger.Debug(fmt.Sprintf("Constructing component %q", name))
+		w.syslogger.Debug("Constructing", "component", name)
 		c.impl, c.implErr = w.createComponent(w.ctx, c.reg)
 		if c.implErr != nil {
-			w.syslogger.Error(fmt.Sprintf("Failed to construct component %q", name), "err", c.implErr)
+			w.syslogger.Error("Failed to construct", "component", name, "err", c.implErr)
 			return
 		} else {
-			w.syslogger.Debug(fmt.Sprintf("Constructed component %q", name))
+			w.syslogger.Debug("Constructed", "component", name)
 		}
 
 		logger := w.logger(c.reg.Name)
@@ -357,7 +357,7 @@ func (w *RemoteWeavelet) getStub(c *component) (*stub, error) {
 func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingResolver, balancer *routingBalancer) (*stub, error) {
 	// Create the client connection.
 	name := logging.ShortenComponent(reg.Name)
-	w.syslogger.Debug(fmt.Sprintf("Connecting to remote component %q", name))
+	w.syslogger.Debug("Connecting to remote", "component", name)
 	opts := call.ClientOptions{
 		Balancer:          balancer,
 		Logger:            w.syslogger,
@@ -365,14 +365,14 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 	}
 	conn, err := call.Connect(w.ctx, resolver, opts)
 	if err != nil {
-		w.syslogger.Error(fmt.Sprintf("Failed to connect to remote component %q", name), "err", err)
+		w.syslogger.Error("Failed to connect to remote", "component", name, "err", err)
 		return nil, err
 	}
 	if err := waitUntilReady(w.ctx, conn); err != nil {
-		w.syslogger.Error(fmt.Sprintf("Failed to wait for remote component %q", name), "err", err)
+		w.syslogger.Error("Failed to wait for remote", "component", name, "err", err)
 		return nil, err
 	}
-	w.syslogger.Debug(fmt.Sprintf("Connected to remote component %q", name))
+	w.syslogger.Debug("Connected to remote", "component", name)
 
 	return &stub{
 		component:     reg.Name,
@@ -406,11 +406,11 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 	var components []*component
 	var shortened []string
 	for _, component := range req.Components {
-		short := fmt.Sprintf("%q", logging.ShortenComponent(component))
+		short := logging.ShortenComponent(component)
 		shortened = append(shortened, short)
 		c, err := w.getComponent(component)
 		if err != nil {
-			w.syslogger.Error(fmt.Sprintf("Failed to update component %s", short), "err", err)
+			w.syslogger.Error("Failed to update", "component", short, "err", err)
 			errs = append(errs, err)
 			continue
 		}
@@ -428,13 +428,13 @@ func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (
 		i := i
 		c := c
 		go func() {
-			w.syslogger.Debug(fmt.Sprintf("Updating component %s", shortened[i]))
+			w.syslogger.Debug("Updating", "components", shortened[i])
 			if _, err := w.GetImpl(c.reg.Impl); err != nil {
 				// TODO(mwhittaker): Propagate errors.
-				w.syslogger.Error(fmt.Sprintf("Failed to update component %v", shortened[i]), "err", err)
+				w.syslogger.Error("Failed to update", "component", shortened[i], "err", err)
 				return
 			}
-			w.syslogger.Debug(fmt.Sprintf("Updated component %s", shortened[i]))
+			w.syslogger.Debug("Updated", "component", shortened[i])
 		}()
 	}
 
@@ -456,9 +456,9 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest)
 			routing = "local"
 		}
 		if err != nil {
-			w.syslogger.Error(fmt.Sprintf("Failed to update routing info for %q to %s", name, routing), "err", err)
+			w.syslogger.Error("Failed to update routing info", "component", name, "addr", routing, "err", err)
 		} else {
-			w.syslogger.Debug(fmt.Sprintf("Updated routing info for %q to %s", name, routing))
+			w.syslogger.Debug("Updated routing info", "component", name, "addr", routing)
 		}
 	}()
 
@@ -478,10 +478,10 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest)
 	// info shouldn't contain any replicas or assignment.
 	if info.Local {
 		if len(info.Replicas) > 0 {
-			w.syslogger.Error(fmt.Sprintf("Local routing info for %q has replicas: %v", info.Component, info.Replicas))
+			w.syslogger.Error("Local routing info has replicas", "component", info.Component, "replicas", info.Replicas)
 		}
 		if info.Assignment != nil {
-			w.syslogger.Error(fmt.Sprintf("Local routing info for %q has assignment: %v", info.Component, info.Assignment))
+			w.syslogger.Error("Local routing info has assignment", "component", info.Component, "assignment", info.Assignment)
 		}
 		return
 	}
