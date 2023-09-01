@@ -917,9 +917,9 @@ func (a *adder) Add(ctx context.Context, x, y int) (int, error) {
 Logs look like this:
 
 ```console
-D1103 08:55:15.650138 main.Adder 73ddcd04 adder.go:12] A debug log.
-I1103 08:55:15.650149 main.Adder 73ddcd04 adder.go:13] An info log.
-E1103 08:55:15.650158 main.Adder 73ddcd04 adder.go:14] An error log. err="an error"
+D1103 08:55:15.650138 main.Adder 73ddcd04 adder.go:12 │ A debug log.
+I1103 08:55:15.650149 main.Adder 73ddcd04 adder.go:13 │ An info log.
+E1103 08:55:15.650158 main.Adder 73ddcd04 adder.go:14 │ An error log. err="an error"
 ```
 
 The first character of a log line indicates whether the log is a [D]ebug,
