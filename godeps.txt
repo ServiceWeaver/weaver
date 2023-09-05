@@ -351,6 +351,7 @@ github.com/ServiceWeaver/weaver/internal/tool
     runtime
 github.com/ServiceWeaver/weaver/internal/tool/callgraph
     fmt
+    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/logging
     golang.org/x/exp/maps
