@@ -728,9 +728,48 @@ func (w *Workload) CallA(ctx context.Context, x int) error {
 
 ### Decision
 
-NOTE(mwhittaker): I don't love any of these options. I have a slight preference
-for Option 3, but am very open to other ideas or ways to improve an existing
-option.
+We'll go with the following design for now and continue to improve it over time.
+Nothing is set in stone. Workloads are specified as structs. The `Init` method
+takes a `sim.Sim` that can be used to register fakes and generators. Generators
+can be a `Generator[T]` or a plain function `func(*rand.Rand) T`.
+
+```
+type Workload struct {
+    a weaver.Ref[A]
+    b weaver.Ref[B]
+    replies map[int]int
+}
+
+func (w *Workload) Init(ctx context.Context, s *sim.Sim) error {
+    w.replies = map[int]int{}
+    s.RegisterFake(weavertest.Fake[B](&fakeb{}))
+    s.RegisterGenerators("CallA", sim.Int())
+    return nil
+}
+
+func (w *Workload) CallA(ctx context.Context, x int) error {
+    if y, err := w.a.Get().A(ctx, x); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+
+func (w *Workload) CallB(ctx context.Context) error {
+    w.b.Get().B(ctx)
+    return nil
+}
+
+func TestWorkload(t *testing.T) {
+    s, err := sim.New[Workload](sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+    results, err := s.Simulate(10 * time.Second)
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
 
 [asatarin]: https://twitter.com/asatarin
 [chaos_monkey]: https://netflix.github.io/chaosmonkey/
