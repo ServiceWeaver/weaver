@@ -37,9 +37,6 @@
     #components th {
       text-align: left;
     }
-    #components .colocation-group-boundary td {
-      border-top: 1pt solid #E7E7E7;
-    }
 
     /* Style for the metrics table. */
     #metrics {
@@ -158,11 +155,8 @@
             </tr>
           </thead>
           <tbody>
-            {{range $i, $c := .Components}}
-            <!-- We draw lines between different colocation groups. If this
-                 component's group is different from the preceeding's group, we
-                 add a separating line. -->
-            <tr {{if and (gt $i 0) (ne $c.Group (index $.Components (dec $i)).Group)}}class="colocation-group-boundary"{{end}}>
+            {{range $c := .Components}}
+            <tr>
               <td>{{shorten $c.Name}}</td>
               <td>{{len $c.Pids}}</td>
               <td>{{pidjoin $c.Pids}}</td>
