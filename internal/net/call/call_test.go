@@ -50,7 +50,6 @@ var (
 	errorKey      = call.MakeMethodKey("", "error")
 	cancelWaitKey = call.MakeMethodKey("", "cancelwait")
 	sleepKey      = call.MakeMethodKey("", "sleep")
-	traceKey      = call.MakeMethodKey("", "trace")
 	customKey     = call.MakeMethodKey("", "custom")
 	handlers      = makeHandlerMap()
 	tlsConfig     = makeTLSConfig()
@@ -276,28 +275,6 @@ func sleepHandler(ctx context.Context, arg []byte) ([]byte, error) {
 	}
 }
 
-// traceHandler returns a handler that compares the given span context
-// with the context stored in the handler
-func traceHandler(expect trace.SpanContext) call.Handler {
-	expect = expect.WithRemote(true)
-	return func(ctx context.Context, _ []byte) ([]byte, error) {
-		span := trace.SpanFromContext(ctx)
-		if !span.SpanContext().IsValid() {
-			return nil, fmt.Errorf("invalid span")
-		}
-		if expect.TraceID() != span.SpanContext().TraceID() {
-			return nil, fmt.Errorf("unexpected trace id")
-		}
-		parent := span.(sdktrace.ReadOnlySpan).Parent()
-		if !expect.Equal(parent) {
-			want, _ := json.Marshal(expect)
-			got, _ := json.Marshal(parent)
-			return nil, fmt.Errorf("span context diff, want %q, got %q", want, got)
-		}
-		return nil, nil
-	}
-}
-
 // getClientConn returns a fresh RPC client to a single long-running server
 // that uses the given network protocol, using maker to make the resolver.
 func getClientConn(t testing.TB, protocol string, endpoint call.Endpoint, maker resolverMaker) call.Connection {
@@ -506,6 +483,9 @@ func (ct *callTester) connect(resolver call.Resolver) call.Connection {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		client.Close()
+	})
 	return client
 }
 
@@ -715,21 +695,33 @@ func TestSingleTCPServer(t *testing.T) {
 	}
 }
 
-// TestTracePropagation tests that the trace context is propagated across
-// an RPC
+// TestTracePropagation tests that the trace context is propagated across an RPC
 func TestTracePropagation(t *testing.T) {
+	ct := startTest(t)
+	client := ct.connect(call.NewConstantResolver(ct.startTCPServer()))
+
 	ctx, span := traceio.TestTracer().Start(context.Background(), "test")
 	defer span.End()
-	h := &call.HandlerMap{}
-	h.Set("", "trace", traceHandler(span.SpanContext()))
-	ep := pipeEndpoint{t: t, handlers: h}
-	opts := call.ClientOptions{Logger: logger(t)}
-	client, err := call.Connect(context.Background(), call.NewConstantResolver(&ep), opts)
+
+	expect := span.SpanContext().WithRemote(true)
+	_, err := runAtServer(ctx, client, call.CallOptions{}, func(ctx context.Context) ([]byte, error) {
+		span := trace.SpanFromContext(ctx)
+		if !span.SpanContext().IsValid() {
+			return nil, fmt.Errorf("invalid span")
+		}
+		if expect.TraceID() != span.SpanContext().TraceID() {
+			return nil, fmt.Errorf("unexpected trace id")
+		}
+		parent := span.(sdktrace.ReadOnlySpan).Parent()
+		if !expect.Equal(parent) {
+			want, _ := json.Marshal(expect)
+			got, _ := json.Marshal(parent)
+			return nil, fmt.Errorf("span context diff, want %q, got %q", want, got)
+		}
+		return nil, nil
+	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if _, err := client.Call(ctx, traceKey, nil /*args*/, call.CallOptions{}); err != nil {
-		t.Error(err)
 	}
 }
 
