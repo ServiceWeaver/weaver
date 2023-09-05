@@ -566,6 +566,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/config
+    github.com/ServiceWeaver/weaver/internal/env
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
