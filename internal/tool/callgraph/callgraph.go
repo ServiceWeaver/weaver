@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"golang.org/x/exp/maps"
@@ -67,6 +68,10 @@ func (g *graph) nodes() []string {
 		components[edge.src] = struct{}{}
 		components[edge.dst] = struct{}{}
 	}
+
+	// Ensure we have a node for the main component.
+	components[runtime.Main] = struct{}{}
+
 	keys := maps.Keys(components)
 	sort.Strings(keys)
 	return keys
