@@ -443,11 +443,11 @@ func TestHostnameWeaveletAddress(t *testing.T) {
 	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
-		InternalAddress: fmt.Sprintf("%s:12345", ips[0]),
+		InternalAddress: net.JoinHostPort(ips[0].String(), "12345"),
 	})
 	defer d.shutdown()
 	got := d.weavelets["1"].env.WeaveletInfo().DialAddr
-	want := fmt.Sprintf("tcp://%v:12345", ips[0])
+	want := fmt.Sprintf("tcp://%s", net.JoinHostPort(ips[0].String(), "12345"))
 	if got != want {
 		t.Fatalf("DialAddr: got %q, want %q", got, want)
 	}
