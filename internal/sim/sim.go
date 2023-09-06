@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(mwhittaker): Figure out which parts of the simulator need to be in an
-// internal package and which parts can be in weavertest. Everything is
-// internal for now.
 package sim
 
 import (
@@ -104,88 +101,6 @@ type simulator struct {
 	history     []Event          // history of events
 	nextTraceID int              // next trace id
 	nextSpanID  int              // next span id
-}
-
-// An Event represents an atomic step of a simulation.
-type Event interface {
-	isEvent()
-}
-
-// OpStart represents the start of an op.
-type OpStart struct {
-	TraceID int      // trace id
-	SpanID  int      // span id
-	Name    string   // op name
-	Args    []string // op arguments
-}
-
-// OpFinish represents the finish of an op.
-type OpFinish struct {
-	TraceID int    // trace id
-	SpanID  int    // span id
-	Error   string // returned error message
-}
-
-// Call represents a component method call.
-type Call struct {
-	TraceID   int      // trace id
-	SpanID    int      // span id
-	Caller    string   // calling component (or "op")
-	Replica   int      // calling component replica (or op number)
-	Component string   // component being called
-	Method    string   // method being called
-	Args      []string // method arguments
-}
-
-// DeliverCall represents a component method call being delivered.
-type DeliverCall struct {
-	TraceID   int    // trace id
-	SpanID    int    // span id
-	Component string // component being called
-	Replica   int    // component replica being called
-}
-
-// Return represents a component method call returning.
-type Return struct {
-	TraceID   int      // trace id
-	SpanID    int      // span id
-	Component string   // component returning
-	Replica   int      // component replica returning
-	Returns   []string // return values
-}
-
-// DeliverReturn represents the delivery of a method return.
-type DeliverReturn struct {
-	TraceID int // trace id
-	SpanID  int // span id
-}
-
-// DeliverError represents the injection of an error.
-type DeliverError struct {
-	TraceID int // trace id
-	SpanID  int // span id
-}
-
-func (OpStart) isEvent()       {}
-func (OpFinish) isEvent()      {}
-func (Call) isEvent()          {}
-func (DeliverCall) isEvent()   {}
-func (Return) isEvent()        {}
-func (DeliverReturn) isEvent() {}
-func (DeliverError) isEvent()  {}
-
-var _ Event = OpStart{}
-var _ Event = OpFinish{}
-var _ Event = Call{}
-var _ Event = DeliverCall{}
-var _ Event = Return{}
-var _ Event = DeliverReturn{}
-var _ Event = DeliverError{}
-
-// Results are the results of running a simulation.
-type Results struct {
-	Err     error   // first non-nil error returned by an op
-	History []Event // a history of all simulation events
 }
 
 // opImpl is a non-generic op[T].
