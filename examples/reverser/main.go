@@ -18,6 +18,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 
@@ -65,5 +66,5 @@ func (s *server) handleReverse(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Fprintln(w, reversed)
+	fmt.Fprintln(w, html.EscapeString(reversed))
 }
