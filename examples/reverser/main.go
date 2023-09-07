@@ -29,7 +29,6 @@ import (
 //go:embed index.html
 var indexHtml string // index.html served on "/"
 
-
 func main() {
 	// Initialize the Service Weaver application.
 	flag.Parse()
@@ -47,21 +46,24 @@ type server struct {
 func serve(ctx context.Context, s *server) error {
 	// Setup the HTTP handler.
 	var mux http.ServeMux
-	mux.Handle("/", weaver.InstrumentHandlerFunc("reverser",
-		func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, indexHtml)
-		}))
-	mux.Handle("/reverse", weaver.InstrumentHandlerFunc("reverser",
-		func(w http.ResponseWriter, r *http.Request) {
-			reversed, err := s.reverser.Get().Reverse(r.Context(), r.URL.Query().Get("s"))
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			fmt.Fprintln(w, reversed)
-		}))
+	mux.Handle("/", weaver.InstrumentHandlerFunc("root", s.handleRoot))
+	mux.Handle("/reverse", weaver.InstrumentHandlerFunc("reverse", s.handleReverse))
 	mux.HandleFunc(weaver.HealthzURL, weaver.HealthzHandler)
-
-	fmt.Printf("hello listener available on %v\n", s.lis)
+	s.Logger(ctx).Info("Reverser server running", "address", s.lis)
 	return http.Serve(s.lis, &mux)
+}
+
+// Handle requests to the "/" endpoint.
+func (s *server) handleRoot(w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprint(w, indexHtml)
+}
+
+// Handle requests to the "/reverse?s=<string>" endpoint.
+func (s *server) handleReverse(w http.ResponseWriter, r *http.Request) {
+	reversed, err := s.reverser.Get().Reverse(r.Context(), r.URL.Query().Get("s"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprintln(w, reversed)
 }
