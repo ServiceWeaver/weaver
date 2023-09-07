@@ -154,6 +154,7 @@ github.com/ServiceWeaver/weaver/examples/reverser
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    html
     log
     net/http
     reflect
