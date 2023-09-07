@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
+	"github.com/ServiceWeaver/weaver/internal/env"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/status"
@@ -89,6 +90,15 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 	config, err := parseSingleConfig(regs, opts.ConfigFilename, opts.Config)
 	if err != nil {
 		return nil, err
+	}
+	env, err := env.Parse(config.App.Env)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range env {
+		if err := os.Setenv(k, v); err != nil {
+			return nil, err
+		}
 	}
 
 	// Set up tracer.
