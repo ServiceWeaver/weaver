@@ -86,8 +86,8 @@ import (
 // The current version of the GraveyardEntry API.
 const version = 1
 
-// GraveyardEntry is a set of failing inputs persisted for later execution.
-type GraveyardEntry struct {
+// graveyardEntry is a set of failing inputs persisted for later execution.
+type graveyardEntry struct {
 	Version     int     `json:"version"`
 	Seed        int64   `json:"seed"`
 	NumReplicas int     `json:"num_replicas"`
@@ -99,7 +99,7 @@ type GraveyardEntry struct {
 // readGraveyard reads all the graveyard entries stored in the provided directory.
 //
 //lint:ignore U1000 This function will be used in the future.
-func readGraveyard(dir string) ([]GraveyardEntry, error) {
+func readGraveyard(dir string) ([]graveyardEntry, error) {
 	// This code borrows from https://cs.opensource.google/go/go/+/master:src/internal/fuzz/fuzz.go;drc=14ab998f95b53baa6e336c598b0f34e319cc9717.
 	files, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -108,7 +108,7 @@ func readGraveyard(dir string) ([]GraveyardEntry, error) {
 		return nil, fmt.Errorf("read graveyard %q: %w", dir, err)
 	}
 
-	var graveyard []GraveyardEntry
+	var graveyard []graveyardEntry
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".json") {
 			// The file is not a graveyard entry file.
@@ -120,7 +120,7 @@ func readGraveyard(dir string) ([]GraveyardEntry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read graveyard entry file %q: %w", filename, err)
 		}
-		var entry GraveyardEntry
+		var entry graveyardEntry
 		if err := json.Unmarshal(data, &entry); err != nil {
 			return nil, fmt.Errorf("unmarshal graveyard entry file %q: %w", filename, err)
 		}
@@ -134,7 +134,7 @@ func readGraveyard(dir string) ([]GraveyardEntry, error) {
 }
 
 // writeGraveyardEntry writes a graveyard entry to the provided directory.
-func writeGraveyardEntry(dir string, entry GraveyardEntry) error {
+func writeGraveyardEntry(dir string, entry graveyardEntry) error {
 	// This code borrows from https://cs.opensource.google/go/go/+/master:src/internal/fuzz/fuzz.go;drc=14ab998f95b53baa6e336c598b0f34e319cc9717.
 	data, err := json.MarshalIndent(entry, "", "    ")
 	if err != nil {

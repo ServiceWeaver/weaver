@@ -33,9 +33,9 @@ type pair struct {
 	x, y int
 }
 
-func simulator(t *testing.T, opts Options) *Simulator {
+func testsim(t *testing.T, opts options) *simulator {
 	t.Helper()
-	sim, err := New(t.Name(), opts)
+	sim, err := newSimulator(t.Name(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,14 +45,14 @@ func simulator(t *testing.T, opts Options) *Simulator {
 func TestSuccessfulSimulation(t *testing.T) {
 	// Run the simulator, ignoring any errors. The simulation as a whole should
 	// pass.
-	opts := Options{
+	opts := options{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
-	sim := simulator(t, opts)
-	RegisterOp(sim, Op[pair]{
+	sim := testsim(t, opts)
+	registerOp(sim, op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
 			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
@@ -84,14 +84,14 @@ func TestSuccessfulSimulation(t *testing.T) {
 func TestUnsuccessfulSimulation(t *testing.T) {
 	// Run the simulator, erroring out if we ever have a zero denominator. The
 	// simulation as a whole should fail with extremely high likelihood.
-	opts := Options{
+	opts := options{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
-	sim := simulator(t, opts)
-	RegisterOp(sim, Op[pair]{
+	sim := testsim(t, opts)
+	registerOp(sim, op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
 			return pair{rand.Intn(100), rand.Intn(100)}
@@ -113,15 +113,15 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range graveyard {
-		opts := Options{
+		opts := options{
 			Seed:        entry.Seed,
 			NumReplicas: entry.NumReplicas,
 			NumOps:      entry.NumOps,
 			FailureRate: entry.FailureRate,
 			YieldRate:   entry.YieldRate,
 		}
-		sim := simulator(t, opts)
-		RegisterOp(sim, Op[pair]{
+		sim := testsim(t, opts)
+		registerOp(sim, op[pair]{
 			Name: "divmod",
 			Gen: func(r *rand.Rand) pair {
 				return pair{rand.Intn(100), rand.Intn(100)}
@@ -139,8 +139,8 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 
 func TestCancelledSimulation(t *testing.T) {
 	// Run a blocking simulation and cancel it.
-	sim := simulator(t, Options{NumReplicas: 10, NumOps: 1000})
-	RegisterOp(sim, Op[struct{}]{
+	sim := testsim(t, options{NumReplicas: 10, NumOps: 1000})
+	registerOp(sim, op[struct{}]{
 		Name: "block",
 		Gen: func(r *rand.Rand) struct{} {
 			return struct{}{}
@@ -181,14 +181,14 @@ func TestCancelledSimulation(t *testing.T) {
 
 func TestFailureRateZero(t *testing.T) {
 	// With FailureRate set to zero, no operation should fail.
-	opts := Options{
+	opts := options{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.0,
 		YieldRate:   0.5,
 	}
-	sim := simulator(t, opts)
-	RegisterOp(sim, Op[pair]{
+	sim := testsim(t, opts)
+	registerOp(sim, op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
 			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
@@ -209,14 +209,14 @@ func TestFailureRateZero(t *testing.T) {
 
 func TestFailureRateOne(t *testing.T) {
 	// With FailureRate set to one, all operations should fail.
-	opts := Options{
+	opts := options{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 1.0,
 		YieldRate:   0.5,
 	}
-	sim := simulator(t, opts)
-	RegisterOp(sim, Op[pair]{
+	sim := testsim(t, opts)
+	registerOp(sim, op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
 			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
@@ -276,15 +276,15 @@ func TestInjectedErrors(t *testing.T) {
 	// An injected RemoteCallError can happen before or after a call is
 	// executed. Record the calls that error out without executing and the
 	// calls that error out after executing. Both should happen.
-	opts := Options{
+	opts := options{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.5,
 		YieldRate:   0.5,
 		Fakes:       map[reflect.Type]any{reflection.Type[divMod](): counter},
 	}
-	sim := simulator(t, opts)
-	RegisterOp(sim, Op[struct{}]{
+	sim := testsim(t, opts)
+	registerOp(sim, op[struct{}]{
 		Name: "divmod",
 		Gen:  func(r *rand.Rand) struct{} { return struct{}{} },
 		Func: func(ctx context.Context, _ struct{}, dm divMod) error {
@@ -324,7 +324,7 @@ func (fakeDivMod) DivMod(context.Context, int, int) (int, int, error) {
 }
 
 func TestFakes(t *testing.T) {
-	opts := Options{
+	opts := options{
 		NumReplicas: 10,
 		NumOps:      1000,
 		YieldRate:   0.5,
@@ -332,8 +332,8 @@ func TestFakes(t *testing.T) {
 			reflection.Type[divMod](): fakeDivMod{},
 		},
 	}
-	sim := simulator(t, opts)
-	RegisterOp(sim, Op[pair]{
+	sim := testsim(t, opts)
+	registerOp(sim, op[pair]{
 		Name: "divmod",
 		Gen: func(r *rand.Rand) pair {
 			return pair{1 + rand.Intn(100), 1 + rand.Intn(100)}
@@ -359,9 +359,9 @@ func TestFakes(t *testing.T) {
 }
 
 func TestDuplicateOp(t *testing.T) {
-	sim := simulator(t, Options{NumReplicas: 2, NumOps: 100})
-	sim.ops = []op{{name: "foo"}}
-	if _, err := validateOp(sim, Op[int]{
+	sim := testsim(t, options{NumReplicas: 2, NumOps: 100})
+	sim.ops = []opImpl{{name: "foo"}}
+	if _, err := validateOp(sim, op[int]{
 		Name: "foo",
 		Gen:  func(*rand.Rand) int { return 42 },
 		Func: func(*rand.Rand) error { return nil },
@@ -371,7 +371,7 @@ func TestDuplicateOp(t *testing.T) {
 }
 
 func TestValidateOp(t *testing.T) {
-	ops := map[string]Op[int]{
+	ops := map[string]op[int]{
 		"missing name": {
 			Name: "",
 			Gen:  func(*rand.Rand) int { return 42 },
@@ -423,8 +423,8 @@ func TestValidateOp(t *testing.T) {
 	}
 	for name, op := range ops {
 		t.Run(name, func(t *testing.T) {
-			opts := Options{NumReplicas: 2, NumOps: 100}
-			if _, err := validateOp(simulator(t, opts), op); err == nil {
+			opts := options{NumReplicas: 2, NumOps: 100}
+			if _, err := validateOp(testsim(t, opts), op); err == nil {
 				t.Fatal("unexpected success")
 			}
 		})

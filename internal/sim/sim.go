@@ -41,8 +41,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// An Op[T] is a randomized operation performed as part of a simulation.
-type Op[T any] struct {
+// An op[T] is a randomized operation performed as part of a simulation.
+//
+//lint:ignore U1000 Will be used by new simulator API.
+type op[T any] struct {
 	// The name of the operation.
 	Name string
 
@@ -65,8 +67,8 @@ type Op[T any] struct {
 	Func any
 }
 
-// Options configures a simulator.
-type Options struct {
+// options configures a simulator.
+type options struct {
 	Seed           int64                // the simulator's seed
 	NumReplicas    int                  // the number of replicas of every component
 	NumOps         int                  // the number of ops to run
@@ -77,15 +79,17 @@ type Options struct {
 	Fakes          map[reflect.Type]any // fake component implementations
 }
 
-// Simulator deterministically simulates a Service Weaver application.
-type Simulator struct {
+// simulator deterministically simulates a Service Weaver application.
+//
+//lint:ignore U1000 Will be used by new simulator API.
+type simulator struct {
 	name       string                                 // test name
-	opts       Options                                // simulator options
+	opts       options                                // simulator options
 	config     *protos.AppConfig                      // application config
 	regs       []*codegen.Registration                // registered components
 	regsByIntf map[reflect.Type]*codegen.Registration // regs, by component interface
 	components map[string][]any                       // component replicas
-	ops        []op                                   // registered ops
+	ops        []opImpl                               // registered ops
 
 	ctx   context.Context // simulation context
 	group *errgroup.Group // group with all running goroutines
@@ -184,9 +188,9 @@ type Results struct {
 	History []Event // a history of all simulation events
 }
 
-// op is a non-generic Op[T].
-type op struct {
-	t          reflect.Type   // the T in Op[T]
+// opImpl is a non-generic op[T].
+type opImpl struct {
+	t          reflect.Type   // the T in op[T]
 	name       string         // Op.Name
 	gen        reflect.Value  // Op.Gen
 	f          reflect.Value  // Op.Func
@@ -256,8 +260,10 @@ func extractIDs(ctx context.Context) (int, int) {
 	return traceID, spanID
 }
 
-// New returns a new Simulator.
-func New(name string, opts Options) (*Simulator, error) {
+// newSimulator returns a new Simulator.
+//
+//lint:ignore U1000 Will be used by new simulator API.
+func newSimulator(name string, opts options) (*simulator, error) {
 	// Validate options.
 	//
 	// TODO(mwhittaker): In the final simulator API, we will pick a number of
@@ -289,7 +295,7 @@ func New(name string, opts Options) (*Simulator, error) {
 	// Create simulator.
 	//
 	// TODO(mwhittaker): Take a *testing.T and use the test name as the name.
-	s := &Simulator{
+	s := &simulator{
 		name:       name,
 		opts:       opts,
 		config:     app,
@@ -363,7 +369,7 @@ func New(name string, opts Options) (*Simulator, error) {
 }
 
 // getIntf returns a handle to the component of the provided type.
-func (s *Simulator) getIntf(t reflect.Type, caller string, replica int) (any, error) {
+func (s *simulator) getIntf(t reflect.Type, caller string, replica int) (any, error) {
 	reg, ok := s.regsByIntf[t]
 	if !ok {
 		return nil, fmt.Errorf("component %v not found", t)
@@ -375,7 +381,7 @@ func (s *Simulator) getIntf(t reflect.Type, caller string, replica int) (any, er
 }
 
 // call executes a component method call against a random replica.
-func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
+func (s *simulator) call(caller string, replica int, reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
 	// Convert the arguments to reflect.Values.
 	in := make([]reflect.Value, 1+len(args))
 	in[0] = reflect.ValueOf(ctx)
@@ -451,9 +457,11 @@ func (s *Simulator) call(caller string, replica int, reg *codegen.Registration, 
 	return nil
 }
 
-// RegisterOp registers an operation with the provided simulator. RegisterOp
+// registerOp registers an operation with the provided simulator. registerOp
 // panics if the provided op is invalid.
-func RegisterOp[T any](s *Simulator, o Op[T]) {
+//
+//lint:ignore U1000 Will be used by new simulator API.
+func registerOp[T any](s *simulator, o op[T]) {
 	op, err := validateOp(s, o)
 	if err != nil {
 		panic(err)
@@ -461,52 +469,54 @@ func RegisterOp[T any](s *Simulator, o Op[T]) {
 	s.ops = append(s.ops, op)
 }
 
-// validateOp validates the provided Op[T] and converts it to an op.
-func validateOp[T any](s *Simulator, o Op[T]) (op, error) {
+// validateOp validates the provided op[T] and converts it to an opImpl.
+//
+//lint:ignore U1000 Will be used by new simulator API.
+func validateOp[T any](s *simulator, o op[T]) (opImpl, error) {
 	for _, existing := range s.ops {
 		if existing.name == o.Name {
-			return op{}, fmt.Errorf("duplicate registration of op %q", o.Name)
+			return opImpl{}, fmt.Errorf("duplicate registration of op %q", o.Name)
 		}
 	}
 
 	// TODO(mwhittaker): Improve error messages.
 	if o.Name == "" {
-		return op{}, fmt.Errorf("missing op Name")
+		return opImpl{}, fmt.Errorf("missing op Name")
 	}
 	if o.Gen == nil {
-		return op{}, fmt.Errorf("op %q has nil Gen", o.Name)
+		return opImpl{}, fmt.Errorf("op %q has nil Gen", o.Name)
 	}
 	if o.Func == nil {
-		return op{}, fmt.Errorf("op %q has nil Func", o.Name)
+		return opImpl{}, fmt.Errorf("op %q has nil Func", o.Name)
 	}
 	t := reflect.TypeOf(o.Func)
 	if t.Kind() != reflect.Func {
-		return op{}, fmt.Errorf("op %q func is not a function: %T", o.Name, o.Func)
+		return opImpl{}, fmt.Errorf("op %q func is not a function: %T", o.Name, o.Func)
 	}
 	if t.NumIn() < 2 {
-		return op{}, fmt.Errorf("op %q func has < 2 arguments: %T", o.Name, o.Func)
+		return opImpl{}, fmt.Errorf("op %q func has < 2 arguments: %T", o.Name, o.Func)
 	}
 	if t.In(0) != reflection.Type[context.Context]() {
-		return op{}, fmt.Errorf("op %q func's first argument is not context.Context: %T", o.Name, o.Func)
+		return opImpl{}, fmt.Errorf("op %q func's first argument is not context.Context: %T", o.Name, o.Func)
 	}
 	if t.In(1) != reflection.Type[T]() {
-		return op{}, fmt.Errorf("op %q func's second argument is not %v: %T", o.Name, reflection.Type[T](), o.Func)
+		return opImpl{}, fmt.Errorf("op %q func's second argument is not %v: %T", o.Name, reflection.Type[T](), o.Func)
 	}
 	var components []reflect.Type
 	for i := 2; i < t.NumIn(); i++ {
 		if _, ok := s.regsByIntf[t.In(i)]; !ok {
-			return op{}, fmt.Errorf("op %q func argument %d is not a registered component: %T", o.Name, i, o.Func)
+			return opImpl{}, fmt.Errorf("op %q func argument %d is not a registered component: %T", o.Name, i, o.Func)
 		}
 		components = append(components, t.In(i))
 	}
 	if t.NumOut() != 1 {
-		return op{}, fmt.Errorf("op %q func does not have exactly one return: %T", o.Name, o.Func)
+		return opImpl{}, fmt.Errorf("op %q func does not have exactly one return: %T", o.Name, o.Func)
 	}
 	if t.Out(0) != reflection.Type[error]() {
-		return op{}, fmt.Errorf("op %q func does not return an error: %T", o.Name, o.Func)
+		return opImpl{}, fmt.Errorf("op %q func does not return an error: %T", o.Name, o.Func)
 	}
 
-	return op{
+	return opImpl{
 		t:          reflection.Type[T](),
 		name:       o.Name,
 		gen:        reflect.ValueOf(o.Gen),
@@ -519,14 +529,14 @@ func validateOp[T any](s *Simulator, o Op[T]) (op, error) {
 // simulation fails to execute properly. If the simulation executes properly
 // and successfuly finds an invariant violation, no error is returned, but the
 // invariant violation is reported as an error in the returned Results.
-func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
+func (s *simulator) Simulate(ctx context.Context) (*Results, error) {
 	s.group, s.ctx = errgroup.WithContext(ctx)
 	s.step()
 	// TODO(mwhittaker): Distinguish between cancelled context and failed
 	// execution.
 	err := s.group.Wait()
 	if err != nil {
-		entry := GraveyardEntry{
+		entry := graveyardEntry{
 			Version:     version,
 			Seed:        s.opts.Seed,
 			NumReplicas: s.opts.NumReplicas,
@@ -542,7 +552,7 @@ func (s *Simulator) Simulate(ctx context.Context) (*Results, error) {
 }
 
 // step performs one step of a simulation.
-func (s *Simulator) step() {
+func (s *simulator) step() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -651,7 +661,7 @@ func (s *Simulator) step() {
 }
 
 // runOp runs the provided operation.
-func (s *Simulator) runOp(ctx context.Context, o op) error {
+func (s *simulator) runOp(ctx context.Context, o opImpl) error {
 	// Call the op's Gen function to generate a random value. Lock s.mu because
 	// s.rand is not safe for concurrent use by multiple goroutines.
 	s.mu.Lock()
@@ -714,7 +724,7 @@ func (s *Simulator) runOp(ctx context.Context, o op) error {
 }
 
 // deliverCall delivers the provided pending method call.
-func (s *Simulator) deliverCall(call *call) {
+func (s *simulator) deliverCall(call *call) {
 	reg, ok := s.regsByIntf[call.component]
 	if !ok {
 		panic(fmt.Errorf("component %v not found", call.component))
