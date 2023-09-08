@@ -59,7 +59,7 @@ func TestSuccessfulSimulation(t *testing.T) {
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
-	s := New[successfulWorkload](t, Options{})
+	s := New(t, &successfulWorkload{}, Options{})
 	results, err := s.runOne(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestUnsuccessfulSimulation(t *testing.T) {
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
-	s := New[unsuccessfulWorkload](t, Options{})
+	s := New(t, &unsuccessfulWorkload{}, Options{})
 	results, err := s.runOne(context.Background(), opts)
 	if err == nil && results.Err == nil {
 		t.Fatal("unexpected success")
@@ -114,7 +114,7 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 			FailureRate: entry.FailureRate,
 			YieldRate:   entry.YieldRate,
 		}
-		s := New[unsuccessfulWorkload](t, Options{})
+		s := New(t, &unsuccessfulWorkload{}, Options{})
 		results, err := s.runOne(context.Background(), opts)
 		if err == nil && results.Err == nil {
 			t.Fatal("unexpected success")
@@ -140,7 +140,7 @@ func (c *cancellableWorkload) Block(ctx context.Context) error {
 func TestCancelledSimulation(t *testing.T) {
 	// Run a blocking simulation and cancel it.
 	opts := options{NumReplicas: 10, NumOps: 1000}
-	s := New[cancellableWorkload](t, Options{})
+	s := New(t, &cancellableWorkload{}, Options{})
 
 	const delay = 100 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), delay)
@@ -193,7 +193,7 @@ func TestFailureRateZero(t *testing.T) {
 		FailureRate: 0.0,
 		YieldRate:   0.5,
 	}
-	s := New[noFailureWorkload](t, Options{})
+	s := New(t, &noFailureWorkload{}, Options{})
 	results, err := s.runOne(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
@@ -229,7 +229,7 @@ func TestFailureRateOne(t *testing.T) {
 		FailureRate: 1.0,
 		YieldRate:   0.5,
 	}
-	s := New[totalFailureWorkload](t, Options{})
+	s := New(t, &totalFailureWorkload{}, Options{})
 	results, err := s.runOne(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
@@ -315,7 +315,7 @@ func TestInjectedErrors(t *testing.T) {
 		FailureRate: 0.5,
 		YieldRate:   0.5,
 	}
-	s := New[injectedErrorWorkload](t, Options{})
+	s := New(t, &injectedErrorWorkload{}, Options{})
 	results, err := s.runOne(context.Background(), opts)
 	if err != nil || results.Err != nil {
 		t.Fatal(err)
@@ -360,7 +360,7 @@ func TestFakes(t *testing.T) {
 		NumOps:      1000,
 		YieldRate:   0.5,
 	}
-	s := New[fakeWorkload](t, Options{})
+	s := New(t, &fakeWorkload{}, Options{})
 	results, err := s.runOne(context.Background(), opts)
 	if err != nil || results.Err != nil {
 		t.Fatal(err)

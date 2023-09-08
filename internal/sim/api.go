@@ -119,12 +119,6 @@ type Workload interface {
 	Init(Registrar) error
 }
 
-// WorkloadPointer[T] is a *T that implements the Workload interface.
-type WorkloadPointer[T any] interface {
-	*T
-	Workload
-}
-
 // Options configure a Simulator.
 type Options struct {
 	Config string // TOML config contents
@@ -226,8 +220,8 @@ type Results struct {
 	Duration       time.Duration // duration of simulations
 }
 
-// New returns a new Simulator that simulates workload W.
-func New[W any, P WorkloadPointer[W]](t *testing.T, opts Options) *Simulator {
+// New returns a new Simulator that simulates the provided workload.
+func New(t *testing.T, x Workload, opts Options) *Simulator {
 	// Note that because the Init method on a workload struct T often has a
 	// pointer receiver *T, it is the pointer *T (rather than T itself) that
 	// implements the Workload interface.
@@ -243,8 +237,26 @@ func New[W any, P WorkloadPointer[W]](t *testing.T, opts Options) *Simulator {
 		}
 	}
 
+	// Methods can have either value or pointer receivers. For example,
+	// consider the following code:
+	//
+	//     type t struct{}
+	//     func (t) ValueReceiver() {}
+	//     func (*t) PointerReceiver() {}
+	//
+	// According to the Go spec, the method set of t includes only
+	// ValueReceiver, while the method set of *t includes ValueReceiver and
+	// PointerReceiver [1]. We want to call *every* exported method on a
+	// workload struct, so we need to massage the type of x into a pointer if
+	// it isn't already.
+	//
+	// [1]: https://go.dev/ref/spec#Method_sets
+	w := reflect.TypeOf(x)
+	if w.Kind() != reflect.Ptr {
+		w = reflect.PointerTo(w)
+	}
+
 	// Validate the workload struct.
-	w := reflection.Type[P]()
 	if err := validateWorkload(w); err != nil {
 		t.Fatalf("sim.New: invalid workload type %v: %v", w, err)
 	}
@@ -257,9 +269,8 @@ func New[W any, P WorkloadPointer[W]](t *testing.T, opts Options) *Simulator {
 	}
 
 	// Call Init and validate the registered fakes and generators.
-	var x W
 	r := &registrar{t: t, w: w, regsByIntf: regsByIntf}
-	if err := P(&x).Init(r); err != nil {
+	if err := x.Init(r); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
 	if err := r.finalize(); err != nil {

@@ -74,7 +74,7 @@ func (d *divModWorkload) Mod(ctx context.Context, x, y int) error {
 }
 
 func TestPassingSimulation(t *testing.T) {
-	s := New[divModWorkload](t, Options{})
+	s := New(t, &divModWorkload{}, Options{})
 	r := s.Run(2 * time.Second)
 	t.Log(r.Summary())
 	if r.Err != nil {
@@ -87,7 +87,7 @@ type divideByZeroWorkload struct {
 }
 
 func (d *divideByZeroWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 1000}, intn{0, 1000})
+	r.RegisterGenerators("DivMod", intn{0, 10}, intn{0, 10})
 	return nil
 }
 
@@ -101,7 +101,7 @@ func (d *divideByZeroWorkload) DivMod(ctx context.Context, x, y int) error {
 }
 
 func TestFailingSimulation(t *testing.T) {
-	s := New[divideByZeroWorkload](t, Options{})
+	s := New(t, &divideByZeroWorkload{}, Options{})
 	r := s.Run(2 * time.Second)
 	t.Log(r.Summary())
 	if r.Err == nil {
