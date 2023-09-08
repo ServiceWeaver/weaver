@@ -280,6 +280,7 @@ github.com/ServiceWeaver/weaver/internal/sim
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/ServiceWeaver/weaver/weavertest
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
@@ -293,6 +294,8 @@ github.com/ServiceWeaver/weaver/internal/sim
     sort
     strings
     sync
+    testing
+    time
 github.com/ServiceWeaver/weaver/internal/status
     bytes
     context
