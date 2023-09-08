@@ -342,10 +342,9 @@ func (s *simulator) call(caller string, replica int, reg *codegen.Registration, 
 // and successfuly finds an invariant violation, no error is returned, but the
 // invariant violation is reported as an error in the returned Results.
 func (s *simulator) Simulate(ctx context.Context) (Results, error) {
+	// TODO(mwhittaker): Catch panics.
 	s.group, s.ctx = errgroup.WithContext(ctx)
 	s.step()
-	// TODO(mwhittaker): Distinguish between cancelled context and failed
-	// execution.
 	err := s.group.Wait()
 	if err != nil {
 		entry := graveyardEntry{
@@ -359,6 +358,9 @@ func (s *simulator) Simulate(ctx context.Context) (Results, error) {
 		// TODO(mwhittaker): Escape names.
 		dir := filepath.Join("testdata", "sim", s.name)
 		writeGraveyardEntry(dir, entry)
+	}
+	if err == nil || err == ctx.Err() {
+		return Results{}, err
 	}
 	return Results{Err: err, History: s.history}, nil
 }
