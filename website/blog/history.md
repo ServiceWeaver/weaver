@@ -19,7 +19,7 @@ of Service Weaver over two years ago.
 - [March 1, 2023: Open Source Release](#10)
 - [April 25, 2023: Replace weaver.Init With weaver.Run](#11)
 - [April 26, 2023: Replace weaver.Get With weaver.Ref](#12)
-- [May 30, 203: Introduce Main Method](#13)
+- [May 30, 2023: Introduce Main Method](#13)
 - [June 21, 2023: Remove Main Method](#14)
 
 We hope that by studying the API's history, you gain a better understanding of
@@ -367,7 +367,7 @@ extracts and visualizes this call graph. Moreover, at runtime, we use
 [mTLS][mtls] to ensure that components only communicate with the components to
 which they have references.
 
-<h2 id="13">May 30, 203: <a href="https://github.com/ServiceWeaver/weaver/commit/570d1ee2dfda2f245e34d9b97ffbd921ba4cd7f2">Introduce Main Method</a></h2>
+<h2 id="13">May 30, 2023: <a href="https://github.com/ServiceWeaver/weaver/commit/570d1ee2dfda2f245e34d9b97ffbd921ba4cd7f2">Introduce Main Method</a></h2>
 
 We started to think that the signature of `weaver.Run` was a bit too
 complicated. It was difficult to understand unless you were very familiar with
