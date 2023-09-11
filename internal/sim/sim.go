@@ -121,14 +121,23 @@ type reply struct {
 // TODO(mwhittaker): If a user doesn't propagate contexts correctly, we lose
 // trace and span ids. Detect this and return an error.
 
-// We store trace and span ids in the context using the following keys.
-type traceIDKey struct{}
-type spanIDKey struct{}
+// We store trace and span ids in the context using the following key.
+// According to the Go spec, "pointers to distinct zero-size variables may or
+// may not be equal" [1]. Thus, to make sure that traceContextKey is unique, we
+// make sure it is not a pointer to a zero-sized variable.
+//
+// [1]: https://go.dev/ref/spec#Comparison_operators
+var traceContextKey = &struct{ int }{}
+
+// A traceContext stores a trace and span ID.
+type traceContext struct {
+	traceID int
+	spanID  int
+}
 
 // withIDs returns a context embedded with the provided trace and span id.
 func withIDs(ctx context.Context, traceID, spanID int) context.Context {
-	ctx = context.WithValue(ctx, traceIDKey{}, traceID)
-	return context.WithValue(ctx, spanIDKey{}, spanID)
+	return context.WithValue(ctx, traceContextKey, traceContext{traceID, spanID})
 }
 
 // extractIDs returns the trace and span id embedded in the provided context.
@@ -136,11 +145,9 @@ func withIDs(ctx context.Context, traceID, spanID int) context.Context {
 // extractIDs returns 0, 0.
 func extractIDs(ctx context.Context) (int, int) {
 	var traceID, spanID int
-	if x := ctx.Value(traceIDKey{}); x != nil {
-		traceID = x.(int)
-	}
-	if x := ctx.Value(spanIDKey{}); x != nil {
-		spanID = x.(int)
+	if x := ctx.Value(traceContextKey); x != nil {
+		traceID = x.(traceContext).traceID
+		spanID = x.(traceContext).spanID
 	}
 	return traceID, spanID
 }

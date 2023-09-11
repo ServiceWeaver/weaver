@@ -388,3 +388,73 @@ func TestExtractIDsOnInvalidContext(t *testing.T) {
 		t.Errorf("span id: got %d, want 0", spanID)
 	}
 }
+
+// A workload with no method calls and no generators.
+type noCallsNoGenWorkload struct{}
+
+func (*noCallsNoGenWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("Foo")
+	return nil
+}
+
+func (*noCallsNoGenWorkload) Foo(context.Context) error {
+	return nil
+}
+
+// A workload with no method calls.
+type noCallsWorkload struct{}
+
+func (*noCallsWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("Foo", integers{})
+	return nil
+}
+
+func (*noCallsWorkload) Foo(context.Context, int) error {
+	return nil
+}
+
+// A workload with one method call per op.
+type oneCallWorkload struct {
+	id weaver.Ref[identity]
+}
+
+func (*oneCallWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("Foo", integers{})
+	return nil
+}
+
+func (o *oneCallWorkload) Foo(ctx context.Context, x int) error {
+	o.id.Get().Identity(ctx, x)
+	return nil
+}
+
+func BenchmarkWorkloads(b *testing.B) {
+	for _, bench := range []struct {
+		name     string
+		workload Workload
+	}{
+		{"NoCallsNoGen", &noCallsNoGenWorkload{}},
+		{"NoCalls", &noCallsWorkload{}},
+		{"OneCall", &oneCallWorkload{}},
+	} {
+		b.Run(bench.name, func(b *testing.B) {
+			b.ReportAllocs()
+			s := New(b, bench.workload, Options{})
+			opts := options{
+				NumReplicas: 1,
+				NumOps:      1000,
+				FailureRate: 0,
+				YieldRate:   1,
+			}
+			for i := 0; i < b.N; i++ {
+				results, err := s.runOne(context.Background(), opts)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if results.Err != nil {
+					b.Fatal(results.Err)
+				}
+			}
+		})
+	}
+}
