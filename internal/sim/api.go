@@ -31,21 +31,46 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
-	"github.com/ServiceWeaver/weaver/weavertest"
+	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
+
+// FakeComponent is a copy of weavertest.FakeComponent. It's needed to access
+// the unexported fields.
+//
+// TODO(mwhittaker): Remove this once we merge with weavertest.
+type FakeComponent struct {
+	intf reflect.Type
+	impl any
+}
+
+// Fake is a copy of weavertest.Fake.
+//
+// TODO(mwhittaker): Remove this once we merge with the weavertest package.
+func Fake[T any](impl any) FakeComponent {
+	t := reflection.Type[T]()
+	if _, ok := impl.(T); !ok {
+		panic(fmt.Sprintf("%T does not implement %v", impl, t))
+	}
+	return FakeComponent{intf: t, impl: impl}
+}
 
 // A Generator[T] generates random values of type T.
 type Generator[T any] interface {
 	// Generate returns a randomly generated value of type T. While Generate is
 	// "random", it must be deterministic. That is, given the same instance of
 	// *rand.Rand, Generate must always return the same value.
+	//
+	// TODO(mwhittaker): Generate should maybe take something other than a
+	// *rand.Rand?
 	Generate(*rand.Rand) T
 }
 
 // A Registrar is used to register fakes and generators with a simulator.
 type Registrar interface {
 	// RegisterFake registers a fake implementation of a component.
-	RegisterFake(weavertest.FakeComponent)
+	RegisterFake(FakeComponent)
 
 	// RegisterGenerators registers generators for a workload method, one
 	// generator per method argument. The number and type of the registered
@@ -59,6 +84,9 @@ type Registrar interface {
 	//     var i Generator[int] = ...
 	//     var b Generator[bool] = ...
 	//     r.RegisterGenerators("Foo", i, b)
+	//
+	// TODO(mwhittaker): Allow people to register a func(*rand.Rand) T instead
+	// of a Generator[T] for convenience.
 	RegisterGenerators(method string, generators ...any)
 }
 
@@ -104,7 +132,12 @@ type Options struct {
 
 // A Simulator deterministically simulates a Service Weaver application. See
 // the package documentation for instructions on how to use a Simulator.
-type Simulator struct{}
+type Simulator struct {
+	t          *testing.T                             // underlying test
+	w          reflect.Type                           // workload type
+	regsByIntf map[reflect.Type]*codegen.Registration // components, by interface
+	config     *protos.AppConfig                      // application config
+}
 
 // An Event represents an atomic step of a simulation.
 type Event interface {
@@ -192,11 +225,21 @@ type Results struct {
 }
 
 // New returns a new Simulator that simulates workload W.
-func New[W any, P WorkloadPointer[W]](t *testing.T) *Simulator {
+func New[W any, P WorkloadPointer[W]](t *testing.T, opts Options) *Simulator {
 	// Note that because the Init method on a workload struct T often has a
 	// pointer receiver *T, it is the pointer *T (rather than T itself) that
 	// implements the Workload interface.
 	t.Helper()
+
+	// Parse config.
+	app := &protos.AppConfig{}
+	if opts.Config != "" {
+		var err error
+		app, err = runtime.ParseConfig("", opts.Config, codegen.ComponentConfigValidator)
+		if err != nil {
+			t.Fatalf("sim.New: parse config: %v", err)
+		}
+	}
 
 	// Validate the workload struct.
 	w := reflection.Type[P]()
@@ -204,16 +247,23 @@ func New[W any, P WorkloadPointer[W]](t *testing.T) *Simulator {
 		t.Fatalf("sim.New: invalid workload type %v: %v", w, err)
 	}
 
-	// Call Init. Validate the registered fakes and generators.
+	// Gather the set of registered components.
+	regs := codegen.Registered()
+	regsByIntf := map[reflect.Type]*codegen.Registration{}
+	for _, reg := range regs {
+		regsByIntf[reg.Iface] = reg
+	}
+
+	// Call Init and validate the registered fakes and generators.
 	var x W
-	r := &registrar{t: t, w: w}
+	r := &registrar{t: t, w: w, regsByIntf: regsByIntf}
 	if err := P(&x).Init(r); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
 	if err := r.finalize(); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
-	return &Simulator{}
+	return &Simulator{t, w, regsByIntf, app}
 }
 
 // validateWorkload validates a workload struct of the provided type.
@@ -249,24 +299,59 @@ func validateWorkload(t reflect.Type) error {
 }
 
 // Run runs simulations for the provided duration.
-func (s *Simulator) Run(duration time.Duration, opts Options) Results {
-	// TODO(mwhittaker): Implement.
-	return Results{}
+func (s *Simulator) Run(duration time.Duration) (Results, error) {
+	// TODO(mwhittaker): Run many simulations with many different
+	// hyperparameters in many different goroutines. For now, we just run one.
+	// TODO(mwhittaker): Read and run graveyard entries.
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+	opts := options{
+		Seed:        time.Now().UnixNano(),
+		NumOps:      10,
+		NumReplicas: 1,
+		FailureRate: 0.1,
+		YieldRate:   0.25,
+	}
+	return s.runOne(ctx, opts)
 }
 
-// A registrar is the canonical implementation of Registrar.
-//
-// TODO(mwhittaker): For now, the registrar just validates registered fakes and
-// generators. In the future, it will do more than that.
+// runOne runs a single simulation.
+func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
+	// Construct an instance of the workload struct.
+	workload := reflect.New(s.w.Elem()).Interface().(Workload)
+
+	// Call the struct's Init method.
+	r := &registrar{t: s.t, w: s.w, regsByIntf: s.regsByIntf}
+	if err := workload.Init(r); err != nil {
+		return Results{}, err
+	}
+	if err := r.finalize(); err != nil {
+		return Results{}, err
+	}
+
+	// Simulate!
+	sim, err := newSimulator(s.t.Name(), workload, s.regsByIntf, s.config, r.fakes, r.ops(), opts)
+	if err != nil {
+		return Results{}, err
+	}
+	return sim.Simulate(ctx)
+}
+
+// registrar validates and collects registered fakes and components.
 type registrar struct {
-	t          *testing.T          // underlying test
-	w          reflect.Type        // workload type
-	generators map[string]struct{} // methods with registered generators
+	t          *testing.T                             // underlying test
+	w          reflect.Type                           // workload type
+	regsByIntf map[reflect.Type]*codegen.Registration // registered components, by interface
+	fakes      map[reflect.Type]any                   // fakes, by component interface
+	generators map[string][]generator                 // generators, by method name
 }
 
 // RegisterFake implements the Registrar interface.
-func (r *registrar) RegisterFake(weavertest.FakeComponent) {
-	// TODO(mwhittaker): Implement.
+func (r *registrar) RegisterFake(fake FakeComponent) {
+	r.t.Helper()
+	if err := r.registerFakes(fake); err != nil {
+		r.t.Fatalf("RegisterFakes: %v", err)
+	}
 }
 
 // RegisterGenerators implements the Registrar interface.
@@ -275,6 +360,21 @@ func (r *registrar) RegisterGenerators(method string, generators ...any) {
 	if err := r.registerGenerators(method, generators...); err != nil {
 		r.t.Fatalf("RegisterGenerators: %v", err)
 	}
+}
+
+// registerFakes implements RegisterFakes.
+func (r *registrar) registerFakes(fake FakeComponent) error {
+	if _, ok := r.fakes[fake.intf]; ok {
+		return fmt.Errorf("fake for %v already registered", fake.intf)
+	}
+	if _, ok := r.regsByIntf[fake.intf]; !ok {
+		return fmt.Errorf("component %v not found", fake.intf)
+	}
+	if r.fakes == nil {
+		r.fakes = map[reflect.Type]any{}
+	}
+	r.fakes[fake.intf] = fake.impl
+	return nil
 }
 
 // registerGenerators implements RegisterGenerators.
@@ -291,6 +391,7 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 	}
 
 	var errs []error
+	var gens []generator
 	for i, generator := range generators {
 		// TODO(mwhittaker): Handle the case where a generator's Generate
 		// method receives by pointer, but the user passed by value.
@@ -305,27 +406,40 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 		switch {
 		case !ok:
 			errs = append(errs, fmt.Errorf("%w: missing Generate method", err))
+			continue
 		case generate.Type.NumIn() < 2:
 			errs = append(errs, fmt.Errorf("%w: Generate method has no arguments", err))
+			continue
 		case generate.Type.NumIn() > 2:
 			errs = append(errs, fmt.Errorf("%w: Generate method has too many arguments", err))
+			continue
 		case generate.Type.In(1) != reflection.Type[*rand.Rand]():
 			errs = append(errs, fmt.Errorf("%w: Generate argument is not *rand.Rand", err))
+			continue
 		case generate.Type.NumOut() == 0:
 			errs = append(errs, fmt.Errorf("%w: Generate method has no return values", err))
+			continue
 		case generate.Type.NumOut() > 1:
 			errs = append(errs, fmt.Errorf("%w: Generate method has too many return values", err))
+			continue
 		case generate.Type.Out(0) != m.Type.In(i+2):
 			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), m.Type.In(i+2)))
+			continue
 		}
+
+		generator := generator
+		gens = append(gens, func(r *rand.Rand) reflect.Value {
+			in := []reflect.Value{reflect.ValueOf(generator), reflect.ValueOf(r)}
+			return generate.Func.Call(in)[0]
+		})
 	}
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 	if r.generators == nil {
-		r.generators = map[string]struct{}{}
+		r.generators = map[string][]generator{}
 	}
-	r.generators[method] = struct{}{}
+	r.generators[method] = gens
 	return nil
 }
 
@@ -339,4 +453,21 @@ func (r *registrar) finalize() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// ops returns the ops of a workload.
+func (r *registrar) ops() []op {
+	var ops []op
+	for i := 0; i < r.w.NumMethod(); i++ {
+		m := r.w.Method(i)
+		if m.Name == "Init" {
+			continue
+		}
+		ops = append(ops, op{
+			name:       m.Name,
+			generators: r.generators[m.Name],
+			f:          m.Func,
+		})
+	}
+	return ops
 }

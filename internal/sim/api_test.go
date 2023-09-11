@@ -22,24 +22,33 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
 // TODO(mwhittaker): Move these into the sim package.
 type integers struct{}
 type positives struct{}
+type intn struct{ low, high int }
 type float64s struct{}
 
 var _ Generator[int] = integers{}
 var _ Generator[int] = positives{}
+var _ Generator[int] = intn{}
 var _ Generator[float64] = float64s{}
 
 func (integers) Generate(r *rand.Rand) int     { return r.Int() }
 func (positives) Generate(r *rand.Rand) int    { return 1 + r.Intn(math.MaxInt) }
+func (i intn) Generate(r *rand.Rand) int       { return i.low + r.Intn(i.high-i.low) }
 func (float64s) Generate(r *rand.Rand) float64 { return r.Float64() }
 
-type divModWorkload struct{}
+type divModWorkload struct {
+	divmod weaver.Ref[divMod]
+	div    weaver.Ref[div]
+	mod    weaver.Ref[mod]
+}
 
 func (d *divModWorkload) Init(r Registrar) error {
 	r.RegisterGenerators("DivMod", integers{}, positives{})
@@ -48,12 +57,30 @@ func (d *divModWorkload) Init(r Registrar) error {
 	return nil
 }
 
-func (d *divModWorkload) DivMod(context.Context, int, int) error { return nil }
-func (d *divModWorkload) Div(context.Context, int, int) error    { return nil }
-func (d *divModWorkload) Mod(context.Context, int, int) error    { return nil }
+func (d *divModWorkload) DivMod(ctx context.Context, x, y int) error {
+	d.divmod.Get().DivMod(ctx, x, y)
+	return nil
+}
+
+func (d *divModWorkload) Div(ctx context.Context, x, y int) error {
+	d.div.Get().Div(ctx, x, y)
+	return nil
+}
+
+func (d *divModWorkload) Mod(ctx context.Context, x, y int) error {
+	d.mod.Get().Mod(ctx, x, y)
+	return nil
+}
 
 func TestSimulate(t *testing.T) {
-	New[divModWorkload](t)
+	s := New[divModWorkload](t, Options{})
+	r, err := s.Run(time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Err != nil {
+		t.Fatal(r.Err)
+	}
 }
 
 func TestValidateValidWorkload(t *testing.T) {
