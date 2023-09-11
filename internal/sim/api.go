@@ -323,16 +323,19 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	defer cancel()
 
 	// Spawn n concurrent simulators. The simulators read options from the opts
-	// channel and write errors and results to the errs and results channels.
+	// channel and write errors and failed results to the errs and
+	// failedResults channels. Simulation ends when we encounter an error or
+	// successfully find an invariant violation.
 	//
 	// TODO(mwhittaker): Optimize things and pick a smarter value of n.
-	n := 1000
+	const n = 1000
 	opts := make(chan options, n)
 	errs := make(chan error, n)
-	results := make(chan Results, n)
+	failedResults := make(chan Results, n)
 	done := sync.WaitGroup{}
 	numSimulations := int64(0)
 
+	// Spawn n simulating goroutines that read from the opts channel.
 	done.Add(n)
 	for i := 0; i < n; i++ {
 		go func() {
@@ -343,56 +346,75 @@ func (s *Simulator) Run(duration time.Duration) Results {
 					return
 				case o := <-opts:
 					atomic.AddInt64(&numSimulations, 1)
-					r, err := s.runOne(ctx, o)
-					if err != nil && err == ctx.Err() {
+					switch r, err := s.runOne(ctx, o); {
+					case err != nil && err == ctx.Err():
+						// The simulation was cancelled because the deadline
+						// was met. Stop executing simulations.
 						return
-					}
-					if err != nil {
+					case err != nil:
+						// The simulation failed to execute properly. Abort.
 						errs <- err
 						return
-					}
-					if r.Err != nil {
-						results <- r
+					case r.Err != nil:
+						// The simulation successfully found an invariant
+						// violation. Return the result and stop execution.
+						failedResults <- r
 						return
+					default:
+						// The simulation ran without finding an invariant
+						// violation. Move on to the next simulation.
 					}
 				}
 			}
 		}()
 	}
 
-	seed := time.Now().UnixNano()
-	for numOps := 1; ; numOps++ {
-		for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
-			for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
-				for i := 0; i < 10; i++ {
-					seed++
-					o := options{
-						Seed:        seed,
-						NumOps:      numOps,
-						NumReplicas: 1,
-						FailureRate: failureRate,
-						YieldRate:   yieldRate,
-					}
-
-					select {
-					case <-ctx.Done():
-						done.Wait()
-						return Results{
-							NumSimulations: int(numSimulations),
-							Duration:       time.Since(start),
+	// Spawn a goroutine that writes to the opts channel.
+	done.Add(1)
+	go func() {
+		defer done.Done()
+		seed := time.Now().UnixNano()
+		for numOps := 1; ; numOps++ {
+			for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
+				for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
+					for i := 0; i < 10; i++ {
+						seed++
+						o := options{
+							Seed:        seed,
+							NumOps:      numOps,
+							NumReplicas: 1,
+							FailureRate: failureRate,
+							YieldRate:   yieldRate,
 						}
-					case err := <-errs:
-						s.t.Fatal(err)
-					case r := <-results:
-						cancel()
-						done.Wait()
-						r.NumSimulations = int(numSimulations)
-						r.Duration = time.Since(start)
-						return r
-					case opts <- o:
+						select {
+						case <-ctx.Done():
+							return
+						case opts <- o:
+						}
 					}
 				}
 			}
+		}
+	}()
+
+	select {
+	case err := <-errs:
+		// A simulation failed to execute properly.
+		s.t.Fatal(err)
+		return Results{}
+	case r := <-failedResults:
+		// A simulation successfully found an invariant violation.
+		cancel()
+		done.Wait()
+		r.NumSimulations = int(numSimulations)
+		r.Duration = time.Since(start)
+		return r
+	case <-ctx.Done():
+		// We hit our deadline. All simulations passed.
+		done.Wait()
+		return Results{
+			NumSimulations: int(numSimulations),
+			Duration:       time.Since(start),
 		}
 	}
 }
