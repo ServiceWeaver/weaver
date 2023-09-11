@@ -16,6 +16,7 @@ package sim
 
 import (
 	"context"
+	"errors"
 	"io"
 	"math"
 	"math/rand"
@@ -72,14 +73,39 @@ func (d *divModWorkload) Mod(ctx context.Context, x, y int) error {
 	return nil
 }
 
-func TestSimulate(t *testing.T) {
+func TestPassingSimulation(t *testing.T) {
 	s := New[divModWorkload](t, Options{})
-	r, err := s.Run(time.Minute)
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := s.Run(2 * time.Second)
+	t.Log(r.Summary())
 	if r.Err != nil {
 		t.Fatal(r.Err)
+	}
+}
+
+type divideByZeroWorkload struct {
+	divmod weaver.Ref[divMod]
+}
+
+func (d *divideByZeroWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("DivMod", intn{0, 1000}, intn{0, 1000})
+	return nil
+}
+
+func (d *divideByZeroWorkload) DivMod(ctx context.Context, x, y int) error {
+	_, _, err := d.divmod.Get().DivMod(ctx, x, y)
+	if errors.Is(err, weaver.RemoteCallError) {
+		// Swallow remote call errors.
+		return nil
+	}
+	return err
+}
+
+func TestFailingSimulation(t *testing.T) {
+	s := New[divideByZeroWorkload](t, Options{})
+	r := s.Run(2 * time.Second)
+	t.Log(r.Summary())
+	if r.Err == nil {
+		t.Fatal("Unexpected success")
 	}
 }
 

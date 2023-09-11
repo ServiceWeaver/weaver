@@ -218,10 +218,12 @@ var _ Event = Return{}
 var _ Event = DeliverReturn{}
 var _ Event = DeliverError{}
 
-// Results are the results of running a simulation.
+// Results are the results of simulating a workload.
 type Results struct {
-	Err     error   // first non-nil error returned by an op
-	History []Event // a history of all simulation events
+	Err            error         // first non-nil error returned by an op
+	History        []Event       // a history of the error inducing run, if Err is not nil
+	NumSimulations int           // number of simulations ran
+	Duration       time.Duration // duration of simulations
 }
 
 // New returns a new Simulator that simulates workload W.
@@ -299,20 +301,56 @@ func validateWorkload(t reflect.Type) error {
 }
 
 // Run runs simulations for the provided duration.
-func (s *Simulator) Run(duration time.Duration) (Results, error) {
-	// TODO(mwhittaker): Run many simulations with many different
-	// hyperparameters in many different goroutines. For now, we just run one.
-	// TODO(mwhittaker): Read and run graveyard entries.
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
+func (s *Simulator) Run(duration time.Duration) Results {
+	start := time.Now()
+	deadline := start.Add(duration)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	opts := options{
-		Seed:        time.Now().UnixNano(),
-		NumOps:      10,
-		NumReplicas: 1,
-		FailureRate: 0.1,
-		YieldRate:   0.25,
+
+	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
+	// TODO(mwhittaker): Run simulations in multiple goroutines.
+	// TODO(mwhittaker): Read and run graveyard entries.
+	seed := time.Now().UnixNano()
+	count := 0
+	for numOps := 1; ; numOps++ {
+		for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
+			for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
+				for i := 0; i < 10; i++ {
+					if time.Now().After(deadline) {
+						return Results{
+							NumSimulations: count,
+							Duration:       time.Since(start),
+						}
+					}
+
+					seed++
+					count++
+					opts := options{
+						Seed:        seed,
+						NumOps:      numOps,
+						NumReplicas: 1,
+						FailureRate: failureRate,
+						YieldRate:   yieldRate,
+					}
+					results, err := s.runOne(ctx, opts)
+					if err != nil && err == ctx.Err() {
+						return Results{
+							NumSimulations: count,
+							Duration:       time.Since(start),
+						}
+					}
+					if err != nil {
+						s.t.Fatal(err)
+					}
+					if results.Err != nil {
+						results.NumSimulations = count
+						results.Duration = time.Since(start)
+						return results
+					}
+				}
+			}
+		}
 	}
-	return s.runOne(ctx, opts)
 }
 
 // runOne runs a single simulation.
@@ -470,4 +508,15 @@ func (r *registrar) ops() []op {
 		})
 	}
 	return ops
+}
+
+// Summary returns a human readable summary of the results.
+func (r *Results) Summary() string {
+	duration := r.Duration.Truncate(time.Millisecond)
+	rate := float64(r.NumSimulations) / r.Duration.Seconds()
+	prefix := "✅ No errors"
+	if r.Err != nil {
+		prefix = "❌ Error"
+	}
+	return fmt.Sprintf("%s found after %d simulations in %v (%0.2f sims/s).", prefix, r.NumSimulations, duration, rate)
 }
