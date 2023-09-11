@@ -359,7 +359,7 @@ func (s *simulator) Simulate(ctx context.Context) (Results, error) {
 		dir := filepath.Join("testdata", "sim", s.name)
 		writeGraveyardEntry(dir, entry)
 	}
-	if err == nil || err == ctx.Err() {
+	if err != nil && err == ctx.Err() {
 		return Results{}, err
 	}
 	return Results{Err: err, History: s.history}, nil

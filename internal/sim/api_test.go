@@ -74,11 +74,67 @@ func (d *divModWorkload) Mod(ctx context.Context, x, y int) error {
 }
 
 func TestPassingSimulation(t *testing.T) {
-	s := New[divModWorkload](t, Options{})
+	s := New(t, &divModWorkload{}, Options{})
 	r := s.Run(2 * time.Second)
 	t.Log(r.Summary())
 	if r.Err != nil {
 		t.Fatal(r.Err)
+	}
+}
+
+// See TestInitByValueSimulation.
+type initByValueWorkload struct{}
+
+func (initByValueWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("ByValue")
+	r.RegisterGenerators("ByPointer")
+	return nil
+}
+
+func (initByValueWorkload) ByValue(context.Context) error {
+	return nil
+}
+
+func (*initByValueWorkload) ByPointer(context.Context) error {
+	return nil
+}
+
+func TestInitByValueSimulation(t *testing.T) {
+	// Run a simulation where the workload's Init method has a value receiver.
+	// Make sure that all methods of the workload are called.
+	s := New(t, initByValueWorkload{}, Options{})
+	r, err := s.runOne(context.Background(), options{
+		NumReplicas: 1,
+		NumOps:      1000,
+		FailureRate: 0,
+		YieldRate:   1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Err != nil {
+		t.Fatal(r.Err)
+	}
+
+	byValueCalls := 0
+	byPointerCalls := 0
+	for _, event := range r.History {
+		op, ok := event.(OpStart)
+		if !ok {
+			continue
+		}
+		switch op.Name {
+		case "ByValue":
+			byValueCalls++
+		case "ByPointer":
+			byPointerCalls++
+		}
+	}
+	if byValueCalls == 0 {
+		t.Fatal("ByValue not called")
+	}
+	if byPointerCalls == 0 {
+		t.Fatal("ByPointer not called")
 	}
 }
 
@@ -87,7 +143,7 @@ type divideByZeroWorkload struct {
 }
 
 func (d *divideByZeroWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 1000}, intn{0, 1000})
+	r.RegisterGenerators("DivMod", intn{0, 10}, intn{0, 10})
 	return nil
 }
 
@@ -101,7 +157,7 @@ func (d *divideByZeroWorkload) DivMod(ctx context.Context, x, y int) error {
 }
 
 func TestFailingSimulation(t *testing.T) {
-	s := New[divideByZeroWorkload](t, Options{})
+	s := New(t, &divideByZeroWorkload{}, Options{})
 	r := s.Run(2 * time.Second)
 	t.Log(r.Summary())
 	if r.Err == nil {
