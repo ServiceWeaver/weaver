@@ -293,6 +293,7 @@ github.com/ServiceWeaver/weaver/internal/sim
     sort
     strings
     sync
+    sync/atomic
     testing
     time
 github.com/ServiceWeaver/weaver/internal/status
