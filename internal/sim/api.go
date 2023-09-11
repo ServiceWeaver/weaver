@@ -308,7 +308,7 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	defer cancel()
 
 	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
-	// TODO(mwhittaker): Run simulations multiple goroutines.
+	// TODO(mwhittaker): Run simulations in multiple goroutines.
 	// TODO(mwhittaker): Read and run graveyard entries.
 	seed := time.Now().UnixNano()
 	count := 0
