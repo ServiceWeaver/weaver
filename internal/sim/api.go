@@ -27,11 +27,13 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
-	"github.com/ServiceWeaver/weaver/runtime"
+	swruntime "github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
@@ -231,7 +233,7 @@ func New(t *testing.T, x Workload, opts Options) *Simulator {
 	app := &protos.AppConfig{}
 	if opts.Config != "" {
 		var err error
-		app, err = runtime.ParseConfig("", opts.Config, codegen.ComponentConfigValidator)
+		app, err = swruntime.ParseConfig("", opts.Config, codegen.ComponentConfigValidator)
 		if err != nil {
 			t.Fatalf("sim.New: parse config: %v", err)
 		}
@@ -313,50 +315,81 @@ func validateWorkload(t reflect.Type) error {
 
 // Run runs simulations for the provided duration.
 func (s *Simulator) Run(duration time.Duration) Results {
+	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
+	// TODO(mwhittaker): Read and run graveyard entries.
 	start := time.Now()
 	deadline := start.Add(duration)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
-	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
-	// TODO(mwhittaker): Run simulations in multiple goroutines.
-	// TODO(mwhittaker): Read and run graveyard entries.
+	// Spawn n concurrent simulators. The simulators read options from the opts
+	// channel and write errors and results to the errs and results channels.
+	//
+	// TODO(mwhittaker): Optimize things and pick a smarter value of n.
+	n := 1000
+	opts := make(chan options, n)
+	errs := make(chan error, n)
+	results := make(chan Results, n)
+	done := sync.WaitGroup{}
+	numSimulations := int64(0)
+
+	done.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer done.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case o := <-opts:
+					atomic.AddInt64(&numSimulations, 1)
+					r, err := s.runOne(ctx, o)
+					if err != nil && err == ctx.Err() {
+						return
+					}
+					if err != nil {
+						errs <- err
+						return
+					}
+					if r.Err != nil {
+						results <- r
+						return
+					}
+				}
+			}
+		}()
+	}
+
 	seed := time.Now().UnixNano()
-	count := 0
 	for numOps := 1; ; numOps++ {
 		for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
 			for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
 				for i := 0; i < 10; i++ {
-					if time.Now().After(deadline) {
-						return Results{
-							NumSimulations: count,
-							Duration:       time.Since(start),
-						}
-					}
-
 					seed++
-					count++
-					opts := options{
+					o := options{
 						Seed:        seed,
 						NumOps:      numOps,
 						NumReplicas: 1,
 						FailureRate: failureRate,
 						YieldRate:   yieldRate,
 					}
-					results, err := s.runOne(ctx, opts)
-					if err != nil && err == ctx.Err() {
+
+					select {
+					case <-ctx.Done():
+						done.Wait()
 						return Results{
-							NumSimulations: count,
+							NumSimulations: int(numSimulations),
 							Duration:       time.Since(start),
 						}
-					}
-					if err != nil {
+					case err := <-errs:
 						s.t.Fatal(err)
-					}
-					if results.Err != nil {
-						results.NumSimulations = count
-						results.Duration = time.Since(start)
-						return results
+					case r := <-results:
+						cancel()
+						done.Wait()
+						r.NumSimulations = int(numSimulations)
+						r.Duration = time.Since(start)
+						return r
+					case opts <- o:
 					}
 				}
 			}
