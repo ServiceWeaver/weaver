@@ -255,15 +255,8 @@ func New[W any, P WorkloadPointer[W]](t *testing.T, opts Options) *Simulator {
 	}
 
 	// Call Init and validate the registered fakes and generators.
-	//
-	// A simulator calls a workload's Init method many times, once per
-	// simulation. To speed things up, rather than validating registrations in
-	// every call to Init, we validate the registrations only once ahead of
-	// time. It is technically possible for a workload to register different
-	// values in repeated calls to Init, but that is strongly discouraged and
-	// incompatible with the simulator framework.
 	var x W
-	r := &validatingRegistrar{t: t, w: w, regsByIntf: regsByIntf}
+	r := &registrar{t: t, w: w, regsByIntf: regsByIntf}
 	if err := P(&x).Init(r); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
@@ -328,8 +321,11 @@ func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
 	workload := reflect.New(s.w.Elem()).Interface().(Workload)
 
 	// Call the struct's Init method.
-	r := &registrar{t: s.t, w: s.w}
+	r := &registrar{t: s.t, w: s.w, regsByIntf: s.regsByIntf}
 	if err := workload.Init(r); err != nil {
+		return Results{}, err
+	}
+	if err := r.finalize(); err != nil {
 		return Results{}, err
 	}
 
@@ -341,18 +337,17 @@ func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
 	return sim.Simulate(ctx)
 }
 
-// validatingRegistrar is a Registrar that validates registered fakes and
-// generators.
-type validatingRegistrar struct {
+// registrar validates and collects registered fakes and components.
+type registrar struct {
 	t          *testing.T                             // underlying test
 	w          reflect.Type                           // workload type
 	regsByIntf map[reflect.Type]*codegen.Registration // registered components, by interface
-	fakes      map[reflect.Type]struct{}              // registered fakes, by interface
-	generators map[string]struct{}                    // registered generators, by method name
+	fakes      map[reflect.Type]any                   // fakes, by component interface
+	generators map[string][]generator                 // generators, by method name
 }
 
 // RegisterFake implements the Registrar interface.
-func (r *validatingRegistrar) RegisterFake(fake FakeComponent) {
+func (r *registrar) RegisterFake(fake FakeComponent) {
 	r.t.Helper()
 	if err := r.registerFakes(fake); err != nil {
 		r.t.Fatalf("RegisterFakes: %v", err)
@@ -360,7 +355,7 @@ func (r *validatingRegistrar) RegisterFake(fake FakeComponent) {
 }
 
 // RegisterGenerators implements the Registrar interface.
-func (r *validatingRegistrar) RegisterGenerators(method string, generators ...any) {
+func (r *registrar) RegisterGenerators(method string, generators ...any) {
 	r.t.Helper()
 	if err := r.registerGenerators(method, generators...); err != nil {
 		r.t.Fatalf("RegisterGenerators: %v", err)
@@ -368,7 +363,7 @@ func (r *validatingRegistrar) RegisterGenerators(method string, generators ...an
 }
 
 // registerFakes implements RegisterFakes.
-func (r *validatingRegistrar) registerFakes(fake FakeComponent) error {
+func (r *registrar) registerFakes(fake FakeComponent) error {
 	if _, ok := r.fakes[fake.intf]; ok {
 		return fmt.Errorf("fake for %v already registered", fake.intf)
 	}
@@ -376,14 +371,14 @@ func (r *validatingRegistrar) registerFakes(fake FakeComponent) error {
 		return fmt.Errorf("component %v not found", fake.intf)
 	}
 	if r.fakes == nil {
-		r.fakes = map[reflect.Type]struct{}{}
+		r.fakes = map[reflect.Type]any{}
 	}
-	r.fakes[fake.intf] = struct{}{}
+	r.fakes[fake.intf] = fake.impl
 	return nil
 }
 
 // registerGenerators implements RegisterGenerators.
-func (r *validatingRegistrar) registerGenerators(method string, generators ...any) error {
+func (r *registrar) registerGenerators(method string, generators ...any) error {
 	if _, ok := r.generators[method]; ok {
 		return fmt.Errorf("method %q generators already registered", method)
 	}
@@ -396,6 +391,7 @@ func (r *validatingRegistrar) registerGenerators(method string, generators ...an
 	}
 
 	var errs []error
+	var gens []generator
 	for i, generator := range generators {
 		// TODO(mwhittaker): Handle the case where a generator's Generate
 		// method receives by pointer, but the user passed by value.
@@ -410,32 +406,45 @@ func (r *validatingRegistrar) registerGenerators(method string, generators ...an
 		switch {
 		case !ok:
 			errs = append(errs, fmt.Errorf("%w: missing Generate method", err))
+			continue
 		case generate.Type.NumIn() < 2:
 			errs = append(errs, fmt.Errorf("%w: Generate method has no arguments", err))
+			continue
 		case generate.Type.NumIn() > 2:
 			errs = append(errs, fmt.Errorf("%w: Generate method has too many arguments", err))
+			continue
 		case generate.Type.In(1) != reflection.Type[*rand.Rand]():
 			errs = append(errs, fmt.Errorf("%w: Generate argument is not *rand.Rand", err))
+			continue
 		case generate.Type.NumOut() == 0:
 			errs = append(errs, fmt.Errorf("%w: Generate method has no return values", err))
+			continue
 		case generate.Type.NumOut() > 1:
 			errs = append(errs, fmt.Errorf("%w: Generate method has too many return values", err))
+			continue
 		case generate.Type.Out(0) != m.Type.In(i+2):
 			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), m.Type.In(i+2)))
+			continue
 		}
+
+		generator := generator
+		gens = append(gens, func(r *rand.Rand) reflect.Value {
+			in := []reflect.Value{reflect.ValueOf(generator), reflect.ValueOf(r)}
+			return generate.Func.Call(in)[0]
+		})
 	}
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 	if r.generators == nil {
-		r.generators = map[string]struct{}{}
+		r.generators = map[string][]generator{}
 	}
-	r.generators[method] = struct{}{}
+	r.generators[method] = gens
 	return nil
 }
 
 // finalize finalizes registration.
-func (r *validatingRegistrar) finalize() error {
+func (r *registrar) finalize() error {
 	var errs []error
 	for i := 0; i < r.w.NumMethod(); i++ {
 		m := r.w.Method(i)
@@ -444,44 +453,6 @@ func (r *validatingRegistrar) finalize() error {
 		}
 	}
 	return errors.Join(errs...)
-}
-
-// registrar collects registered fakes and components. Note that a registrar
-// does not perform any validation. It assumes the workload has already been
-// validated by a validatingRegistrar.
-type registrar struct {
-	t          *testing.T             // underlying test
-	w          reflect.Type           // workload type
-	fakes      map[reflect.Type]any   // fakes, by component interface
-	generators map[string][]generator // generators, by method name
-}
-
-// RegisterFake implements the Registrar interface.
-func (r *registrar) RegisterFake(fake FakeComponent) {
-	r.t.Helper()
-	if r.fakes == nil {
-		r.fakes = map[reflect.Type]any{}
-	}
-	r.fakes[fake.intf] = fake.impl
-}
-
-// RegisterGenerators implements the Registrar interface.
-func (r *registrar) RegisterGenerators(method string, generators ...any) {
-	r.t.Helper()
-	var gens []generator
-	for _, generator := range generators {
-		generator := generator
-		t := reflect.TypeOf(generator)
-		generate, _ := t.MethodByName("Generate")
-		gens = append(gens, func(r *rand.Rand) reflect.Value {
-			in := []reflect.Value{reflect.ValueOf(generator), reflect.ValueOf(r)}
-			return generate.Func.Call(in)[0]
-		})
-	}
-	if r.generators == nil {
-		r.generators = map[string][]generator{}
-	}
-	r.generators[method] = gens
 }
 
 // ops returns the ops of a workload.
