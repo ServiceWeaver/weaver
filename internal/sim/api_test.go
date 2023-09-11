@@ -83,9 +83,7 @@ func TestPassingSimulation(t *testing.T) {
 }
 
 // See TestInitByValueSimulation.
-type initByValueWorkload struct {
-	byPointerCalls int
-}
+type initByValueWorkload struct{}
 
 func (initByValueWorkload) Init(r Registrar) error {
 	r.RegisterGenerators("ByValue")
