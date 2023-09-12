@@ -235,7 +235,7 @@ func TestValidateIllTypedWorkloads(t *testing.T) {
 func TestDuplicateRegisterGeneratorsCalls(t *testing.T) {
 	// Call registerGenerators twice for the same method.
 	w := reflect.PointerTo(reflection.Type[divModWorkload]())
-	r := registrar{t: t, w: w}
+	r := newRegistrar(t, w)
 	if err := r.registerGenerators("DivMod", integers{}, positives{}); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestRegisterInvalidGenerators(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			w := reflect.PointerTo(reflection.Type[divModWorkload]())
-			r := registrar{t: t, w: w}
+			r := newRegistrar(t, w)
 			err := r.registerGenerators(test.method, test.generators...)
 			if err == nil {
 				t.Fatal("unexpected success")
@@ -301,7 +301,7 @@ func TestRegisterInvalidGenerators(t *testing.T) {
 func TestMissingRegisterGenerators(t *testing.T) {
 	// Forget to call registerGenerators on some of a workload's methods.
 	w := reflect.PointerTo(reflection.Type[divModWorkload]())
-	r := registrar{t: t, w: w}
+	r := newRegistrar(t, w)
 	err := r.finalize()
 	if err == nil {
 		t.Fatal("unexpected success")
@@ -310,4 +310,16 @@ func TestMissingRegisterGenerators(t *testing.T) {
 	if !strings.Contains(err.Error(), want) {
 		t.Errorf("Error does not contain %q:\n%s", want, err.Error())
 	}
+}
+
+// newRegistrar returns a new registrar for the provided type.
+func newRegistrar(t *testing.T, w reflect.Type) registrar {
+	methods := map[string]reflect.Method{}
+	for i := 0; i < w.NumMethod(); i++ {
+		m := w.Method(i)
+		if m.Name != "Init" {
+			methods[m.Name] = m
+		}
+	}
+	return registrar{t: t, w: w, methods: methods}
 }

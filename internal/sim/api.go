@@ -132,6 +132,7 @@ type Options struct {
 type Simulator struct {
 	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
+	methods    map[string]reflect.Method              // exported non-Init methods, by name
 	regsByIntf map[reflect.Type]*codegen.Registration // components, by interface
 	config     *protos.AppConfig                      // application config
 }
@@ -271,15 +272,25 @@ func New(t testing.TB, x Workload, opts Options) *Simulator {
 		regsByIntf[reg.Iface] = reg
 	}
 
+	// Gather the set of methods.
+	methods := map[string]reflect.Method{}
+	for i := 0; i < w.NumMethod(); i++ {
+		m := w.Method(i)
+		if m.Name == "Init" {
+			continue
+		}
+		methods[m.Name] = m
+	}
+
 	// Call Init and validate the registered fakes and generators.
-	r := &registrar{t: t, w: w, regsByIntf: regsByIntf}
+	r := &registrar{t: t, w: w, methods: methods, regsByIntf: regsByIntf}
 	if err := x.Init(r); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
 	if err := r.finalize(); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
-	return &Simulator{t, w, regsByIntf, app}
+	return &Simulator{t, w, methods, regsByIntf, app}
 }
 
 // validateWorkload validates a workload struct of the provided type.
@@ -451,7 +462,7 @@ func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
 	workload := reflect.New(s.w.Elem()).Interface().(Workload)
 
 	// Call the struct's Init method.
-	r := &registrar{t: s.t, w: s.w, regsByIntf: s.regsByIntf}
+	r := &registrar{t: s.t, w: s.w, methods: s.methods, regsByIntf: s.regsByIntf}
 	if err := workload.Init(r); err != nil {
 		return Results{}, err
 	}
@@ -471,6 +482,7 @@ func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
 type registrar struct {
 	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
+	methods    map[string]reflect.Method              // non-Init exported methods, by name
 	regsByIntf map[reflect.Type]*codegen.Registration // registered components, by interface
 	fakes      map[reflect.Type]any                   // fakes, by component interface
 	generators map[string][]generator                 // generators, by method name
@@ -512,7 +524,7 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 	if _, ok := r.generators[method]; ok {
 		return fmt.Errorf("method %q generators already registered", method)
 	}
-	m, ok := r.w.MethodByName(method)
+	m, ok := r.methods[method]
 	if !ok {
 		return fmt.Errorf("method %q not found", method)
 	}
@@ -576,9 +588,8 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 // finalize finalizes registration.
 func (r *registrar) finalize() error {
 	var errs []error
-	for i := 0; i < r.w.NumMethod(); i++ {
-		m := r.w.Method(i)
-		if _, ok := r.generators[m.Name]; m.Name != "Init" && !ok {
+	for _, m := range r.methods {
+		if _, ok := r.generators[m.Name]; !ok {
 			errs = append(errs, fmt.Errorf("no generators registered for method %s", m.Name))
 		}
 	}
