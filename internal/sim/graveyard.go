@@ -97,8 +97,6 @@ type graveyardEntry struct {
 }
 
 // readGraveyard reads all the graveyard entries stored in the provided directory.
-//
-//lint:ignore U1000 This function will be used in the future.
 func readGraveyard(dir string) ([]graveyardEntry, error) {
 	// This code borrows from https://cs.opensource.google/go/go/+/master:src/internal/fuzz/fuzz.go;drc=14ab998f95b53baa6e336c598b0f34e319cc9717.
 	files, err := os.ReadDir(dir)
