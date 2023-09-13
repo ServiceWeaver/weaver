@@ -28,11 +28,19 @@ var (
 	// should be a pointer to the implementation struct.
 	SetLogger func(impl any, logger *slog.Logger) error
 
+	// HasRefs returns whether the provided component implementation has
+	// weaver.Refs fields.
+	HasRefs func(impl any) bool
+
 	// FillRefs initializes Ref[T] fields in a component implement struct.
 	//   - impl should be a pointer to the implementation struct
 	//   - get should be a function that returns the component of interface
 	//     type T when passed the reflect.Type for T.
 	FillRefs func(impl any, get func(reflect.Type) (any, error)) error
+
+	// HasListeners returns whether the provided component implementation has
+	// weaver.Listener fields.
+	HasListeners func(impl any) bool
 
 	// FillListeners initializes Listener fields in a component implementation
 	// struct.
@@ -40,6 +48,10 @@ var (
 	//   - get should be a function that returns the required Listener values,
 	//     namely the network listener and the proxy address.
 	FillListeners func(impl any, get func(string) (net.Listener, string, error)) error
+
+	// HasConfig returns whether the provided component implementation has
+	// an embedded weaver.Config field.
+	HasConfig func(impl any) bool
 
 	// GetConfig returns the config stored in the provided component
 	// implementation, or returns nil if there is no config.

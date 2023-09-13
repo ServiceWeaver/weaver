@@ -50,6 +50,7 @@ type simulator struct {
 	name       string                                 // test name
 	workload   reflect.Value                          // workload instance
 	regsByIntf map[reflect.Type]*codegen.Registration // regs, by component interface
+	info       componentInfo                          // component metadata
 	config     *protos.AppConfig                      // application config
 	opts       options                                // simulator options
 	components map[string][]any                       // component replicas
@@ -153,12 +154,20 @@ func extractIDs(ctx context.Context) (int, int) {
 	return traceID, spanID
 }
 
+// componentInfo includes information about components.
+type componentInfo struct {
+	hasRefs      map[reflect.Type]bool
+	hasListeners map[reflect.Type]bool
+	hasConfig    map[reflect.Type]bool
+}
+
 // newSimulator returns a new simulator.
-func newSimulator(name string, regsByIntf map[reflect.Type]*codegen.Registration, app *protos.AppConfig) *simulator {
+func newSimulator(name string, regsByIntf map[reflect.Type]*codegen.Registration, info componentInfo, app *protos.AppConfig) *simulator {
 	s := &simulator{
 		name:       name,
 		config:     app,
 		regsByIntf: regsByIntf,
+		info:       info,
 		components: make(map[string][]any, len(regsByIntf)),
 		calls:      map[int][]*call{},
 		replies:    map[int][]*reply{},
@@ -223,9 +232,11 @@ func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, o
 			obj := v.Interface()
 
 			// Fill config.
-			if cfg := weaver.GetConfig(obj); cfg != nil {
-				if err := runtime.ParseConfigSection(reg.Name, "", s.config.Sections, cfg); err != nil {
-					return err
+			if s.info.hasConfig[reg.Iface] {
+				if cfg := weaver.GetConfig(obj); cfg != nil {
+					if err := runtime.ParseConfigSection(reg.Name, "", s.config.Sections, cfg); err != nil {
+						return err
+					}
 				}
 			}
 
@@ -237,18 +248,22 @@ func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, o
 			}
 
 			// Fill ref fields.
-			if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
-				return s.getIntf(t, reg.Name, i)
-			}); err != nil {
-				return err
+			if s.info.hasRefs[reg.Iface] {
+				if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
+					return s.getIntf(t, reg.Name, i)
+				}); err != nil {
+					return err
+				}
 			}
 
 			// Fill listener fields.
-			if err := weaver.FillListeners(obj, func(name string) (net.Listener, string, error) {
-				lis, err := net.Listen("tcp", ":0")
-				return lis, "", err
-			}); err != nil {
-				return err
+			if s.info.hasListeners[reg.Iface] {
+				if err := weaver.FillListeners(obj, func(name string) (net.Listener, string, error) {
+					lis, err := net.Listen("tcp", ":0")
+					return lis, "", err
+				}); err != nil {
+					return err
+				}
 			}
 
 			// Call Init if available.
