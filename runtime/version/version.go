@@ -29,7 +29,7 @@ const (
 	// [1]: https://go.dev/doc/modules/version-numbers
 	ModuleMajor = 0
 	ModuleMinor = 21
-	ModulePatch = 0
+	ModulePatch = 2
 
 	// Note that there is currently no way to programmatically get the version
 	// of the current module [1], so we have to manually update the module
