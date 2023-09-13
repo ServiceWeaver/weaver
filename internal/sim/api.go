@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -315,6 +316,13 @@ func validateWorkload(t reflect.Type) error {
 
 // Run runs simulations for the provided duration.
 func (s *Simulator) Run(duration time.Duration) Results {
+	// Read graveyard entries.
+	// TODO(mwhittaker): Escape names.
+	graveyard, err := readGraveyard(filepath.Join("testdata", "sim", s.t.Name()))
+	if err != nil {
+		s.t.Fatal(err)
+	}
+
 	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
 	// TODO(mwhittaker): Read and run graveyard entries.
 	start := time.Now()
@@ -373,6 +381,24 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	done.Add(1)
 	go func() {
 		defer done.Done()
+
+		// Re-run graveyard entries first.
+		for _, entry := range graveyard {
+			o := options{
+				Seed:        entry.Seed,
+				NumReplicas: entry.NumReplicas,
+				NumOps:      entry.NumOps,
+				FailureRate: entry.FailureRate,
+				YieldRate:   entry.YieldRate,
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case opts <- o:
+			}
+		}
+
+		// Run new entries.
 		seed := time.Now().UnixNano()
 		for numOps := 1; ; numOps++ {
 			for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
