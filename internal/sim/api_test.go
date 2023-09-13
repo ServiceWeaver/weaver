@@ -27,6 +27,7 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
 
 // TODO(mwhittaker): Move these into the sim package.
@@ -103,7 +104,7 @@ func TestInitByValueSimulation(t *testing.T) {
 	// Run a simulation where the workload's Init method has a value receiver.
 	// Make sure that all methods of the workload are called.
 	s := New(t, initByValueWorkload{}, Options{})
-	r, err := s.runOne(context.Background(), options{
+	r, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), options{
 		NumReplicas: 1,
 		NumOps:      1000,
 		FailureRate: 0,
@@ -235,7 +236,7 @@ func TestValidateIllTypedWorkloads(t *testing.T) {
 func TestDuplicateRegisterGeneratorsCalls(t *testing.T) {
 	// Call registerGenerators twice for the same method.
 	w := reflect.PointerTo(reflection.Type[divModWorkload]())
-	r := newRegistrar(t, w)
+	r := newTestRegistrar(t, w)
 	if err := r.registerGenerators("DivMod", integers{}, positives{}); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +286,7 @@ func TestRegisterInvalidGenerators(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			w := reflect.PointerTo(reflection.Type[divModWorkload]())
-			r := newRegistrar(t, w)
+			r := newTestRegistrar(t, w)
 			err := r.registerGenerators(test.method, test.generators...)
 			if err == nil {
 				t.Fatal("unexpected success")
@@ -301,7 +302,7 @@ func TestRegisterInvalidGenerators(t *testing.T) {
 func TestMissingRegisterGenerators(t *testing.T) {
 	// Forget to call registerGenerators on some of a workload's methods.
 	w := reflect.PointerTo(reflection.Type[divModWorkload]())
-	r := newRegistrar(t, w)
+	r := newTestRegistrar(t, w)
 	err := r.finalize()
 	if err == nil {
 		t.Fatal("unexpected success")
@@ -312,8 +313,8 @@ func TestMissingRegisterGenerators(t *testing.T) {
 	}
 }
 
-// newRegistrar returns a new registrar for the provided type.
-func newRegistrar(t *testing.T, w reflect.Type) registrar {
+// newTestRegistrar returns a new registrar for the provided type.
+func newTestRegistrar(t *testing.T, w reflect.Type) *registrar {
 	methods := map[string]reflect.Method{}
 	for i := 0; i < w.NumMethod(); i++ {
 		m := w.Method(i)
@@ -321,5 +322,11 @@ func newRegistrar(t *testing.T, w reflect.Type) registrar {
 			methods[m.Name] = m
 		}
 	}
-	return registrar{t: t, w: w, methods: methods}
+
+	regsByIntf := map[reflect.Type]*codegen.Registration{}
+	for _, reg := range codegen.Registered() {
+		regsByIntf[reg.Iface] = reg
+	}
+
+	return newRegistrar(t, w, methods, regsByIntf)
 }

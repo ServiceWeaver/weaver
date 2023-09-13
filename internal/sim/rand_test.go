@@ -20,6 +20,14 @@ import (
 	"time"
 )
 
+// newInts returns a new set of integers in the range [low, high).
+// newInts panics if low >= high.
+func newInts(low, high int) *ints {
+	i := &ints{}
+	i.reset(low, high)
+	return i
+}
+
 func TestIntsHas(t *testing.T) {
 	const low = 10
 	const high = 100

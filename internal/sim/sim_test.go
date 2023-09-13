@@ -62,7 +62,7 @@ func TestSuccessfulSimulation(t *testing.T) {
 		YieldRate:   0.5,
 	}
 	s := New(t, &successfulWorkload{}, Options{})
-	results, err := s.runOne(context.Background(), opts)
+	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestUnsuccessfulSimulation(t *testing.T) {
 		YieldRate:   0.5,
 	}
 	s := New(t, &unsuccessfulWorkload{}, Options{})
-	results, err := s.runOne(context.Background(), opts)
+	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 	if err == nil && results.Err == nil {
 		t.Fatal("unexpected success")
 	}
@@ -117,7 +117,7 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 			YieldRate:   entry.YieldRate,
 		}
 		s := New(t, &unsuccessfulWorkload{}, Options{})
-		results, err := s.runOne(context.Background(), opts)
+		results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 		if err == nil && results.Err == nil {
 			t.Fatal("unexpected success")
 		}
@@ -149,7 +149,7 @@ func TestCancelledSimulation(t *testing.T) {
 	defer cancel()
 	errs := make(chan error)
 	go func() {
-		results, err := s.runOne(ctx, opts)
+		results, err := s.simulateOne(ctx, s.newRegistrar(), s.newSimulator(), opts)
 		if err != nil {
 			errs <- err
 		} else {
@@ -196,7 +196,7 @@ func TestFailureRateZero(t *testing.T) {
 		YieldRate:   0.5,
 	}
 	s := New(t, &noFailureWorkload{}, Options{})
-	results, err := s.runOne(context.Background(), opts)
+	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestFailureRateOne(t *testing.T) {
 		YieldRate:   0.5,
 	}
 	s := New(t, &totalFailureWorkload{}, Options{})
-	results, err := s.runOne(context.Background(), opts)
+	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +318,7 @@ func TestInjectedErrors(t *testing.T) {
 		YieldRate:   0.5,
 	}
 	s := New(t, &injectedErrorWorkload{}, Options{})
-	results, err := s.runOne(context.Background(), opts)
+	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 	if err != nil || results.Err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +363,7 @@ func TestFakes(t *testing.T) {
 		YieldRate:   0.5,
 	}
 	s := New(t, &fakeWorkload{}, Options{})
-	results, err := s.runOne(context.Background(), opts)
+	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
 	if err != nil || results.Err != nil {
 		t.Fatal(err)
 	}
@@ -450,8 +450,9 @@ func BenchmarkNewWorkload(b *testing.B) {
 	b.ReportAllocs()
 	s := New(b, &noCallsNoGenWorkload{}, Options{})
 	ctx := context.Background()
+	r := s.newRegistrar()
 	for i := 0; i < b.N; i++ {
-		s.newWorkload(ctx)
+		s.newWorkload(ctx, r)
 	}
 }
 
@@ -465,12 +466,16 @@ func BenchmarkNewSimulator(b *testing.B) {
 		FailureRate: 0,
 		YieldRate:   1,
 	}
+	r := s.newRegistrar()
+	sim := s.newSimulator()
 	for i := 0; i < b.N; i++ {
-		workload, r, err := s.newWorkload(ctx)
+		workload, err := s.newWorkload(ctx, r)
 		if err != nil {
 			b.Fatal(err)
 		}
-		newSimulator(s.t.Name(), workload, s.regsByIntf, s.config, r.fakes, r.ops(), opts)
+		if err := sim.reset(workload, r.fakes, r.ops, opts); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -493,8 +498,10 @@ func BenchmarkWorkloads(b *testing.B) {
 				YieldRate:   1,
 			}
 			ctx := context.Background()
+			r := s.newRegistrar()
+			sim := s.newSimulator()
 			for i := 0; i < b.N; i++ {
-				results, err := s.runOne(ctx, opts)
+				results, err := s.simulateOne(ctx, r, sim, opts)
 				if err != nil {
 					b.Fatal(err)
 				}
