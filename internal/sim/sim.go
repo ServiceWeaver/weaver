@@ -411,24 +411,22 @@ func (s *simulator) step() {
 		panic(fmt.Errorf("op %d has no pending calls or replies", s.current))
 	}
 
-	const (
-		deliverCall = iota
-		deliverReply
-	)
-	var candidates []int
-	if len(s.calls[s.current]) > 0 {
-		candidates = append(candidates, deliverCall)
-	}
-	if len(s.replies[s.current]) > 0 {
-		candidates = append(candidates, deliverReply)
-	}
-	if len(candidates) == 0 {
+	hasCalls := len(s.calls[s.current]) > 0
+	hasReplies := len(s.replies[s.current]) > 0
+	deliverCall := false
+	switch {
+	case hasCalls && hasReplies:
+		deliverCall = flip(s.rand, 0.5)
+	case hasCalls && !hasReplies:
+		deliverCall = true
+	case !hasCalls && hasReplies:
+		deliverCall = false
+	case !hasCalls && !hasReplies:
 		return
 	}
 
 	// Randomly execute a step.
-	switch x := candidates[s.rand.Intn(len(candidates))]; x {
-	case deliverCall:
+	if deliverCall {
 		var call *call
 		call, s.calls[s.current] = pop(s.rand, s.calls[s.current])
 
@@ -451,8 +449,7 @@ func (s *simulator) step() {
 			s.deliverCall(call)
 			return nil
 		})
-
-	case deliverReply:
+	} else {
 		var reply *reply
 		reply, s.replies[s.current] = pop(s.rand, s.replies[s.current])
 
@@ -475,9 +472,6 @@ func (s *simulator) step() {
 		})
 		reply.call.reply <- reply
 		close(reply.call.reply)
-
-	default:
-		panic(fmt.Errorf("unrecognized candidate %v", x))
 	}
 }
 
