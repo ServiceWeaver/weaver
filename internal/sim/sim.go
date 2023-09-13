@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	core "github.com/ServiceWeaver/weaver"
-	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -209,7 +208,7 @@ func newSimulator(name string, workload any, regsByIntf map[reflect.Type]*codege
 			obj := v.Interface()
 
 			// Fill config.
-			if cfg := config.Config(v); cfg != nil {
+			if cfg := weaver.GetConfig(obj); cfg != nil {
 				if err := runtime.ParseConfigSection(reg.Name, "", app.Sections, cfg); err != nil {
 					return nil, err
 				}
