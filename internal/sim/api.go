@@ -129,7 +129,7 @@ type Options struct {
 // A Simulator deterministically simulates a Service Weaver application. See
 // the package documentation for instructions on how to use a Simulator.
 type Simulator struct {
-	t          *testing.T                             // underlying test
+	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
 	regsByIntf map[reflect.Type]*codegen.Registration // components, by interface
 	config     *protos.AppConfig                      // application config
@@ -223,7 +223,7 @@ type Results struct {
 }
 
 // New returns a new Simulator that simulates the provided workload.
-func New(t *testing.T, x Workload, opts Options) *Simulator {
+func New(t testing.TB, x Workload, opts Options) *Simulator {
 	// Note that because the Init method on a workload struct T often has a
 	// pointer receiver *T, it is the pointer *T (rather than T itself) that
 	// implements the Workload interface.
@@ -443,7 +443,7 @@ func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
 
 // registrar validates and collects registered fakes and components.
 type registrar struct {
-	t          *testing.T                             // underlying test
+	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
 	regsByIntf map[reflect.Type]*codegen.Registration // registered components, by interface
 	fakes      map[reflect.Type]any                   // fakes, by component interface
