@@ -456,21 +456,28 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	}
 }
 
-// runOne runs a single simulation.
-func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
+// newWorkload returns a new, fully validated workload instance.
+func (s *Simulator) newWorkload(ctx context.Context) (Workload, *registrar, error) {
 	// Construct an instance of the workload struct.
 	workload := reflect.New(s.w.Elem()).Interface().(Workload)
 
 	// Call the struct's Init method.
 	r := &registrar{t: s.t, w: s.w, methods: s.methods, regsByIntf: s.regsByIntf}
 	if err := workload.Init(r); err != nil {
-		return Results{}, err
+		return nil, nil, err
 	}
 	if err := r.finalize(); err != nil {
+		return nil, nil, err
+	}
+	return workload, r, nil
+}
+
+// runOne runs a single simulation.
+func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
+	workload, r, err := s.newWorkload(ctx)
+	if err != nil {
 		return Results{}, err
 	}
-
-	// Simulate!
 	sim, err := newSimulator(s.t.Name(), workload, s.regsByIntf, s.config, r.fakes, r.ops(), opts)
 	if err != nil {
 		return Results{}, err
