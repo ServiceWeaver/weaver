@@ -47,22 +47,16 @@ func TestRWPipe(t *testing.T) {
 	cmd := CommandContext(context.Background(), ex, "echo")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	var w io.WriteCloser
-	{
-		var fd uintptr
-		if fd, w, err = cmd.WPipe(); err != nil {
-			t.Fatal(err)
-		}
-		cmd.Cmd.Args = append(cmd.Args, strconv.FormatUint(uint64(fd), 10))
+	p, err := cmd.MakePipePair()
+	if err != nil {
+		t.Fatal(err)
 	}
-	var r io.ReadCloser
-	{
-		var fd uintptr
-		if fd, r, err = cmd.RPipe(); err != nil {
-			t.Fatal(err)
-		}
-		cmd.Cmd.Args = append(cmd.Args, strconv.FormatUint(uint64(fd), 10))
-	}
+	r, w := p.ParentReader, p.ParentWriter
+	cmd.Cmd.Args = append(
+		cmd.Args,
+		strconv.FormatUint(uint64(p.ChildReader), 10),
+		strconv.FormatUint(uint64(p.ChildWriter), 10),
+	)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
