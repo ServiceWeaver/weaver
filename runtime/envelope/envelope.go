@@ -128,17 +128,10 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	// Form the weavelet command.
 	cmd := pipe.CommandContext(e.ctx, e.config.Binary, e.config.Args...)
 
-	// Create the pipes first, so we can fill cmd.Env and detect any errors early.
-	//
-	// Pipe for messages to weavelet.
-	toWeaveletFd, toWeavelet, err := cmd.WPipe()
+	// Create the request/response pipes first, so we can fill cmd.Env and detect any errors early.
+	pipePair, err := cmd.MakePipePair()
 	if err != nil {
-		return nil, fmt.Errorf("NewEnvelope: create weavelet request pipe: %w", err)
-	}
-	// Pipe for messages to envelope.
-	toEnvelopeFd, toEnvelope, err := cmd.RPipe()
-	if err != nil {
-		return nil, fmt.Errorf("NewEnvelope: create weavelet response pipe: %w", err)
+		return nil, fmt.Errorf("NewEnvelope: create weavelet request/response pipes: %w", err)
 	}
 
 	// Create pipes that capture child outputs.
@@ -151,9 +144,11 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		return nil, fmt.Errorf("NewEnvelope: create stderr pipe: %w", err)
 	}
 
+	// Create pair of pipes to use for component method calls from weavelet to envelope.
+
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.FormatUint(uint64(toWeaveletFd), 10)))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.FormatUint(uint64(toEnvelopeFd), 10)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.FormatUint(uint64(pipePair.ChildReader), 10)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.FormatUint(uint64(pipePair.ChildWriter), 10)))
 	cmd.Env = append(cmd.Env, e.config.Env...)
 
 	// Start the command.
@@ -162,7 +157,7 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	}
 
 	// Create the connection, now that the weavelet is running.
-	conn, err := conn.NewEnvelopeConn(e.ctx, toEnvelope, toWeavelet, e.weavelet)
+	conn, err := conn.NewEnvelopeConn(e.ctx, pipePair.ParentReader, pipePair.ParentWriter, e.weavelet)
 	if err != nil {
 		err := fmt.Errorf("NewEnvelope: connect to weavelet: %w", err)
 

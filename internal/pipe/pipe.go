@@ -35,55 +35,53 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	return &Cmd{Cmd: exec.CommandContext(ctx, name, arg...)}
 }
 
-// RPipe returns the reading side of a pipe that will be connected to the
-// subprocess when the command starts.
-//
-// The subprocess can write to the pipe using the file descriptor returned by
-// RPipe. Cmd.ExtraFiles should not be modified directly if RPipe is called.
-//
-// Wait will close the pipe after seeing the command exit, so most callers need
-// not close the pipe themselves. It is thus incorrect to call Wait before all
-// reads from the pipe have completed. For the same reason, it is incorrect to
-// use Run when using Pipe. See the exec.Cmd.StdoutPipe example [1] for
-// idiomatic usage.
-//
-// [1]: https://pkg.go.dev/os/exec#example-Cmd.StdoutPipe
-func (c *Cmd) RPipe() (uintptr, io.ReadCloser, error) {
-	if c.Process != nil {
-		return 0, nil, fmt.Errorf("capture: RPipe after process started")
-	}
-	r, w, err := os.Pipe()
-	if err != nil {
-		return 0, nil, err
-	}
-	fd := c.registerPipe(r, w)
-	return fd, r, nil
+// PipePair holds a pair of pipes that can be used for bi-directional
+// communication with a child process.
+type PipePair struct {
+	ParentReader io.ReadCloser  // Reader from which parent can read
+	ParentWriter io.WriteCloser // Writer to which parent can write
+	ChildReader  uintptr        // Descriptor from which child can read
+	ChildWriter  uintptr        // Descriptor to which child can write
 }
 
-// WPipe returns the writer side of a pipe that will be connected to the
-// subprocess when the command starts.
+// MakePipePair makes a pair of pipes that can be used for bi-directional
+// communication with the child process.
 //
-// The subprocess can read from the pipe using the file descriptor returned by
-// WPipe. Cmd.ExtraFiles should not be modified directly if WPipe is called.
+// Cmd.ExtraFiles should not be modified directly if MakePipePair is called.
 //
-// The pipe will be closed automatically after Wait sees the command exit. A
-// caller need only call Close to force the pipe to close sooner. For example,
-// if the command being run will not exit until standard input is closed, the
-// caller must close the pipe.
-func (c *Cmd) WPipe() (uintptr, io.WriteCloser, error) {
+// Wait will close ParentWriter automatically after seeing the command exit. A
+// caller need only close ParentWriter to force the pipe to close sooner. For
+// example, if the command being run will not exit until standard input is
+// closed, the caller must close ParentWriter.
+//
+// Wait will close ParentReader automatically after seeing the command exit, so
+// most callers need not close ParentReader themselves. It is thus incorrect to
+// call Wait before all reads from ParentReader have completed. For the same
+// reason, it is incorrect to use Run when using MakePipePair. See the
+// exec.Cmd.StdoutPipe example [1] for idiomatic usage.
+//
+// [1]: https://pkg.go.dev/os/exec#example-Cmd.StdoutPipe
+func (c *Cmd) MakePipePair() (PipePair, error) {
 	if c.Process != nil {
-		return 0, nil, fmt.Errorf("capture: WPipe after process started")
+		return PipePair{}, fmt.Errorf("capture: MakePipePair after process started")
 	}
-	// TODO: StdinPipe [1] makes sure w is only closed once. Understand why
-	// they do that and do the same if needed.
-	//
-	// [1]: https://cs.opensource.google/go/go/+/refs/tags/go1.18.4:src/os/exec/exec.go;l=593
-	r, w, err := os.Pipe()
+
+	r1, w1, err := os.Pipe()
 	if err != nil {
-		return 0, nil, err
+		return PipePair{}, err
 	}
-	fd := c.registerPipe(w, r)
-	return fd, w, nil
+	r2, w2, err := os.Pipe()
+	if err != nil {
+		r1.Close()
+		w1.Close()
+		return PipePair{}, err
+	}
+	return PipePair{
+		ChildReader:  c.registerPipe(w1, r1),
+		ChildWriter:  c.registerPipe(r2, w2),
+		ParentWriter: w1,
+		ParentReader: r2,
+	}, nil
 }
 
 func (c *Cmd) registerPipe(local, remote *os.File) uintptr {
