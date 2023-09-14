@@ -47,6 +47,7 @@ import (
 //go:generate ./dev/protoc.sh internal/tool/ssh/impl/ssh.proto
 //go:generate ./dev/protoc.sh runtime/protos/runtime.proto
 //go:generate ./dev/protoc.sh runtime/protos/config.proto
+//go:generate ./cmd/weaver/weaver generate . ./internal/tool/multi
 //go:generate ./dev/writedeps.sh
 
 // RemoteCallError indicates that a remote component method call failed to

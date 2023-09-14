@@ -1010,9 +1010,12 @@ func (g *generator) generateImports(p printFn) {
 	p("")
 	p(`import (`)
 	for _, imp := range g.tset.imports() {
-		if imp.alias == "" {
+		switch {
+		case imp.local:
+			// Already inside desired package
+		case imp.alias == "":
 			p(`	%s`, strconv.Quote(imp.path))
-		} else {
+		default:
 			p(`	%s %s`, imp.alias, strconv.Quote(imp.path))
 		}
 	}

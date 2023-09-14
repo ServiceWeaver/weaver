@@ -244,7 +244,7 @@ func TestStubMethodRetries(t *testing.T) {
 		NoRetry: []int{1, 3},
 	}
 	want := []bool{true, false, true, false} // Which methods should be retriable?
-	methods := makeStubMethods(reg)
+	methods := makeStubMethods(reg.Name, reg)
 	got := make([]bool, len(methods))
 	for i, m := range methods {
 		got[i] = m.retry

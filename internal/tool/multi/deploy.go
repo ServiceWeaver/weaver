@@ -19,7 +19,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -33,8 +32,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
-	"github.com/ServiceWeaver/weaver/runtime/colors"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
 	"github.com/ServiceWeaver/weaver/runtime/version"
@@ -123,9 +120,16 @@ persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues
 			binary, versions.ModuleVersion, selfVersion)
 	}
 
+	// Make temporary directory.
+	tmpDir, err := runtime.NewTempDir()
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
 	// Create the deployer.
 	deploymentId := uuid.New().String()
-	d, err := newDeployer(ctx, deploymentId, multiConfig)
+	d, err := newDeployer(ctx, deploymentId, multiConfig, tmpDir)
 	if err != nil {
 		return fmt.Errorf("create deployer: %w", err)
 	}
@@ -182,40 +186,23 @@ persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues
 		err := d.wait()
 		deployerDone <- err
 	}()
-	go func() {
-		var code = 1
-		// Wait for the user to kill the app or the app to return an error.
-		select {
-		case sig := <-userDone:
-			fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", appConfig.Name)
-			code = 128 + int(sig.(syscall.Signal))
-		case err := <-deployerDone:
-			fmt.Fprintf(os.Stderr, "Application %s error: %v\n", appConfig.Name, err)
-		}
-		if err := registry.Unregister(ctx, deploymentId); err != nil {
-			fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
-			code = 1
-		}
-		os.Exit(code)
-	}()
 
-	// Follow the logs.
-	source := logging.FileSource(logDir)
-	query := fmt.Sprintf(`full_version == %q && !("serviceweaver/system" in attrs)`, deploymentId)
-	r, err := source.Query(ctx, query, true)
-	if err != nil {
-		return err
+	var code = 1
+	// Wait for the user to kill the app or the app to return an error.
+	select {
+	case sig := <-userDone:
+		fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", appConfig.Name)
+		code = 128 + int(sig.(syscall.Signal))
+	case err := <-deployerDone:
+		fmt.Fprintf(os.Stderr, "Application %s error: %v\n", appConfig.Name, err)
 	}
-	pp := logging.NewPrettyPrinter(colors.Enabled())
-	for {
-		entry, err := r.Read(ctx)
-		if errors.Is(err, io.EOF) {
-			return nil
-		} else if err != nil {
-			return err
-		}
-		fmt.Println(pp.Format(entry))
+	if err := registry.Unregister(ctx, deploymentId); err != nil {
+		fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
+		code = 1
 	}
+	os.RemoveAll(tmpDir)
+	os.Exit(code)
+	return nil // Not reached
 }
 
 // defaultRegistry returns a registry in defaultRegistryDir().

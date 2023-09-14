@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/weavertest"
 )
@@ -126,7 +127,12 @@ func TestReflectStubs(t *testing.T) {
 		*returns[1].(*int) = n % d
 		return fakeErr
 	}
-	reg := codegen.Registered()[0]
+
+	cname := reflection.ComponentName[testApp]()
+	reg, ok := codegen.Find(cname)
+	if !ok {
+		t.Fatalf("component %q is not registered", cname)
+	}
 	app := reg.ReflectStubFn(call).(testApp)
 	div, mod, err := app.DivMod(context.Background(), 11, 4)
 	if div != 2 {

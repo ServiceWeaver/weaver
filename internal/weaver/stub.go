@@ -62,13 +62,13 @@ func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64
 }
 
 // makeStubMethods returns a slice of stub methods for the component methods of reg.
-func makeStubMethods(reg *codegen.Registration) []stubMethod {
+func makeStubMethods(fullName string, reg *codegen.Registration) []stubMethod {
 	// Construct method info slice.
 	n := reg.Iface.NumMethod()
 	methods := make([]stubMethod, n)
 	for i := 0; i < n; i++ {
 		mname := reg.Iface.Method(i).Name
-		methods[i].key = call.MakeMethodKey(reg.Name, mname)
+		methods[i].key = call.MakeMethodKey(fullName, mname)
 		methods[i].retry = true // Retry by default
 	}
 	for _, m := range reg.NoRetry {

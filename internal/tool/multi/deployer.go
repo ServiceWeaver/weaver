@@ -23,13 +23,17 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/ServiceWeaver/weaver"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
+	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/certs"
@@ -52,17 +56,18 @@ const defaultReplication = 2
 
 // A deployer manages an application deployment.
 type deployer struct {
-	ctx          context.Context
-	ctxCancel    context.CancelFunc
-	deploymentId string
-	config       *MultiConfig
-	started      time.Time
-	logger       *slog.Logger
-	caCert       *x509.Certificate
-	caKey        crypto.PrivateKey
-	running      errgroup.Group
-	logsDB       *logging.FileStore
-	traceDB      *traces.DB
+	ctx             context.Context
+	ctxCancel       context.CancelFunc
+	deploymentId    string
+	udsPath         string // Path to Unix domain socket
+	config          *MultiConfig
+	started         time.Time
+	logger          *slog.Logger
+	caCert          *x509.Certificate
+	caKey           crypto.PrivateKey
+	running         errgroup.Group
+	loggerComponent *logger
+	traceDB         *traces.DB
 
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
@@ -107,12 +112,13 @@ var _ envelope.EnvelopeHandler = &handler{}
 
 // newDeployer creates a new deployer. The deployer can be stopped at any
 // time by canceling the passed-in context.
-func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig) (*deployer, error) {
+func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, tmpDir string) (*deployer, error) {
 	// Create the log saver.
 	logsDB, err := logging.NewFileStore(logDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
+	loggerComponent := newLogger(logsDB)
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       config.App.Name,
@@ -120,7 +126,9 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig) 
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
 		},
-		Write: logsDB.Add,
+		// Local log entries are relayed directly to loggerComponent
+		// without going through any stubs.
+		Write: loggerComponent.log,
 	})
 	var caCert *x509.Certificate
 	var caKey crypto.PrivateKey
@@ -137,20 +145,34 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig) 
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 
+	// Make Unix domain socket listener for serving hosted system components.
+	udsPath := filepath.Join(tmpDir, "socket")
+	uds, err := net.Listen("unix", udsPath)
+	if err != nil {
+		return nil, err
+	}
+	sys, err := call.FixedListener(uds, map[string]any{
+		reflection.ComponentName[multiLogger](): loggerComponent,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
-		ctx:            ctx,
-		ctxCancel:      cancel,
-		logger:         logger,
-		caCert:         caCert,
-		caKey:          caKey,
-		logsDB:         logsDB,
-		traceDB:        traceDB,
-		statsProcessor: imetrics.NewStatsProcessor(),
-		deploymentId:   deploymentId,
-		config:         config,
-		started:        time.Now(),
-		proxies:        map[string]*proxyInfo{},
+		ctx:             ctx,
+		ctxCancel:       cancel,
+		udsPath:         udsPath,
+		logger:          logger,
+		caCert:          caCert,
+		caKey:           caKey,
+		loggerComponent: loggerComponent,
+		traceDB:         traceDB,
+		statsProcessor:  imetrics.NewStatsProcessor(),
+		deploymentId:    deploymentId,
+		config:          config,
+		started:         time.Now(),
+		proxies:         map[string]*proxyInfo{},
 	}
 
 	// Form co-location groups.
@@ -171,6 +193,15 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig) 
 		err := d.ctx.Err()
 		d.stop(err)
 		return err
+	})
+
+	// Start a goroutine that serves calls to system components like multiLogger.
+	d.running.Go(func() error {
+		return call.Serve(d.ctx, sys, call.ServerOptions{
+			Logger:                d.logger,
+			InlineHandlerDuration: 20 * time.Microsecond,
+			WriteFlattenLimit:     4 << 10,
+		})
 	})
 
 	return d, nil
@@ -330,6 +361,14 @@ func (d *deployer) startColocationGroup(g *group) error {
 			RunMain:         g.started[runtime.Main],
 			Mtls:            d.config.Mtls,
 			InternalAddress: "localhost:0",
+			Redirects: []*protos.EnvelopeInfo_Redirect{
+				// Override the builtin logger.
+				{
+					Component: reflection.ComponentName[weaver.Logger](),
+					Target:    reflection.ComponentName[multiLogger](),
+					Address:   "unix://" + d.udsPath,
+				},
+			},
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config.App)
 		if err != nil {
@@ -538,7 +577,7 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo, pid int)
 
 // HandleLogEntry implements the envelope.EnvelopeHandler interface.
 func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	d.logsDB.Add(entry)
+	d.loggerComponent.log(entry)
 	return nil
 }
 
