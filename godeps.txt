@@ -284,6 +284,7 @@ github.com/ServiceWeaver/weaver/internal/sim
     golang.org/x/exp/maps
     golang.org/x/sync/errgroup
     log/slog
+    math/bits
     math/rand
     net
     os

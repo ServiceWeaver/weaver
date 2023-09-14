@@ -111,3 +111,20 @@ func TestIntsDuplicateRemove(t *testing.T) {
 		t.Error("14 spuriously present")
 	}
 }
+
+func TestWyRandDeterministic(t *testing.T) {
+	for seed := uint64(0); seed < 100; seed++ {
+		a := &wyrand{seed}
+		b := &wyrand{seed}
+		for i := 0; i < 100; i++ {
+			w, x := a.Int63(), b.Int63()
+			if w != x {
+				t.Fatalf("seed %d Int63: %d != %d", seed, w, x)
+			}
+			y, z := a.Uint64(), b.Uint64()
+			if y != z {
+				t.Fatalf("seed %d Uint64: %d != %d", seed, y, z)
+			}
+		}
+	}
+}

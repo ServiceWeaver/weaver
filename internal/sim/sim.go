@@ -193,7 +193,11 @@ func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, o
 	s.workload = reflect.ValueOf(workload)
 	s.opts = opts
 	s.ops = ops
-	s.rand = rand.New(rand.NewSource(opts.Seed))
+	if s.rand == nil {
+		s.rand = rand.New(&wyrand{uint64(opts.Seed)})
+	} else {
+		s.rand.Seed(opts.Seed)
+	}
 	s.current = 1
 	s.numStarted = 0
 	s.notFinished.reset(1, 1+opts.NumOps)

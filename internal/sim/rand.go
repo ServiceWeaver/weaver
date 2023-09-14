@@ -16,6 +16,7 @@ package sim
 
 import (
 	"fmt"
+	"math/bits"
 	"math/rand"
 )
 
@@ -116,4 +117,41 @@ func (i *ints) remove(x int) {
 	i.elements = i.elements[:n-1] // shrink the slice
 	i.indices[last-i.low] = j     // update the last element's index
 	i.indices[x-i.low] = -1       // update x's index
+}
+
+// wyrand is an implementation of the wyrand pseudorandom number generator
+// algorithm from [1, 2]. This implementation also borrows from [3] and [4].
+//
+// 1: https://github.com/wangyi-fudan/wyhash
+// 2: https://github.com/wangyi-fudan/wyhash/blob/master/Modern%20Non-Cryptographic%20Hash%20Function%20and%20Pseudorandom%20Number%20Generator.pdf
+// 3: https://github.com/lemon-mint/exp-pkgs/blob/v0.0.25/hash/wyhash/wyhash.go
+// 4: https://github.com/dsincl12/wyrand/blob/5f074aba21f4f9022d8d73139357bf816fdf1c93/wyrand.go
+type wyrand struct {
+	seed uint64
+}
+
+var _ rand.Source = &wyrand{}
+var _ rand.Source64 = &wyrand{}
+
+// Seed implements the rand.Source interface.
+func (w *wyrand) Seed(seed int64) {
+	w.seed = uint64(seed)
+}
+
+// Int63 implements the rand.Source interface.
+func (w *wyrand) Int63() int64 {
+	return int64(w.Uint64() >> 1)
+}
+
+// Uint64 implements the rand.Source64 interface.
+func (w *wyrand) Uint64() uint64 {
+	w.seed += 0xa0761d6478bd642f
+	return wymix(w.seed, w.seed^0xe7037ed1a0b428db)
+
+}
+
+// See https://github.com/wangyi-fudan/wyhash for explanation.
+func wymix(x uint64, y uint64) uint64 {
+	hi, lo := bits.Mul64(x, y)
+	return hi ^ lo
 }
