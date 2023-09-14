@@ -223,6 +223,7 @@ type Results struct {
 	Err            error         // first non-nil error returned by an op
 	History        []Event       // a history of the error inducing run, if Err is not nil
 	NumSimulations int           // number of simulations ran
+	NumOps         int           // number of ops ran
 	Duration       time.Duration // duration of simulations
 }
 
@@ -362,12 +363,13 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	// successfully find an invariant violation.
 	//
 	// TODO(mwhittaker): Optimize things and pick a smarter value of n.
-	const n = 1000
+	n := 1000
 	opts := make(chan options, n)
 	errs := make(chan error, n)
 	failedResults := make(chan Results, n)
 	done := sync.WaitGroup{}
 	numSimulations := int64(0)
+	numOps := int64(0)
 
 	// Spawn n simulating goroutines that read from the opts channel.
 	done.Add(n)
@@ -381,8 +383,10 @@ func (s *Simulator) Run(duration time.Duration) Results {
 				case <-ctx.Done():
 					return
 				case o := <-opts:
+					r, err := s.simulateOne(ctx, r, sim, o)
 					atomic.AddInt64(&numSimulations, 1)
-					switch r, err := s.simulateOne(ctx, r, sim, o); {
+					atomic.AddInt64(&numOps, int64(o.NumOps))
+					switch {
 					case err != nil && err == ctx.Err():
 						// The simulation was cancelled because the deadline
 						// was met. Stop executing simulations.
@@ -461,6 +465,7 @@ func (s *Simulator) Run(duration time.Duration) Results {
 		cancel()
 		done.Wait()
 		r.NumSimulations = int(numSimulations)
+		r.NumOps = int(numOps)
 		r.Duration = time.Since(start)
 		return r
 	case <-ctx.Done():
@@ -468,6 +473,7 @@ func (s *Simulator) Run(duration time.Duration) Results {
 		done.Wait()
 		return Results{
 			NumSimulations: int(numSimulations),
+			NumOps:         int(numOps),
 			Duration:       time.Since(start),
 		}
 	}
@@ -672,10 +678,11 @@ func (r *registrar) finalize() error {
 // Summary returns a human readable summary of the results.
 func (r *Results) Summary() string {
 	duration := r.Duration.Truncate(time.Millisecond)
-	rate := float64(r.NumSimulations) / r.Duration.Seconds()
+	simRate := float64(r.NumSimulations) / r.Duration.Seconds()
+	opRate := float64(r.NumOps) / r.Duration.Seconds()
 	prefix := "✅ No errors"
 	if r.Err != nil {
 		prefix = "❌ Error"
 	}
-	return fmt.Sprintf("%s found after %d simulations in %v (%0.2f sims/s).", prefix, r.NumSimulations, duration, rate)
+	return fmt.Sprintf("%s found after %d ops across %d simulations in %v (%0.2f sims/s, %0.2f ops/s).", prefix, r.NumOps, r.NumSimulations, duration, simRate, opRate)
 }

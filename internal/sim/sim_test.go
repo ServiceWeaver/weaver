@@ -540,3 +540,40 @@ func BenchmarkWorkloads(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkParallelWorkloads(b *testing.B) {
+	for _, bench := range []struct {
+		name     string
+		workload Workload
+	}{
+		{"NoCallsNoGen", &noCallsNoGenWorkload{}},
+		{"NoCalls", &noCallsWorkload{}},
+		{"OneCall", &oneCallWorkload{}},
+	} {
+		b.Run(bench.name, func(b *testing.B) {
+			s := New(b, bench.workload, Options{})
+			opts := options{
+				NumReplicas: 1,
+				NumOps:      1,
+				FailureRate: 0,
+				YieldRate:   1,
+			}
+			ctx := context.Background()
+			b.ResetTimer()
+			b.ReportAllocs()
+			b.RunParallel(func(pb *testing.PB) {
+				r := s.newRegistrar()
+				sim := s.newSimulator()
+				for pb.Next() {
+					results, err := s.simulateOne(ctx, r, sim, opts)
+					if err != nil {
+						b.Fatal(err)
+					}
+					if results.Err != nil {
+						b.Fatal(results.Err)
+					}
+				}
+			})
+		})
+	}
+}
