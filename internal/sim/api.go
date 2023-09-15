@@ -607,31 +607,42 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 		// TODO(mwhittaker): Handle the case where a generator's Generate
 		// method receives by pointer, but the user passed by value.
 		t := reflect.TypeOf(generator)
-		err := fmt.Errorf("method %s generator %d is not a generator", method, i)
+		err := func() error {
+			return fmt.Errorf("method %s generator %d is not a generator", method, i)
+		}
 		if t == nil {
-			errs = append(errs, fmt.Errorf("%w: missing Generate method", err))
+			errs = append(errs, fmt.Errorf("%w: missing Generate method", err()))
 			continue
 		}
 
+		// TODO(mwhittaker): If the Generator interface looked like this:
+		//
+		//     type Generator[T any] interface {
+		//         Generate(*rand.Rand) any
+		//     }
+		//
+		// then we could write `g, ok := generator.(Generator)`, which is much
+		// faster. Think about how to speed things up without making the
+		// interface ugly.
 		generate, ok := t.MethodByName("Generate")
 		switch {
 		case !ok:
-			errs = append(errs, fmt.Errorf("%w: missing Generate method", err))
+			errs = append(errs, fmt.Errorf("%w: missing Generate method", err()))
 			continue
 		case generate.Type.NumIn() < 2:
-			errs = append(errs, fmt.Errorf("%w: Generate method has no arguments", err))
+			errs = append(errs, fmt.Errorf("%w: Generate method has no arguments", err()))
 			continue
 		case generate.Type.NumIn() > 2:
-			errs = append(errs, fmt.Errorf("%w: Generate method has too many arguments", err))
+			errs = append(errs, fmt.Errorf("%w: Generate method has too many arguments", err()))
 			continue
 		case generate.Type.In(1) != reflection.Type[*rand.Rand]():
-			errs = append(errs, fmt.Errorf("%w: Generate argument is not *rand.Rand", err))
+			errs = append(errs, fmt.Errorf("%w: Generate argument is not *rand.Rand", err()))
 			continue
 		case generate.Type.NumOut() == 0:
-			errs = append(errs, fmt.Errorf("%w: Generate method has no return values", err))
+			errs = append(errs, fmt.Errorf("%w: Generate method has no return values", err()))
 			continue
 		case generate.Type.NumOut() > 1:
-			errs = append(errs, fmt.Errorf("%w: Generate method has too many return values", err))
+			errs = append(errs, fmt.Errorf("%w: Generate method has too many return values", err()))
 			continue
 		case generate.Type.Out(0) != op.t.In(i+2):
 			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), op.t.In(i+2)))
