@@ -40,4 +40,8 @@ var (
 	//   - get should be a function that returns the required Listener values,
 	//     namely the network listener and the proxy address.
 	FillListeners func(impl any, get func(string) (net.Listener, string, error)) error
+
+	// GetConfig returns the config stored in the provided component
+	// implementation, or returns nil if there is no config.
+	GetConfig func(impl any) any
 )

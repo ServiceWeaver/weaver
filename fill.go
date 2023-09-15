@@ -29,6 +29,7 @@ func init() {
 	weaver.SetLogger = setLogger
 	weaver.FillRefs = fillRefs
 	weaver.FillListeners = fillListeners
+	weaver.GetConfig = getConfig
 }
 
 // See internal/weaver/types.go.
@@ -118,6 +119,14 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 		l := (*Listener)(f.Addr().UnsafePointer())
 		l.Listener = lis
 		l.proxyAddr = proxyAddr
+	}
+	return nil
+}
+
+// See internal/weaver/types.go.
+func getConfig(impl any) any {
+	if c, ok := impl.(interface{ getConfig() any }); ok {
+		return c.getConfig()
 	}
 	return nil
 }

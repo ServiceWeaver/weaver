@@ -409,6 +409,11 @@ func (wc *WithConfig[T]) Config() *T {
 	return &wc.config
 }
 
+// getConfig returns the underlying config.
+func (wc *WithConfig[T]) getConfig() any {
+	return &wc.config
+}
+
 // WithRouter[T] is a type that can be embedded inside a component
 // implementation struct to indicate that calls to a method M on the component
 // must be routed according to the the value returned by T.M().

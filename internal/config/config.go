@@ -27,6 +27,9 @@ import (
 //
 // Config panics if the provided value is not a pointer to a struct.
 func Config(v reflect.Value) any {
+	// TODO(mwhittaker): Delete this function and use weaver.GetConfig instead.
+	// Right now, there are some cyclic dependencies preventing us from doing
+	// this.
 	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
 		panic(fmt.Errorf("invalid non pointer to struct value: %v", v))
 	}
