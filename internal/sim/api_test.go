@@ -132,7 +132,7 @@ func TestInitByValueSimulation(t *testing.T) {
 	byValueCalls := 0
 	byPointerCalls := 0
 	for _, event := range r.History {
-		op, ok := event.(OpStart)
+		op, ok := event.(EventOpStart)
 		if !ok {
 			continue
 		}

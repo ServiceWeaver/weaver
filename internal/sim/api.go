@@ -144,26 +144,23 @@ type Event interface {
 	isEvent()
 }
 
-// TODO(mwhittaker): Prefix all events with Event so they show up together in
-// godoc? It might also make it clearer that they are events.
-
-// OpStart represents the start of an op.
-type OpStart struct {
+// EventOpStart represents the start of an op.
+type EventOpStart struct {
 	TraceID int      // trace id
 	SpanID  int      // span id
 	Name    string   // op name
 	Args    []string // op arguments
 }
 
-// OpFinish represents the finish of an op.
-type OpFinish struct {
+// EventOpFinish represents the finish of an op.
+type EventOpFinish struct {
 	TraceID int    // trace id
 	SpanID  int    // span id
 	Error   string // returned error message
 }
 
-// Call represents a component method call.
-type Call struct {
+// EventCall represents a component method call.
+type EventCall struct {
 	TraceID   int      // trace id
 	SpanID    int      // span id
 	Caller    string   // calling component (or "op")
@@ -173,16 +170,16 @@ type Call struct {
 	Args      []string // method arguments
 }
 
-// DeliverCall represents a component method call being delivered.
-type DeliverCall struct {
+// EventDeliverCall represents a component method call being delivered.
+type EventDeliverCall struct {
 	TraceID   int    // trace id
 	SpanID    int    // span id
 	Component string // component being called
 	Replica   int    // component replica being called
 }
 
-// Return represents a component method call returning.
-type Return struct {
+// EventReturn represents a component method call returning.
+type EventReturn struct {
 	TraceID   int      // trace id
 	SpanID    int      // span id
 	Component string   // component returning
@@ -190,33 +187,33 @@ type Return struct {
 	Returns   []string // return values
 }
 
-// DeliverReturn represents the delivery of a method return.
-type DeliverReturn struct {
+// EventDeliverReturn represents the delivery of a method return.
+type EventDeliverReturn struct {
 	TraceID int // trace id
 	SpanID  int // span id
 }
 
-// DeliverError represents the injection of an error.
-type DeliverError struct {
+// EventDeliverError represents the injection of an error.
+type EventDeliverError struct {
 	TraceID int // trace id
 	SpanID  int // span id
 }
 
-func (OpStart) isEvent()       {}
-func (OpFinish) isEvent()      {}
-func (Call) isEvent()          {}
-func (DeliverCall) isEvent()   {}
-func (Return) isEvent()        {}
-func (DeliverReturn) isEvent() {}
-func (DeliverError) isEvent()  {}
+func (EventOpStart) isEvent()       {}
+func (EventOpFinish) isEvent()      {}
+func (EventCall) isEvent()          {}
+func (EventDeliverCall) isEvent()   {}
+func (EventReturn) isEvent()        {}
+func (EventDeliverReturn) isEvent() {}
+func (EventDeliverError) isEvent()  {}
 
-var _ Event = OpStart{}
-var _ Event = OpFinish{}
-var _ Event = Call{}
-var _ Event = DeliverCall{}
-var _ Event = Return{}
-var _ Event = DeliverReturn{}
-var _ Event = DeliverError{}
+var _ Event = EventOpStart{}
+var _ Event = EventOpFinish{}
+var _ Event = EventCall{}
+var _ Event = EventDeliverCall{}
+var _ Event = EventReturn{}
+var _ Event = EventDeliverReturn{}
+var _ Event = EventDeliverError{}
 
 // Results are the results of simulating a workload.
 type Results struct {

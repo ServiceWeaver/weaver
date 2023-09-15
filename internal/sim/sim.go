@@ -342,7 +342,7 @@ func (s *simulator) call(caller string, replica int, reg *codegen.Registration, 
 	if caller == "op" {
 		replica = traceID
 	}
-	s.history = append(s.history, Call{
+	s.history = append(s.history, EventCall{
 		TraceID:   traceID,
 		SpanID:    spanID,
 		Caller:    caller,
@@ -466,7 +466,7 @@ func (s *simulator) step() {
 
 		if call.fate == failBeforeDelivery {
 			// Fail the call before delivering it.
-			s.history = append(s.history, DeliverError{
+			s.history = append(s.history, EventDeliverError{
 				TraceID: call.traceID,
 				SpanID:  call.spanID,
 			})
@@ -489,7 +489,7 @@ func (s *simulator) step() {
 
 		if reply.call.fate == failAfterDelivery {
 			// Fail the call after delivering it.
-			s.history = append(s.history, DeliverError{
+			s.history = append(s.history, EventDeliverError{
 				TraceID: reply.call.traceID,
 				SpanID:  reply.call.spanID,
 			})
@@ -500,7 +500,7 @@ func (s *simulator) step() {
 		}
 
 		// Return successfully.
-		s.history = append(s.history, DeliverReturn{
+		s.history = append(s.history, EventDeliverReturn{
 			TraceID: reply.call.traceID,
 			SpanID:  reply.call.spanID,
 		})
@@ -529,7 +529,7 @@ func (s *simulator) runOp(ctx context.Context, o *op) error {
 	}
 
 	// Record an OpStart event.
-	s.history = append(s.history, OpStart{
+	s.history = append(s.history, EventOpStart{
 		TraceID: traceID,
 		SpanID:  spanID,
 		Name:    o.name,
@@ -549,7 +549,7 @@ func (s *simulator) runOp(ctx context.Context, o *op) error {
 		msg = err.Error()
 	}
 	s.mu.Lock()
-	s.history = append(s.history, OpFinish{
+	s.history = append(s.history, EventOpFinish{
 		TraceID: traceID,
 		SpanID:  spanID,
 		Error:   msg,
@@ -582,7 +582,7 @@ func (s *simulator) deliverCall(call *call) {
 	replica := s.components[reg.Name][index]
 
 	// Record a DeliverCall event.
-	s.history = append(s.history, DeliverCall{
+	s.history = append(s.history, EventDeliverCall{
 		TraceID:   call.traceID,
 		SpanID:    call.spanID,
 		Component: reg.Name,
@@ -604,7 +604,7 @@ func (s *simulator) deliverCall(call *call) {
 		returns: returns,
 	})
 
-	s.history = append(s.history, Return{
+	s.history = append(s.history, EventReturn{
 		TraceID:   call.traceID,
 		SpanID:    call.spanID,
 		Component: reg.Name,
@@ -649,20 +649,20 @@ func (r *Results) Mermaid() string {
 		component string
 		replica   int
 	}
-	var ops []OpStart
+	var ops []EventOpStart
 	replicas := map[replica]struct{}{}
-	calls := map[int]Call{}
-	returns := map[int]Return{}
+	calls := map[int]EventCall{}
+	returns := map[int]EventReturn{}
 	for _, event := range r.History {
 		switch x := event.(type) {
-		case OpStart:
+		case EventOpStart:
 			ops = append(ops, x)
-		case Call:
+		case EventCall:
 			calls[x.SpanID] = x
-		case DeliverCall:
+		case EventDeliverCall:
 			call := calls[x.SpanID]
 			replicas[replica{call.Component, x.Replica}] = struct{}{}
-		case Return:
+		case EventReturn:
 			returns[x.SpanID] = x
 		}
 	}
@@ -691,18 +691,18 @@ func (r *Results) Mermaid() string {
 	// Create events.
 	for _, event := range r.History {
 		switch x := event.(type) {
-		case OpStart:
+		case EventOpStart:
 			fmt.Fprintf(&b, "    note right of op%d: [%d:%d] %s(%s)\n", x.TraceID, x.TraceID, x.SpanID, x.Name, commas(x.Args))
-		case OpFinish:
+		case EventOpFinish:
 			fmt.Fprintf(&b, "    note right of op%d: [%d:%d] return %s\n", x.TraceID, x.TraceID, x.SpanID, x.Error)
-		case DeliverCall:
+		case EventDeliverCall:
 			call := calls[x.SpanID]
 			fmt.Fprintf(&b, "    %s%d->>%s%d: [%d:%d] %s.%s(%s)\n", call.Caller, call.Replica, call.Component, x.Replica, x.TraceID, x.SpanID, shorten(call.Component), call.Method, commas(call.Args))
-		case DeliverReturn:
+		case EventDeliverReturn:
 			call := calls[x.SpanID]
 			ret := returns[x.SpanID]
 			fmt.Fprintf(&b, "    %s%d->>%s%d: [%d:%d] return %s\n", ret.Component, ret.Replica, call.Caller, call.Replica, x.TraceID, x.SpanID, commas(ret.Returns))
-		case DeliverError:
+		case EventDeliverError:
 			call := calls[x.SpanID]
 			fmt.Fprintf(&b, "    note right of %s%d: [%d:%d] RemoteCallError\n", call.Caller, call.Replica, x.TraceID, x.SpanID)
 		}
