@@ -499,13 +499,15 @@ func (s *Simulator) simulateOne(ctx context.Context, r *registrar, sim *simulato
 
 // registrar validates and collects registered fakes and components.
 type registrar struct {
+	// Immutable fields.
 	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
-	methods    map[string]reflect.Method              // non-Init exported methods, by name
 	regsByIntf map[reflect.Type]*codegen.Registration // registered components, by interface
-	fakes      map[reflect.Type]any                   // fakes, by component interface
-	ops        []*op                                  // operations
 	opsByName  map[string]int                         // index into ops, by name
+
+	// Mutable fields.
+	fakes map[reflect.Type]any // fakes, by component interface
+	ops   []*op                // operations
 }
 
 // newRegistrar returns a new registrar.
@@ -515,6 +517,7 @@ func newRegistrar(t testing.TB, w reflect.Type, methods map[string]reflect.Metho
 	i := 0
 	for _, m := range methods {
 		ops = append(ops, &op{
+			t:          m.Type,
 			name:       m.Name,
 			arity:      m.Type.NumIn() - 2,
 			generators: []generator{},
@@ -526,7 +529,6 @@ func newRegistrar(t testing.TB, w reflect.Type, methods map[string]reflect.Metho
 	return &registrar{
 		t:          t,
 		w:          w,
-		methods:    methods,
 		regsByIntf: regsByIntf,
 		fakes:      map[reflect.Type]any{},
 		ops:        ops,
@@ -574,11 +576,11 @@ func (r *registrar) registerFakes(fake FakeComponent) error {
 
 // registerGenerators implements RegisterGenerators.
 func (r *registrar) registerGenerators(method string, generators ...any) error {
-	m, ok := r.methods[method]
+	i, ok := r.opsByName[method]
 	if !ok {
 		return fmt.Errorf("method %q not found", method)
 	}
-	op := r.ops[r.opsByName[method]]
+	op := r.ops[i]
 	if len(op.generators) > 0 {
 		return fmt.Errorf("method %q generators already registered", method)
 	}
@@ -617,8 +619,8 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 		case generate.Type.NumOut() > 1:
 			errs = append(errs, fmt.Errorf("%w: Generate method has too many return values", err))
 			continue
-		case generate.Type.Out(0) != m.Type.In(i+2):
-			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), m.Type.In(i+2)))
+		case generate.Type.Out(0) != op.t.In(i+2):
+			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), op.t.In(i+2)))
 			continue
 		}
 

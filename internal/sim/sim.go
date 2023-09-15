@@ -76,6 +76,7 @@ type generator func(*rand.Rand) reflect.Value
 // An op is a randomized operation performed as part of a simulation. ops are
 // derived from exported methods on a workload struct.
 type op struct {
+	t          reflect.Type  // method type
 	name       string        // the name of the op
 	arity      int           // arity of op, ignoring context.Context argument
 	generators []generator   // the op's generators
