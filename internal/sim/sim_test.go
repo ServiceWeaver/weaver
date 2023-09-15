@@ -431,9 +431,10 @@ func (o *oneCallWorkload) Foo(ctx context.Context, x int) error {
 }
 
 func BenchmarkCall(b *testing.B) {
-	b.ReportAllocs()
 	foo := func(x int) int { return x }
 	f := reflect.ValueOf(foo)
+	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		f.Call([]reflect.Value{reflect.ValueOf(i)})
 	}
@@ -447,36 +448,61 @@ func BenchmarkNewSource(b *testing.B) {
 }
 
 func BenchmarkNewWorkload(b *testing.B) {
-	b.ReportAllocs()
-	s := New(b, &noCallsNoGenWorkload{}, Options{})
-	ctx := context.Background()
-	r := s.newRegistrar()
-	for i := 0; i < b.N; i++ {
-		s.newWorkload(ctx, r)
+	for _, bench := range []struct {
+		name     string
+		workload Workload
+	}{
+		{"NoCallsNoGen", &noCallsNoGenWorkload{}},
+		{"NoCalls", &noCallsWorkload{}},
+		{"OneCall", &oneCallWorkload{}},
+	} {
+		b.Run(bench.name, func(b *testing.B) {
+			s := New(b, bench.workload, Options{})
+			ctx := context.Background()
+			r := s.newRegistrar()
+			b.ResetTimer()
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				s.newWorkload(ctx, r)
+			}
+		})
 	}
 }
 
 func BenchmarkNewSimulator(b *testing.B) {
-	b.ReportAllocs()
-	s := New(b, &noCallsNoGenWorkload{}, Options{})
-	ctx := context.Background()
-	opts := options{
-		NumReplicas: 1,
-		NumOps:      1,
-		FailureRate: 0,
-		YieldRate:   1,
+	for _, bench := range []struct {
+		name     string
+		workload Workload
+	}{
+		{"NoCallsNoGen", &noCallsNoGenWorkload{}},
+		{"NoCalls", &noCallsWorkload{}},
+		{"OneCall", &oneCallWorkload{}},
+	} {
+		b.Run(bench.name, func(b *testing.B) {
+			s := New(b, bench.workload, Options{})
+			ctx := context.Background()
+			opts := options{
+				NumReplicas: 1,
+				NumOps:      1,
+				FailureRate: 0,
+				YieldRate:   1,
+			}
+			r := s.newRegistrar()
+			sim := s.newSimulator()
+			b.ResetTimer()
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				workload, err := s.newWorkload(ctx, r)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if err := sim.reset(workload, r.fakes, r.ops, opts); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
-	r := s.newRegistrar()
-	sim := s.newSimulator()
-	for i := 0; i < b.N; i++ {
-		workload, err := s.newWorkload(ctx, r)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if err := sim.reset(workload, r.fakes, r.ops, opts); err != nil {
-			b.Fatal(err)
-		}
-	}
+
 }
 
 func BenchmarkWorkloads(b *testing.B) {
@@ -500,6 +526,8 @@ func BenchmarkWorkloads(b *testing.B) {
 			ctx := context.Background()
 			r := s.newRegistrar()
 			sim := s.newSimulator()
+			b.ResetTimer()
+			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				results, err := s.simulateOne(ctx, r, sim, opts)
 				if err != nil {

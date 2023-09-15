@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
+	"github.com/ServiceWeaver/weaver/internal/weaver"
 	swruntime "github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -134,6 +135,7 @@ type Simulator struct {
 	w          reflect.Type                           // workload type
 	methods    map[string]reflect.Method              // exported non-Init methods, by name
 	regsByIntf map[reflect.Type]*codegen.Registration // components, by interface
+	info       componentInfo                          // component metadata
 	config     *protos.AppConfig                      // application config
 }
 
@@ -266,10 +268,22 @@ func New(t testing.TB, x Workload, opts Options) *Simulator {
 	}
 
 	// Gather the set of registered components.
+	//
+	// TODO(mwhittaker): Only use the components actually referenced by the
+	// workload.
 	regs := codegen.Registered()
 	regsByIntf := map[reflect.Type]*codegen.Registration{}
+	info := componentInfo{
+		hasRefs:      make(map[reflect.Type]bool, len(regs)),
+		hasListeners: make(map[reflect.Type]bool, len(regs)),
+		hasConfig:    make(map[reflect.Type]bool, len(regs)),
+	}
 	for _, reg := range regs {
+		x := reflect.New(reg.Impl).Interface()
 		regsByIntf[reg.Iface] = reg
+		info.hasRefs[reg.Iface] = weaver.HasRefs(x)
+		info.hasListeners[reg.Iface] = weaver.HasListeners(x)
+		info.hasConfig[reg.Iface] = weaver.HasConfig(x)
 	}
 
 	// Gather the set of methods.
@@ -283,7 +297,7 @@ func New(t testing.TB, x Workload, opts Options) *Simulator {
 	}
 
 	// Call Init and validate the registered fakes and generators.
-	s := &Simulator{t, w, methods, regsByIntf, app}
+	s := &Simulator{t, w, methods, regsByIntf, info, app}
 	r := s.newRegistrar()
 	if err := x.Init(r); err != nil {
 		t.Fatalf("sim.New: %v", err)
@@ -482,7 +496,7 @@ func (s *Simulator) newWorkload(ctx context.Context, r *registrar) (Workload, er
 
 // newSimulator returns a new simulator.
 func (s *Simulator) newSimulator() *simulator {
-	return newSimulator(s.t.Name(), s.regsByIntf, s.config)
+	return newSimulator(s.t.Name(), s.regsByIntf, s.info, s.config)
 }
 
 // simulateOne runs a single simulation.

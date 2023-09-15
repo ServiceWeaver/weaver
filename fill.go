@@ -27,8 +27,11 @@ import (
 func init() {
 	// See internal/weaver/types.go.
 	weaver.SetLogger = setLogger
+	weaver.HasRefs = hasRefs
 	weaver.FillRefs = fillRefs
+	weaver.HasListeners = hasListeners
 	weaver.FillListeners = fillListeners
+	weaver.HasConfig = hasConfig
 	weaver.GetConfig = getConfig
 }
 
@@ -40,6 +43,30 @@ func setLogger(v any, logger *slog.Logger) error {
 	}
 	x.setLogger(logger)
 	return nil
+}
+
+// See internal/weaver/types.go.
+func hasRefs(impl any) bool {
+	p := reflect.ValueOf(impl)
+	if p.Kind() != reflect.Pointer {
+		return false
+	}
+	s := p.Elem()
+	if s.Kind() != reflect.Struct {
+		return false
+	}
+
+	for i, n := 0, s.NumField(); i < n; i++ {
+		f := s.Field(i)
+		if !f.CanAddr() {
+			continue
+		}
+		p := reflect.NewAt(f.Type(), f.Addr().UnsafePointer()).Interface()
+		if _, ok := p.(interface{ isRef() }); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // See internal/weaver/types.go.
@@ -73,6 +100,26 @@ func fillRefs(impl any, get func(reflect.Type) (any, error)) error {
 		x.setRef(component)
 	}
 	return nil
+}
+
+// See internal/weaver/types.go.
+func hasListeners(impl any) bool {
+	p := reflect.ValueOf(impl)
+	if p.Kind() != reflect.Pointer {
+		return false
+	}
+	s := p.Elem()
+	if s.Kind() != reflect.Struct {
+		return false
+	}
+
+	for i, n := 0, s.NumField(); i < n; i++ {
+		f := s.Field(i)
+		if f.Type() == reflection.Type[Listener]() {
+			return true
+		}
+	}
+	return false
 }
 
 // See internal/weaver/types.go.
@@ -115,6 +162,12 @@ func fillListeners(impl any, get func(name string) (net.Listener, string, error)
 		l.proxyAddr = proxyAddr
 	}
 	return nil
+}
+
+// See internal/weaver/types.go.
+func hasConfig(impl any) bool {
+	_, ok := impl.(interface{ getConfig() any })
+	return ok
 }
 
 // See internal/weaver/types.go.
