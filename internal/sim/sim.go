@@ -53,7 +53,7 @@ type simulator struct {
 	config     *protos.AppConfig                      // application config
 	opts       options                                // simulator options
 	components map[string][]any                       // component replicas
-	ops        []op                                   // registered ops
+	ops        []*op                                  // registered ops
 
 	ctx   context.Context // simulation context
 	group *errgroup.Group // group with all running goroutines
@@ -62,7 +62,7 @@ type simulator struct {
 	rand        *rand.Rand       // random number generator
 	current     int              // currently running op
 	numStarted  int              // number of started ops
-	notFinished *ints            // not finished op trace ids, optimized for removal and sampling
+	notFinished ints             // not finished op trace ids, optimized for removal and sampling
 	calls       map[int][]*call  // pending calls, by trace id
 	replies     map[int][]*reply // pending replies, by trace id
 	history     []Event          // history of events
@@ -76,7 +76,9 @@ type generator func(*rand.Rand) reflect.Value
 // An op is a randomized operation performed as part of a simulation. ops are
 // derived from exported methods on a workload struct.
 type op struct {
+	t          reflect.Type  // method type
 	name       string        // the name of the op
+	arity      int           // arity of op, ignoring context.Context argument
 	generators []generator   // the op's generators
 	f          reflect.Value // the op method itself
 }
@@ -151,57 +153,70 @@ func extractIDs(ctx context.Context) (int, int) {
 	return traceID, spanID
 }
 
-// newSimulator returns a new Simulator.
-func newSimulator(name string, workload any, regsByIntf map[reflect.Type]*codegen.Registration, app *protos.AppConfig, fakes map[reflect.Type]any, ops []op, opts options) (*simulator, error) {
-	// Validate options.
-	if opts.NumReplicas <= 0 {
-		return nil, fmt.Errorf("NumReplicas (%d) <= 0", opts.NumReplicas)
-	}
-	if opts.NumOps <= 0 {
-		return nil, fmt.Errorf("NumOps (%d) <= 0", opts.NumOps)
-	}
-	if opts.FailureRate < 0 || opts.FailureRate > 1 {
-		return nil, fmt.Errorf("FailureRate (%f) out of range [0, 1]", opts.FailureRate)
-	}
-	if opts.YieldRate < 0 || opts.YieldRate > 1 {
-		return nil, fmt.Errorf("YieldRate (%f) out of range [0, 1]", opts.YieldRate)
-	}
-
-	// Create simulator.
-	//
-	// TODO(mwhittaker): Take a *testing.T and use the test name as the name.
+// newSimulator returns a new simulator.
+func newSimulator(name string, regsByIntf map[reflect.Type]*codegen.Registration, app *protos.AppConfig) *simulator {
 	s := &simulator{
 		name:       name,
-		workload:   reflect.ValueOf(workload),
-		opts:       opts,
 		config:     app,
 		regsByIntf: regsByIntf,
-		components: map[string][]any{},
-		ops:        ops,
-		rand:       rand.New(rand.NewSource(opts.Seed)),
-		// Start both trace and span ids at 1 to reserve 0 as an invalid id.
-		current:     1,
-		numStarted:  0,
-		notFinished: newInts(1, 1+opts.NumOps),
-		calls:       map[int][]*call{},
-		replies:     map[int][]*reply{},
-		nextTraceID: 1,
-		nextSpanID:  1,
+		components: make(map[string][]any, len(regsByIntf)),
+		calls:      map[int][]*call{},
+		replies:    map[int][]*reply{},
 	}
+	return s
+}
+
+func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, opts options) error {
+	// Validate options.
+	if opts.NumReplicas <= 0 {
+		return fmt.Errorf("NumReplicas (%d) <= 0", opts.NumReplicas)
+	}
+	if opts.NumOps <= 0 {
+		return fmt.Errorf("NumOps (%d) <= 0", opts.NumOps)
+	}
+	if opts.FailureRate < 0 || opts.FailureRate > 1 {
+		return fmt.Errorf("FailureRate (%f) out of range [0, 1]", opts.FailureRate)
+	}
+	if opts.YieldRate < 0 || opts.YieldRate > 1 {
+		return fmt.Errorf("YieldRate (%f) out of range [0, 1]", opts.YieldRate)
+	}
+
+	s.workload = reflect.ValueOf(workload)
+	s.opts = opts
+	s.ops = ops
+	s.rand = rand.New(rand.NewSource(opts.Seed))
+	s.current = 1
+	s.numStarted = 0
+	s.notFinished.reset(1, 1+opts.NumOps)
+	for k, v := range s.calls {
+		s.calls[k] = v[:0]
+	}
+	for k, v := range s.replies {
+		s.replies[k] = v[:0]
+	}
+	s.history = []Event{}
+	s.nextTraceID = 1
+	s.nextSpanID = 1
 
 	// Fill ref fields inside the workload struct.
 	if err := weaver.FillRefs(workload, func(t reflect.Type) (any, error) {
 		return s.getIntf(t, "op", 0)
 	}); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Create component replicas.
-	for _, reg := range regsByIntf {
+	for _, reg := range s.regsByIntf {
+		components := s.components[reg.Name]
+		if components != nil {
+			components = components[:0]
+		}
+
 		if fake, ok := fakes[reg.Iface]; ok {
-			s.components[reg.Name] = []any{fake}
+			s.components[reg.Name] = append(components, fake)
 			continue
 		}
+
 		for i := 0; i < opts.NumReplicas; i++ {
 			// Create the component implementation.
 			v := reflect.New(reg.Impl)
@@ -209,8 +224,8 @@ func newSimulator(name string, workload any, regsByIntf map[reflect.Type]*codege
 
 			// Fill config.
 			if cfg := weaver.GetConfig(obj); cfg != nil {
-				if err := runtime.ParseConfigSection(reg.Name, "", app.Sections, cfg); err != nil {
-					return nil, err
+				if err := runtime.ParseConfigSection(reg.Name, "", s.config.Sections, cfg); err != nil {
+					return err
 				}
 			}
 
@@ -218,14 +233,14 @@ func newSimulator(name string, workload any, regsByIntf map[reflect.Type]*codege
 			//
 			// TODO(mwhittaker): Use custom logger.
 			if err := weaver.SetLogger(obj, slog.Default()); err != nil {
-				return nil, err
+				return err
 			}
 
 			// Fill ref fields.
 			if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
 				return s.getIntf(t, reg.Name, i)
 			}); err != nil {
-				return nil, err
+				return err
 			}
 
 			// Fill listener fields.
@@ -233,22 +248,23 @@ func newSimulator(name string, workload any, regsByIntf map[reflect.Type]*codege
 				lis, err := net.Listen("tcp", ":0")
 				return lis, "", err
 			}); err != nil {
-				return nil, err
+				return err
 			}
 
 			// Call Init if available.
 			if i, ok := obj.(interface{ Init(context.Context) error }); ok {
 				// TODO(mwhittaker): Use better context.
 				if err := i.Init(context.Background()); err != nil {
-					return nil, fmt.Errorf("component %q initialization failed: %w", reg.Name, err)
+					return fmt.Errorf("component %q initialization failed: %w", reg.Name, err)
 				}
 			}
 
-			s.components[reg.Name] = append(s.components[reg.Name], obj)
+			components = append(components, obj)
 		}
+		s.components[reg.Name] = components
 	}
 
-	return s, nil
+	return nil
 }
 
 // getIntf returns a handle to the component of the provided type.
@@ -475,7 +491,7 @@ func (s *simulator) step() {
 }
 
 // runOp runs the provided operation.
-func (s *simulator) runOp(ctx context.Context, o op) error {
+func (s *simulator) runOp(ctx context.Context, o *op) error {
 	s.mu.Lock()
 	traceID, spanID := s.nextTraceID, s.nextSpanID
 	s.nextTraceID++

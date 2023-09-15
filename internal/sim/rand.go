@@ -61,21 +61,29 @@ type ints struct {
 	indices []int
 }
 
-// newInts returns a new set of integers in the range [low, high).
-// newInts panics if low >= high.
-func newInts(low, high int) *ints {
+// reset resets a set of integers to the range [low, high).
+// reset panics if low >= high.
+func (i *ints) reset(low, high int) {
 	if low >= high {
 		panic(fmt.Errorf("newInts: low (%d) >= high (%d)", low, high))
 	}
 
+	i.low = low
+	i.high = high
 	n := high - low
-	elements := make([]int, n)
-	indices := make([]int, n)
-	for i := 0; i < n; i++ {
-		elements[i] = low + i
-		indices[i] = i
+	if i.elements == nil {
+		i.elements = make([]int, n)
 	}
-	return &ints{low, high, elements, indices}
+	i.elements = i.elements[:0]
+	if i.indices == nil {
+		i.indices = make([]int, n)
+	}
+	i.indices = i.indices[:0]
+
+	for j := 0; j < n; j++ {
+		i.elements = append(i.elements, low+j)
+		i.indices = append(i.indices, j)
+	}
 }
 
 // has returns whether the provided integer is in the set.

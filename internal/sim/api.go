@@ -283,14 +283,15 @@ func New(t testing.TB, x Workload, opts Options) *Simulator {
 	}
 
 	// Call Init and validate the registered fakes and generators.
-	r := &registrar{t: t, w: w, methods: methods, regsByIntf: regsByIntf}
+	s := &Simulator{t, w, methods, regsByIntf, app}
+	r := s.newRegistrar()
 	if err := x.Init(r); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
 	if err := r.finalize(); err != nil {
 		t.Fatalf("sim.New: %v", err)
 	}
-	return &Simulator{t, w, methods, regsByIntf, app}
+	return s
 }
 
 // validateWorkload validates a workload struct of the provided type.
@@ -359,13 +360,15 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	for i := 0; i < n; i++ {
 		go func() {
 			defer done.Done()
+			r := s.newRegistrar()
+			sim := s.newSimulator()
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case o := <-opts:
 					atomic.AddInt64(&numSimulations, 1)
-					switch r, err := s.runOne(ctx, o); {
+					switch r, err := s.simulateOne(ctx, r, sim, o); {
 					case err != nil && err == ctx.Err():
 						// The simulation was cancelled because the deadline
 						// was met. Stop executing simulations.
@@ -456,30 +459,39 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	}
 }
 
+// newRegistar returns a new registrar.
+func (s *Simulator) newRegistrar() *registrar {
+	return newRegistrar(s.t, s.w, s.methods, s.regsByIntf)
+}
+
 // newWorkload returns a new, fully validated workload instance.
-func (s *Simulator) newWorkload(ctx context.Context) (Workload, *registrar, error) {
+func (s *Simulator) newWorkload(ctx context.Context, r *registrar) (Workload, error) {
 	// Construct an instance of the workload struct.
 	workload := reflect.New(s.w.Elem()).Interface().(Workload)
 
 	// Call the struct's Init method.
-	r := &registrar{t: s.t, w: s.w, methods: s.methods, regsByIntf: s.regsByIntf}
+	r.reset()
 	if err := workload.Init(r); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if err := r.finalize(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return workload, r, nil
+	return workload, nil
 }
 
-// runOne runs a single simulation.
-func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
-	workload, r, err := s.newWorkload(ctx)
+// newSimulator returns a new simulator.
+func (s *Simulator) newSimulator() *simulator {
+	return newSimulator(s.t.Name(), s.regsByIntf, s.config)
+}
+
+// simulateOne runs a single simulation.
+func (s *Simulator) simulateOne(ctx context.Context, r *registrar, sim *simulator, opts options) (Results, error) {
+	workload, err := s.newWorkload(ctx, r)
 	if err != nil {
 		return Results{}, err
 	}
-	sim, err := newSimulator(s.t.Name(), workload, s.regsByIntf, s.config, r.fakes, r.ops(), opts)
-	if err != nil {
+	if err := sim.reset(workload, r.fakes, r.ops, opts); err != nil {
 		return Results{}, err
 	}
 	return sim.Simulate(ctx)
@@ -487,12 +499,51 @@ func (s *Simulator) runOne(ctx context.Context, opts options) (Results, error) {
 
 // registrar validates and collects registered fakes and components.
 type registrar struct {
+	// Immutable fields.
 	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
-	methods    map[string]reflect.Method              // non-Init exported methods, by name
 	regsByIntf map[reflect.Type]*codegen.Registration // registered components, by interface
-	fakes      map[reflect.Type]any                   // fakes, by component interface
-	generators map[string][]generator                 // generators, by method name
+	opsByName  map[string]int                         // index into ops, by name
+
+	// Mutable fields.
+	fakes map[reflect.Type]any // fakes, by component interface
+	ops   []*op                // operations
+}
+
+// newRegistrar returns a new registrar.
+func newRegistrar(t testing.TB, w reflect.Type, methods map[string]reflect.Method, regsByIntf map[reflect.Type]*codegen.Registration) *registrar {
+	ops := make([]*op, 0, len(methods))
+	opsByName := make(map[string]int, len(methods))
+	i := 0
+	for _, m := range methods {
+		ops = append(ops, &op{
+			t:          m.Type,
+			name:       m.Name,
+			arity:      m.Type.NumIn() - 2,
+			generators: []generator{},
+			f:          m.Func,
+		})
+		opsByName[m.Name] = i
+		i++
+	}
+	return &registrar{
+		t:          t,
+		w:          w,
+		regsByIntf: regsByIntf,
+		fakes:      map[reflect.Type]any{},
+		ops:        ops,
+		opsByName:  opsByName,
+	}
+}
+
+// reset resets a registrar.
+func (r *registrar) reset() {
+	for k := range r.fakes {
+		delete(r.fakes, k)
+	}
+	for _, op := range r.ops {
+		op.generators = op.generators[:0]
+	}
 }
 
 // RegisterFake implements the Registrar interface.
@@ -519,28 +570,25 @@ func (r *registrar) registerFakes(fake FakeComponent) error {
 	if _, ok := r.regsByIntf[fake.intf]; !ok {
 		return fmt.Errorf("component %v not found", fake.intf)
 	}
-	if r.fakes == nil {
-		r.fakes = map[reflect.Type]any{}
-	}
 	r.fakes[fake.intf] = fake.impl
 	return nil
 }
 
 // registerGenerators implements RegisterGenerators.
 func (r *registrar) registerGenerators(method string, generators ...any) error {
-	if _, ok := r.generators[method]; ok {
-		return fmt.Errorf("method %q generators already registered", method)
-	}
-	m, ok := r.methods[method]
+	i, ok := r.opsByName[method]
 	if !ok {
 		return fmt.Errorf("method %q not found", method)
 	}
-	if got, want := len(generators), m.Type.NumIn()-2; got != want {
+	op := r.ops[i]
+	if len(op.generators) > 0 {
+		return fmt.Errorf("method %q generators already registered", method)
+	}
+	if got, want := len(generators), op.arity; got != want {
 		return fmt.Errorf("method %v: want %d generators, got %d", method, want, got)
 	}
 
 	var errs []error
-	var gens []generator
 	for i, generator := range generators {
 		// TODO(mwhittaker): Handle the case where a generator's Generate
 		// method receives by pointer, but the user passed by value.
@@ -571,49 +619,29 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 		case generate.Type.NumOut() > 1:
 			errs = append(errs, fmt.Errorf("%w: Generate method has too many return values", err))
 			continue
-		case generate.Type.Out(0) != m.Type.In(i+2):
-			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), m.Type.In(i+2)))
+		case generate.Type.Out(0) != op.t.In(i+2):
+			errs = append(errs, fmt.Errorf("method %s invalid generator %d: got Generator[%v], want Generator[%v]", method, i, generate.Type.Out(0), op.t.In(i+2)))
 			continue
 		}
 
 		generator := generator
-		gens = append(gens, func(r *rand.Rand) reflect.Value {
+		op.generators = append(op.generators, func(r *rand.Rand) reflect.Value {
 			in := []reflect.Value{reflect.ValueOf(generator), reflect.ValueOf(r)}
 			return generate.Func.Call(in)[0]
 		})
 	}
-	if err := errors.Join(errs...); err != nil {
-		return err
-	}
-	if r.generators == nil {
-		r.generators = map[string][]generator{}
-	}
-	r.generators[method] = gens
-	return nil
+	return errors.Join(errs...)
 }
 
 // finalize finalizes registration.
 func (r *registrar) finalize() error {
 	var errs []error
-	for _, m := range r.methods {
-		if _, ok := r.generators[m.Name]; !ok {
-			errs = append(errs, fmt.Errorf("no generators registered for method %s", m.Name))
+	for _, op := range r.ops {
+		if len(op.generators) != op.arity {
+			errs = append(errs, fmt.Errorf("no generators registered for method %s", op.name))
 		}
 	}
 	return errors.Join(errs...)
-}
-
-// ops returns the ops of a workload.
-func (r *registrar) ops() []op {
-	ops := make([]op, 0, len(r.methods))
-	for _, m := range r.methods {
-		ops = append(ops, op{
-			name:       m.Name,
-			generators: r.generators[m.Name],
-			f:          m.Func,
-		})
-	}
-	return ops
 }
 
 // Summary returns a human readable summary of the results.
