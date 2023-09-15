@@ -605,12 +605,8 @@ func (r *registrar) finalize() error {
 
 // ops returns the ops of a workload.
 func (r *registrar) ops() []op {
-	var ops []op
-	for i := 0; i < r.w.NumMethod(); i++ {
-		m := r.w.Method(i)
-		if m.Name == "Init" {
-			continue
-		}
+	ops := make([]op, 0, len(r.methods))
+	for _, m := range r.methods {
 		ops = append(ops, op{
 			name:       m.Name,
 			generators: r.generators[m.Name],
