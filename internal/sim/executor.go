@@ -555,6 +555,17 @@ func (e *executor) step() {
 
 // runOp runs the provided operation.
 func (e *executor) runOp(ctx context.Context, o *op) error {
+	// Allocate args on the stack when possible.
+	var args []reflect.Value
+	n := 2 + len(o.generators)
+	if n <= 20 {
+		var buf [20]reflect.Value
+		args = buf[:n]
+	} else {
+		args = make([]reflect.Value, n)
+	}
+	formatted := make([]string, len(o.generators))
+
 	e.mu.Lock()
 	traceID, spanID := e.nextTraceID, e.nextSpanID
 	e.nextTraceID++
@@ -562,8 +573,6 @@ func (e *executor) runOp(ctx context.Context, o *op) error {
 
 	// Generate random op inputs. Lock s.mu because s.rand is not safe for
 	// concurrent use by multiple goroutines.
-	args := make([]reflect.Value, 2+len(o.generators))
-	formatted := make([]string, len(o.generators))
 	args[0] = e.workload
 	args[1] = reflect.ValueOf(withIDs(ctx, traceID, spanID))
 	for i, generator := range o.generators {
@@ -621,9 +630,10 @@ func (e *executor) deliverCall(call *call) {
 	}
 
 	// Pick a replica to execute the call.
+	replicas := e.components[reg.Name]
 	e.mu.Lock()
-	index := e.rand.Intn(len(e.components[reg.Name]))
-	replica := e.components[reg.Name][index]
+	index := e.rand.Intn(len(replicas))
+	replica := replicas[index]
 
 	// Record a DeliverCall event.
 	e.history = append(e.history, EventDeliverCall{
