@@ -18,7 +18,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -428,6 +430,50 @@ func (o *oneCallWorkload) Foo(ctx context.Context, x int) error {
 	return nil
 }
 
+func BenchmarkCall(b *testing.B) {
+	b.ReportAllocs()
+	foo := func(x int) int { return x }
+	f := reflect.ValueOf(foo)
+	for i := 0; i < b.N; i++ {
+		f.Call([]reflect.Value{reflect.ValueOf(i)})
+	}
+}
+
+func BenchmarkNewSource(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		rand.NewSource(int64(i))
+	}
+}
+
+func BenchmarkNewWorkload(b *testing.B) {
+	b.ReportAllocs()
+	s := New(b, &noCallsNoGenWorkload{}, Options{})
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		s.newWorkload(ctx)
+	}
+}
+
+func BenchmarkNewSimulator(b *testing.B) {
+	b.ReportAllocs()
+	s := New(b, &noCallsNoGenWorkload{}, Options{})
+	ctx := context.Background()
+	opts := options{
+		NumReplicas: 1,
+		NumOps:      1,
+		FailureRate: 0,
+		YieldRate:   1,
+	}
+	for i := 0; i < b.N; i++ {
+		workload, r, err := s.newWorkload(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		newSimulator(s.t.Name(), workload, s.regsByIntf, s.config, r.fakes, r.ops(), opts)
+	}
+}
+
 func BenchmarkWorkloads(b *testing.B) {
 	for _, bench := range []struct {
 		name     string
@@ -442,12 +488,13 @@ func BenchmarkWorkloads(b *testing.B) {
 			s := New(b, bench.workload, Options{})
 			opts := options{
 				NumReplicas: 1,
-				NumOps:      1000,
+				NumOps:      1,
 				FailureRate: 0,
 				YieldRate:   1,
 			}
+			ctx := context.Background()
 			for i := 0; i < b.N; i++ {
-				results, err := s.runOne(context.Background(), opts)
+				results, err := s.runOne(ctx, opts)
 				if err != nil {
 					b.Fatal(err)
 				}
