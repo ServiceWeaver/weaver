@@ -75,11 +75,23 @@ func (d *divModWorkload) Mod(ctx context.Context, x, y int) error {
 }
 
 func TestPassingSimulation(t *testing.T) {
-	s := New(t, &divModWorkload{}, Options{})
-	r := s.Run(2 * time.Second)
-	t.Log(r.Summary())
-	if r.Err != nil {
-		t.Fatal(r.Err)
+	for _, test := range []struct {
+		name     string
+		workload Workload
+	}{
+		{"NoCallsNoGen", &noCallsNoGenWorkload{}},
+		{"NoCalls", &noCallsWorkload{}},
+		{"OneCall", &oneCallWorkload{}},
+		{"DivMod", &divModWorkload{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := New(t, test.workload, Options{})
+			r := s.Run(2 * time.Second)
+			t.Log(r.Summary())
+			if r.Err != nil {
+				t.Fatal(r.Err)
+			}
+		})
 	}
 }
 
