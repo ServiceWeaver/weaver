@@ -286,6 +286,11 @@ func (r Ref[T]) Get() T { return r.value }
 // used internally to check that a value is of type Ref[T].
 func (r Ref[T]) isRef() {}
 
+// setRef sets the underlying value of a Ref.
+func (r *Ref[T]) setRef(value any) {
+	r.value = value.(T)
+}
+
 // Listener is a network listener that can be placed as a field inside a
 // component implementation struct. Once placed, Service Weaver automatically
 // initializes the Listener and makes it suitable for receiving network
