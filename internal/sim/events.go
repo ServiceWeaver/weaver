@@ -14,7 +14,7 @@
 
 package sim
 
-// An Event represents an atomic step of a simulation.
+// An Event represents an atomic step of a execution.
 type Event interface {
 	isEvent()
 }
