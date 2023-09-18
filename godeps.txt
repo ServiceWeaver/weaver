@@ -290,6 +290,7 @@ github.com/ServiceWeaver/weaver/internal/sim
     os
     path/filepath
     reflect
+    runtime
     sort
     strings
     sync
