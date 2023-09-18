@@ -19,9 +19,9 @@ import (
 	"flag"
 	"fmt"
 	"runtime"
+	"runtime/debug"
 
 	"github.com/ServiceWeaver/weaver/runtime/tool"
-	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
 // VersionCmd returns a command to show a deployer's version.
@@ -32,8 +32,22 @@ func VersionCmd(toolname string) *tool.Command {
 		Description: fmt.Sprintf("Show %q version", toolname),
 		Help:        fmt.Sprintf("Usage:\n  %s version", toolname),
 		Fn: func(context.Context, []string) error {
-			fmt.Printf("%s %s %s/%s\n", toolname, version.ModuleVersion, runtime.GOOS, runtime.GOARCH)
+			v, err := SelfVersion()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s %s %s/%s\n", toolname, v, runtime.GOOS, runtime.GOARCH)
 			return nil
 		},
 	}
+}
+
+// SelfVersion returns the version of the running tool binary.
+func SelfVersion() (string, error) {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		// Should never happen.
+		return "", fmt.Errorf("tool binary must be built from a module")
+	}
+	return info.Main.Version, nil
 }

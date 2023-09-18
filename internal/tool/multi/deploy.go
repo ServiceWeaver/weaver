@@ -28,6 +28,7 @@ import (
 	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/status"
+	itool "github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/internal/tool/config"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
@@ -101,6 +102,10 @@ func deploy(ctx context.Context, args []string) error {
 				binary = rel
 			}
 		}
+		selfVersion, err := itool.SelfVersion()
+		if err != nil {
+			return fmt.Errorf("read self version: %w", err)
+		}
 		return fmt.Errorf(`
 ERROR: The binary you're trying to deploy (%q) was built with
 github.com/ServiceWeaver/weaver module version %s. However, the 'weaver
@@ -115,7 +120,7 @@ updating the 'weaver multi' command by running the following.
 
 Then, re-build your code and re-run 'weaver multi deploy'. If the problem
 persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues.`,
-			binary, versions.ModuleVersion, version.ModuleVersion)
+			binary, versions.ModuleVersion, selfVersion)
 	}
 
 	// Create the deployer.
