@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -28,7 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
-// See TestSuccessfulSimulation.
+// See TestSuccessfulExecution.
 type successfulWorkload struct {
 	divmod weaver.Ref[divMod]
 }
@@ -53,25 +52,25 @@ func (s *successfulWorkload) DivMod(ctx context.Context, x, y int) error {
 	return nil
 }
 
-func TestSuccessfulSimulation(t *testing.T) {
-	// Run the simulator, ignoring any errors. The simulation should pass.
-	opts := options{
+func TestSuccessfulExecution(t *testing.T) {
+	// Run the execution, ignoring any errors. The execution should pass.
+	params := hyperparameters{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
 	s := New(t, &successfulWorkload{}, Options{})
-	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
+	result, err := s.newExecutor().execute(context.Background(), params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if results.Err != nil {
-		t.Fatal(results.Err)
+	if result.err != nil {
+		t.Fatal(result.err)
 	}
 }
 
-// See TestUnsuccessfulSimulation.
+// See TestUnsuccessfulExecution.
 type unsuccessfulWorkload struct {
 	divmod weaver.Ref[divMod]
 }
@@ -86,30 +85,30 @@ func (u *unsuccessfulWorkload) DivMod(ctx context.Context, x, y int) error {
 	return err
 }
 
-func TestUnsuccessfulSimulation(t *testing.T) {
-	// Run the simulator, erroring out if we ever have a zero denominator. The
-	// simulation as a whole should fail with extremely high likelihood.
-	opts := options{
+func TestUnsuccessfulExecution(t *testing.T) {
+	// Run the execution, erroring out if we ever have a zero denominator. The
+	// execution should fail with extremely high likelihood.
+	params := hyperparameters{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
 	s := New(t, &unsuccessfulWorkload{}, Options{})
-	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
-	if err == nil && results.Err == nil {
+	result, err := s.newExecutor().execute(context.Background(), params)
+	if err == nil && result.err == nil {
 		t.Fatal("unexpected success")
 	}
 }
 
-func TestSimulateGraveyardEntries(t *testing.T) {
-	// This test re-runs failed UnsuccessfulSimulation simulations.
-	graveyard, err := readGraveyard(filepath.Join("testdata", "sim", "TestUnsuccessfulSimulation"))
+func TestExecuteGraveyardEntries(t *testing.T) {
+	// This test re-runs failed TestUnsuccessfulExecution executions.
+	graveyard, err := readGraveyard(filepath.Join("testdata", "sim", "TestUnsuccessfulExecution"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, entry := range graveyard {
-		opts := options{
+		params := hyperparameters{
 			Seed:        entry.Seed,
 			NumReplicas: entry.NumReplicas,
 			NumOps:      entry.NumOps,
@@ -117,14 +116,14 @@ func TestSimulateGraveyardEntries(t *testing.T) {
 			YieldRate:   entry.YieldRate,
 		}
 		s := New(t, &unsuccessfulWorkload{}, Options{})
-		results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
-		if err == nil && results.Err == nil {
+		result, err := s.newExecutor().execute(context.Background(), params)
+		if err == nil && result.err == nil {
 			t.Fatal("unexpected success")
 		}
 	}
 }
 
-// See TestCancelledSimulation.
+// See TestCancelledExecution.
 type cancellableWorkload struct {
 	b weaver.Ref[blocker]
 }
@@ -139,9 +138,9 @@ func (c *cancellableWorkload) Block(ctx context.Context) error {
 	return ctx.Err()
 }
 
-func TestCancelledSimulation(t *testing.T) {
-	// Run a blocking simulation and cancel it.
-	opts := options{NumReplicas: 10, NumOps: 1000}
+func TestCancelledExecution(t *testing.T) {
+	// Run a blocking execution and cancel it.
+	params := hyperparameters{NumReplicas: 10, NumOps: 1000}
 	s := New(t, &cancellableWorkload{}, Options{})
 
 	const delay = 100 * time.Millisecond
@@ -149,11 +148,11 @@ func TestCancelledSimulation(t *testing.T) {
 	defer cancel()
 	errs := make(chan error)
 	go func() {
-		results, err := s.simulateOne(ctx, s.newRegistrar(), s.newSimulator(), opts)
+		result, err := s.newExecutor().execute(ctx, params)
 		if err != nil {
 			errs <- err
 		} else {
-			errs <- results.Err
+			errs <- result.err
 		}
 	}()
 
@@ -165,10 +164,10 @@ func TestCancelledSimulation(t *testing.T) {
 			t.Fatalf("error: got %v, want %v", err, ctx.Err())
 		}
 		if time.Now().Before(failBefore) {
-			t.Fatal("simulation cancelled prematurely")
+			t.Fatal("execution cancelled prematurely")
 		}
 	case <-failAfter:
-		t.Fatal("simulation not cancelled promptly")
+		t.Fatal("execution not cancelled promptly")
 	}
 }
 
@@ -189,19 +188,19 @@ func (n *noFailureWorkload) DivMod(ctx context.Context, x, y int) error {
 
 func TestFailureRateZero(t *testing.T) {
 	// With FailureRate set to zero, no operation should fail.
-	opts := options{
+	params := hyperparameters{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.0,
 		YieldRate:   0.5,
 	}
 	s := New(t, &noFailureWorkload{}, Options{})
-	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
+	result, err := s.newExecutor().execute(context.Background(), params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if results.Err != nil {
-		t.Fatal(results.Err)
+	if result.err != nil {
+		t.Fatal(result.err)
 	}
 }
 
@@ -225,19 +224,19 @@ func (t *totalFailureWorkload) DivMod(ctx context.Context, x, y int) error {
 
 func TestFailureRateOne(t *testing.T) {
 	// With FailureRate set to one, all operations should fail.
-	opts := options{
+	params := hyperparameters{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 1.0,
 		YieldRate:   0.5,
 	}
 	s := New(t, &totalFailureWorkload{}, Options{})
-	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
+	result, err := s.newExecutor().execute(context.Background(), params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if results.Err != nil {
-		t.Fatal(results.Err)
+	if result.err != nil {
+		t.Fatal(result.err)
 	}
 }
 
@@ -311,15 +310,15 @@ func TestInjectedErrors(t *testing.T) {
 	// An injected RemoteCallError can happen before or after a call is
 	// executed. Record the calls that error out without executing and the
 	// calls that error out after executing. Both should happen.
-	opts := options{
+	params := hyperparameters{
 		NumReplicas: 10,
 		NumOps:      1000,
 		FailureRate: 0.5,
 		YieldRate:   0.5,
 	}
 	s := New(t, &injectedErrorWorkload{}, Options{})
-	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
-	if err != nil || results.Err != nil {
+	result, err := s.newExecutor().execute(context.Background(), params)
+	if err != nil || result.err != nil {
 		t.Fatal(err)
 	}
 }
@@ -357,14 +356,14 @@ func (f *fakeWorkload) DivMod(ctx context.Context, x, y int) error {
 }
 
 func TestFakes(t *testing.T) {
-	opts := options{
+	params := hyperparameters{
 		NumReplicas: 10,
 		NumOps:      1000,
 		YieldRate:   0.5,
 	}
 	s := New(t, &fakeWorkload{}, Options{})
-	results, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), opts)
-	if err != nil || results.Err != nil {
+	result, err := s.newExecutor().execute(context.Background(), params)
+	if err != nil || result.err != nil {
 		t.Fatal(err)
 	}
 }
@@ -430,23 +429,6 @@ func (o *oneCallWorkload) Foo(ctx context.Context, x int) error {
 	return nil
 }
 
-func BenchmarkCall(b *testing.B) {
-	foo := func(x int) int { return x }
-	f := reflect.ValueOf(foo)
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		f.Call([]reflect.Value{reflect.ValueOf(i)})
-	}
-}
-
-func BenchmarkNewSource(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		rand.NewSource(int64(i))
-	}
-}
-
 func BenchmarkNewWorkload(b *testing.B) {
 	for _, bench := range []struct {
 		name     string
@@ -458,18 +440,24 @@ func BenchmarkNewWorkload(b *testing.B) {
 	} {
 		b.Run(bench.name, func(b *testing.B) {
 			s := New(b, bench.workload, Options{})
-			ctx := context.Background()
-			r := s.newRegistrar()
+			exec := s.newExecutor()
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				s.newWorkload(ctx, r)
+				workload := reflect.New(exec.w.Elem()).Interface().(Workload)
+				exec.registrar.reset()
+				if err := workload.Init(exec.registrar); err != nil {
+					b.Fatal(err)
+				}
+				if err := exec.registrar.finalize(); err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}
 }
 
-func BenchmarkNewSimulator(b *testing.B) {
+func BenchmarkResetExecutor(b *testing.B) {
 	for _, bench := range []struct {
 		name     string
 		workload Workload
@@ -480,23 +468,27 @@ func BenchmarkNewSimulator(b *testing.B) {
 	} {
 		b.Run(bench.name, func(b *testing.B) {
 			s := New(b, bench.workload, Options{})
-			ctx := context.Background()
-			opts := options{
+			exec := s.newExecutor()
+			params := hyperparameters{
 				NumReplicas: 1,
 				NumOps:      1,
 				FailureRate: 0,
 				YieldRate:   1,
 			}
-			r := s.newRegistrar()
-			sim := s.newSimulator()
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				workload, err := s.newWorkload(ctx, r)
-				if err != nil {
+				workload := reflect.New(exec.w.Elem()).Interface().(Workload)
+				exec.registrar.reset()
+				if err := workload.Init(exec.registrar); err != nil {
 					b.Fatal(err)
 				}
-				if err := sim.reset(workload, r.fakes, r.ops, opts); err != nil {
+				if err := exec.registrar.finalize(); err != nil {
+					b.Fatal(err)
+				}
+				fakes := exec.registrar.fakes
+				ops := exec.registrar.ops
+				if err := exec.reset(workload, fakes, ops, params); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -505,7 +497,7 @@ func BenchmarkNewSimulator(b *testing.B) {
 
 }
 
-func BenchmarkWorkloads(b *testing.B) {
+func BenchmarkExecutions(b *testing.B) {
 	for _, bench := range []struct {
 		name     string
 		workload Workload
@@ -515,33 +507,31 @@ func BenchmarkWorkloads(b *testing.B) {
 		{"OneCall", &oneCallWorkload{}},
 	} {
 		b.Run(bench.name, func(b *testing.B) {
-			b.ReportAllocs()
 			s := New(b, bench.workload, Options{})
-			opts := options{
+			exec := s.newExecutor()
+			params := hyperparameters{
 				NumReplicas: 1,
 				NumOps:      1,
 				FailureRate: 0,
 				YieldRate:   1,
 			}
 			ctx := context.Background()
-			r := s.newRegistrar()
-			sim := s.newSimulator()
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				results, err := s.simulateOne(ctx, r, sim, opts)
+				result, err := exec.execute(ctx, params)
 				if err != nil {
 					b.Fatal(err)
 				}
-				if results.Err != nil {
-					b.Fatal(results.Err)
+				if result.err != nil {
+					b.Fatal(result.err)
 				}
 			}
 		})
 	}
 }
 
-func BenchmarkParallelWorkloads(b *testing.B) {
+func BenchmarkParallelExecutions(b *testing.B) {
 	for _, bench := range []struct {
 		name     string
 		workload Workload
@@ -552,7 +542,7 @@ func BenchmarkParallelWorkloads(b *testing.B) {
 	} {
 		b.Run(bench.name, func(b *testing.B) {
 			s := New(b, bench.workload, Options{})
-			opts := options{
+			params := hyperparameters{
 				NumReplicas: 1,
 				NumOps:      1,
 				FailureRate: 0,
@@ -562,15 +552,14 @@ func BenchmarkParallelWorkloads(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			b.RunParallel(func(pb *testing.PB) {
-				r := s.newRegistrar()
-				sim := s.newSimulator()
+				exec := s.newExecutor()
 				for pb.Next() {
-					results, err := s.simulateOne(ctx, r, sim, opts)
+					result, err := exec.execute(ctx, params)
 					if err != nil {
 						b.Fatal(err)
 					}
-					if results.Err != nil {
-						b.Fatal(results.Err)
+					if result.err != nil {
+						b.Fatal(result.err)
 					}
 				}
 			})

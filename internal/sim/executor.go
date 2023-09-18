@@ -22,41 +22,67 @@ import (
 	"net"
 	"path/filepath"
 	"reflect"
-	"sort"
-	"strings"
 	"sync"
+	"testing"
 
 	core "github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
-	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
-	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 )
 
-// options configures a simulator.
-type options struct {
-	Seed        int64   // the simulator's seed
+// componentInfo includes information about components.
+type componentInfo struct {
+	hasRefs      map[reflect.Type]bool // does a component have weaver.Refs?
+	hasListeners map[reflect.Type]bool // does a component have weaver.Listeners?
+	hasConfig    map[reflect.Type]bool // does a component have a weaver.Config?
+}
+
+// hyperparameters configure an execution.
+type hyperparameters struct {
+	Seed        int64   // the executor's seed
 	NumReplicas int     // the number of replicas of every component
 	NumOps      int     // the number of ops to run
 	FailureRate float64 // the fraction of calls to artificially fail
 	YieldRate   float64 // the probability that an op yields after a step
 }
 
-// simulator deterministically simulates a Service Weaver application.
-type simulator struct {
-	name       string                                 // test name
-	workload   reflect.Value                          // workload instance
-	regsByIntf map[reflect.Type]*codegen.Registration // regs, by component interface
-	info       componentInfo                          // component metadata
-	config     *protos.AppConfig                      // application config
-	opts       options                                // simulator options
-	components map[string][]any                       // component replicas
-	ops        []*op                                  // registered ops
+// generator is an untyped Generator[T].
+type generator func(*rand.Rand) reflect.Value
 
-	ctx   context.Context // simulation context
+// An op is a randomized operation performed as part of an execution. ops are
+// derived from a workload's exported methods.
+type op struct {
+	m          reflect.Method // the op itself
+	generators []generator    // the op's generators
+}
+
+// An executor deterministically executes a Service Weaver application. An
+// executor is not safe for concurrent use by multiple goroutines. However, an
+// executor can be used to peform many executions.
+//
+//	e := newExecutor(...)
+//	for {
+//	    result, err := e.execute(...)
+//	    ...
+//	}
+type executor struct {
+	// Immutable fields.
+	name       string                                 // test name
+	w          reflect.Type                           // workload type
+	regsByIntf map[reflect.Type]*codegen.Registration // registrations, by component interface
+	info       componentInfo                          // component information
+	config     *protos.AppConfig                      // application config
+
+	registrar  *registrar       // registrar
+	params     hyperparameters  // hyperparameters
+	workload   reflect.Value    // workload instance
+	ops        []*op            // registered ops
+	components map[string][]any // component replicas
+
+	ctx   context.Context // execution context
 	group *errgroup.Group // group with all running goroutines
 
 	mu          sync.Mutex       // guards the following fields
@@ -71,17 +97,10 @@ type simulator struct {
 	nextSpanID  int              // next span id
 }
 
-// generator is an untyped Generator[T].
-type generator func(*rand.Rand) reflect.Value
-
-// An op is a randomized operation performed as part of a simulation. ops are
-// derived from exported methods on a workload struct.
-type op struct {
-	t          reflect.Type  // method type
-	name       string        // the name of the op
-	arity      int           // arity of op, ignoring context.Context argument
-	generators []generator   // the op's generators
-	f          reflect.Value // the op method itself
+// result is the result of an execution.
+type result struct {
+	err     error   // first non-nil error returned by an op
+	history []Event // a history of the execution, if err is not nil
 }
 
 // fate dictates if and how a call should fail.
@@ -97,10 +116,10 @@ const (
 
 	// Fail the call after it has been delivered to a component replica. In
 	// this case, the method call will fail after fully executing.
-	//
+	failAfterDelivery
+
 	// TODO(mwhittaker): Deliver a method call, and then fail it while it is
 	// still executing.
-	failAfterDelivery
 )
 
 // call is a pending method call.
@@ -154,91 +173,144 @@ func extractIDs(ctx context.Context) (int, int) {
 	return traceID, spanID
 }
 
-// componentInfo includes information about components.
-type componentInfo struct {
-	hasRefs      map[reflect.Type]bool
-	hasListeners map[reflect.Type]bool
-	hasConfig    map[reflect.Type]bool
-}
-
-// newSimulator returns a new simulator.
-func newSimulator(name string, regsByIntf map[reflect.Type]*codegen.Registration, info componentInfo, app *protos.AppConfig) *simulator {
-	s := &simulator{
-		name:       name,
-		config:     app,
+// newExecutor returns a new executor.
+func newExecutor(t testing.TB, w reflect.Type, regsByIntf map[reflect.Type]*codegen.Registration, info componentInfo, app *protos.AppConfig) *executor {
+	registered := map[reflect.Type]struct{}{}
+	for intf := range regsByIntf {
+		registered[intf] = struct{}{}
+	}
+	return &executor{
+		name:       t.Name(),
+		w:          w,
 		regsByIntf: regsByIntf,
 		info:       info,
+		config:     app,
+		registrar:  newRegistrar(t, w, registered),
 		components: make(map[string][]any, len(regsByIntf)),
+		rand:       rand.New(&wyrand{0}),
 		calls:      map[int][]*call{},
 		replies:    map[int][]*reply{},
 	}
-	return s
 }
 
-func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, opts options) error {
-	// Validate options.
-	if opts.NumReplicas <= 0 {
-		return fmt.Errorf("NumReplicas (%d) <= 0", opts.NumReplicas)
+// execute performs a single execution. execute returns an error if the
+// execution fails to run properly. If the execution runs properly, any error
+// produced by the workload is returned in the result struct.
+//
+//	result, err := e.execute(...)
+//	switch {
+//	    case err != nil:
+//	        // The execution did not run properly.
+//	    case result.err != nil:
+//	        // The execution ran properly; the workload returned an error.
+//	    default:
+//	        // The execution ran properly; the workload did not return an error.
+//	}
+func (e *executor) execute(ctx context.Context, params hyperparameters) (result, error) {
+	// Validate hyperparameters.
+	if params.NumReplicas <= 0 {
+		return result{}, fmt.Errorf("NumReplicas (%d) <= 0", params.NumReplicas)
 	}
-	if opts.NumOps <= 0 {
-		return fmt.Errorf("NumOps (%d) <= 0", opts.NumOps)
+	if params.NumOps <= 0 {
+		return result{}, fmt.Errorf("NumOps (%d) <= 0", params.NumOps)
 	}
-	if opts.FailureRate < 0 || opts.FailureRate > 1 {
-		return fmt.Errorf("FailureRate (%f) out of range [0, 1]", opts.FailureRate)
+	if params.FailureRate < 0 || params.FailureRate > 1 {
+		return result{}, fmt.Errorf("FailureRate (%f) out of range [0, 1]", params.FailureRate)
 	}
-	if opts.YieldRate < 0 || opts.YieldRate > 1 {
-		return fmt.Errorf("YieldRate (%f) out of range [0, 1]", opts.YieldRate)
+	if params.YieldRate < 0 || params.YieldRate > 1 {
+		return result{}, fmt.Errorf("YieldRate (%f) out of range [0, 1]", params.YieldRate)
 	}
 
-	s.workload = reflect.ValueOf(workload)
-	s.opts = opts
-	s.ops = ops
-	if s.rand == nil {
-		s.rand = rand.New(&wyrand{uint64(opts.Seed)})
-	} else {
-		s.rand.Seed(opts.Seed)
+	// Construct an instance of the workload struct.
+	workload := reflect.New(e.w.Elem()).Interface().(Workload)
+
+	// Register fakes and components.
+	e.registrar.reset()
+	if err := workload.Init(e.registrar); err != nil {
+		return result{}, err
 	}
-	s.current = 1
-	s.numStarted = 0
-	s.notFinished.reset(1, 1+opts.NumOps)
-	for k, v := range s.calls {
-		s.calls[k] = v[:0]
+	if err := e.registrar.finalize(); err != nil {
+		return result{}, err
 	}
-	for k, v := range s.replies {
-		s.replies[k] = v[:0]
+
+	// Reset the executor.
+	fakes := e.registrar.fakes
+	ops := e.registrar.ops
+	if err := e.reset(workload, fakes, ops, params); err != nil {
+		return result{}, err
 	}
-	s.history = []Event{}
-	s.nextTraceID = 1
-	s.nextSpanID = 1
+
+	// Perform the execution.
+	// TODO(mwhittaker): Catch panics.
+	e.group, e.ctx = errgroup.WithContext(ctx)
+	e.step()
+	err := e.group.Wait()
+	if err != nil && err == ctx.Err() {
+		return result{}, err
+	}
+	if err != nil {
+		entry := graveyardEntry{
+			Version:     version,
+			Seed:        e.params.Seed,
+			NumReplicas: e.params.NumReplicas,
+			NumOps:      e.params.NumOps,
+			FailureRate: e.params.FailureRate,
+			YieldRate:   e.params.YieldRate,
+		}
+		// TODO(mwhittaker): Escape names.
+		dir := filepath.Join("testdata", "sim", e.name)
+		writeGraveyardEntry(dir, entry)
+	}
+	return result{err, e.history}, nil
+}
+
+// reset resets the state of an executor, preparing it for the next execution.
+func (e *executor) reset(workload Workload, fakes map[reflect.Type]any, ops []*op, params hyperparameters) error {
+	e.workload = reflect.ValueOf(workload)
+	e.params = params
+	e.ops = ops
+	e.rand.Seed(params.Seed)
+	e.current = 1
+	e.numStarted = 0
+	e.notFinished.reset(1, 1+params.NumOps)
+	for k, v := range e.calls {
+		e.calls[k] = v[:0]
+	}
+	for k, v := range e.replies {
+		e.replies[k] = v[:0]
+	}
+	e.history = []Event{}
+	e.nextTraceID = 1
+	e.nextSpanID = 1
 
 	// Fill ref fields inside the workload struct.
 	if err := weaver.FillRefs(workload, func(t reflect.Type) (any, error) {
-		return s.getIntf(t, "op", 0)
+		return e.getIntf(t, "op", 0)
 	}); err != nil {
 		return err
 	}
 
 	// Create component replicas.
-	for _, reg := range s.regsByIntf {
-		components := s.components[reg.Name]
+	for _, reg := range e.regsByIntf {
+		components := e.components[reg.Name]
 		if components != nil {
 			components = components[:0]
 		}
 
 		if fake, ok := fakes[reg.Iface]; ok {
-			s.components[reg.Name] = append(components, fake)
+			e.components[reg.Name] = append(components, fake)
 			continue
 		}
 
-		for i := 0; i < opts.NumReplicas; i++ {
+		for i := 0; i < params.NumReplicas; i++ {
 			// Create the component implementation.
 			v := reflect.New(reg.Impl)
 			obj := v.Interface()
 
 			// Fill config.
-			if s.info.hasConfig[reg.Iface] {
+			if e.info.hasConfig[reg.Iface] {
 				if cfg := weaver.GetConfig(obj); cfg != nil {
-					if err := runtime.ParseConfigSection(reg.Name, "", s.config.Sections, cfg); err != nil {
+					if err := runtime.ParseConfigSection(reg.Name, "", e.config.Sections, cfg); err != nil {
 						return err
 					}
 				}
@@ -252,16 +324,16 @@ func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, o
 			}
 
 			// Fill ref fields.
-			if s.info.hasRefs[reg.Iface] {
+			if e.info.hasRefs[reg.Iface] {
 				if err := weaver.FillRefs(obj, func(t reflect.Type) (any, error) {
-					return s.getIntf(t, reg.Name, i)
+					return e.getIntf(t, reg.Name, i)
 				}); err != nil {
 					return err
 				}
 			}
 
 			// Fill listener fields.
-			if s.info.hasListeners[reg.Iface] {
+			if e.info.hasListeners[reg.Iface] {
 				if err := weaver.FillListeners(obj, func(name string) (net.Listener, string, error) {
 					lis, err := net.Listen("tcp", ":0")
 					return lis, "", err
@@ -280,26 +352,26 @@ func (s *simulator) reset(workload any, fakes map[reflect.Type]any, ops []*op, o
 
 			components = append(components, obj)
 		}
-		s.components[reg.Name] = components
+		e.components[reg.Name] = components
 	}
 
 	return nil
 }
 
 // getIntf returns a handle to the component of the provided type.
-func (s *simulator) getIntf(t reflect.Type, caller string, replica int) (any, error) {
-	reg, ok := s.regsByIntf[t]
+func (e *executor) getIntf(t reflect.Type, caller string, replica int) (any, error) {
+	reg, ok := e.regsByIntf[t]
 	if !ok {
 		return nil, fmt.Errorf("component %v not found", t)
 	}
 	call := func(method string, ctx context.Context, args []any, returns []any) error {
-		return s.call(caller, replica, reg, method, ctx, args, returns)
+		return e.call(caller, replica, reg, method, ctx, args, returns)
 	}
 	return reg.ReflectStubFn(call), nil
 }
 
 // call executes a component method call against a random replica.
-func (s *simulator) call(caller string, replica int, reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
+func (e *executor) call(caller string, replica int, reg *codegen.Registration, method string, ctx context.Context, args []any, returns []any) error {
 	// Convert the arguments to reflect.Values.
 	in := make([]reflect.Value, 1+len(args))
 	in[0] = reflect.ValueOf(ctx)
@@ -311,25 +383,25 @@ func (s *simulator) call(caller string, replica int, reg *codegen.Registration, 
 
 	// Record the call.
 	reply := make(chan *reply, 1)
-	s.mu.Lock()
+	e.mu.Lock()
 	traceID, _ := extractIDs(ctx)
-	spanID := s.nextSpanID
-	s.nextSpanID++
+	spanID := e.nextSpanID
+	e.nextSpanID++
 
 	// Determine the fate of the call.
 	fate := dontFail
-	if flip(s.rand, s.opts.FailureRate) {
+	if flip(e.rand, e.params.FailureRate) {
 		// TODO(mwhittaker): Have two parameters to control the rate of failing
 		// before and after delivery? This level of control might be
 		// unnecessary. For now, we pick between them equiprobably.
-		if flip(s.rand, 0.5) {
+		if flip(e.rand, 0.5) {
 			fate = failBeforeDelivery
 		} else {
 			fate = failAfterDelivery
 		}
 	}
 
-	s.calls[traceID] = append(s.calls[traceID], &call{
+	e.calls[traceID] = append(e.calls[traceID], &call{
 		traceID:   traceID,
 		spanID:    spanID,
 		fate:      fate,
@@ -342,7 +414,7 @@ func (s *simulator) call(caller string, replica int, reg *codegen.Registration, 
 	if caller == "op" {
 		replica = traceID
 	}
-	s.history = append(s.history, Call{
+	e.history = append(e.history, EventCall{
 		TraceID:   traceID,
 		SpanID:    spanID,
 		Caller:    caller,
@@ -351,16 +423,16 @@ func (s *simulator) call(caller string, replica int, reg *codegen.Registration, 
 		Method:    method,
 		Args:      strings,
 	})
-	s.mu.Unlock()
+	e.mu.Unlock()
 
 	// Take a step and wait for the call to finish.
-	s.step()
+	e.step()
 	var out []reflect.Value
 	select {
 	case r := <-reply:
 		out = r.returns
-	case <-s.ctx.Done():
-		return s.ctx.Err()
+	case <-e.ctx.Done():
+		return e.ctx.Err()
 	}
 
 	// Populate return values.
@@ -378,79 +450,51 @@ func (s *simulator) call(caller string, replica int, reg *codegen.Registration, 
 	return nil
 }
 
-// Simulate executes a single simulation. Simulate returns an error if the
-// simulation fails to execute properly. If the simulation executes properly
-// and successfuly finds an invariant violation, no error is returned, but the
-// invariant violation is reported as an error in the returned Results.
-func (s *simulator) Simulate(ctx context.Context) (Results, error) {
-	// TODO(mwhittaker): Catch panics.
-	s.group, s.ctx = errgroup.WithContext(ctx)
-	s.step()
-	err := s.group.Wait()
-	if err != nil {
-		entry := graveyardEntry{
-			Version:     version,
-			Seed:        s.opts.Seed,
-			NumReplicas: s.opts.NumReplicas,
-			NumOps:      s.opts.NumOps,
-			FailureRate: s.opts.FailureRate,
-			YieldRate:   s.opts.YieldRate,
-		}
-		// TODO(mwhittaker): Escape names.
-		dir := filepath.Join("testdata", "sim", s.name)
-		writeGraveyardEntry(dir, entry)
-	}
-	if err != nil && err == ctx.Err() {
-		return Results{}, err
-	}
-	return Results{Err: err, History: s.history}, nil
-}
+// step performs one step of an execution.
+func (e *executor) step() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
-// step performs one step of a simulation.
-func (s *simulator) step() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.ctx.Err() != nil {
-		// The simulation has been cancelled.
+	if e.ctx.Err() != nil {
+		// The execution has been cancelled.
 		return
 	}
 
-	if s.notFinished.size() == 0 {
-		// The simulation is finished.
+	if e.notFinished.size() == 0 {
+		// The execution is finished.
 		return
 	}
 
-	if !s.notFinished.has(s.current) || flip(s.rand, s.opts.YieldRate) {
+	if !e.notFinished.has(e.current) || flip(e.rand, e.params.YieldRate) {
 		// Yield execution to a (potentially) different op.
-		s.current = s.notFinished.pick(s.rand)
+		e.current = e.notFinished.pick(e.rand)
 	}
 
-	if s.current > s.numStarted {
+	if e.current > e.numStarted {
 		// Make sure to start ops in increasing order. Op 1 starts first, then
 		// Op 2, and so on.
-		s.current = s.numStarted + 1
-		s.numStarted++
+		e.current = e.numStarted + 1
+		e.numStarted++
 
 		// Start the op.
-		o := pick(s.rand, s.ops)
-		s.group.Go(func() error {
-			return s.runOp(s.ctx, o)
+		o := pick(e.rand, e.ops)
+		e.group.Go(func() error {
+			return e.runOp(e.ctx, o)
 		})
 		return
 	}
 
-	if len(s.calls[s.current]) == 0 && len(s.replies[s.current]) == 0 {
+	if len(e.calls[e.current]) == 0 && len(e.replies[e.current]) == 0 {
 		// This should be impossible. If it ever happens, there's a bug.
-		panic(fmt.Errorf("op %d has no pending calls or replies", s.current))
+		panic(fmt.Errorf("op %d has no pending calls or replies", e.current))
 	}
 
-	hasCalls := len(s.calls[s.current]) > 0
-	hasReplies := len(s.replies[s.current]) > 0
+	hasCalls := len(e.calls[e.current]) > 0
+	hasReplies := len(e.replies[e.current]) > 0
 	deliverCall := false
 	switch {
 	case hasCalls && hasReplies:
-		deliverCall = flip(s.rand, 0.5)
+		deliverCall = flip(e.rand, 0.5)
 	case hasCalls && !hasReplies:
 		deliverCall = true
 	case !hasCalls && hasReplies:
@@ -462,11 +506,11 @@ func (s *simulator) step() {
 	// Randomly execute a step.
 	if deliverCall {
 		var call *call
-		call, s.calls[s.current] = pop(s.rand, s.calls[s.current])
+		call, e.calls[e.current] = pop(e.rand, e.calls[e.current])
 
 		if call.fate == failBeforeDelivery {
 			// Fail the call before delivering it.
-			s.history = append(s.history, DeliverError{
+			e.history = append(e.history, EventDeliverError{
 				TraceID: call.traceID,
 				SpanID:  call.spanID,
 			})
@@ -479,17 +523,17 @@ func (s *simulator) step() {
 		}
 
 		// Deliver the call.
-		s.group.Go(func() error {
-			s.deliverCall(call)
+		e.group.Go(func() error {
+			e.deliverCall(call)
 			return nil
 		})
 	} else {
 		var reply *reply
-		reply, s.replies[s.current] = pop(s.rand, s.replies[s.current])
+		reply, e.replies[e.current] = pop(e.rand, e.replies[e.current])
 
 		if reply.call.fate == failAfterDelivery {
 			// Fail the call after delivering it.
-			s.history = append(s.history, DeliverError{
+			e.history = append(e.history, EventDeliverError{
 				TraceID: reply.call.traceID,
 				SpanID:  reply.call.spanID,
 			})
@@ -500,7 +544,7 @@ func (s *simulator) step() {
 		}
 
 		// Return successfully.
-		s.history = append(s.history, DeliverReturn{
+		e.history = append(e.history, EventDeliverReturn{
 			TraceID: reply.call.traceID,
 			SpanID:  reply.call.spanID,
 		})
@@ -510,36 +554,36 @@ func (s *simulator) step() {
 }
 
 // runOp runs the provided operation.
-func (s *simulator) runOp(ctx context.Context, o *op) error {
-	s.mu.Lock()
-	traceID, spanID := s.nextTraceID, s.nextSpanID
-	s.nextTraceID++
-	s.nextSpanID++
+func (e *executor) runOp(ctx context.Context, o *op) error {
+	e.mu.Lock()
+	traceID, spanID := e.nextTraceID, e.nextSpanID
+	e.nextTraceID++
+	e.nextSpanID++
 
 	// Generate random op inputs. Lock s.mu because s.rand is not safe for
 	// concurrent use by multiple goroutines.
 	args := make([]reflect.Value, 2+len(o.generators))
 	formatted := make([]string, len(o.generators))
-	args[0] = s.workload
+	args[0] = e.workload
 	args[1] = reflect.ValueOf(withIDs(ctx, traceID, spanID))
 	for i, generator := range o.generators {
-		x := generator(s.rand)
+		x := generator(e.rand)
 		args[i+2] = x
 		formatted[i] = fmt.Sprint(x.Interface())
 	}
 
 	// Record an OpStart event.
-	s.history = append(s.history, OpStart{
+	e.history = append(e.history, EventOpStart{
 		TraceID: traceID,
 		SpanID:  spanID,
-		Name:    o.name,
+		Name:    o.m.Name,
 		Args:    formatted,
 	})
-	s.mu.Unlock()
+	e.mu.Unlock()
 
 	// Invoke the op.
 	var err error
-	if x := o.f.Call(args)[0].Interface(); x != nil {
+	if x := o.m.Func.Call(args)[0].Interface(); x != nil {
 		err = x.(error)
 	}
 
@@ -548,47 +592,47 @@ func (s *simulator) runOp(ctx context.Context, o *op) error {
 	if err != nil {
 		msg = err.Error()
 	}
-	s.mu.Lock()
-	s.history = append(s.history, OpFinish{
+	e.mu.Lock()
+	e.history = append(e.history, EventOpFinish{
 		TraceID: traceID,
 		SpanID:  spanID,
 		Error:   msg,
 	})
-	s.notFinished.remove(traceID)
-	s.mu.Unlock()
+	e.notFinished.remove(traceID)
+	e.mu.Unlock()
 
 	if err != nil {
-		// If an op returns a non-nil error, abort the simulation and don't
+		// If an op returns a non-nil error, abort the execution and don't
 		// take another step. Because the runOp function is running inside an
 		// errgroup.Group, the returned error will cancel all goroutines.
 		return err
 	}
 
 	// If the op succeeded, take another step.
-	s.step()
+	e.step()
 	return nil
 }
 
 // deliverCall delivers the provided pending method call.
-func (s *simulator) deliverCall(call *call) {
-	reg, ok := s.regsByIntf[call.component]
+func (e *executor) deliverCall(call *call) {
+	reg, ok := e.regsByIntf[call.component]
 	if !ok {
 		panic(fmt.Errorf("component %v not found", call.component))
 	}
 
 	// Pick a replica to execute the call.
-	s.mu.Lock()
-	index := s.rand.Intn(len(s.components[reg.Name]))
-	replica := s.components[reg.Name][index]
+	e.mu.Lock()
+	index := e.rand.Intn(len(e.components[reg.Name]))
+	replica := e.components[reg.Name][index]
 
 	// Record a DeliverCall event.
-	s.history = append(s.history, DeliverCall{
+	e.history = append(e.history, EventDeliverCall{
 		TraceID:   call.traceID,
 		SpanID:    call.spanID,
 		Component: reg.Name,
 		Replica:   index,
 	})
-	s.mu.Unlock()
+	e.mu.Unlock()
 
 	// Call the component method.
 	returns := reflect.ValueOf(replica).MethodByName(call.method).Call(call.args)
@@ -598,21 +642,21 @@ func (s *simulator) deliverCall(call *call) {
 	}
 
 	// Record the reply and take a step.
-	s.mu.Lock()
-	s.replies[call.traceID] = append(s.replies[call.traceID], &reply{
+	e.mu.Lock()
+	e.replies[call.traceID] = append(e.replies[call.traceID], &reply{
 		call:    call,
 		returns: returns,
 	})
 
-	s.history = append(s.history, Return{
+	e.history = append(e.history, EventReturn{
 		TraceID:   call.traceID,
 		SpanID:    call.spanID,
 		Component: reg.Name,
 		Replica:   index,
 		Returns:   strings,
 	})
-	s.mu.Unlock()
-	s.step()
+	e.mu.Unlock()
+	e.step()
 }
 
 // returnError returns a slice of reflect.Values compatible with the return
@@ -631,81 +675,4 @@ func returnError(component reflect.Type, method string, err error) []reflect.Val
 	}
 	returns[n-1] = reflect.ValueOf(err)
 	return returns
-}
-
-// Mermaid returns a [mermaid][1] diagram that illustrates a simulation
-// history.
-//
-// TODO(mwhittaker): Arrange replicas in topological order.
-//
-// [1]: https://mermaid.js.org/
-func (r *Results) Mermaid() string {
-	// Some abbreviations to save typing.
-	shorten := logging.ShortenComponent
-	commas := func(xs []string) string { return strings.Join(xs, ", ") }
-
-	// Gather the set of all ops and replicas.
-	type replica struct {
-		component string
-		replica   int
-	}
-	var ops []OpStart
-	replicas := map[replica]struct{}{}
-	calls := map[int]Call{}
-	returns := map[int]Return{}
-	for _, event := range r.History {
-		switch x := event.(type) {
-		case OpStart:
-			ops = append(ops, x)
-		case Call:
-			calls[x.SpanID] = x
-		case DeliverCall:
-			call := calls[x.SpanID]
-			replicas[replica{call.Component, x.Replica}] = struct{}{}
-		case Return:
-			returns[x.SpanID] = x
-		}
-	}
-
-	// Create the diagram.
-	var b strings.Builder
-	fmt.Fprintln(&b, "sequenceDiagram")
-
-	// Create ops.
-	for _, op := range ops {
-		fmt.Fprintf(&b, "    participant op%d as Op %d\n", op.TraceID, op.TraceID)
-	}
-
-	// Create component replicas.
-	sorted := maps.Keys(replicas)
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].component != sorted[j].component {
-			return sorted[i].component < sorted[j].component
-		}
-		return sorted[i].replica < sorted[j].replica
-	})
-	for _, replica := range sorted {
-		fmt.Fprintf(&b, "    participant %s%d as %s %d\n", replica.component, replica.replica, shorten(replica.component), replica.replica)
-	}
-
-	// Create events.
-	for _, event := range r.History {
-		switch x := event.(type) {
-		case OpStart:
-			fmt.Fprintf(&b, "    note right of op%d: [%d:%d] %s(%s)\n", x.TraceID, x.TraceID, x.SpanID, x.Name, commas(x.Args))
-		case OpFinish:
-			fmt.Fprintf(&b, "    note right of op%d: [%d:%d] return %s\n", x.TraceID, x.TraceID, x.SpanID, x.Error)
-		case DeliverCall:
-			call := calls[x.SpanID]
-			fmt.Fprintf(&b, "    %s%d->>%s%d: [%d:%d] %s.%s(%s)\n", call.Caller, call.Replica, call.Component, x.Replica, x.TraceID, x.SpanID, shorten(call.Component), call.Method, commas(call.Args))
-		case DeliverReturn:
-			call := calls[x.SpanID]
-			ret := returns[x.SpanID]
-			fmt.Fprintf(&b, "    %s%d->>%s%d: [%d:%d] return %s\n", ret.Component, ret.Replica, call.Caller, call.Replica, x.TraceID, x.SpanID, commas(ret.Returns))
-		case DeliverError:
-			call := calls[x.SpanID]
-			fmt.Fprintf(&b, "    note right of %s%d: [%d:%d] RemoteCallError\n", call.Caller, call.Replica, x.TraceID, x.SpanID)
-		}
-	}
-	return b.String()
 }

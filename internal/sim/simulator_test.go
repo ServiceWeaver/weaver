@@ -27,7 +27,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
-	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
 
 // TODO(mwhittaker): Move these into the sim package.
@@ -74,7 +73,7 @@ func (d *divModWorkload) Mod(ctx context.Context, x, y int) error {
 	return nil
 }
 
-func TestPassingSimulation(t *testing.T) {
+func TestPassingSimulations(t *testing.T) {
 	for _, test := range []struct {
 		name     string
 		workload Workload
@@ -116,7 +115,7 @@ func TestInitByValueSimulation(t *testing.T) {
 	// Run a simulation where the workload's Init method has a value receiver.
 	// Make sure that all methods of the workload are called.
 	s := New(t, initByValueWorkload{}, Options{})
-	r, err := s.simulateOne(context.Background(), s.newRegistrar(), s.newSimulator(), options{
+	result, err := s.newExecutor().execute(context.Background(), hyperparameters{
 		NumReplicas: 1,
 		NumOps:      1000,
 		FailureRate: 0,
@@ -125,14 +124,14 @@ func TestInitByValueSimulation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Err != nil {
-		t.Fatal(r.Err)
+	if result.err != nil {
+		t.Fatal(result.err)
 	}
 
 	byValueCalls := 0
 	byPointerCalls := 0
-	for _, event := range r.History {
-		op, ok := event.(OpStart)
+	for _, event := range result.history {
+		op, ok := event.(EventOpStart)
 		if !ok {
 			continue
 		}
@@ -180,7 +179,7 @@ func TestFailingSimulation(t *testing.T) {
 
 func TestValidateValidWorkload(t *testing.T) {
 	// Call validateWorkload on a valid workload.
-	w := reflect.PointerTo(reflection.Type[divModWorkload]())
+	w := reflection.Type[*divModWorkload]()
 	if err := validateWorkload(w); err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +196,7 @@ func (*invalidWorkload) WrongReturn(context.Context) int              { return 0
 
 func TestValidateInvalidWorkload(t *testing.T) {
 	// Call validateWorkload on an invalid workload.
-	w := reflect.PointerTo(reflection.Type[invalidWorkload]())
+	w := reflection.Type[*invalidWorkload]()
 	err := validateWorkload(w)
 	if err == nil {
 		t.Fatal("unexpected success")
@@ -218,7 +217,7 @@ func TestValidateInvalidWorkload(t *testing.T) {
 func TestValidateEmptyWorkload(t *testing.T) {
 	// Call validateWorkload on a workload with no exported methods.
 	type emptyWorkload struct{}
-	w := reflect.PointerTo(reflection.Type[emptyWorkload]())
+	w := reflection.Type[*emptyWorkload]()
 	err := validateWorkload(w)
 	if err == nil {
 		t.Fatal("unexpected success")
@@ -237,108 +236,9 @@ func TestValidateIllTypedWorkloads(t *testing.T) {
 		reflection.Type[io.Reader](),
 	} {
 		t.Run(w.String(), func(t *testing.T) {
-			err := validateWorkload(w)
-			if err == nil {
+			if err := validateWorkload(w); err == nil {
 				t.Errorf("unexpected success")
 			}
 		})
 	}
-}
-
-func TestDuplicateRegisterGeneratorsCalls(t *testing.T) {
-	// Call registerGenerators twice for the same method.
-	w := reflect.PointerTo(reflection.Type[divModWorkload]())
-	r := newTestRegistrar(t, w)
-	if err := r.registerGenerators("DivMod", integers{}, positives{}); err != nil {
-		t.Fatal(err)
-	}
-	err := r.registerGenerators("DivMod", integers{}, positives{})
-	if err == nil {
-		t.Fatal("unexpected success")
-	}
-	const want = "already registered"
-	if !strings.Contains(err.Error(), want) {
-		t.Errorf("Error does not contain %q:\n%s", want, err.Error())
-	}
-}
-
-// Invalid generators. See TestRegisterInvalidGenerators.
-type noArguments struct{}
-type tooManyArguments struct{}
-type nonRandArgument struct{}
-type noReturn struct{}
-type tooManyReturns struct{}
-
-func (noArguments) Generate() error                     { return nil }
-func (tooManyArguments) Generate(int, *rand.Rand) error { return nil }
-func (nonRandArgument) Generate(int) error              { return nil }
-func (noReturn) Generate(*rand.Rand)                    {}
-func (tooManyReturns) Generate(*rand.Rand) (int, error) { return 0, nil }
-
-func TestRegisterInvalidGenerators(t *testing.T) {
-	// Call registerGenerators on invalid generators.
-	i, p := integers{}, positives{}
-	for _, test := range []struct {
-		name       string
-		method     string
-		generators []any
-		want       string
-	}{
-		{"MissingMethod", "Foo", []any{i, p}, "not found"},
-		{"TooFewGenerators", "Div", []any{i}, "want 2 generators, got 1"},
-		{"TooManyGenerators", "Div", []any{i, i, p}, "want 2 generators, got 3"},
-		{"NilGenerator", "Div", []any{i, nil}, "missing Generate method"},
-		{"MissingGenerateMethod", "Div", []any{i, struct{}{}}, "missing Generate method"},
-		{"NoArguments", "Div", []any{i, noArguments{}}, "no arguments"},
-		{"TooManyArguments", "Div", []any{i, tooManyArguments{}}, "too many arguments"},
-		{"NonRandArgument", "Div", []any{i, nonRandArgument{}}, "not *rand.Rand"},
-		{"NoReturn", "Div", []any{i, noReturn{}}, "no return values"},
-		{"TooManyReturns", "Div", []any{i, tooManyReturns{}}, "too many return values"},
-		{"WrongType", "Div", []any{i, float64s{}}, "got Generator[float64]"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			w := reflect.PointerTo(reflection.Type[divModWorkload]())
-			r := newTestRegistrar(t, w)
-			err := r.registerGenerators(test.method, test.generators...)
-			if err == nil {
-				t.Fatal("unexpected success")
-			}
-			if !strings.Contains(err.Error(), test.want) {
-				t.Errorf("Error does not contain %q:\n%s", test.want, err.Error())
-			}
-
-		})
-	}
-}
-
-func TestMissingRegisterGenerators(t *testing.T) {
-	// Forget to call registerGenerators on some of a workload's methods.
-	w := reflect.PointerTo(reflection.Type[divModWorkload]())
-	r := newTestRegistrar(t, w)
-	err := r.finalize()
-	if err == nil {
-		t.Fatal("unexpected success")
-	}
-	const want = "no generators registered for method DivMod"
-	if !strings.Contains(err.Error(), want) {
-		t.Errorf("Error does not contain %q:\n%s", want, err.Error())
-	}
-}
-
-// newTestRegistrar returns a new registrar for the provided type.
-func newTestRegistrar(t *testing.T, w reflect.Type) *registrar {
-	methods := map[string]reflect.Method{}
-	for i := 0; i < w.NumMethod(); i++ {
-		m := w.Method(i)
-		if m.Name != "Init" {
-			methods[m.Name] = m
-		}
-	}
-
-	regsByIntf := map[reflect.Type]*codegen.Registration{}
-	for _, reg := range codegen.Registered() {
-		regsByIntf[reg.Iface] = reg
-	}
-
-	return newRegistrar(t, w, methods, regsByIntf)
 }
