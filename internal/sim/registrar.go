@@ -41,12 +41,21 @@ type registrar struct {
 	registered map[reflect.Type]struct{} // registered component interfaces
 	opsByName  map[string]int            // index into ops, by op name
 
-	// Mutable fields, updated for every execution.
+	// Cached after the first execution.
+	typeInfo map[string][]generatorTypeInfo // generator type info
+
+	// Updated for every execution.
 	fakes map[reflect.Type]any // fakes, by component interface
 	ops   []*op                // operations
 }
 
 var _ Registrar = &registrar{}
+
+// generatorTypeInfo holds type information about a generator.
+type generatorTypeInfo struct {
+	t        reflect.Type   // the type of the generator
+	generate reflect.Method // the Generate method
+}
 
 // newRegistrar returns a new registrar.
 func newRegistrar(t testing.TB, w reflect.Type, registered map[reflect.Type]struct{}) *registrar {
@@ -67,6 +76,7 @@ func newRegistrar(t testing.TB, w reflect.Type, registered map[reflect.Type]stru
 		t:          t,
 		registered: registered,
 		fakes:      map[reflect.Type]any{},
+		typeInfo:   map[string][]generatorTypeInfo{},
 		ops:        ops,
 		opsByName:  opsByName,
 	}
@@ -125,7 +135,28 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 		return fmt.Errorf("method %v: want %d generators, got %d", method, arity, len(generators))
 	}
 
+	if infos, ok := r.typeInfo[method]; ok {
+		// We have type information cached for this method.
+		var errs []error
+		for i, generator := range generators {
+			info := infos[i]
+			t := reflect.TypeOf(generator)
+			if t != info.t {
+				errs = append(errs, fmt.Errorf("method %s generator %d has type %v, but previously had type %v", method, i, t, info.t))
+				continue
+			}
+			generator := generator
+			op.generators = append(op.generators, func(r *rand.Rand) reflect.Value {
+				in := []reflect.Value{reflect.ValueOf(generator), reflect.ValueOf(r)}
+				return info.generate.Func.Call(in)[0]
+			})
+		}
+		return errors.Join(errs...)
+	}
+
+	// We don't have type information cached for this method.
 	var errs []error
+	infos := make([]generatorTypeInfo, arity)
 	for i, generator := range generators {
 		// TODO(mwhittaker): Handle the case where a generator's Generate
 		// method receives by pointer, but the user passed by value.
@@ -173,12 +204,17 @@ func (r *registrar) registerGenerators(method string, generators ...any) error {
 		}
 
 		generator := generator
+		infos[i] = generatorTypeInfo{t, generate}
 		op.generators = append(op.generators, func(r *rand.Rand) reflect.Value {
 			in := []reflect.Value{reflect.ValueOf(generator), reflect.ValueOf(r)}
 			return generate.Func.Call(in)[0]
 		})
 	}
-	return errors.Join(errs...)
+	err := errors.Join(errs...)
+	if err == nil {
+		r.typeInfo[method] = infos
+	}
+	return err
 }
 
 // finalize finalizes registration.
