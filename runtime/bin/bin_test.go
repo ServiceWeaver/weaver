@@ -122,25 +122,18 @@ func TestReadListeners(t *testing.T) {
 }
 
 func TestExtractVersion(t *testing.T) {
-	for _, want := range []Versions{
-		{
-			ModuleVersion:   version.SemVer{Major: 1, Minor: 2, Patch: 3},
-			DeployerVersion: version.SemVer{Major: 4, Minor: 5, Patch: 6},
-		},
-		{
-			ModuleVersion:   version.SemVer{Major: 100, Minor: 100, Patch: 234},
-			DeployerVersion: version.SemVer{Major: 0, Minor: 567, Patch: 8910},
-		},
+	for _, want := range []version.SemVer{
+		{Major: 4, Minor: 5, Patch: 6},
+		{Major: 0, Minor: 567, Patch: 8910},
 	} {
-		name := fmt.Sprintf("%s-%s", want.ModuleVersion, want.DeployerVersion)
-		t.Run(name, func(t *testing.T) {
+		t.Run(want.String(), func(t *testing.T) {
 			// Embed the version string inside a big array of bytes.
 			var bytes [10000]byte
-			embedded := fmt.Sprintf("⟦wEaVeRvErSiOn:module=%s;deployer=%s⟧", want.ModuleVersion, want.DeployerVersion)
+			embedded := fmt.Sprintf("⟦wEaVeRvErSiOn:deployer=%s⟧", want)
 			copy(bytes[1234:], []byte(embedded))
 
 			// Extract the version string.
-			got, err := extractVersions(bytes[:])
+			got, err := extractDeployerVersion(bytes[:])
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -172,8 +165,13 @@ func TestReadVersion(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.ModuleVersion != version.ModuleVersion {
-				t.Fatalf("bad module version: got %s, want %s", got.ModuleVersion, version.ModuleVersion)
+
+			// NOTE(spetrovic): Test binaries are built without module
+			// information, so we can't read the expected module value from
+			// the running test binary. For that reason, we only test that
+			// the testprogram module version is not empty.
+			if got.ModuleVersion == "" {
+				t.Fatalf("empty module version")
 			}
 			if got.DeployerVersion != version.DeployerVersion {
 				t.Fatalf("bad deployer version: got %s, want %s", got.DeployerVersion, version.DeployerVersion)

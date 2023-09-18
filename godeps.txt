@@ -351,8 +351,8 @@ github.com/ServiceWeaver/weaver/internal/tool
     flag
     fmt
     github.com/ServiceWeaver/weaver/runtime/tool
-    github.com/ServiceWeaver/weaver/runtime/version
     runtime
+    runtime/debug
 github.com/ServiceWeaver/weaver/internal/tool/callgraph
     fmt
     github.com/ServiceWeaver/weaver/runtime
@@ -385,6 +385,7 @@ github.com/ServiceWeaver/weaver/internal/tool/generate
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/version
@@ -628,6 +629,7 @@ github.com/ServiceWeaver/weaver/runtime
     time
 github.com/ServiceWeaver/weaver/runtime/bin
     bytes
+    debug/buildinfo
     debug/elf
     debug/macho
     debug/pe

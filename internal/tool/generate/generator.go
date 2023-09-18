@@ -35,6 +35,7 @@ import (
 	"unicode"
 
 	"github.com/ServiceWeaver/weaver/internal/files"
+	"github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/version"
@@ -919,7 +920,9 @@ func (g *generator) generate() error {
 		g.generateRouterChecks(fn)
 		g.generateLocalStubs(fn)
 		g.generateClientStubs(fn)
-		g.generateVersionCheck(fn)
+		if err := g.generateVersionCheck(fn); err != nil {
+			return err
+		}
 		g.generateServerStubs(fn)
 		g.generateReflectStubs(fn)
 		g.generateAutoMarshalMethods(fn)
@@ -1016,7 +1019,12 @@ func (g *generator) generateImports(p printFn) {
 	p(`)`)
 }
 
-func (g *generator) generateVersionCheck(p printFn) {
+func (g *generator) generateVersionCheck(p printFn) error {
+	selfVersion, err := tool.SelfVersion()
+	if err != nil {
+		return fmt.Errorf("read self version: %w", err)
+	}
+
 	// Example output when 'weaver generate' has codegen API version 0.1.0:
 	//
 	//     var _ codegen.LatestVersion = codegen.Version[[0][1]struct{}]("You used ...")
@@ -1045,8 +1053,9 @@ running the following.
 Then, re-run 'weaver generate' and re-build your code. If the problem persists,
 please file an issue at https://github.com/ServiceWeaver/weaver/issues.
 
-`+"`", version.ModuleVersion, version.CodegenVersion),
+`+"`", selfVersion, version.CodegenVersion),
 	)
+	return nil
 }
 
 // generateInstanceChecks generates code that checks that every component
