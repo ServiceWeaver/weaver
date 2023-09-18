@@ -33,6 +33,24 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// TODO(mwhittaker): Here is a list of potential future optimizations. Note
+// that the simulator is currently relatively fast, and the following
+// optimizations introduce a fair bit of complexity.
+//
+// - An executor can cache the methods of every component to avoid calling
+//   MethodByName for every method call. MethodByName takes a non-trivial
+//   amount of time.
+// - We can generate code to execute component method calls from a slice of
+//   input arguments as []any. This avoids a reflect.Call.
+// - We can introduce a new generator interface that returns reflect.Values
+//   directly. This allows us to generate values without calling reflect.Call.
+// - Currently, an executor records the history of every execution. However,
+//   the vast majority of executions pass, and for these passing executions,
+//   the history is not needed. We could execute with history disabled, and
+//   when we find a failing execution, re-run it with history enabled. If a
+//   user's workload isn't deterministic, however, this may lead to failing
+//   executions without history.
+
 // componentInfo includes information about components.
 type componentInfo struct {
 	hasRefs      map[reflect.Type]bool // does a component have weaver.Refs?
