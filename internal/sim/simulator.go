@@ -267,98 +267,134 @@ func (s *Simulator) newExecutor() *executor {
 	return newExecutor(s.t, s.w, s.regsByIntf, s.info, s.config)
 }
 
-// Run runs simulations for the provided duration.
+// graveyardDir returns the graveyard directory for this simulator.
+func (s *Simulator) graveyardDir() string {
+	// TODO(mwhittaker): Escape test names.
+	return filepath.Join("testdata", "sim", s.t.Name())
+}
+
+// Run runs a simulation for the provided duration.
 func (s *Simulator) Run(duration time.Duration) Results {
-	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
-	start := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
-	// Read graveyard entries.
-	// TODO(mwhittaker): Escape names.
-	graveyard, err := readGraveyard(filepath.Join("testdata", "sim", s.t.Name()))
-	if err != nil {
-		s.t.Fatal(err)
+	s.t.Logf("Simulating workload %v for %v.", s.w, duration)
+	stats := &stats{start: time.Now()}
+	switch result, err := s.run(ctx, stats); {
+	case err != nil && err == ctx.Err():
+		// The simulation was cancelled.
+		results := Results{
+			NumExecutions: int(stats.numExecutions),
+			NumOps:        int(stats.numOps),
+			Duration:      time.Since(stats.start),
+		}
+		s.t.Log(results.summary())
+		return results
+
+	case err != nil:
+		// The simulation failed to run properly.
+		s.t.Fatalf("Simulator.Run: %v", err)
+		return Results{}
+
+	case result.err != nil:
+		// The simulation found a failing execution.
+		results := Results{
+			Err:           result.err,
+			History:       result.history,
+			NumExecutions: int(stats.numExecutions),
+			NumOps:        int(stats.numOps),
+			Duration:      time.Since(stats.start),
+		}
+		s.t.Log(results.summary())
+
+		entry := graveyardEntry{
+			Version:     version,
+			Seed:        result.params.Seed,
+			NumReplicas: result.params.NumReplicas,
+			NumOps:      result.params.NumOps,
+			FailureRate: result.params.FailureRate,
+			YieldRate:   result.params.YieldRate,
+		}
+		if filename, err := writeGraveyardEntry(s.graveyardDir(), entry); err == nil {
+			s.t.Logf("Failing input written to %s.", filename)
+		}
+		return results
+
+	default:
+		// All executions passed.
+		results := Results{
+			NumExecutions: int(stats.numExecutions),
+			NumOps:        int(stats.numOps),
+			Duration:      time.Since(stats.start),
+		}
+		s.t.Log(results.summary())
+		return results
+	}
+}
+
+// stats contains simulation statistics.
+type stats struct {
+	start         time.Time // start of simulation
+	numExecutions int64     // number of fully executed executions
+	numOps        int64     // number of fully executed ops
+}
+
+// run runs a simulation until the provided context is cancelled. It returns
+// the hyperparameters and result of a failing execution if any are found.
+func (s *Simulator) run(ctx context.Context, stats *stats) (result, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Spawn a goroutine to periodically print progress.
+	done := sync.WaitGroup{}
+	done.Add(1)
+	go func() {
+		defer done.Done()
+		s.printProgress(ctx, stats)
+	}()
+
+	// Execute the graveyard entries.
+	if r, err := s.executeGraveyard(ctx, stats); err != nil || r.err != nil {
+		return r, err
 	}
 
-	// Spawn n concurrent executors. The executors read hyperparamters from the
-	// params channel and write errors and failed results to the errs and
-	// failedResults channels. Simulation ends when we encounter an error or
-	// successfully find an invariant violation.
+	// Spawn n concurrent executors which read hyperparamters from the params
+	// channel. Simulation ends when:
 	//
-	// TODO(mwhittaker): Optimize things and pick a smarter value of n.
+	//     1. the context is cancelled;
+	//     2. an execution fails to run properly (written to errs); or
+	//     3. a failing execution is found (written to failing).
 	n := s.opts.Parallelism
 	if n == 0 {
 		n = 10 * runtime.NumCPU()
 	}
 	params := make(chan hyperparameters, n)
 	errs := make(chan error, n)
-	failedResults := make(chan result, n)
-	numExecutions := int64(0)
-	numOps := int64(0)
+	failing := make(chan result, n)
 
-	// Spawn n executors.
-	done := sync.WaitGroup{}
+	s.t.Logf("Executing with %d executors.", n)
 	done.Add(n)
 	for i := 0; i < n; i++ {
 		go func() {
 			defer done.Done()
-			exec := s.newExecutor()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case p := <-params:
-					result, err := exec.execute(ctx, p)
-					switch {
-					case err != nil && err == ctx.Err():
-						// The execution was cancelled because the deadline was
-						// met. Stop executing.
-						return
-					case err != nil:
-						// The execution failed to execute properly. Abort.
-						errs <- err
-						return
-					case result.err != nil:
-						// The execution successfully found an invariant
-						// violation. Return the result and stop execution.
-						atomic.AddInt64(&numExecutions, 1)
-						atomic.AddInt64(&numOps, int64(p.NumOps))
-						failedResults <- result
-						return
-					default:
-						// The execution ran without finding an invariant
-						// violation. Move on to the next execution.
-						atomic.AddInt64(&numExecutions, 1)
-						atomic.AddInt64(&numOps, int64(p.NumOps))
-					}
-				}
+			switch r, err := s.execute(ctx, stats, params); {
+			case err != nil && err == ctx.Err():
+				return
+			case err != nil:
+				errs <- err
+				return
+			case r.err != nil:
+				failing <- r
 			}
 		}()
 	}
 
 	// Spawn a goroutine that writes to the params channel.
+	//
+	// TODO(mwhittaker): Use a smarter algorithm to sweep over hyperparameters.
 	done.Add(1)
 	go func() {
 		defer done.Done()
-
-		// Re-run graveyard entries first.
-		for _, entry := range graveyard {
-			p := hyperparameters{
-				Seed:        entry.Seed,
-				NumReplicas: entry.NumReplicas,
-				NumOps:      entry.NumOps,
-				FailureRate: entry.FailureRate,
-				YieldRate:   entry.YieldRate,
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case params <- p:
-			}
-		}
-
-		// Run new entries.
 		seed := time.Now().UnixNano()
 		for numOps := 1; ; numOps++ {
 			for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
@@ -383,66 +419,109 @@ func (s *Simulator) Run(duration time.Duration) Results {
 		}
 	}()
 
-	// Spawn a goroutine to periodically print progress.
-	done.Add(1)
-	go func() {
-		defer done.Done()
-		s.t.Logf("Simulating %v for %v with %d executors...", s.w, duration, n)
-		printer := message.NewPrinter(language.AmericanEnglish)
-		ticker := time.NewTicker(time.Second)
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				execs := atomic.LoadInt64(&numExecutions)
-				ops := atomic.LoadInt64(&numOps)
-				elapsed := time.Since(start)
-				truncated := elapsed.Truncate(time.Second)
-				execRate := printer.Sprintf("%0.0f", float64(execs)/elapsed.Seconds())
-				opRate := printer.Sprintf("%0.0f", float64(ops)/elapsed.Seconds())
-				s.t.Logf("[%v] %s execs (%s execs/s), %s ops (%s ops/s)", truncated, printer.Sprint(execs), execRate, printer.Sprint(ops), opRate)
-			}
-		}
-	}()
-
+	// Wait for the simulation to end.
 	select {
+	case <-ctx.Done():
+		done.Wait()
+		return result{}, ctx.Err()
 	case err := <-errs:
-		// An execution failed to execute properly.
-		s.t.Fatal(err)
-		return Results{}
-	case r := <-failedResults:
-		// An execution successfully found an invariant violation.
 		cancel()
 		done.Wait()
-		return Results{
-			Err:           r.err,
-			History:       r.history,
-			NumExecutions: int(numExecutions),
-			NumOps:        int(numOps),
-			Duration:      time.Since(start),
-		}
-	case <-ctx.Done():
-		// We hit our deadline. All simulations passed.
+		return result{}, err
+	case r := <-failing:
+		cancel()
 		done.Wait()
-		return Results{
-			NumExecutions: int(numExecutions),
-			NumOps:        int(numOps),
-			Duration:      time.Since(start),
+		return r, nil
+	}
+}
+
+// printProgress periodically prints the progress of the simulation.
+func (s *Simulator) printProgress(ctx context.Context, stats *stats) {
+	printer := message.NewPrinter(language.AmericanEnglish)
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			elapsed := time.Since(stats.start)
+			truncated := elapsed.Truncate(time.Second)
+			execs := atomic.LoadInt64(&stats.numExecutions)
+			ops := atomic.LoadInt64(&stats.numOps)
+			execRate := printer.Sprintf("%0.0f", float64(execs)/elapsed.Seconds())
+			opRate := printer.Sprintf("%0.0f", float64(ops)/elapsed.Seconds())
+			s.t.Logf("[%v] %s execs (%s execs/s), %s ops (%s ops/s)", truncated, printer.Sprint(execs), execRate, printer.Sprint(ops), opRate)
 		}
 	}
 }
 
-// Summary returns a human readable summary of the results.
-func (r *Results) Summary() string {
+// executeGraveyardEntries executes graveyard entries serially. Executing
+// graveyard entries serially is important to make errors repeatable. If we
+// execute graveyard entries in multiple goroutines, the user might see a
+// different error every time they run "go test", which is discombobulating.
+func (s *Simulator) executeGraveyard(ctx context.Context, stats *stats) (result, error) {
+	graveyard, err := readGraveyard(s.graveyardDir())
+	if err != nil {
+		return result{}, err
+	}
+
+	s.t.Logf("Executing %d graveyard entries.", len(graveyard))
+	exec := s.newExecutor()
+	for _, entry := range graveyard {
+		p := hyperparameters{
+			Seed:        entry.Seed,
+			NumReplicas: entry.NumReplicas,
+			NumOps:      entry.NumOps,
+			FailureRate: entry.FailureRate,
+			YieldRate:   entry.YieldRate,
+		}
+		r, err := exec.execute(ctx, p)
+		if err != nil {
+			return result{}, err
+		}
+		atomic.AddInt64(&stats.numExecutions, 1)
+		atomic.AddInt64(&stats.numOps, int64(p.NumOps))
+		if r.err != nil {
+			return r, nil
+		}
+	}
+	s.t.Log("Done executing graveyard entries.")
+	return result{}, nil
+}
+
+// execute repeatedly performs executions until the provided context is
+// cancelled or until a failing result is found. Hyperparameters for the
+// executions are read from the provided params channel.
+func (s *Simulator) execute(ctx context.Context, stats *stats, params <-chan hyperparameters) (result, error) {
+	exec := s.newExecutor()
+	for {
+		select {
+		case <-ctx.Done():
+			return result{}, ctx.Err()
+		case p := <-params:
+			r, err := exec.execute(ctx, p)
+			if err != nil {
+				return result{}, err
+			}
+			atomic.AddInt64(&stats.numExecutions, 1)
+			atomic.AddInt64(&stats.numOps, int64(p.NumOps))
+			if r.err != nil {
+				return r, nil
+			}
+		}
+	}
+}
+
+// summary returns a human readable summary of the results.
+func (r *Results) summary() string {
 	duration := r.Duration.Truncate(time.Millisecond)
 	printer := message.NewPrinter(language.AmericanEnglish)
 	execRate := printer.Sprintf("%0.2f", float64(r.NumExecutions)/r.Duration.Seconds())
 	opRate := printer.Sprintf("%0.2f", float64(r.NumOps)/r.Duration.Seconds())
-	prefix := "✅ No errors"
+	prefix := "No errors"
 	if r.Err != nil {
-		prefix = "❌ Error"
+		prefix = "Error"
 	}
 	return fmt.Sprintf("%s found after %s ops across %s executions in %v (%s execs/s, %s ops/s).",
 		prefix, printer.Sprint(r.NumOps), printer.Sprint(r.NumExecutions), duration, execRate, opRate)
