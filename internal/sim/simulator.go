@@ -43,6 +43,8 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"golang.org/x/exp/maps"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 // FakeComponent is a copy of weavertest.FakeComponent. It's needed to access
@@ -381,6 +383,30 @@ func (s *Simulator) Run(duration time.Duration) Results {
 		}
 	}()
 
+	// Spawn a goroutine to periodically print progress.
+	done.Add(1)
+	go func() {
+		defer done.Done()
+		s.t.Logf("Simulating %v for %v with %d executors...", s.w, duration, n)
+		printer := message.NewPrinter(language.AmericanEnglish)
+		ticker := time.NewTicker(time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				execs := atomic.LoadInt64(&numExecutions)
+				ops := atomic.LoadInt64(&numOps)
+				elapsed := time.Since(start)
+				truncated := elapsed.Truncate(time.Second)
+				execRate := printer.Sprintf("%0.0f", float64(execs)/elapsed.Seconds())
+				opRate := printer.Sprintf("%0.0f", float64(ops)/elapsed.Seconds())
+				s.t.Logf("[%v] %s execs (%s execs/s), %s ops (%s ops/s)", truncated, printer.Sprint(execs), execRate, printer.Sprint(ops), opRate)
+			}
+		}
+	}()
+
 	select {
 	case err := <-errs:
 		// An execution failed to execute properly.
@@ -411,13 +437,15 @@ func (s *Simulator) Run(duration time.Duration) Results {
 // Summary returns a human readable summary of the results.
 func (r *Results) Summary() string {
 	duration := r.Duration.Truncate(time.Millisecond)
-	simRate := float64(r.NumExecutions) / r.Duration.Seconds()
-	opRate := float64(r.NumOps) / r.Duration.Seconds()
+	printer := message.NewPrinter(language.AmericanEnglish)
+	execRate := printer.Sprintf("%0.2f", float64(r.NumExecutions)/r.Duration.Seconds())
+	opRate := printer.Sprintf("%0.2f", float64(r.NumOps)/r.Duration.Seconds())
 	prefix := "✅ No errors"
 	if r.Err != nil {
 		prefix = "❌ Error"
 	}
-	return fmt.Sprintf("%s found after %d ops across %d executions in %v (%0.2f execs/s, %0.2f ops/s).", prefix, r.NumOps, r.NumExecutions, duration, simRate, opRate)
+	return fmt.Sprintf("%s found after %s ops across %s executions in %v (%s execs/s, %s ops/s).",
+		prefix, printer.Sprint(r.NumOps), printer.Sprint(r.NumExecutions), duration, execRate, opRate)
 }
 
 // Mermaid returns a [mermaid] diagram that illustrates an execution history.
