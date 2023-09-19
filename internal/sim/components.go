@@ -52,6 +52,15 @@ type blocker interface {
 	Block(context.Context) error
 }
 
+// register is a string-valued register.
+type register interface {
+	// Append appends to the register.
+	Append(context.Context, string) (string, error)
+
+	// Clear clears the contents of the register.
+	Clear(context.Context) error
+}
+
 // Component implementation structs.
 
 type divModImpl struct {
@@ -129,6 +138,15 @@ func (i *identityImpl) Identity(ctx context.Context, x int) (int, error) {
 func (*blockerImpl) Block(ctx context.Context) error {
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+type registerImpl struct {
+	weaver.Implements[register]
+
+	// register is always faked, so we embed register and don't implement any
+	// of its methods. A real implementation of register might use something
+	// like a database.
+	register
 }
 
 // Errors.
