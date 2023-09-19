@@ -108,3 +108,26 @@ func TestMissingRegisterGenerators(t *testing.T) {
 		t.Errorf("Error does not contain %q:\n%s", want, err.Error())
 	}
 }
+
+func TestChangeGeneratorType(t *testing.T) {
+	// Register a generator of type integers. Then, reset the registrar and
+	// register a generator of type positives. This should produce an error
+	// because generator types cannot change across executions.
+	r := newTestRegistrar[*oneCallWorkload](t)
+	if err := r.registerGenerators("Foo", integers{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.finalize(); err != nil {
+		t.Fatal(err)
+	}
+
+	r.reset()
+	err := r.registerGenerators("Foo", positives{})
+	if err == nil {
+		t.Fatal("unexpected success")
+	}
+	const want = "but previously had type sim.integers"
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("Error does not contain %q:\n%s", want, err.Error())
+	}
+}
