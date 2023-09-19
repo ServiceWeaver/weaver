@@ -28,6 +28,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -129,12 +130,18 @@ type Workload interface {
 
 // Options configure a Simulator.
 type Options struct {
-	Config string // TOML config contents
+	// TOML config file contents.
+	Config string
+
+	// The number of executions to run in parallel. If Parallelism is 0, the
+	// simulator picks the degree of parallelism.
+	Parallelism int
 }
 
 // A Simulator deterministically simulates a Service Weaver application. See
 // the package documentation for instructions on how to use a Simulator.
 type Simulator struct {
+	opts       Options                                // options
 	t          testing.TB                             // underlying test
 	w          reflect.Type                           // workload type
 	regsByIntf map[reflect.Type]*codegen.Registration // components, by interface
@@ -218,7 +225,7 @@ func New(t testing.TB, x Workload, opts Options) *Simulator {
 		t.Fatalf("sim.New: %v", err)
 	}
 
-	return &Simulator{t, w, regsByIntf, info, app}
+	return &Simulator{opts, t, w, regsByIntf, info, app}
 }
 
 // validateWorkload validates a workload struct of the provided type.
@@ -278,7 +285,10 @@ func (s *Simulator) Run(duration time.Duration) Results {
 	// successfully find an invariant violation.
 	//
 	// TODO(mwhittaker): Optimize things and pick a smarter value of n.
-	const n = 1000
+	n := s.opts.Parallelism
+	if n == 0 {
+		n = 10 * runtime.NumCPU()
+	}
 	params := make(chan hyperparameters, n)
 	errs := make(chan error, n)
 	failedResults := make(chan result, n)
@@ -298,8 +308,6 @@ func (s *Simulator) Run(duration time.Duration) Results {
 					return
 				case p := <-params:
 					result, err := exec.execute(ctx, p)
-					atomic.AddInt64(&numExecutions, 1)
-					atomic.AddInt64(&numOps, int64(p.NumOps))
 					switch {
 					case err != nil && err == ctx.Err():
 						// The execution was cancelled because the deadline was
@@ -312,11 +320,15 @@ func (s *Simulator) Run(duration time.Duration) Results {
 					case result.err != nil:
 						// The execution successfully found an invariant
 						// violation. Return the result and stop execution.
+						atomic.AddInt64(&numExecutions, 1)
+						atomic.AddInt64(&numOps, int64(p.NumOps))
 						failedResults <- result
 						return
 					default:
 						// The execution ran without finding an invariant
 						// violation. Move on to the next execution.
+						atomic.AddInt64(&numExecutions, 1)
+						atomic.AddInt64(&numOps, int64(p.NumOps))
 					}
 				}
 			}
@@ -405,7 +417,7 @@ func (r *Results) Summary() string {
 	if r.Err != nil {
 		prefix = "❌ Error"
 	}
-	return fmt.Sprintf("%s found after %d ops across %d simulations in %v (%0.2f sims/s, %0.2f ops/s).", prefix, r.NumOps, r.NumExecutions, duration, simRate, opRate)
+	return fmt.Sprintf("%s found after %d ops across %d executions in %v (%0.2f execs/s, %0.2f ops/s).", prefix, r.NumOps, r.NumExecutions, duration, simRate, opRate)
 }
 
 // Mermaid returns a [mermaid] diagram that illustrates an execution history.

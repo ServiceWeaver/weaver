@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -540,29 +541,17 @@ func BenchmarkParallelExecutions(b *testing.B) {
 		{"NoCalls", &noCallsWorkload{}},
 		{"OneCall", &oneCallWorkload{}},
 	} {
-		b.Run(bench.name, func(b *testing.B) {
-			s := New(b, bench.workload, Options{})
-			params := hyperparameters{
-				NumReplicas: 1,
-				NumOps:      1,
-				FailureRate: 0,
-				YieldRate:   1,
-			}
-			ctx := context.Background()
-			b.ResetTimer()
-			b.ReportAllocs()
-			b.RunParallel(func(pb *testing.PB) {
-				exec := s.newExecutor()
-				for pb.Next() {
-					result, err := exec.execute(ctx, params)
-					if err != nil {
-						b.Fatal(err)
-					}
-					if result.err != nil {
-						b.Fatal(result.err)
-					}
+		ncpu := runtime.NumCPU()
+		for _, p := range []int{1, 10, ncpu, 2 * ncpu, 5 * ncpu, 10 * ncpu} {
+			b.Run(fmt.Sprintf("%s/Parallelism-%d", bench.name, p), func(b *testing.B) {
+				s := New(b, bench.workload, Options{Parallelism: p})
+				r := s.Run(time.Second)
+				if r.Err != nil {
+					b.Fatal(r.Err)
 				}
+				b.ReportMetric(float64(r.NumOps)/float64(b.Elapsed().Seconds()), "ops/s")
+				b.ReportMetric(float64(r.NumExecutions)/float64(b.Elapsed().Seconds()), "execs/s")
 			})
-		})
+		}
 	}
 }
