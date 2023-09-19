@@ -20,7 +20,6 @@ import (
 	"log/slog"
 	"math/rand"
 	"net"
-	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -88,7 +87,6 @@ type op struct {
 //	}
 type executor struct {
 	// Immutable fields.
-	name       string                                 // test name
 	w          reflect.Type                           // workload type
 	regsByIntf map[reflect.Type]*codegen.Registration // registrations, by component interface
 	info       componentInfo                          // component information
@@ -117,8 +115,9 @@ type executor struct {
 
 // result is the result of an execution.
 type result struct {
-	err     error   // first non-nil error returned by an op
-	history []Event // a history of the execution, if err is not nil
+	params  hyperparameters // input hyperparameters
+	err     error           // first non-nil error returned by an op
+	history []Event         // a history of the execution, if err is not nil
 }
 
 // fate dictates if and how a call should fail.
@@ -198,7 +197,6 @@ func newExecutor(t testing.TB, w reflect.Type, regsByIntf map[reflect.Type]*code
 		registered[intf] = struct{}{}
 	}
 	return &executor{
-		name:       t.Name(),
 		w:          w,
 		regsByIntf: regsByIntf,
 		info:       info,
@@ -266,20 +264,7 @@ func (e *executor) execute(ctx context.Context, params hyperparameters) (result,
 	if err != nil && err == ctx.Err() {
 		return result{}, err
 	}
-	if err != nil {
-		entry := graveyardEntry{
-			Version:     version,
-			Seed:        e.params.Seed,
-			NumReplicas: e.params.NumReplicas,
-			NumOps:      e.params.NumOps,
-			FailureRate: e.params.FailureRate,
-			YieldRate:   e.params.YieldRate,
-		}
-		// TODO(mwhittaker): Escape names.
-		dir := filepath.Join("testdata", "sim", e.name)
-		writeGraveyardEntry(dir, entry)
-	}
-	return result{err, e.history}, nil
+	return result{params, err, e.history}, nil
 }
 
 // reset resets the state of an executor, preparing it for the next execution.

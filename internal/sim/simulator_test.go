@@ -86,7 +86,6 @@ func TestPassingSimulations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s := New(t, test.workload, Options{})
 			r := s.Run(1 * time.Second)
-			t.Log(r.Summary())
 			if r.Err != nil {
 				t.Fatal(r.Err)
 			}
@@ -171,7 +170,6 @@ func (d *divideByZeroWorkload) DivMod(ctx context.Context, x, y int) error {
 func TestFailingSimulation(t *testing.T) {
 	s := New(t, &divideByZeroWorkload{}, Options{})
 	r := s.Run(2 * time.Second)
-	t.Log(r.Summary())
 	if r.Err == nil {
 		t.Fatal("Unexpected success")
 	}

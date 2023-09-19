@@ -131,23 +131,24 @@ func readGraveyard(dir string) ([]graveyardEntry, error) {
 
 }
 
-// writeGraveyardEntry writes a graveyard entry to the provided directory.
-func writeGraveyardEntry(dir string, entry graveyardEntry) error {
+// writeGraveyardEntry writes a graveyard entry to the provided directory and
+// returns the filename of the written file.
+func writeGraveyardEntry(dir string, entry graveyardEntry) (string, error) {
 	// This code borrows from https://cs.opensource.google/go/go/+/master:src/internal/fuzz/fuzz.go;drc=14ab998f95b53baa6e336c598b0f34e319cc9717.
 	data, err := json.MarshalIndent(entry, "", "    ")
 	if err != nil {
-		return fmt.Errorf("marshal graveyard entry: %w", err)
+		return "", fmt.Errorf("marshal graveyard entry: %w", err)
 	}
 	sum := fmt.Sprintf("%x", sha256.Sum256(data))[:16]
 	name := fmt.Sprintf("%s.json", sum)
 	filename := filepath.Join(dir, name)
 	if err := os.MkdirAll(dir, 0777); err != nil {
-		return err
+		return "", err
 	}
 	// TODO(mwhittaker): Atomically write files using renames.
 	if err := os.WriteFile(filename, data, 0666); err != nil {
 		os.Remove(filename) // remove partially written file
-		return fmt.Errorf("write graveyard entry file %q: %w", filename, err)
+		return "", fmt.Errorf("write graveyard entry file %q: %w", filename, err)
 	}
-	return nil
+	return filename, nil
 }
