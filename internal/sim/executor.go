@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
+	"runtime/debug"
 	"sync"
 	"testing"
 
@@ -257,7 +258,6 @@ func (e *executor) execute(ctx context.Context, params hyperparameters) (result,
 	}
 
 	// Perform the execution.
-	// TODO(mwhittaker): Catch panics.
 	e.group, e.ctx = errgroup.WithContext(ctx)
 	e.step()
 	err := e.group.Wait()
@@ -527,8 +527,7 @@ func (e *executor) step() {
 
 		// Deliver the call.
 		e.group.Go(func() error {
-			e.deliverCall(call)
-			return nil
+			return e.deliverCall(call)
 		})
 	} else {
 		var reply *reply
@@ -557,7 +556,24 @@ func (e *executor) step() {
 }
 
 // runOp runs the provided operation.
-func (e *executor) runOp(ctx context.Context, o *op) error {
+func (e *executor) runOp(ctx context.Context, o *op) (err error) {
+	var traceID, spanID int
+	defer func() {
+		if x := recover(); x != nil {
+			err = fmt.Errorf("panic: %v", x)
+			e.mu.Lock()
+			e.history = append(e.history, EventPanic{
+				TraceID:  traceID,
+				SpanID:   spanID,
+				Panicker: "op",
+				Replica:  traceID,
+				Error:    err.Error(),
+				Stack:    string(debug.Stack()),
+			})
+			e.mu.Unlock()
+		}
+	}()
+
 	// Allocate args on the stack when possible.
 	var args []reflect.Value
 	n := 2 + len(o.generators)
@@ -570,7 +586,7 @@ func (e *executor) runOp(ctx context.Context, o *op) error {
 	formatted := make([]string, len(o.generators))
 
 	e.mu.Lock()
-	traceID, spanID := e.nextTraceID, e.nextSpanID
+	traceID, spanID = e.nextTraceID, e.nextSpanID
 	e.nextTraceID++
 	e.nextSpanID++
 
@@ -594,9 +610,13 @@ func (e *executor) runOp(ctx context.Context, o *op) error {
 	e.mu.Unlock()
 
 	// Invoke the op.
-	var err error
 	if x := o.m.Func.Call(args)[0].Interface(); x != nil {
 		err = x.(error)
+	}
+
+	if e.ctx.Err() != nil {
+		// The simulation was cancelled. Abort.
+		return e.ctx.Err()
 	}
 
 	// Record an OpFinish event.
@@ -626,16 +646,35 @@ func (e *executor) runOp(ctx context.Context, o *op) error {
 }
 
 // deliverCall delivers the provided pending method call.
-func (e *executor) deliverCall(call *call) {
+func (e *executor) deliverCall(call *call) (err error) {
+	var component string
+	var index int
+	defer func() {
+		if x := recover(); x != nil {
+			err = fmt.Errorf("panic: %v", x)
+			e.mu.Lock()
+			e.history = append(e.history, EventPanic{
+				TraceID:  call.traceID,
+				SpanID:   call.spanID,
+				Panicker: component,
+				Replica:  index,
+				Error:    err.Error(),
+				Stack:    string(debug.Stack()),
+			})
+			e.mu.Unlock()
+		}
+	}()
+
 	reg, ok := e.regsByIntf[call.component]
 	if !ok {
-		panic(fmt.Errorf("component %v not found", call.component))
+		return fmt.Errorf("component %v not found", call.component)
 	}
 
 	// Pick a replica to execute the call.
-	replicas := e.components[reg.Name]
+	component = reg.Name
+	replicas := e.components[component]
 	e.mu.Lock()
-	index := e.rand.Intn(len(replicas))
+	index = e.rand.Intn(len(replicas))
 	replica := replicas[index]
 
 	// Record a DeliverCall event.
@@ -654,6 +693,11 @@ func (e *executor) deliverCall(call *call) {
 		strings[i] = fmt.Sprint(ret.Interface())
 	}
 
+	if e.ctx.Err() != nil {
+		// The simulation was cancelled. Abort.
+		return e.ctx.Err()
+	}
+
 	// Record the reply and take a step.
 	e.mu.Lock()
 	e.replies[call.traceID] = append(e.replies[call.traceID], &reply{
@@ -670,6 +714,7 @@ func (e *executor) deliverCall(call *call) {
 	})
 	e.mu.Unlock()
 	e.step()
+	return nil
 }
 
 // returnError returns a slice of reflect.Values compatible with the return

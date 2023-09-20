@@ -16,6 +16,7 @@ package sim
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ServiceWeaver/weaver"
 )
@@ -52,6 +53,20 @@ type blocker interface {
 	Block(context.Context) error
 }
 
+type panicker interface {
+	// Panic panics if the provided bool is true.
+	Panic(context.Context, bool) error
+}
+
+// register is a string-valued register.
+type register interface {
+	// Append appends to the register.
+	Append(context.Context, string) (string, error)
+
+	// Clear clears the contents of the register.
+	Clear(context.Context) error
+}
+
 // Component implementation structs.
 
 type divModImpl struct {
@@ -76,6 +91,19 @@ type identityImpl struct {
 
 type blockerImpl struct {
 	weaver.Implements[blocker]
+}
+
+type panickerImpl struct {
+	weaver.Implements[panicker]
+}
+
+type registerImpl struct {
+	weaver.Implements[register]
+
+	// register is always faked, so we embed register and don't implement any
+	// of its methods. A real implementation of register might use something
+	// like a database.
+	register
 }
 
 // Component implementations.
@@ -129,6 +157,13 @@ func (i *identityImpl) Identity(ctx context.Context, x int) (int, error) {
 func (*blockerImpl) Block(ctx context.Context) error {
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+func (*panickerImpl) Panic(_ context.Context, b bool) error {
+	if b {
+		panic(fmt.Errorf("Panic!"))
+	}
+	return nil
 }
 
 // Errors.

@@ -298,6 +298,7 @@ github.com/ServiceWeaver/weaver/internal/sim
     path/filepath
     reflect
     runtime
+    runtime/debug
     sort
     strings
     sync

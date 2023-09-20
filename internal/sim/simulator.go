@@ -598,6 +598,9 @@ func (r *Results) Mermaid() string {
 		case EventDeliverError:
 			call := calls[x.SpanID]
 			fmt.Fprintf(&b, "    note right of %s%d: [%d:%d] RemoteCallError\n", call.Caller, call.Replica, x.TraceID, x.SpanID)
+		case EventPanic:
+			// TODO(mwhittaker): Show stack trace?
+			fmt.Fprintf(&b, "    note right of %s%d: [%d:%d] %s\n", x.Panicker, x.Replica, x.TraceID, x.SpanID, x.Error)
 		}
 	}
 	return b.String()
