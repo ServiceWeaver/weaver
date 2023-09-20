@@ -447,6 +447,38 @@ func TestExtractIDsOnInvalidContext(t *testing.T) {
 	}
 }
 
+// See TestBadContextPropagation.
+type badContextPropagationWorkload struct {
+	id weaver.Ref[identity]
+}
+
+func (b *badContextPropagationWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("Foo")
+	return nil
+}
+
+func (b *badContextPropagationWorkload) Foo(context.Context) error {
+	// Note that we don't call Identity with provided context.
+	b.id.Get().Identity(context.Background(), 42)
+	return nil
+}
+
+func TestBadContextPropagation(t *testing.T) {
+	// Run a workload that doesn't propagate contexts. This is erroneous and
+	// should cause the simulation to fail.
+	params := hyperparameters{
+		NumReplicas: 1,
+		NumOps:      1,
+		FailureRate: 0.0,
+		YieldRate:   0.0,
+	}
+	s := New(t, &badContextPropagationWorkload{}, Options{})
+	result, err := s.newExecutor().execute(context.Background(), params)
+	if err == nil && result.err == nil {
+		t.Fatal("unexpected success")
+	}
+}
+
 // A workload with no method calls and no generators.
 type noCallsNoGenWorkload struct{}
 
