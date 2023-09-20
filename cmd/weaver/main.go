@@ -38,6 +38,7 @@ const usage = `USAGE
 
   weaver generate                 // weaver code generator
   weaver version                  // show weaver version
+  weaver upgrade                  // upgrade the weaver tools
   weaver single    <command> ...  // for single process deployments
   weaver multi     <command> ...  // for multiprocess deployments
   weaver ssh       <command> ...  // for multimachine deployments
@@ -54,6 +55,15 @@ DESCRIPTION
   "weaver <deployer>" dispatch to a binary called "weaver-<deployer>".
   "weaver gke status", for example, dispatches to "weaver-gke status".
 `
+
+var (
+	weaverCmdPackage    = "github.com/ServiceWeaver/weaver/cmd/weaver"
+	deployerCmdPackages = map[string]string{
+		"gke":       "github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke",
+		"gke-local": "github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke-local",
+		"kube":      "github.com/ServiceWeaver/weaver-kube/cmd/weaver-kube",
+	}
+)
 
 func main() {
 	// Parse flags.
@@ -87,6 +97,13 @@ func main() {
 	case "version":
 		cmd := itool.VersionCmd("weaver")
 		if err := cmd.Fn(context.Background(), flag.Args()[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+
+	case "upgrade":
+		if err := upgrade(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -199,4 +216,37 @@ func wrap(s string, n int) string {
 		}
 	}
 	return b.String()
+}
+
+// upgrade the weaver tools.
+func upgrade() error {
+	pkgs := []string{weaverCmdPackage}
+	for deployer, pkg := range deployerCmdPackages {
+		binary := "weaver-" + deployer
+		if _, err := exec.LookPath(binary); err != nil {
+			continue
+		}
+		pkgs = append(pkgs, pkg)
+	}
+
+	return install(pkgs...)
+}
+
+// install installs the provided Go packages or modules. It adds @latest to packages without a version specifier.
+func install(packages ...string) error {
+	for _, p := range packages {
+		if !strings.Contains(p, "@") {
+			p += "@latest"
+		}
+
+		fmt.Printf("go install %s\n", p)
+		cmd := exec.Command("go", "install", p)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
