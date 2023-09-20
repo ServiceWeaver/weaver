@@ -42,7 +42,7 @@ type ClientOptions struct {
 
 	// All writes smaller than this limit are flattened into a single
 	// buffer before being written on the connection. If zero, an appropriate
-	// value is picked automatically.
+	// value is picked automatically. If negative, no flattening is done.
 	WriteFlattenLimit int
 }
 
@@ -58,11 +58,12 @@ type ServerOptions struct {
 	// launched only if the call takes longer than the provided duration.
 	// If zero, the system inlines call execution and automatically picks a
 	// reasonable delay before the new goroutine is launched.
+	// If negative, handlers are always started in a new goroutine.
 	InlineHandlerDuration time.Duration
 
 	// All writes smaller than this limit are flattened into a single
 	// buffer before being written on the connection. If zero, an appropriate
-	// value is picked automatically.
+	// value is picked automatically. If negative, no flattening is done.
 	WriteFlattenLimit int
 }
 
