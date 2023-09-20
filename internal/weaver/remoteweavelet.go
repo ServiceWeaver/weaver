@@ -25,7 +25,6 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -189,10 +188,8 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	servers.Go(func() error {
 		server := &server{Listener: w.conn.Listener(), wlet: w}
 		opts := call.ServerOptions{
-			Logger:                w.syslogger,
-			Tracer:                w.tracer,
-			InlineHandlerDuration: 20 * time.Microsecond,
-			WriteFlattenLimit:     4 << 10,
+			Logger: w.syslogger,
+			Tracer: w.tracer,
 		}
 		if err := call.Serve(w.ctx, server, opts); err != nil {
 			w.syslogger.Error("RPC server failed", "err", err)
@@ -359,9 +356,8 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 	name := logging.ShortenComponent(reg.Name)
 	w.syslogger.Debug("Connecting to remote", "component", name)
 	opts := call.ClientOptions{
-		Balancer:          balancer,
-		Logger:            w.syslogger,
-		WriteFlattenLimit: 4 << 10,
+		Balancer: balancer,
+		Logger:   w.syslogger,
 	}
 	conn, err := call.Connect(w.ctx, resolver, opts)
 	if err != nil {
