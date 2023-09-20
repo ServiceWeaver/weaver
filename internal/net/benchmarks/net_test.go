@@ -39,8 +39,8 @@ var (
 	subproccess           = flag.Bool("subprocess", false, "Is this a subprocess?")
 	network               = flag.String("network", "", "Network (e.g., tcp, unix, mtls)")
 	address               = flag.String("address", "", "Server address")
-	inlineHandlerDuration = flag.Duration("inline_handler_duration", 0, "ServerOptions.InlineHandlerDuration")
-	writeFlattenLimit     = flag.Int("write_flatten_limit", 0, "ServerOptions.WriteFlattenLimit")
+	inlineHandlerDuration = flag.Duration("inline_handler_duration", -1, "ServerOptions.InlineHandlerDuration")
+	writeFlattenLimit     = flag.Int("write_flatten_limit", -1, "ServerOptions.WriteFlattenLimit")
 
 	echoKey   = call.MakeMethodKey("component", "echo")
 	handlers  call.HandlerMap
@@ -214,8 +214,8 @@ func configs(b testing.TB) []config {
 	var configs []config
 	for _, network := range []string{"tcp", "unix", "mtls"} {
 		for _, spin := range []time.Duration{0, 20 * time.Microsecond} {
-			for _, inline := range []time.Duration{0, 20 * time.Microsecond} {
-				for _, flatten := range []int{0, 1 << 10, 4 << 10} {
+			for _, inline := range []time.Duration{-1, 20 * time.Microsecond} {
+				for _, flatten := range []int{-1, 1 << 10, 4 << 10} {
 					addr := "localhost:12345"
 					if network == "unix" {
 						addr = filepath.Join(b.TempDir(), "socket")

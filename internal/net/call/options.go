@@ -23,6 +23,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const (
+	defaultWriteFlattenLimit     = 4 << 10
+	defaultInlineHandlerDuration = 20 * time.Microsecond
+)
+
 // ClientOptions are the options to configure an RPC client.
 type ClientOptions struct {
 	// Load balancer. Defaults to RoundRobin() if nil.
@@ -35,8 +40,9 @@ type ClientOptions struct {
 	// before blocking, waiting for the results.
 	OptimisticSpinDuration time.Duration
 
-	// If non-zero, all writes smaller than this limit are flattened into
-	// a single buffer before being written on the connection.
+	// All writes smaller than this limit are flattened into a single
+	// buffer before being written on the connection. If zero, an appropriate
+	// value is picked automatically. If negative, no flattening is done.
 	WriteFlattenLimit int
 }
 
@@ -48,12 +54,16 @@ type ServerOptions struct {
 	// Tracer. Defaults to a discarding tracer.
 	Tracer trace.Tracer
 
-	// If non-zero, calls on the server are inlined and a new goroutine is
+	// If positive, calls on the server are inlined and a new goroutine is
 	// launched only if the call takes longer than the provided duration.
+	// If zero, the system inlines call execution and automatically picks a
+	// reasonable delay before the new goroutine is launched.
+	// If negative, handlers are always started in a new goroutine.
 	InlineHandlerDuration time.Duration
 
-	// If non-zero, all writes smaller than this limit are flattened into
-	// a single buffer before being written on the connection.
+	// All writes smaller than this limit are flattened into a single
+	// buffer before being written on the connection. If zero, an appropriate
+	// value is picked automatically. If negative, no flattening is done.
 	WriteFlattenLimit int
 }
 
@@ -80,6 +90,9 @@ func (c ClientOptions) withDefaults() ClientOptions {
 	if c.Balancer == nil {
 		c.Balancer = RoundRobin()
 	}
+	if c.WriteFlattenLimit == 0 {
+		c.WriteFlattenLimit = defaultWriteFlattenLimit
+	}
 	return c
 }
 
@@ -91,6 +104,12 @@ func (s ServerOptions) withDefaults() ServerOptions {
 	}
 	if s.Tracer == nil {
 		s.Tracer = traceio.TestTracer()
+	}
+	if s.InlineHandlerDuration == 0 {
+		s.InlineHandlerDuration = defaultInlineHandlerDuration
+	}
+	if s.WriteFlattenLimit == 0 {
+		s.WriteFlattenLimit = defaultWriteFlattenLimit
 	}
 	return s
 }
