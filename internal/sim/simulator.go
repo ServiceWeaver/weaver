@@ -269,8 +269,15 @@ func (s *Simulator) newExecutor() *executor {
 
 // graveyardDir returns the graveyard directory for this simulator.
 func (s *Simulator) graveyardDir() string {
-	// TODO(mwhittaker): Escape test names.
-	return filepath.Join("testdata", "sim", s.t.Name())
+	// Test names often contain slashes ("/"). We replace "/" with "#" to
+	// safely use the test name as a directory name.
+	//
+	// TODO(mwhittaker): This mapping is sensitive to collisions. A test named
+	// "foo/bar" collides with a test named "foo#bar". I think in practice,
+	// this will likely not be a big issue. But, if people are running into
+	// problems, we can use a more complex collision resistant sanitization.
+	sanitized := strings.ReplaceAll(s.t.Name(), "/", "#")
+	return filepath.Join("testdata", "sim", sanitized)
 }
 
 // Run runs a simulation for the provided duration.
