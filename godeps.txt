@@ -363,11 +363,9 @@ github.com/ServiceWeaver/weaver/internal/tool
     runtime/debug
 github.com/ServiceWeaver/weaver/internal/tool/callgraph
     fmt
-    github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/bin
+    github.com/ServiceWeaver/weaver/runtime/graph
     github.com/ServiceWeaver/weaver/runtime/logging
-    golang.org/x/exp/maps
-    sort
     strings
 github.com/ServiceWeaver/weaver/internal/tool/certs
     bytes
@@ -446,6 +444,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/envelope
+    github.com/ServiceWeaver/weaver/runtime/graph
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/profiling
@@ -648,7 +647,10 @@ github.com/ServiceWeaver/weaver/runtime/bin
     debug/pe
     fmt
     github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/graph
     github.com/ServiceWeaver/weaver/runtime/version
+    golang.org/x/exp/maps
+    golang.org/x/exp/slices
     os
     regexp
     strconv
@@ -706,6 +708,9 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     os
     strconv
     sync
+github.com/ServiceWeaver/weaver/runtime/graph
+    fmt
+    golang.org/x/exp/slices
 github.com/ServiceWeaver/weaver/runtime/logging
     bufio
     context

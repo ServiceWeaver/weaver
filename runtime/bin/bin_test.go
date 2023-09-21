@@ -19,11 +19,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/graph"
 	"github.com/ServiceWeaver/weaver/runtime/version"
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/exp/slices"
 )
 
 func TestReadComponentGraph(t *testing.T) {
@@ -42,39 +45,53 @@ func TestReadComponentGraph(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// Read edges.
-			edges, err := ReadComponentGraph(binary)
+			// Read the component graph.
+			gotComponents, g, err := ReadComponentGraph(binary)
 			if err != nil {
 				t.Fatal(err)
 			}
-			found := map[string]bool{}
-			for _, edge := range edges {
-				t.Logf("edge %v", edge)
-				found[fmt.Sprintf("%s=>%s", edge[0], edge[1])] = true
-			}
 
-			// Check that expected edges are found.
+			// Compare returned components.
 			pkg := "github.com/ServiceWeaver/weaver/runtime/bin/testprogram"
 			main := "github.com/ServiceWeaver/weaver/Main"
-			for _, want := range []string{
-				fmt.Sprintf("%s=>%s/A", main, pkg),
-				fmt.Sprintf("%s/A=>%s/B", pkg, pkg),
-				fmt.Sprintf("%s/A=>%s/C", pkg, pkg),
-			} {
-				if !found[want] {
-					t.Errorf("did not find expected edge %q", want)
-				}
+			wantComponents := []string{
+				main,
+				fmt.Sprintf("%s/A", pkg),
+				fmt.Sprintf("%s/B", pkg),
+				fmt.Sprintf("%s/C", pkg),
+			}
+			if diff := cmp.Diff(wantComponents, gotComponents); diff != "" {
+				t.Fatalf("unexpected components: (-want +got): %s", diff)
 			}
 
-			// Check that other edges are not found.
-			for _, badedge := range []string{
-				fmt.Sprintf("%s/B=>%s/A", pkg, pkg),
-				fmt.Sprintf("%s/B=>%s/C", pkg, pkg),
-			} {
-				if found[badedge] {
-					t.Errorf("found unexpected edge %q", badedge)
-				}
+			// Collect nodes from the graph and compare.
+			var nodes []graph.Node
+			g.PerNode(func(n graph.Node) {
+				nodes = append(nodes, n)
+			})
+			slices.Sort(nodes)
+			if diff := cmp.Diff([]graph.Node{0, 1, 2, 3}, nodes); diff != "" {
+				t.Fatalf("unexpected nodes: (-want +got): %s", diff)
+			}
 
+			// Collect edges from the graph and compare.
+			var edges []graph.Edge
+			graph.PerEdge(g, func(e graph.Edge) {
+				edges = append(edges, e)
+			})
+			sort.Slice(edges, func(i, j int) bool {
+				x, y := edges[i], edges[j]
+				if x.Src == y.Src {
+					return x.Dst < y.Dst
+				}
+				return x.Src < y.Src
+			})
+			want := []graph.Edge{
+				{Src: 0, Dst: 1},
+				{Src: 1, Dst: 2},
+				{Src: 1, Dst: 3}}
+			if diff := cmp.Diff(want, edges); diff != "" {
+				t.Fatalf("unexpected edges: (-want +got): %s", diff)
 			}
 		})
 	}
