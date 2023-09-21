@@ -27,9 +27,14 @@ type Listener interface {
 	Addr() net.Addr
 }
 
-// FixedListener returns a listener allows all calls to supplied
-// components. This is typically useful for local listeners like unix domain
-// sockets.
+// FixedListener returns a listener that allows all calls to supplied
+// components. FixedListener is intended for local system services and access
+// control happens at the net.Listener level (e.g., by using Unix domain
+// sockets).
+//
+// Note that this differs from the normal listener used for application
+// components (that listener only allows component A to call component B if A
+// has an edge to B in the component graph).
 //
 // Each components map entry has the full component name as the key, and the
 // component implementation as the value.

@@ -55,7 +55,7 @@ func DataDir() (string, error) {
 }
 
 // NewTempDir returns a new directory, e.g., to hold Unix domain sockets for
-// internal communication. The new directory is not accessible by others.
+// internal communication. The new directory is not accessible by other users.
 // Caller is responsible for cleaning up the directory when not needed.
 func NewTempDir() (string, error) {
 	// Make temporary directory.

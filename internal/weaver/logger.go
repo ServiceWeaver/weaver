@@ -23,11 +23,8 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
-// remoteLogger sends log entries to a specified component method.
-//
-// A go routine makes a sequence of calls to the logger component (at most one
-// call is outstanding at a time). Log entries that arrive while a call is in
-// progress are buffered together and sent in the next call.
+// remoteLogger collects log entries into batches and sends these batches to a
+// specified function.
 type remoteLogger struct {
 	c        chan *protos.LogEntry
 	fallback io.Writer              // Fallback destination when dst() returns an error
@@ -45,11 +42,14 @@ func newRemoteLogger(fallback io.Writer) *remoteLogger {
 	return rl
 }
 
-func (rl *remoteLogger) send(entry *protos.LogEntry) {
+func (rl *remoteLogger) log(entry *protos.LogEntry) {
 	// TODO(sanjay): Drop if too many entries are buffered?
 	rl.c <- entry
 }
 
+// run collects log entries passed to log() and, and passes theme to dst. At
+// most one call to dst is outstanding at a time. Log entries that arrive while
+// a call is in progress are buffered and sent in the next call.
 func (rl *remoteLogger) run(ctx context.Context, dst func(context.Context, *protos.LogEntryBatch) error) {
 	batch := &protos.LogEntryBatch{}
 	for {

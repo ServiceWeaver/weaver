@@ -70,7 +70,7 @@ func TestLoggerSend(t *testing.T) {
 				return nil
 			})
 			for _, s := range want {
-				rl.send(&protos.LogEntry{Msg: s})
+				rl.log(&protos.LogEntry{Msg: s})
 			}
 			wait.Wait()
 			if b := batches.Load(); int(b) > c.maxBatches {
@@ -92,7 +92,7 @@ func TestLoggerError(t *testing.T) {
 	go rl.run(ctx, func(ctx context.Context, batch *protos.LogEntryBatch) error {
 		return fmt.Errorf("fake error")
 	})
-	rl.send(&protos.LogEntry{Msg: "hello"})
+	rl.log(&protos.LogEntry{Msg: "hello"})
 	str := <-fallback
 	for _, expect := range []string{"hello", "serviceweaver/logerror", "fake error"} {
 		if !strings.Contains(str, expect) {

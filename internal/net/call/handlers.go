@@ -71,7 +71,7 @@ func (hm *HandlerMap) Set(component, method string, handler Handler) {
 }
 
 // addHandlers adds handlers for all methods of the component with the
-// specified name, The handlers invoke methods on the specified impl.
+// specified name. The handlers invoke methods on the specified impl.
 func (hm *HandlerMap) addHandlers(name string, impl any) error {
 	reg, ok := codegen.Find(name)
 	if !ok {

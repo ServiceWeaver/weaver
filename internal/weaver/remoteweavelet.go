@@ -621,7 +621,7 @@ func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogE
 	const loggerPath = "github.com/ServiceWeaver/weaver/Logger"
 	r, ok := w.redirects[loggerPath]
 	if !ok {
-		// For now fall back to sending over the pipe to the weavelet.
+		// For now, fall back to sending over the pipe to the weavelet.
 		// TODO(sanjay): Make the default write to os.Stderr once all deployers
 		// provide a logging component.
 		return func(ctx context.Context, batch *protos.LogEntryBatch) error {
@@ -658,7 +658,7 @@ func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
 			Weavelet:   w.Info().Id,
 			Attrs:      attrs,
 		},
-		Write: w.logDst.send,
+		Write: w.logDst.log,
 	})
 }
 
