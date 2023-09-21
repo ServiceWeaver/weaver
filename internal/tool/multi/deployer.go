@@ -31,7 +31,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/routing"
@@ -39,6 +38,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/tool/certs"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
@@ -151,12 +151,6 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 	if err != nil {
 		return nil, err
 	}
-	sys, err := call.FixedListener(uds, map[string]any{
-		reflection.ComponentName[multiLogger](): loggerComponent,
-	})
-	if err != nil {
-		return nil, err
-	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
@@ -197,11 +191,11 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 
 	// Start a goroutine that serves calls to system components like multiLogger.
 	d.running.Go(func() error {
-		return call.Serve(d.ctx, sys, call.ServerOptions{
-			Logger:                d.logger,
-			InlineHandlerDuration: 20 * time.Microsecond,
-			WriteFlattenLimit:     4 << 10,
+		err := deployers.ServeComponents(d.ctx, uds, d.logger, map[string]any{
+			reflection.ComponentName[multiLogger](): loggerComponent,
 		})
+		d.stop(err)
+		return err
 	})
 
 	return d, nil
