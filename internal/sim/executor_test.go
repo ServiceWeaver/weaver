@@ -34,7 +34,7 @@ type passingWorkload struct {
 }
 
 func (p *passingWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 100}, intn{1, 100})
+	r.RegisterGenerators("DivMod", Range(0, 100), Range(1, 100))
 	return nil
 }
 
@@ -77,7 +77,7 @@ type failingWorkload struct {
 }
 
 func (f *failingWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 100}, intn{0, 1})
+	r.RegisterGenerators("DivMod", Range(0, 100), Range(0, 1))
 	return nil
 }
 
@@ -234,7 +234,7 @@ type noFailureWorkload struct {
 }
 
 func (n *noFailureWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 100}, intn{1, 100})
+	r.RegisterGenerators("DivMod", Range(0, 100), Range(1, 100))
 	return nil
 }
 
@@ -267,7 +267,7 @@ type totalFailureWorkload struct {
 }
 
 func (t *totalFailureWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 100}, intn{1, 100})
+	r.RegisterGenerators("DivMod", Range(0, 100), Range(1, 100))
 	return nil
 }
 
@@ -393,7 +393,7 @@ type fakeWorkload struct {
 
 func (f *fakeWorkload) Init(r Registrar) error {
 	r.RegisterFake(Fake[divMod](fakeDivMod{}))
-	r.RegisterGenerators("DivMod", intn{0, 100}, intn{1, 100})
+	r.RegisterGenerators("DivMod", Range(0, 100), Range(1, 100))
 	return nil
 }
 
@@ -495,7 +495,7 @@ func (*noCallsNoGenWorkload) Foo(context.Context) error {
 type noCallsWorkload struct{}
 
 func (*noCallsWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("Foo", integers{})
+	r.RegisterGenerators("Foo", Nat())
 	return nil
 }
 
@@ -509,7 +509,7 @@ type oneCallWorkload struct {
 }
 
 func (*oneCallWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("Foo", integers{})
+	r.RegisterGenerators("Foo", Nat())
 	return nil
 }
 
