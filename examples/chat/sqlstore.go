@@ -100,6 +100,8 @@ func (cfg *config) Validate() error {
 }
 
 func (s *sqlStore) Init(ctx context.Context) error {
+	// TODO(mwhittaker): Don't use sqlite, and don't initialize the database
+	// within Init. Just connect to the database listed in the config.
 	cfg := s.Config()
 
 	var db *sql.DB
