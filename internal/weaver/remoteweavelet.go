@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -59,15 +60,23 @@ type RemoteWeavelet struct {
 	servers   *errgroup.Group       // background servers
 	opts      RemoteWeaveletOptions // options
 	conn      *conn.WeaveletConn    // connection to envelope
+	logDst    *remoteLogger         // for writing log entries
 	syslogger *slog.Logger          // system logger
 	tracer    trace.Tracer          // tracer used by all components
 
 	componentsByName map[string]*component       // component name -> component
 	componentsByIntf map[reflect.Type]*component // component interface type -> component
 	componentsByImpl map[reflect.Type]*component // component impl type -> component
+	redirects        map[string]redirect         // component redirects
 
 	lismu     sync.Mutex           // guards listeners
 	listeners map[string]*listener // listeners, by name
+}
+
+type redirect struct {
+	component *component
+	target    string
+	address   string
 }
 
 // component represents a Service Weaver component and all corresponding
@@ -118,9 +127,11 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		ctx:              ctx,
 		servers:          servers,
 		opts:             opts,
+		logDst:           newRemoteLogger(os.Stderr),
 		componentsByName: map[string]*component{},
 		componentsByIntf: map[reflect.Type]*component{},
 		componentsByImpl: map[reflect.Type]*component{},
+		redirects:        map[string]redirect{},
 		listeners:        map[string]*listener{},
 	}
 
@@ -175,6 +186,25 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		c.balancer = newRoutingBalancer(c.clientTLS)
 	}
 
+	// Process all redirects.
+	for _, r := range info.Redirects {
+		c, ok := w.componentsByName[r.Component]
+		if !ok {
+			return nil, fmt.Errorf("redirect names unknown component %q", r.Component)
+		}
+		w.redirects[r.Component] = redirect{c, r.Target, r.Address}
+	}
+
+	// Wire-up log writing.
+	logFn, err := w.getLoggerFunction()
+	if err != nil {
+		return nil, err
+	}
+	servers.Go(func() error {
+		w.logDst.run(ctx, logFn)
+		return nil
+	})
+
 	// Serve deployer API requests on the weavelet conn.
 	servers.Go(func() error {
 		if err := w.conn.Serve(ctx, w); err != nil {
@@ -221,6 +251,10 @@ func (w *RemoteWeavelet) getIntf(t reflect.Type, requester string) (any, error) 
 		return nil, fmt.Errorf("component of type %v was not registered; maybe you forgot to run weaver generate", t)
 	}
 
+	if r, ok := w.redirects[c.reg.Name]; ok {
+		return w.redirect(requester, c, r.target, r.address)
+	}
+
 	// Activate the component.
 	c.activateInit.Do(func() {
 		name := logging.ShortenComponent(c.reg.Name)
@@ -258,6 +292,30 @@ func (w *RemoteWeavelet) getIntf(t reflect.Type, requester string) (any, error) 
 		return nil, err
 	}
 	return c.reg.ClientStubFn(stub, requester), nil
+}
+
+// redirect creates a component interface for c that redirects calls to the
+// component named by target at address.
+func (w *RemoteWeavelet) redirect(requester string, c *component, target, address string) (any, error) {
+	// Assume component is already activated.
+	c.activateInit.Do(func() {})
+
+	// Make special stub.
+	c.stubInit.Do(func() {
+		// Make a constant resolver pointing at address.
+		endpoint, err := call.ParseNetEndpoint(address)
+		if err != nil {
+			c.stubErr = err
+			return
+		}
+		resolver := call.NewConstantResolver(endpoint)
+		// TODO(sanjay): Pass retry info from the target component.
+		c.stub, c.stubErr = w.makeStub(target, c.reg, resolver, nil)
+	})
+	if c.stubErr != nil {
+		return nil, c.stubErr
+	}
+	return c.reg.ClientStubFn(c.stub, requester), nil
 }
 
 // GetImpl implements the Weavelet interface.
@@ -345,15 +403,15 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 // getStub returns a component's client stub, initializing it if necessary.
 func (w *RemoteWeavelet) getStub(c *component) (*stub, error) {
 	c.stubInit.Do(func() {
-		c.stub, c.stubErr = w.makeStub(c.reg, c.resolver, c.balancer)
+		c.stub, c.stubErr = w.makeStub(c.reg.Name, c.reg, c.resolver, c.balancer)
 	})
 	return c.stub, c.stubErr
 }
 
 // makeStub makes a new stub with the provided resolver and balancer.
-func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingResolver, balancer *routingBalancer) (*stub, error) {
+func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer) (*stub, error) {
 	// Create the client connection.
-	name := logging.ShortenComponent(reg.Name)
+	name := logging.ShortenComponent(fullName)
 	w.syslogger.Debug("Connecting to remote", "component", name)
 	opts := call.ClientOptions{
 		Balancer: balancer,
@@ -371,9 +429,9 @@ func (w *RemoteWeavelet) makeStub(reg *codegen.Registration, resolver *routingRe
 	w.syslogger.Debug("Connected to remote", "component", name)
 
 	return &stub{
-		component:     reg.Name,
+		component:     fullName,
 		conn:          conn,
-		methods:       makeStubMethods(reg),
+		methods:       makeStubMethods(fullName, reg),
 		tracer:        w.tracer,
 		injectRetries: w.opts.InjectRetries,
 	}, nil
@@ -554,6 +612,37 @@ func (w *RemoteWeavelet) repeatedly(ctx context.Context, errMsg string, f func()
 	return fmt.Errorf("%s: %w", errMsg, ctx.Err())
 }
 
+func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogEntryBatch) error, error) {
+	// If an override is found for the logger component, use it.
+	const loggerPath = "github.com/ServiceWeaver/weaver/Logger"
+	r, ok := w.redirects[loggerPath]
+	if !ok {
+		// For now, fall back to sending over the pipe to the weavelet.
+		// TODO(sanjay): Make the default write to os.Stderr once all deployers
+		// provide a logging component.
+		return func(ctx context.Context, batch *protos.LogEntryBatch) error {
+			for _, e := range batch.Entries {
+				if err := w.conn.SendLogEntry(e); err != nil {
+					return err
+				}
+			}
+			return nil
+		}, nil
+	}
+
+	comp, err := w.getIntf(r.component.reg.Iface, r.target)
+	if err != nil {
+		return nil, err
+	}
+	loggerComponent, ok := comp.(interface {
+		LogBatch(context.Context, *protos.LogEntryBatch) error
+	})
+	if !ok {
+		return nil, fmt.Errorf("redirected component of type %T is not a weaver.Logger", comp)
+	}
+	return loggerComponent.LogBatch, nil
+}
+
 // logger returns a logger for the component with the provided name. The
 // returned logger includes the provided attributes.
 func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
@@ -565,10 +654,7 @@ func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
 			Weavelet:   w.Info().Id,
 			Attrs:      attrs,
 		},
-		Write: func(entry *protos.LogEntry) {
-			// TODO(mwhittaker): Propagate error.
-			w.conn.SendLogEntry(entry)
-		},
+		Write: w.logDst.log,
 	})
 }
 
@@ -710,7 +796,7 @@ func (s *server) handlers(components []string) (*call.HandlerMap, error) {
 	// Note that the components themselves may not be started, but we still
 	// register their handlers to avoid concurrency issues with on-demand
 	// handler additions.
-	hm := &call.HandlerMap{}
+	hm := call.NewHandlerMap()
 	for _, component := range components {
 		c, err := s.wlet.getComponent(component)
 		if err != nil {
@@ -718,12 +804,6 @@ func (s *server) handlers(components []string) (*call.HandlerMap, error) {
 		}
 		s.wlet.addHandlers(hm, c)
 	}
-
-	// Add a dummy "ready" handler. Clients will repeatedly call this
-	// RPC until it responds successfully, ensuring the server is ready.
-	hm.Set("", "ready", func(context.Context, []byte) ([]byte, error) {
-		return nil, nil
-	})
 	return hm, nil
 }
 

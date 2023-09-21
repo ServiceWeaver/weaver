@@ -53,3 +53,19 @@ func DataDir() (string, error) {
 
 	return regDir, nil
 }
+
+// NewTempDir returns a new directory, e.g., to hold Unix domain sockets for
+// internal communication. The new directory is not accessible by other users.
+// Caller is responsible for cleaning up the directory when not needed.
+func NewTempDir() (string, error) {
+	// Make temporary directory.
+	tmpDir, err := os.MkdirTemp("", "weaver")
+	if err != nil {
+		return "", err
+	}
+	if err := os.Chmod(tmpDir, 0o700); err != nil {
+		os.Remove(tmpDir)
+		return "", err
+	}
+	return tmpDir, nil
+}

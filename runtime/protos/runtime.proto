@@ -168,6 +168,15 @@ message EnvelopeInfo {
   // listeners are prestarted (e.g., Kubernetes deployers), the port number
   // should be propagated from the deployer.
   string internal_address = 10;
+
+  // A redirect entry instructs the weavelet to direct calls made to component
+  // to be instead sent to the component named target at the specified address.
+  message Redirect {
+    string component = 1;
+    string target = 2;
+    string address = 3;
+  }
+  repeated Redirect redirects = 12;
 }
 
 // WeaveletInfo is the information provided by a weavelet to an envelope during
@@ -548,6 +557,11 @@ message LogEntry {
   // is a name followed by its value, i.e.:
   //   name1, value1, name2, value2, name3, value3, ...
   repeated string attrs = 10;
+}
+
+// LogEntryBatch is a list of log entries.
+message LogEntryBatch {
+  repeated LogEntry entries = 1;
 }
 
 // TraceSpans is a list of Span messages.

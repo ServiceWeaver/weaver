@@ -65,7 +65,7 @@ var (
 )
 
 func makeHandlerMap() *call.HandlerMap {
-	m := &call.HandlerMap{}
+	m := call.NewHandlerMap()
 	m.Set("", "echo", echoHandler)
 	m.Set("", "error", errorHandler)
 	m.Set("", "cancelwait", cancelWaitHandler)

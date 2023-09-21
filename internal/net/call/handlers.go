@@ -17,6 +17,9 @@ package call
 import (
 	"context"
 	"crypto/sha256"
+	"fmt"
+
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 )
 
 // MethodKey identifies a particular method on a component (formed by
@@ -44,13 +47,42 @@ type HandlerMap struct {
 	names    map[MethodKey]string
 }
 
+// NewHandlerMap returns a handler map to which the server handlers can
+// be added. A "ready" handler is automatically registered in the new
+// returned map.
+func NewHandlerMap() *HandlerMap {
+	hm := &HandlerMap{
+		handlers: map[MethodKey]Handler{},
+		names:    map[MethodKey]string{},
+	}
+	// Add a dummy "ready" handler. Clients will repeatedly call this
+	// RPC until it responds successfully, ensuring the server is ready.
+	hm.Set("", "ready", func(context.Context, []byte) ([]byte, error) {
+		return nil, nil
+	})
+	return hm
+}
+
 // Set registers a handler for the specified method of component.
 func (hm *HandlerMap) Set(component, method string, handler Handler) {
-	if hm.handlers == nil {
-		hm.handlers = map[MethodKey]Handler{}
-		hm.names = map[MethodKey]string{}
-	}
 	fp := MakeMethodKey(component, method)
 	hm.handlers[fp] = handler
 	hm.names[fp] = component + "." + method
+}
+
+// addHandlers adds handlers for all methods of the component with the
+// specified name. The handlers invoke methods on the specified impl.
+func (hm *HandlerMap) addHandlers(name string, impl any) error {
+	reg, ok := codegen.Find(name)
+	if !ok {
+		return fmt.Errorf("component %s not found", name)
+	}
+	addLoad := func(uint64, float64) {} // We ignore load updates for now.
+	serverStub := reg.ServerStubFn(impl, addLoad)
+	for i, n := 0, reg.Iface.NumMethod(); i < n; i++ {
+		mname := reg.Iface.Method(i).Name
+		handler := serverStub.GetStubFn(mname)
+		hm.Set(reg.Name, mname, handler)
+	}
+	return nil
 }

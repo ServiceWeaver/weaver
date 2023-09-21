@@ -43,7 +43,7 @@ var (
 	writeFlattenLimit     = flag.Int("write_flatten_limit", -1, "ServerOptions.WriteFlattenLimit")
 
 	echoKey   = call.MakeMethodKey("component", "echo")
-	handlers  call.HandlerMap
+	handlers  = call.NewHandlerMap()
 	tlsConfig = makeTLSConfig()
 )
 
@@ -103,7 +103,7 @@ func (l testListener) Accept() (net.Conn, *call.HandlerMap, error) {
 		}
 		conn = tlsConn
 	}
-	return conn, &handlers, err
+	return conn, handlers, err
 }
 
 func TestMain(m *testing.M) {
@@ -341,7 +341,7 @@ func BenchmarkPipeRPC(b *testing.B) {
 	defer c.Close()
 	defer s.Close()
 	sopts := call.ServerOptions{Logger: logging.NewTestSlogger(b, testing.Verbose())}
-	call.ServeOn(ctx, s, &handlers, sopts)
+	call.ServeOn(ctx, s, handlers, sopts)
 
 	// Create the client.
 	resolver := call.NewConstantResolver(&connEndpoint{"client", c})
