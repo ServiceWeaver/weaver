@@ -100,6 +100,13 @@ type Connection interface {
 	Close()
 }
 
+// Listener allows the server to accept RPCs.
+type Listener interface {
+	Accept() (net.Conn, *HandlerMap, error)
+	Close() error
+	Addr() net.Addr
+}
+
 // reconnectingConnection is the concrete client-side Connection implementation.
 // It automatically reconnects to the servers on first call or the first call
 // after a shutdown.

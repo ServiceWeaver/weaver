@@ -433,7 +433,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/must
-    github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/proxy
     github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/routing
@@ -445,6 +444,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
@@ -686,6 +686,11 @@ github.com/ServiceWeaver/weaver/runtime/colors
     io
     os
     strings
+github.com/ServiceWeaver/weaver/runtime/deployers
+    context
+    github.com/ServiceWeaver/weaver/internal/net/call
+    log/slog
+    net
 github.com/ServiceWeaver/weaver/runtime/envelope
     bufio
     context
