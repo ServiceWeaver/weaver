@@ -18,8 +18,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math"
-	"math/rand"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,21 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
-// TODO(mwhittaker): Move these into the sim package.
-type integers struct{}
-type positives struct{}
-type intn struct{ low, high int }
-type float64s struct{}
-
-var _ Generator[int] = integers{}
-var _ Generator[int] = positives{}
-var _ Generator[int] = intn{}
-var _ Generator[float64] = float64s{}
-
-func (integers) Generate(r *rand.Rand) int     { return r.Int() }
-func (positives) Generate(r *rand.Rand) int    { return 1 + r.Intn(math.MaxInt) }
-func (i intn) Generate(r *rand.Rand) int       { return i.low + r.Intn(i.high-i.low) }
-func (float64s) Generate(r *rand.Rand) float64 { return r.Float64() }
+var positive = Filter(NonNegativeInt(), func(x int) bool { return x != 0 })
 
 type divModWorkload struct {
 	divmod weaver.Ref[divMod]
@@ -52,9 +36,9 @@ type divModWorkload struct {
 }
 
 func (d *divModWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", integers{}, positives{})
-	r.RegisterGenerators("Div", integers{}, positives{})
-	r.RegisterGenerators("Mod", integers{}, positives{})
+	r.RegisterGenerators("DivMod", NonNegativeInt(), positive)
+	r.RegisterGenerators("Div", NonNegativeInt(), positive)
+	r.RegisterGenerators("Mod", NonNegativeInt(), positive)
 	return nil
 }
 
@@ -154,7 +138,7 @@ type divideByZeroWorkload struct {
 }
 
 func (d *divideByZeroWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 10}, intn{0, 10})
+	r.RegisterGenerators("DivMod", Range(0, 10), Range(0, 10))
 	return nil
 }
 
