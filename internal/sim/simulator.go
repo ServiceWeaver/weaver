@@ -404,21 +404,23 @@ func (s *Simulator) run(ctx context.Context, stats *stats) (result, error) {
 		defer done.Done()
 		seed := time.Now().UnixNano()
 		for numOps := 1; ; numOps++ {
-			for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
-				for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
-					for i := 0; i < 10; i++ {
-						seed++
-						p := hyperparameters{
-							Seed:        seed,
-							NumOps:      numOps,
-							NumReplicas: 1,
-							FailureRate: failureRate,
-							YieldRate:   yieldRate,
-						}
-						select {
-						case <-ctx.Done():
-							return
-						case params <- p:
+			for _, numReplicas := range []int{1, 2, 3} {
+				for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
+					for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
+						for i := 0; i < 1000; i++ {
+							seed++
+							p := hyperparameters{
+								Seed:        seed,
+								NumOps:      numOps,
+								NumReplicas: numReplicas,
+								FailureRate: failureRate,
+								YieldRate:   yieldRate,
+							}
+							select {
+							case <-ctx.Done():
+								return
+							case params <- p:
+							}
 						}
 					}
 				}
