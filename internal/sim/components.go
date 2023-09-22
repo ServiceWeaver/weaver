@@ -58,15 +58,6 @@ type panicker interface {
 	Panic(context.Context, bool) error
 }
 
-// register is a string-valued register.
-type register interface {
-	// Append appends to the register.
-	Append(context.Context, string) (string, error)
-
-	// Clear clears the contents of the register.
-	Clear(context.Context) error
-}
-
 // Component implementation structs.
 
 type divModImpl struct {
@@ -95,15 +86,6 @@ type blockerImpl struct {
 
 type panickerImpl struct {
 	weaver.Implements[panicker]
-}
-
-type registerImpl struct {
-	weaver.Implements[register]
-
-	// register is always faked, so we embed register and don't implement any
-	// of its methods. A real implementation of register might use something
-	// like a database.
-	register
 }
 
 // Component implementations.
