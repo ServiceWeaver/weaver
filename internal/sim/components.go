@@ -16,6 +16,7 @@ package sim
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ServiceWeaver/weaver"
 )
@@ -52,6 +53,11 @@ type blocker interface {
 	Block(context.Context) error
 }
 
+type panicker interface {
+	// Panic panics if the provided bool is true.
+	Panic(context.Context, bool) error
+}
+
 // Component implementation structs.
 
 type divModImpl struct {
@@ -76,6 +82,10 @@ type identityImpl struct {
 
 type blockerImpl struct {
 	weaver.Implements[blocker]
+}
+
+type panickerImpl struct {
+	weaver.Implements[panicker]
 }
 
 // Component implementations.
@@ -129,6 +139,13 @@ func (i *identityImpl) Identity(ctx context.Context, x int) (int, error) {
 func (*blockerImpl) Block(ctx context.Context) error {
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+func (*panickerImpl) Panic(_ context.Context, b bool) error {
+	if b {
+		panic(fmt.Errorf("Panic!"))
+	}
+	return nil
 }
 
 // Errors.

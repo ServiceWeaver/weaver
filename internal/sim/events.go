@@ -74,6 +74,16 @@ type EventDeliverError struct {
 	SpanID  int // span id
 }
 
+// EventPanic represents a panic.
+type EventPanic struct {
+	TraceID  int    // trace id
+	SpanID   int    // span id
+	Panicker string // panicking component (or "op")
+	Replica  int    // panicking component replica (or op number)
+	Error    string // panic error
+	Stack    string // stack trace
+}
+
 func (EventOpStart) isEvent()       {}
 func (EventOpFinish) isEvent()      {}
 func (EventCall) isEvent()          {}
@@ -81,6 +91,7 @@ func (EventDeliverCall) isEvent()   {}
 func (EventReturn) isEvent()        {}
 func (EventDeliverReturn) isEvent() {}
 func (EventDeliverError) isEvent()  {}
+func (EventPanic) isEvent()         {}
 
 var _ Event = EventOpStart{}
 var _ Event = EventOpFinish{}
@@ -89,3 +100,4 @@ var _ Event = EventDeliverCall{}
 var _ Event = EventReturn{}
 var _ Event = EventDeliverReturn{}
 var _ Event = EventDeliverError{}
+var _ Event = EventPanic{}

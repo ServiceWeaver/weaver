@@ -105,6 +105,24 @@ func init() {
 		},
 		RefData: "⟦1dff5ab5:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/mod→github.com/ServiceWeaver/weaver/internal/sim/identity⟧\n",
 	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/internal/sim/panicker",
+		Iface: reflect.TypeOf((*panicker)(nil)).Elem(),
+		Impl:  reflect.TypeOf(panickerImpl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return panicker_local_stub{impl: impl.(panicker), tracer: tracer, panicMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/panicker", Method: "Panic", Remote: false})}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return panicker_client_stub{stub: stub, panicMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/panicker", Method: "Panic", Remote: true})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return panicker_server_stub{impl: impl.(panicker), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return panicker_reflect_stub{caller: caller}
+		},
+		RefData: "",
+	})
 }
 
 // weaver.InstanceOf checks.
@@ -113,6 +131,7 @@ var _ weaver.InstanceOf[div] = (*divImpl)(nil)
 var _ weaver.InstanceOf[divMod] = (*divModImpl)(nil)
 var _ weaver.InstanceOf[identity] = (*identityImpl)(nil)
 var _ weaver.InstanceOf[mod] = (*modImpl)(nil)
+var _ weaver.InstanceOf[panicker] = (*panickerImpl)(nil)
 
 // weaver.Router checks.
 var _ weaver.Unrouted = (*blockerImpl)(nil)
@@ -120,6 +139,7 @@ var _ weaver.Unrouted = (*divImpl)(nil)
 var _ weaver.Unrouted = (*divModImpl)(nil)
 var _ weaver.Unrouted = (*identityImpl)(nil)
 var _ weaver.Unrouted = (*modImpl)(nil)
+var _ weaver.Unrouted = (*panickerImpl)(nil)
 
 // Local stub implementations.
 
@@ -266,6 +286,35 @@ func (s mod_local_stub) Mod(ctx context.Context, a0 int, a1 int) (r0 int, err er
 	}
 
 	return s.impl.Mod(ctx, a0, a1)
+}
+
+type panicker_local_stub struct {
+	impl         panicker
+	tracer       trace.Tracer
+	panicMetrics *codegen.MethodMetrics
+}
+
+// Check that panicker_local_stub implements the panicker interface.
+var _ panicker = (*panicker_local_stub)(nil)
+
+func (s panicker_local_stub) Panic(ctx context.Context, a0 bool) (err error) {
+	// Update metrics.
+	begin := s.panicMetrics.Begin()
+	defer func() { s.panicMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "sim.panicker.Panic", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.Panic(ctx, a0)
 }
 
 // Client stub implementations.
@@ -587,6 +636,69 @@ func (s mod_client_stub) Mod(ctx context.Context, a0 int, a1 int) (r0 int, err e
 	return
 }
 
+type panicker_client_stub struct {
+	stub         codegen.Stub
+	panicMetrics *codegen.MethodMetrics
+}
+
+// Check that panicker_client_stub implements the panicker interface.
+var _ panicker = (*panicker_client_stub)(nil)
+
+func (s panicker_client_stub) Panic(ctx context.Context, a0 bool) (err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.panicMetrics.Begin()
+	defer func() { s.panicMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "sim.panicker.Panic", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Preallocate a buffer of the right size.
+	size := 0
+	size += 1
+	enc := codegen.NewEncoder()
+	enc.Reset(size)
+
+	// Encode arguments.
+	enc.Bool(a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	err = dec.Error()
+	return
+}
+
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
@@ -828,6 +940,48 @@ func (s mod_server_stub) mod(ctx context.Context, args []byte) (res []byte, err 
 	return enc.Data(), nil
 }
 
+type panicker_server_stub struct {
+	impl    panicker
+	addLoad func(key uint64, load float64)
+}
+
+// Check that panicker_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*panicker_server_stub)(nil)
+
+// GetStubFn implements the codegen.Server interface.
+func (s panicker_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "Panic":
+		return s.panic
+	default:
+		return nil
+	}
+}
+
+func (s panicker_server_stub) panic(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 bool
+	a0 = dec.Bool()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	appErr := s.impl.Panic(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
 // Reflect stub implementations.
 
 type blocker_reflect_stub struct {
@@ -887,6 +1041,18 @@ var _ mod = (*mod_reflect_stub)(nil)
 
 func (s mod_reflect_stub) Mod(ctx context.Context, a0 int, a1 int) (r0 int, err error) {
 	err = s.caller("Mod", ctx, []any{a0, a1}, []any{&r0})
+	return
+}
+
+type panicker_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that panicker_reflect_stub implements the panicker interface.
+var _ panicker = (*panicker_reflect_stub)(nil)
+
+func (s panicker_reflect_stub) Panic(ctx context.Context, a0 bool) (err error) {
+	err = s.caller("Panic", ctx, []any{a0}, []any{})
 	return
 }
 

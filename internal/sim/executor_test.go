@@ -28,18 +28,18 @@ import (
 	"github.com/ServiceWeaver/weaver"
 )
 
-// See TestSuccessfulExecution.
-type successfulWorkload struct {
+// See TestPassingExecution.
+type passingWorkload struct {
 	divmod weaver.Ref[divMod]
 }
 
-func (s *successfulWorkload) Init(r Registrar) error {
+func (p *passingWorkload) Init(r Registrar) error {
 	r.RegisterGenerators("DivMod", intn{0, 100}, intn{1, 100})
 	return nil
 }
 
-func (s *successfulWorkload) DivMod(ctx context.Context, x, y int) error {
-	div, mod, err := s.divmod.Get().DivMod(ctx, x, y)
+func (p *passingWorkload) DivMod(ctx context.Context, x, y int) error {
+	div, mod, err := p.divmod.Get().DivMod(ctx, x, y)
 	if err != nil {
 		// Ignore errors.
 		return nil
@@ -53,7 +53,7 @@ func (s *successfulWorkload) DivMod(ctx context.Context, x, y int) error {
 	return nil
 }
 
-func TestSuccessfulExecution(t *testing.T) {
+func TestPassingExecution(t *testing.T) {
 	// Run the execution, ignoring any errors. The execution should pass.
 	params := hyperparameters{
 		NumReplicas: 10,
@@ -61,7 +61,7 @@ func TestSuccessfulExecution(t *testing.T) {
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
-	s := New(t, &successfulWorkload{}, Options{})
+	s := New(t, &passingWorkload{}, Options{})
 	result, err := s.newExecutor().execute(context.Background(), params)
 	if err != nil {
 		t.Fatal(err)
@@ -71,22 +71,22 @@ func TestSuccessfulExecution(t *testing.T) {
 	}
 }
 
-// See TestUnsuccessfulExecution.
-type unsuccessfulWorkload struct {
+// See TestFailingExecution.
+type failingWorkload struct {
 	divmod weaver.Ref[divMod]
 }
 
-func (u *unsuccessfulWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", intn{0, 100}, intn{0, 100})
+func (f *failingWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("DivMod", intn{0, 100}, intn{0, 1})
 	return nil
 }
 
-func (u *unsuccessfulWorkload) DivMod(ctx context.Context, x, y int) error {
-	_, _, err := u.divmod.Get().DivMod(ctx, x, y)
+func (f *failingWorkload) DivMod(ctx context.Context, x, y int) error {
+	_, _, err := f.divmod.Get().DivMod(ctx, x, y)
 	return err
 }
 
-func TestUnsuccessfulExecution(t *testing.T) {
+func TestFailingExecution(t *testing.T) {
 	// Run the execution, erroring out if we ever have a zero denominator. The
 	// execution should fail with extremely high likelihood.
 	params := hyperparameters{
@@ -95,7 +95,7 @@ func TestUnsuccessfulExecution(t *testing.T) {
 		FailureRate: 0.1,
 		YieldRate:   0.5,
 	}
-	s := New(t, &unsuccessfulWorkload{}, Options{})
+	s := New(t, &failingWorkload{}, Options{})
 	result, err := s.newExecutor().execute(context.Background(), params)
 	if err == nil && result.err == nil {
 		t.Fatal("unexpected success")
@@ -116,11 +116,67 @@ func TestExecuteGraveyardEntries(t *testing.T) {
 			FailureRate: entry.FailureRate,
 			YieldRate:   entry.YieldRate,
 		}
-		s := New(t, &unsuccessfulWorkload{}, Options{})
+		s := New(t, &failingWorkload{}, Options{})
 		result, err := s.newExecutor().execute(context.Background(), params)
 		if err == nil && result.err == nil {
 			t.Fatal("unexpected success")
 		}
+	}
+}
+
+// See TestPanickingExecution.
+type panickingMethodWorkload struct {
+	p weaver.Ref[panicker]
+}
+
+func (p *panickingMethodWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("Panic", Flip(0.1))
+	return nil
+}
+
+func (p *panickingMethodWorkload) Panic(ctx context.Context, b bool) error {
+	p.p.Get().Panic(ctx, b)
+	return nil
+}
+
+// See TestPanickingxecution.
+type panickingOpWorkload struct{}
+
+func (p *panickingOpWorkload) Init(r Registrar) error {
+	r.RegisterGenerators("Panic", Flip(0.1))
+	return nil
+}
+
+func (p *panickingOpWorkload) Panic(ctx context.Context, b bool) error {
+	if b {
+		panic("Panic!")
+	}
+	return nil
+}
+
+func TestPanickingExecution(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		workload Workload
+	}{
+		{"PanickingMethod", &panickingMethodWorkload{}},
+		{"PanickingOp", &panickingOpWorkload{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// The execution should panic (with extremely high likelihood), but
+			// the executor should catch the panic and surface it as an error.
+			params := hyperparameters{
+				NumReplicas: 2,
+				NumOps:      1000,
+				FailureRate: 0.1,
+				YieldRate:   0.5,
+			}
+			s := New(t, test.workload, Options{})
+			result, err := s.newExecutor().execute(context.Background(), params)
+			if err == nil && result.err == nil {
+				t.Fatal("unexpected success")
+			}
+		})
 	}
 }
 
