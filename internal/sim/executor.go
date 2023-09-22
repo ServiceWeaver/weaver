@@ -384,10 +384,17 @@ func (e *executor) call(caller string, replica int, reg *codegen.Registration, m
 		strings[i] = fmt.Sprint(arg)
 	}
 
+	// Extract the trace id.
+	traceID, _ := extractIDs(ctx)
+	if traceID == 0 {
+		// TODO(mwhittaker): Link to online documentation with better
+		// explanation of this error.
+		panic(fmt.Errorf("missing simulation trace context. Make sure that every component method call is performed with the context the caller was invoked with."))
+	}
+
 	// Record the call.
 	reply := make(chan *reply, 1)
 	e.mu.Lock()
-	traceID, _ := extractIDs(ctx)
 	spanID := e.nextSpanID
 	e.nextSpanID++
 
