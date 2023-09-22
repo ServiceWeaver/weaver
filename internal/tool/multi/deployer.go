@@ -40,6 +40,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
+	"github.com/ServiceWeaver/weaver/runtime/graph"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
@@ -265,27 +266,19 @@ func (d *deployer) computeGroups() error {
 	// Use the call graph information to (1) identify all components in the
 	// application binary and create groups for them, and (2) compute the
 	// set of components a given group is allowed to invoke methods on.
-	callGraph, err := bin.ReadComponentGraph(d.config.App.Binary)
+	components, g, err := bin.ReadComponentGraph(d.config.App.Binary)
 	if err != nil {
 		return fmt.Errorf("cannot read the call graph from the application binary: %w", err)
 	}
-	for _, edge := range callGraph {
-		src := edge[0]
-		dst := edge[1]
-		if _, err := ensureGroup(dst); err != nil {
-			return err
-		}
-		srcGroup, err := ensureGroup(src)
-		if err != nil {
-			return err
-		}
+	g.PerNode(func(n graph.Node) {
+		ensureGroup(components[n])
+	})
+	graph.PerEdge(g, func(e graph.Edge) {
+		src := components[e.Src]
+		dst := components[e.Dst]
+		srcGroup := groups[src]
 		srcGroup.callable = append(srcGroup.callable, dst)
-	}
-
-	// Ensure we have a group for the main component.
-	if _, err := ensureGroup(runtime.Main); err != nil {
-		return err
-	}
+	})
 
 	d.groups = groups
 	return nil

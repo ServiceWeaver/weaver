@@ -27,7 +27,10 @@ import (
 	"strconv"
 
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/graph"
 	"github.com/ServiceWeaver/weaver/runtime/version"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 // versionData exists to embed the weaver module version and deployer API
@@ -91,16 +94,38 @@ func rodata(file string) ([]byte, error) {
 }
 
 // ReadComponentGraph reads component graph information from the specified
-// binary. The return value is a sequence [src,dst] edges where src and
-// dst are fully qualified component names. E.g.,
-//
-//	github.com/ServiceWeaver/weaver/Main
-func ReadComponentGraph(file string) ([][2]string, error) {
+// binary. It returns a slice of components and a component graph whose nodes
+// are indices into that slice.
+func ReadComponentGraph(file string) ([]string, graph.Graph, error) {
 	data, err := rodata(file)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return codegen.ExtractEdges(data), nil
+	es := codegen.ExtractEdges(data)
+
+	// Assign node numbers to components in some deterministic order.
+	const mainComponent = "github.com/ServiceWeaver/weaver/Main"
+	// NOTE: initially, all node numbers are zero.
+	nodeMap := map[string]graph.Node{mainComponent: 0}
+	for _, e := range es {
+		nodeMap[e[0]] = 0
+		nodeMap[e[1]] = 0
+	}
+	// Assign node numbers.
+	components := maps.Keys(nodeMap)
+	slices.Sort(components)
+	for i, c := range components {
+		nodeMap[c] = graph.Node(i)
+	}
+
+	// Convert component edges into graph edges.
+	var edges []graph.Edge
+	for _, e := range es {
+		src := nodeMap[e[0]]
+		dst := nodeMap[e[1]]
+		edges = append(edges, graph.Edge{Src: src, Dst: dst})
+	}
+	return components, graph.NewAdjacencyGraph(maps.Values(nodeMap), edges), nil
 }
 
 // ReadListeners reads the sets of listeners associated with each component
