@@ -389,7 +389,7 @@ func (e *executor) call(caller string, replica int, reg *codegen.Registration, m
 	if traceID == 0 {
 		// TODO(mwhittaker): Link to online documentation with better
 		// explanation of this error.
-		panic(fmt.Errorf("missing simulation trace context. Make sure you are correctly propagating contexts through your workload."))
+		panic(fmt.Errorf("missing simulation trace context. Make sure that every component method call is performed with the context the caller was invoked with."))
 	}
 
 	// Record the call.
