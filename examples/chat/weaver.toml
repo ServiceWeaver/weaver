@@ -14,4 +14,4 @@ listeners.chat = {public_hostname = "chat.example.com"}
 
 ["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
 db_driver = "mysql"
-db_uri = "root:@tcp(localhost:3306)/"
+db_uri = "root:password@tcp(localhost:3306)/"
