@@ -404,21 +404,10 @@ func (s *Simulator) run(ctx context.Context, stats *stats) (result, error) {
 		defer done.Done()
 		seed := time.Now().UnixNano()
 		for numOps := 1; ; numOps++ {
-			for numReplicas := 1; numReplicas <= 3; numReplicas++ {
+			for _, numReplicas := range []int{1, 2, 3} {
 				for _, failureRate := range []float64{0.0, 0.01, 0.05, 0.1} {
 					for _, yieldRate := range []float64{0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0} {
-						// Run fewer executions with more replicas.
-						var iterations int
-						switch numReplicas {
-						case 1:
-							iterations = 1000
-						case 2:
-							iterations = 100
-						case 3:
-							iterations = 10
-						}
-
-						for i := 0; i < iterations; i++ {
+						for i := 0; i < 1000; i++ {
 							seed++
 							p := hyperparameters{
 								Seed:        seed,

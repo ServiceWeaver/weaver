@@ -620,6 +620,34 @@ func BenchmarkExecutions(b *testing.B) {
 	}
 }
 
+func BenchmarkNumReplicas(b *testing.B) {
+	for _, numReplicas := range []int{1, 2, 3} {
+		name := fmt.Sprintf("%d-Replicas", numReplicas)
+		b.Run(name, func(b *testing.B) {
+			s := New(b, &oneCallWorkload{}, Options{})
+			exec := s.newExecutor()
+			params := hyperparameters{
+				NumReplicas: numReplicas,
+				NumOps:      1,
+				FailureRate: 0,
+				YieldRate:   1,
+			}
+			ctx := context.Background()
+			b.ResetTimer()
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				result, err := exec.execute(ctx, params)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if result.err != nil {
+					b.Fatal(result.err)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkParallelExecutions(b *testing.B) {
 	for _, bench := range []struct {
 		name     string
