@@ -162,10 +162,12 @@ func String() Generator[string] {
 		{1, Range(100, 4096)},
 	})
 	alphabet := OneOf(
-		// Lowecase letters.
+		// Lowercase letters.
 		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 		// Uppercase letters.
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+		// Lowercase Greek letters.
+		'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'τ', 'υ', 'φ', 'χ', 'ψ', 'ω',
 		// Numbers.
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 		// Punctuation.

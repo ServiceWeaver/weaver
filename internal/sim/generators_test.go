@@ -17,6 +17,8 @@ package sim
 import (
 	"math/rand"
 	"testing"
+	"time"
+	"unicode"
 )
 
 type frequency[T any] struct {
@@ -88,4 +90,15 @@ func TestWeight(t *testing.T) {
 		{0.10, "d"},
 	}
 	testGenerator(t, gen, wants)
+}
+
+func TestStringsArePrintable(t *testing.T) {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 1000; i++ {
+		for _, r := range String().Generate(rng) {
+			if !unicode.IsPrint(r) {
+				t.Errorf("Unprintable character %#U", r)
+			}
+		}
+	}
 }
