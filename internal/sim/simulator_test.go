@@ -27,7 +27,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 )
 
-var positive = Filter(Nat(), func(x int) bool { return x != 0 })
+var positive = Filter(NonNegativeInt(), func(x int) bool { return x != 0 })
 
 type divModWorkload struct {
 	divmod weaver.Ref[divMod]
@@ -36,9 +36,9 @@ type divModWorkload struct {
 }
 
 func (d *divModWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("DivMod", Nat(), positive)
-	r.RegisterGenerators("Div", Nat(), positive)
-	r.RegisterGenerators("Mod", Nat(), positive)
+	r.RegisterGenerators("DivMod", NonNegativeInt(), positive)
+	r.RegisterGenerators("Div", NonNegativeInt(), positive)
+	r.RegisterGenerators("Mod", NonNegativeInt(), positive)
 	return nil
 }
 

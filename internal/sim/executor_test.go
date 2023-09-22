@@ -495,7 +495,7 @@ func (*noCallsNoGenWorkload) Foo(context.Context) error {
 type noCallsWorkload struct{}
 
 func (*noCallsWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("Foo", Nat())
+	r.RegisterGenerators("Foo", NonNegativeInt())
 	return nil
 }
 
@@ -509,7 +509,7 @@ type oneCallWorkload struct {
 }
 
 func (*oneCallWorkload) Init(r Registrar) error {
-	r.RegisterGenerators("Foo", Nat())
+	r.RegisterGenerators("Foo", NonNegativeInt())
 	return nil
 }
 

@@ -36,10 +36,10 @@ func newTestRegistrar[T Workload](t *testing.T) *registrar {
 func TestDuplicateRegisterGeneratorsCalls(t *testing.T) {
 	// Call registerGenerators twice for the same method.
 	r := newTestRegistrar[*divModWorkload](t)
-	if err := r.registerGenerators("DivMod", Nat(), positive); err != nil {
+	if err := r.registerGenerators("DivMod", NonNegativeInt(), positive); err != nil {
 		t.Fatal(err)
 	}
-	err := r.registerGenerators("DivMod", Nat(), positive)
+	err := r.registerGenerators("DivMod", NonNegativeInt(), positive)
 	if err == nil {
 		t.Fatal("unexpected success")
 	}
@@ -64,7 +64,7 @@ func (tooManyReturns) Generate(*rand.Rand) (int, error) { return 0, nil }
 
 func TestRegisterInvalidGenerators(t *testing.T) {
 	// Call registerGenerators on invalid generators.
-	i, p := Nat(), positive
+	i, p := NonNegativeInt(), positive
 	for _, test := range []struct {
 		name       string
 		method     string

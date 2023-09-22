@@ -37,12 +37,11 @@ func Flip(p float64) Generator[bool] {
 
 // Numerics
 
-// Nat returns a [Generator] that returns non-negative numbers, also known as
-// natural numbers. Note that Nat does not return all natural numbers
-// equiprobably. Instead, it biases towards numbers closer to zero and other
-// pathological numbers that are more likely to induce bugs (e.g.,
-// math.MaxInt).
-func Nat() Generator[int] {
+// NonNegativeInt returns a [Generator] that returns non-negative integers.
+// Note that NonNegativeInt does not return all numbers. Instead, it biases
+// towards numbers closer to zero and other pathological numbers that are more
+// likely to induce bugs (e.g., math.MaxInt).
+func NonNegativeInt() Generator[int] {
 	choices := []Weighted[int]{
 		{100, Range(0, 10)},
 		{100, Range(10, 100)},
