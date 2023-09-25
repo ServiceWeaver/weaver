@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-USE serviceweaver_chat_example;
+USE chat;
 
 CREATE TABLE IF NOT EXISTS threads (
     thread  INTEGER AUTO_INCREMENT PRIMARY KEY,

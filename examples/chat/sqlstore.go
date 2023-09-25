@@ -19,15 +19,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ServiceWeaver/weaver"
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 )
-
-const dbName = "serviceweaver_chat_example"
 
 // sqlStore provides storage for chat application data.
 //
@@ -100,81 +97,19 @@ func (cfg *config) Validate() error {
 }
 
 func (s *sqlStore) Init(ctx context.Context) error {
-	// TODO(mwhittaker): Don't use sqlite, and don't initialize the database
-	// within Init. Just connect to the database listed in the config.
 	cfg := s.Config()
-
-	var db *sql.DB
-	var err error
 	if cfg.Driver == "" {
-		cfg.Driver = "sqlite"
-		db, err = sql.Open(cfg.Driver, ":memory:")
-	} else {
-		// Ensure chat database exists.
-		ensureDB := func() error {
-			db_admin, err := sql.Open(cfg.Driver, cfg.URI)
-			if err != nil {
-				return fmt.Errorf("error opening %q URI %q: %w", cfg.Driver, cfg.URI, err)
-			}
-			defer db_admin.Close()
-			_, err = db_admin.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName))
-			return err
-		}
-		if err := ensureDB(); err != nil {
-			return fmt.Errorf("error creating %q database %s%s: %w", cfg.Driver, cfg.URI, dbName, err)
-		}
-		db, err = sql.Open(cfg.Driver, cfg.URI+dbName)
+		return fmt.Errorf("missing database driver in config")
 	}
+	if cfg.URI == "" {
+		return fmt.Errorf("missing database URI in config")
+	}
+	db, err := sql.Open(cfg.Driver, cfg.URI)
 	if err != nil {
-		return fmt.Errorf("error opening %q database %s%s: %w", cfg.Driver, cfg.URI, dbName, err)
+		return fmt.Errorf("error opening %q database %s: %w", cfg.Driver, cfg.URI, err)
 	}
-
-	// Ensure chat tables exist.
-	for _, q := range []struct {
-		query string
-		errOK bool
-	}{
-		{query: `CREATE TABLE IF NOT EXISTS threads (
-					thread	INTEGER AUTO_INCREMENT PRIMARY KEY,
-					creator VARCHAR(256) NOT NULL
-				)`,
-		},
-		{query: `CREATE INDEX thread ON threads (thread)`, errOK: true},
-		{query: `CREATE TABLE IF NOT EXISTS userthreads (
-					user   VARCHAR(256) NOT NULL,
-					thread INTEGER NOT NULL,
-					CONSTRAINT uthread FOREIGN KEY(thread) REFERENCES threads(thread)
-				)`,
-		},
-		{query: `CREATE INDEX uthread ON userthreads (thread)`, errOK: true},
-		{query: `CREATE TABLE IF NOT EXISTS images (
-					id	INTEGER AUTO_INCREMENT PRIMARY KEY,
-					image	BLOB NOT NULL
-				)`,
-		},
-		{query: `CREATE INDEX image ON images (id)`, errOK: true},
-		{query: `CREATE TABLE IF NOT EXISTS posts (
-					post	INTEGER AUTO_INCREMENT PRIMARY KEY,
-					thread	INTEGER NOT NULL,
-					creator	VARCHAR(256) NOT NULL,
-					time	INTEGER NOT NULL,
-					text	TEXT NOT NULL,
-					imageid	INTEGER,
-					CONSTRAINT pthread FOREIGN KEY (thread) REFERENCES threads(thread),
-					CONSTRAINT pimageid FOREIGN KEY (imageid) REFERENCES images(id)
-				)`,
-		},
-	} {
-		query := q.query
-		if cfg.Driver == "sqlite" {
-			// sqlite does not work with AUTO_INCREMENT specified on primary keys.
-			query = strings.ReplaceAll(query, "AUTO_INCREMENT PRIMARY KEY", "PRIMARY KEY")
-		}
-
-		_, err = db.ExecContext(ctx, query)
-		if err != nil && !q.errOK {
-			return fmt.Errorf("error initializing %q database %s%s with query %q: %w", cfg.Driver, cfg.URI, dbName, q.query, err)
-		}
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("error pinging %q database %s: %w", cfg.Driver, cfg.URI, err)
 	}
 	s.db = db
 	return nil
@@ -253,7 +188,7 @@ SELECT u.thread, p.post, p.creator, p.time, p.text, p.imageid
 FROM userthreads AS u
 JOIN posts as p ON p.thread=u.thread
 WHERE u.user=?
-ORDER BY u.thread DESC;
+ORDER BY p.time, u.thread DESC;
 `
 	rows, err := s.db.QueryContext(ctx, query, user)
 	if err != nil {
