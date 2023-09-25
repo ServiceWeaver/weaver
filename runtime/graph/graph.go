@@ -14,6 +14,11 @@
 
 package graph
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Node is a small non-negative number that identifies a node in
 // a directed graph.  Node numbers should be kept proportional to
 // the size of the graph (i.e., mostly densely packed) since different
@@ -57,4 +62,23 @@ func OutDegree(g Graph, n Node) int {
 	g.PerOutEdge(n, func(Edge) { result++ })
 	return result
 
+}
+
+// DebugString returns a human readable string representation of g.
+//
+// Sample output for a graph with nodes 1,2,3:
+//
+//	1:
+//	2: 1
+//	3: 1 2
+func DebugString(g Graph) string {
+	var b strings.Builder
+	g.PerNode(func(src Node) {
+		b.WriteString(fmt.Sprint(src, ":"))
+		g.PerOutEdge(src, func(edge Edge) {
+			fmt.Fprintf(&b, " %d", edge.Dst)
+		})
+		b.WriteRune('\n')
+	})
+	return b.String()
 }
