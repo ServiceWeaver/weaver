@@ -22,9 +22,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/status"
 	itool "github.com/ServiceWeaver/weaver/internal/tool"
@@ -126,6 +124,7 @@ persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues
 		return err
 	}
 	defer os.RemoveAll(tmpDir)
+	runtime.OnExitSignal(func() { os.RemoveAll(tmpDir) })
 
 	// Create the deployer.
 	deploymentId := uuid.New().String()
@@ -133,10 +132,6 @@ persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues
 	if err != nil {
 		return fmt.Errorf("create deployer: %w", err)
 	}
-
-	// Start signal handler before listener
-	userDone := make(chan os.Signal, 1)
-	signal.Notify(userDone, syscall.SIGINT, syscall.SIGTERM)
 
 	// Run a status server.
 	lis, err := net.Listen("tcp", "localhost:0")
@@ -180,29 +175,11 @@ persists, please file an issue at https://github.com/ServiceWeaver/weaver/issues
 	if err := registry.Register(ctx, reg); err != nil {
 		return fmt.Errorf("register deployment: %w", err)
 	}
+	unregister := func() { registry.Unregister(ctx, deploymentId) }
+	defer unregister()
+	runtime.OnExitSignal(unregister)
 
-	deployerDone := make(chan error, 1)
-	go func() {
-		err := d.wait()
-		deployerDone <- err
-	}()
-
-	var code = 1
-	// Wait for the user to kill the app or the app to return an error.
-	select {
-	case sig := <-userDone:
-		fmt.Fprintf(os.Stderr, "Application %s terminated by the user\n", appConfig.Name)
-		code = 128 + int(sig.(syscall.Signal))
-	case err := <-deployerDone:
-		fmt.Fprintf(os.Stderr, "Application %s error: %v\n", appConfig.Name, err)
-	}
-	if err := registry.Unregister(ctx, deploymentId); err != nil {
-		fmt.Fprintf(os.Stderr, "unregister deployment: %v\n", err)
-		code = 1
-	}
-	os.RemoveAll(tmpDir)
-	os.Exit(code)
-	return nil // Not reached
+	return d.wait()
 }
 
 // defaultRegistry returns a registry in defaultRegistryDir().
