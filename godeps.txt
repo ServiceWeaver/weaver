@@ -467,7 +467,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     net
     net/http
     os
-    os/signal
     path/filepath
     reflect
     slices
@@ -637,9 +636,12 @@ github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/protos
     io
     os
+    os/signal
     path/filepath
     strconv
     strings
+    sync
+    syscall
     time
 github.com/ServiceWeaver/weaver/runtime/bin
     bytes
