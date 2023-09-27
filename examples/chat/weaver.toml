@@ -12,6 +12,11 @@ listeners.chat = {address = "localhost:9000"}
 regions = ["us-west1", "us-east1"]
 listeners.chat = {public_hostname = "chat.example.com"}
 
+[kube]
+listeners.chat = {public = true}
+# To upload the image to another repository, check `weaver kube deploy -h`.
+repo = "docker.io/my_docker_hub_username/"
+
 ["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
 db_driver = "mysql"
 db_uri = "root:password@tcp(localhost:3306)/chat"
