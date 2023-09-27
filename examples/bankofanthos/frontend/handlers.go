@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,7 +33,6 @@ import (
 	"github.com/ServiceWeaver/weaver/examples/bankofanthos/model"
 	"github.com/ServiceWeaver/weaver/examples/bankofanthos/userservice"
 	"github.com/golang-jwt/jwt"
-	"golang.org/x/exp/slog"
 )
 
 const (
