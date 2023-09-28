@@ -59,6 +59,8 @@ func newMySQL(t *testing.T, ctx context.Context) string {
 }
 
 func TestFeed(t *testing.T) {
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
 	// Start a MySQL instance.
 	ctx := context.Background()
 	addr := newMySQL(t, ctx)
@@ -123,6 +125,8 @@ func TestFeed(t *testing.T) {
 }
 
 func TestImage(t *testing.T) {
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
 	// Start a MySQL instance.
 	ctx := context.Background()
 	addr := newMySQL(t, ctx)
