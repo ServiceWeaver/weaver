@@ -258,7 +258,8 @@ func (i Implements[T]) Logger(ctx context.Context) *slog.Logger {
 	return logger
 }
 
-func (i *Implements[T]) SetLoggerLevel(level slog.Level) {
+// SetLogLevel changes the current log level of the component to given level.
+func (i *Implements[T]) SetLogLevel(level slog.Level) {
 	i.logLevel.Set(level)
 }
 
