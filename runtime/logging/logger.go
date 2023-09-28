@@ -75,7 +75,7 @@ func (h *LogHandler) Enabled(_ context.Context, level slog.Level) bool {
 	if h.Opts.LogLevel == nil {
 		return true
 	}
-	return h.Opts.LogLevel.Level() >= level
+	return level >= h.Opts.LogLevel.Level()
 }
 
 // WithAttrs implements the slog.Handler interface.
