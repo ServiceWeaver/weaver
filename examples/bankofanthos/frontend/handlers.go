@@ -471,8 +471,15 @@ func (s *server) loginPostHelper(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (s *server) authCallbackHelper(state string, redirectURI string,
-	token string, w http.ResponseWriter, r *http.Request, setConsentCookie bool) {
+func (s *server) authCallbackHelper(state string, redirectURI string, token string, w http.ResponseWriter, r *http.Request, setConsentCookie bool) {
+	if redirectURI != "" {
+		// NOTE: We disallow arbitrary redirects for security reasons. Because
+		// Bank of Anthos is a demo app, this is okay. For a real app, you
+		// would need a more sophisticated mechanism to allow redirects.
+		http.Error(w, fmt.Sprintf("disallowed redirect URI: %q", redirectURI), http.StatusForbidden)
+		return
+	}
+
 	client := &http.Client{Timeout: s.config.backendTimeout}
 	formData := url.Values{
 		"state":    {state},
@@ -485,7 +492,6 @@ func (s *server) authCallbackHelper(state string, redirectURI string,
 		}
 		http.SetCookie(w, cookie)
 	}
-	fmt.Println(redirectURI)
 	req, err := http.NewRequest("POST", redirectURI, strings.NewReader(formData.Encode()))
 	if err != nil {
 		http.Redirect(w, r, redirectURI+"#error=server_error", http.StatusFound)
