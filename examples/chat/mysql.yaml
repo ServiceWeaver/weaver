@@ -1,0 +1,107 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-config
+data:
+  chat.sql: |
+    USE chat;
+
+    CREATE TABLE IF NOT EXISTS threads (
+        thread  INTEGER AUTO_INCREMENT PRIMARY KEY,
+        creator VARCHAR(256) NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS userthreads (
+        user   VARCHAR(256) NOT NULL,
+        thread INTEGER NOT NULL,
+        CONSTRAINT uthread FOREIGN KEY(thread) REFERENCES threads(thread)
+    );
+
+    CREATE TABLE IF NOT EXISTS images (
+        id    INTEGER AUTO_INCREMENT PRIMARY KEY,
+        image BLOB NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS posts (
+        post    INTEGER AUTO_INCREMENT PRIMARY KEY,
+        thread  INTEGER NOT NULL,
+        creator VARCHAR(256) NOT NULL,
+        time    INTEGER NOT NULL,
+        text    TEXT NOT NULL,
+        imageid INTEGER,
+        CONSTRAINT pthread FOREIGN KEY (thread) REFERENCES threads(thread),
+        CONSTRAINT pimageid FOREIGN KEY (imageid) REFERENCES images(id)
+    );
+
+    CREATE INDEX thread ON threads (thread);
+    CREATE INDEX uthread ON userthreads (thread);
+    CREATE INDEX image ON images (id);
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mysql
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: password
+        - name: MYSQL_DATABASE
+          value: chat
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: config
+          # As described in https://hub.docker.com/_/mysql, the MySQL instance
+          # will automatically run all .sql files stored in
+          # /docker-entrypoint-initdb.d.
+          mountPath: /docker-entrypoint-initdb.d/chat.sql
+          subPath: chat.sql
+        lifecycle:
+          postStart:
+            exec:
+              # chat.sql is mounted as the root user, but the MySQL instance
+              # runs as the mysql user and needs access to this file.
+              command: ["/bin/sh", "chown", "mysql:mysql", "/docker-entrypoint-initdb.d/chat.sql"]
+      volumes:
+      - name: config
+        configMap:
+          name: chat-config
