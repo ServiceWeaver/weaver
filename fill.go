@@ -36,12 +36,14 @@ func init() {
 }
 
 // See internal/weaver/types.go.
-func setLogger(v any, logger *slog.Logger) error {
-	x, ok := v.(interface{ setLogger(*slog.Logger) })
+func setLogger(v any, logger *slog.Logger, level *slog.LevelVar) error {
+	x, ok := v.(interface {
+		setLogger(*slog.Logger, *slog.LevelVar)
+	})
 	if !ok {
 		return fmt.Errorf("FillLogger: %T does not implement weaver.Implements", v)
 	}
-	x.setLogger(logger)
+	x.setLogger(logger, level)
 	return nil
 }
 

@@ -322,7 +322,8 @@ func (e *executor) reset(workload Workload, fakes map[reflect.Type]any, ops []*o
 			// Set logger.
 			//
 			// TODO(mwhittaker): Use custom logger.
-			if err := weaver.SetLogger(obj, slog.Default()); err != nil {
+			// TODO(ionut): Info level is enough?
+			if err := weaver.SetLogger(obj, slog.Default(), new(slog.LevelVar)); err != nil {
 				return err
 			}
 

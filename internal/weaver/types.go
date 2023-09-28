@@ -26,7 +26,7 @@ var (
 
 	// SetLogger sets the logger of a component implementation struct. impl
 	// should be a pointer to the implementation struct.
-	SetLogger func(impl any, logger *slog.Logger) error
+	SetLogger func(impl any, logger *slog.Logger, level *slog.LevelVar) error
 
 	// HasRefs returns whether the provided component implementation has
 	// weaver.Refs fields.

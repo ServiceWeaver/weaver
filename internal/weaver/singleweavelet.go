@@ -263,7 +263,8 @@ func (w *SingleWeavelet) get(reg *codegen.Registration) (any, error) {
 	}
 
 	// Set logger.
-	if err := SetLogger(obj, w.logger(reg.Name)); err != nil {
+	logger, level := w.logger(reg.Name)
+	if err := SetLogger(obj, logger, level); err != nil {
 		return nil, err
 	}
 
@@ -319,7 +320,7 @@ func (w *SingleWeavelet) listener(name string) (net.Listener, error) {
 }
 
 // logger returns a logger for the component with the provided name.
-func (w *SingleWeavelet) logger(name string) *slog.Logger {
+func (w *SingleWeavelet) logger(name string) (*slog.Logger, *slog.LevelVar) {
 	write := func(entry *protos.LogEntry) {
 		msg := w.pp.Format(entry)
 		if w.opts.Quiet {
@@ -330,15 +331,18 @@ func (w *SingleWeavelet) logger(name string) *slog.Logger {
 		}
 		fmt.Fprintln(os.Stderr, msg)
 	}
-	return slog.New(&logging.LogHandler{
+	var level = new(slog.LevelVar) // todo ionut: info by default, get it dynamically from config
+	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        w.config.App.Name,
 			Deployment: w.deploymentId,
 			Component:  name,
 			Weavelet:   w.id,
+			LogLevel:   level,
 		},
 		Write: write,
 	})
+	return logger, level
 }
 
 // ServeStatus runs an HTTP status server.
