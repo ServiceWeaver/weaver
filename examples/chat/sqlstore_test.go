@@ -23,12 +23,56 @@ import (
 
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/google/go-cmp/cmp"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
-func TestFeed(t *testing.T) {
-	weavertest.Local.Test(t, func(t *testing.T, store SQLStore) {
-		ctx := context.Background()
+// newMySQL launches a new, fully initialized MySQL instance suitable for use
+// with a sqlStore. newMySQL returns the connection string to connect to the
+// MySQL instance, and it tears down the instance when the provided test ends.
+func newMySQL(t *testing.T, ctx context.Context) string {
+	t.Helper()
 
+	// Create the container.
+	container, err := mysql.RunContainer(ctx,
+		testcontainers.WithImage("mysql"),
+		mysql.WithDatabase("chat"),
+		mysql.WithScripts("chat.sql"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean up the container when the test ends.
+	t.Cleanup(func() {
+		if err := container.Terminate(ctx); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Return the connection string.
+	addr, err := container.ConnectionString(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return addr
+}
+
+func TestFeed(t *testing.T) {
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
+	// Start a MySQL instance.
+	ctx := context.Background()
+	addr := newMySQL(t, ctx)
+
+	// Run the test against the instance.
+	runner := weavertest.Local
+	runner.Config = fmt.Sprintf(`
+		["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
+		db_driver = "mysql"
+		db_uri = %q
+	`, addr)
+	runner.Test(t, func(t *testing.T, store SQLStore) {
 		// Run the test.
 		makeThread := func(user, msg string, others ...string) ThreadID {
 			tid, err := store.CreateThread(ctx, user, time.Now(), others, msg, nil)
@@ -56,7 +100,7 @@ func TestFeed(t *testing.T) {
 		post(t1, "alice", "msg3")
 		post(t2, "ted", "msg4")
 
-		const thread1 = "alice:msg3 bob:msg1"
+		const thread1 = "bob:msg1 alice:msg3"
 		const thread2 = "ted:msg2 ted:msg4"
 		for user, expect := range map[string][]string{
 			"bob":   {thread2, thread1},
@@ -81,7 +125,20 @@ func TestFeed(t *testing.T) {
 }
 
 func TestImage(t *testing.T) {
-	weavertest.Local.Test(t, func(t *testing.T, store SQLStore) {
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
+	// Start a MySQL instance.
+	ctx := context.Background()
+	addr := newMySQL(t, ctx)
+
+	// Run the test against the instance.
+	runner := weavertest.Local
+	runner.Config = fmt.Sprintf(`
+		["github.com/ServiceWeaver/weaver/examples/chat/SQLStore"]
+		db_driver = "mysql"
+		db_uri = %q
+	`, addr)
+	runner.Test(t, func(t *testing.T, store SQLStore) {
 		ctx := context.Background()
 
 		// Create thread with an image in the initial post.

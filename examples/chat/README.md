@@ -29,7 +29,7 @@ $ docker run \
       --detach \
       --name mysql \
       --env MYSQL_ROOT_PASSWORD="password" \
-      --env MYSQL_DATABASE="serviceweaver_chat_example" \
+      --env MYSQL_DATABASE="chat" \
       --volume="$(realpath chat.sql):/app/chat.sql" \
       --publish 127.0.0.1:3306:3306 \
       mysql
