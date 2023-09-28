@@ -2462,7 +2462,7 @@ listeners.hat = {public_hostname = "hat.gg"}
 | regions | optional | Regions in which the Service Weaver application should be deployed. Defaults to `["us-west1"]`. |
 | listeners | optional | The application's listener options, e.g., the listeners' public hostnames. |
 
-# Local GKE
+## Local GKE
 
 [`weaver gke`](#gke) lets you deploy Service Weaver applications to GKE. `weaver gke-local`
 is a drop-in replacement for `weaver gke` that allows you to simulate GKE
@@ -2475,7 +2475,7 @@ also uses [the same config as a `weaver gke`](#gke-config), meaning that after y
 test your application locally using `weaver gke-local`, you can deploy the same
 application to GKE without any code *or* config changes.
 
-## Installation
+### Installation
 
 First, [ensure you have Service Weaver installed](#installation). Next, install
 the `weaver-gke-local` command:
@@ -2484,7 +2484,7 @@ the `weaver-gke-local` command:
 $ go install github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke-local@latest
 ```
 
-## Getting Started
+### Getting Started
 
 In the [`weaver gke`](#gke-getting-started) section, we deployed a "Hello,
 World!" application to GKE using `weaver gke deploy`. We can deploy the same app
@@ -2577,7 +2577,7 @@ TODO(mwhittaker): Have `weaver gke-local` print instructions on how to curl the
 proxy.
 </div>
 
-## Logging
+### Logging
 
 `weaver gke-local deploy` logs to stdout. It additionally persists all log
 entries in a set of files in `/tmp/serviceweaver/logs/weaver-gke-local`. Every file
@@ -2621,7 +2621,7 @@ weaver gke-local logs --system
 Refer to `weaver gke-local logs --help` for a full explanation of the query
 language, along with many more examples.
 
-## Metrics
+### Metrics
 
 In addition to running the proxy on port 8000 (see the [Getting
 Started](#local-gke-getting-started)), `weaver gke-local` also runs a status
@@ -2649,7 +2649,7 @@ scrape_configs:
     - targets: ['localhost:8001']
 ```
 
-## Profiling
+### Profiling
 
 Use the `weaver gke-local profile` command to collect a profile of your Service Weaver
 application. Invoke the command with the name (and optionally version) of the
@@ -2680,7 +2680,7 @@ $ go tool pprof -http=localhost:9000 $profile # Visualize the profile.
 
 Refer to `weaver gke-local profile --help` for more details.
 
-## Tracing
+### Tracing
 
 Run `weaver gke-local dashboard` to open a dashboard in a web browser. The
 dashboard has a page for every Service Weaver application deployed via
@@ -2693,7 +2693,7 @@ example of what the tracing page looks like:
 Refer to [Perfetto UI Docs](https://perfetto.dev/docs/visualization/perfetto-ui)
 to learn more about how to use the tracing UI.
 
-## Versioning
+### Versioning
 
 Recall that `weaver gke` performs slow rollouts
 [across regions](#gke-multi-region) and
