@@ -20,7 +20,7 @@ type balanceCache struct {
 	c cache.LoadingCache
 }
 
-func newTransactionCache(txnRepo *TransactionRepository, expireSize int, localRoutingNum string) *balanceCache {
+func newBalanceCache(txnRepo *transactionRepository, expireSize int, localRoutingNum string) *balanceCache {
 	load := func(accountID cache.Key) (cache.Value, error) {
 		return txnRepo.findBalance(accountID.(string), localRoutingNum)
 	}

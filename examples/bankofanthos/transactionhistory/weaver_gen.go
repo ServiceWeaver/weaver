@@ -20,10 +20,10 @@ func init() {
 		Iface: reflect.TypeOf((*T)(nil)).Elem(),
 		Impl:  reflect.TypeOf(impl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return t_local_stub{impl: impl.(T), tracer: tracer, getTransactionsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory/T", Method: "GetTransactions", Remote: false}), healthyMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory/T", Method: "Healthy", Remote: false})}
+			return t_local_stub{impl: impl.(T), tracer: tracer, getTransactionsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory/T", Method: "GetTransactions", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return t_client_stub{stub: stub, getTransactionsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory/T", Method: "GetTransactions", Remote: true}), healthyMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory/T", Method: "Healthy", Remote: true})}
+			return t_client_stub{stub: stub, getTransactionsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory/T", Method: "GetTransactions", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return t_server_stub{impl: impl.(T), addLoad: addLoad}
@@ -47,7 +47,6 @@ type t_local_stub struct {
 	impl                   T
 	tracer                 trace.Tracer
 	getTransactionsMetrics *codegen.MethodMetrics
-	healthyMetrics         *codegen.MethodMetrics
 }
 
 // Check that t_local_stub implements the T interface.
@@ -73,32 +72,11 @@ func (s t_local_stub) GetTransactions(ctx context.Context, a0 string) (r0 []mode
 	return s.impl.GetTransactions(ctx, a0)
 }
 
-func (s t_local_stub) Healthy(ctx context.Context) (r0 string, r1 int32, err error) {
-	// Update metrics.
-	begin := s.healthyMetrics.Begin()
-	defer func() { s.healthyMetrics.End(begin, err != nil, 0, 0) }()
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "transactionhistory.T.Healthy", trace.WithSpanKind(trace.SpanKindInternal))
-		defer func() {
-			if err != nil {
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
-			}
-			span.End()
-		}()
-	}
-
-	return s.impl.Healthy(ctx)
-}
-
 // Client stub implementations.
 
 type t_client_stub struct {
 	stub                   codegen.Stub
 	getTransactionsMetrics *codegen.MethodMetrics
-	healthyMetrics         *codegen.MethodMetrics
 }
 
 // Check that t_client_stub implements the T interface.
@@ -160,54 +138,6 @@ func (s t_client_stub) GetTransactions(ctx context.Context, a0 string) (r0 []mod
 	return
 }
 
-func (s t_client_stub) Healthy(ctx context.Context) (r0 string, r1 int32, err error) {
-	// Update metrics.
-	var requestBytes, replyBytes int
-	begin := s.healthyMetrics.Begin()
-	defer func() { s.healthyMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
-
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "transactionhistory.T.Healthy", trace.WithSpanKind(trace.SpanKindClient))
-	}
-
-	defer func() {
-		// Catch and return any panics detected during encoding/decoding/rpc.
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-			if err != nil {
-				err = errors.Join(weaver.RemoteCallError, err)
-			}
-		}
-
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-		}
-		span.End()
-
-	}()
-
-	var shardKey uint64
-
-	// Call the remote method.
-	var results []byte
-	results, err = s.stub.Run(ctx, 1, nil, shardKey)
-	replyBytes = len(results)
-	if err != nil {
-		err = errors.Join(weaver.RemoteCallError, err)
-		return
-	}
-
-	// Decode the results.
-	dec := codegen.NewDecoder(results)
-	r0 = dec.String()
-	r1 = dec.Int32()
-	err = dec.Error()
-	return
-}
-
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
@@ -246,8 +176,6 @@ func (s t_server_stub) GetStubFn(method string) func(ctx context.Context, args [
 	switch method {
 	case "GetTransactions":
 		return s.getTransactions
-	case "Healthy":
-		return s.healthy
 	default:
 		return nil
 	}
@@ -278,27 +206,6 @@ func (s t_server_stub) getTransactions(ctx context.Context, args []byte) (res []
 	return enc.Data(), nil
 }
 
-func (s t_server_stub) healthy(ctx context.Context, args []byte) (res []byte, err error) {
-	// Catch and return any panics detected during encoding/decoding/rpc.
-	defer func() {
-		if err == nil {
-			err = codegen.CatchPanics(recover())
-		}
-	}()
-
-	// TODO(rgrandl): The deferred function above will recover from panics in the
-	// user code: fix this.
-	// Call the local method.
-	r0, r1, appErr := s.impl.Healthy(ctx)
-
-	// Encode the results.
-	enc := codegen.NewEncoder()
-	enc.String(r0)
-	enc.Int32(r1)
-	enc.Error(appErr)
-	return enc.Data(), nil
-}
-
 // Reflect stub implementations.
 
 type t_reflect_stub struct {
@@ -310,11 +217,6 @@ var _ T = (*t_reflect_stub)(nil)
 
 func (s t_reflect_stub) GetTransactions(ctx context.Context, a0 string) (r0 []model.Transaction, err error) {
 	err = s.caller("GetTransactions", ctx, []any{a0}, []any{&r0})
-	return
-}
-
-func (s t_reflect_stub) Healthy(ctx context.Context) (r0 string, r1 int32, err error) {
-	err = s.caller("Healthy", ctx, []any{}, []any{&r0, &r1})
 	return
 }
 

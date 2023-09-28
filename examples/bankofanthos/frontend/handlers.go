@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -100,7 +99,7 @@ func verifyToken(token string, publicKey *rsa.PublicKey) bool {
 }
 
 // rootHandler handles "/".
-func (s *Server) rootHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) rootHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := r.Cookie(tokenCookieName)
 	if err != nil || !verifyToken(token.Value, s.config.publicKey) {
 		http.Redirect(w, r, "/login", http.StatusFound)
@@ -110,8 +109,8 @@ func (s *Server) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // homeHandler handles "/home" to render the home page. Redirects to "/login" if token is not valid.
-func (s *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) homeHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	token, err := r.Cookie(tokenCookieName)
 	if err != nil || !verifyToken(token.Value, s.config.publicKey) {
 		http.Redirect(w, r, "/login", http.StatusFound)
@@ -190,8 +189,8 @@ func populateContactLabels(accountID string, transactions []model.Transaction, c
 }
 
 // paymentHandler handles "/payment" and submits payment request to ledgerwriter service.
-func (s *Server) paymentHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) paymentHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	token, err := r.Cookie(tokenCookieName)
 	if err != nil || !verifyToken(token.Value, s.config.publicKey) {
 		msg := "Error submitting payment: user is not authenticated"
@@ -253,8 +252,8 @@ func (s *Server) paymentHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // depositHandler handles "/deposit" and submits deposit requests to ledgerwriter service.
-func (s *Server) depositHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) depositHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	token, err := r.Cookie(tokenCookieName)
 	if err != nil || !verifyToken(token.Value, s.config.publicKey) {
 		msg := "Error submitting deposit: user is not authenticated"
@@ -346,7 +345,7 @@ func (s *Server) depositHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // loginHandler handles "/login".
-func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		s.loginGetHandler(w, r)
 	} else if r.Method == http.MethodPost {
@@ -356,8 +355,8 @@ func (s *Server) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 // loginGetHandler renders the login page. Redirects to "/home" if user already has a valid token.
 // If this is an oauth flow, then redirect to a consent form.
-func (s *Server) loginGetHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) loginGetHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	redirect := func(uri string, values map[string]string) {
 		url, _ := url.Parse(uri)
 		query := url.Query()
@@ -423,8 +422,8 @@ func (s *Server) loginGetHandler(w http.ResponseWriter, r *http.Request) {
 // loginPostHandler handles POST requests to "/login" and contacts the userservice
 // to return a signed JWT for authentication and for authorization of subsequent
 // requests by the user.
-func (s *Server) loginPostHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) loginPostHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	err := s.loginPostHelper(w, r)
 	if err != nil {
 		logger.Error("/login POST failed", err, "user", r.FormValue("username"))
@@ -432,8 +431,8 @@ func (s *Server) loginPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) loginPostHelper(w http.ResponseWriter, r *http.Request) error {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) loginPostHelper(w http.ResponseWriter, r *http.Request) error {
+	logger := s.Logger(r.Context())
 	loginReq := userservice.LoginRequest{
 		Username: r.FormValue("username"),
 		Password: r.FormValue("password"),
@@ -472,7 +471,7 @@ func (s *Server) loginPostHelper(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (s *Server) authCallbackHelper(state string, redirectURI string,
+func (s *server) authCallbackHelper(state string, redirectURI string,
 	token string, w http.ResponseWriter, r *http.Request, setConsentCookie bool) {
 	client := &http.Client{Timeout: s.config.backendTimeout}
 	formData := url.Values{
@@ -486,6 +485,7 @@ func (s *Server) authCallbackHelper(state string, redirectURI string,
 		}
 		http.SetCookie(w, cookie)
 	}
+	fmt.Println(redirectURI)
 	req, err := http.NewRequest("POST", redirectURI, strings.NewReader(formData.Encode()))
 	if err != nil {
 		http.Redirect(w, r, redirectURI+"#error=server_error", http.StatusFound)
@@ -510,7 +510,7 @@ func (s *Server) authCallbackHelper(state string, redirectURI string,
 }
 
 // consentHandler handles GET and POST requests to "/consent".
-func (s *Server) consentHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) consentHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		s.consentGetHandler(w, r)
 	} else if r.Method == http.MethodPost {
@@ -520,8 +520,8 @@ func (s *Server) consentHandler(w http.ResponseWriter, r *http.Request) {
 
 // consentGetHandler renders consent page.  Retrieves auth code if the user
 // already logged in and consented.
-func (s *Server) consentGetHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) consentGetHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	values := r.URL.Query()
 	redirectURI := values.Get("redirect_uri")
 	state := values.Get("state")
@@ -566,7 +566,7 @@ func (s *Server) consentGetHandler(w http.ResponseWriter, r *http.Request) {
 	redirectToLogin()
 }
 
-func (s *Server) consentPostHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 	// Check consent, write cookie if yes, and redirect accordingly.
 	consent := r.URL.Query().Get("consent")
 	state := r.URL.Query().Get("state")
@@ -583,7 +583,7 @@ func (s *Server) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // signupHandler handles GET and POST requests to "/signup".
-func (s *Server) signupHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) signupHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		s.signupGetHandler(w, r)
 	} else if r.Method == http.MethodPost {
@@ -592,8 +592,8 @@ func (s *Server) signupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // signupGetHandler handles renders the signup page.
-func (s *Server) signupGetHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) signupGetHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	token, err := r.Cookie(tokenCookieName)
 	if err == nil && verifyToken(token.Value, s.config.publicKey) {
 		http.Redirect(w, r, "/home", http.StatusFound)
@@ -612,8 +612,8 @@ func (s *Server) signupGetHandler(w http.ResponseWriter, r *http.Request) {
 
 // signupPostHandler handles POST requests to "/signup" by contacting userservice
 // for creating a new user.
-func (s *Server) signupPostHandler(w http.ResponseWriter, r *http.Request) {
-	logger := r.Context().Value(ctxKeyLogger{}).(*slog.Logger)
+func (s *server) signupPostHandler(w http.ResponseWriter, r *http.Request) {
+	logger := s.Logger(r.Context())
 	logger.Debug("Creating new user")
 
 	creq := userservice.CreateUserRequest{
@@ -644,7 +644,7 @@ func (s *Server) signupPostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // logoutHandler handles "/logout" by deleting appropriate cookies.
-func (s *Server) logoutHandler(w http.ResponseWriter, r *http.Request) {
+func (s *server) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Delete the token and consent cookies.
 	http.SetCookie(w, &http.Cookie{
 		Name:   tokenCookieName,

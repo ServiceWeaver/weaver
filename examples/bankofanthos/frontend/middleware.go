@@ -15,16 +15,11 @@
 package frontend
 
 import (
-	"context"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-type ctxKeyLogger struct{}
-type ctxKeyRequestID struct{}
-type ctxKeySessionID struct{}
 
 type responseRecorder struct {
 	b      int
@@ -32,8 +27,14 @@ type responseRecorder struct {
 	w      http.ResponseWriter
 }
 
-func (r *responseRecorder) Header() http.Header { return r.w.Header() }
+var _ http.ResponseWriter = (*responseRecorder)(nil)
 
+// Header implements the [http.ResponseWriter] interface.
+func (r *responseRecorder) Header() http.Header {
+	return r.w.Header()
+}
+
+// Write implements the [http.ResponseWriter] interface.
 func (r *responseRecorder) Write(p []byte) (int, error) {
 	if r.status == 0 {
 		r.status = http.StatusOK
@@ -43,24 +44,31 @@ func (r *responseRecorder) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// WriteHeader implements the [http.ResponseWriter] interface.
 func (r *responseRecorder) WriteHeader(statusCode int) {
 	r.status = statusCode
 	r.w.WriteHeader(statusCode)
 }
 
 type logHandler struct {
-	server *Server
+	server *server
 	next   http.Handler
 }
 
-func newLogHandler(server *Server, next http.Handler) http.Handler {
-	return &logHandler{server: server, next: next}
+var _ http.Handler = (*logHandler)(nil)
+
+func newLogHandler(s *server, next http.Handler) http.Handler {
+	return &logHandler{server: s, next: next}
 }
 
+// ServeHTTP implements the [http.Handler] interface.
 func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	requestID, _ := uuid.NewRandom()
-	ctx = context.WithValue(ctx, ctxKeyRequestID{}, requestID.String())
+	requestID, err := uuid.NewRandom()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	start := time.Now()
 	rr := &responseRecorder{w: w}
@@ -69,9 +77,6 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"http.req.path", r.URL.Path,
 		"http.req.method", r.Method,
 		"http.req.id", requestID)
-	if v, ok := r.Context().Value(ctxKeySessionID{}).(string); ok {
-		logger = logger.With("session", v)
-	}
 	logger.Debug("request started")
 	defer func() {
 		logger.Debug("request complete",
@@ -81,7 +86,6 @@ func (lh *logHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		)
 	}()
 
-	ctx = context.WithValue(ctx, ctxKeyLogger{}, logger)
 	r = r.WithContext(ctx)
 	lh.next.ServeHTTP(rr, r)
 }

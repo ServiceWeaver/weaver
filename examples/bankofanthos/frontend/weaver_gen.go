@@ -5,17 +5,18 @@ package frontend
 
 import (
 	"context"
+	"reflect"
+
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
-	"reflect"
 )
 
 func init() {
 	codegen.Register(codegen.Registration{
 		Name:      "github.com/ServiceWeaver/weaver/Main",
 		Iface:     reflect.TypeOf((*weaver.Main)(nil)).Elem(),
-		Impl:      reflect.TypeOf(Server{}),
+		Impl:      reflect.TypeOf(server{}),
 		Listeners: []string{"bank"},
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
 			return main_local_stub{impl: impl.(weaver.Main), tracer: tracer}
@@ -32,10 +33,10 @@ func init() {
 }
 
 // weaver.InstanceOf checks.
-var _ weaver.InstanceOf[weaver.Main] = (*Server)(nil)
+var _ weaver.InstanceOf[weaver.Main] = (*server)(nil)
 
 // weaver.Router checks.
-var _ weaver.Unrouted = (*Server)(nil)
+var _ weaver.Unrouted = (*server)(nil)
 
 // Local stub implementations.
 
@@ -105,4 +106,3 @@ type main_reflect_stub struct {
 
 // Check that main_reflect_stub implements the weaver.Main interface.
 var _ weaver.Main = (*main_reflect_stub)(nil)
-

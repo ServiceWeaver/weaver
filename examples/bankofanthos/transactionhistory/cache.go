@@ -20,17 +20,17 @@ import (
 	cache "github.com/goburrow/cache"
 )
 
-// TransactionCache maintains a cache of transaction retrieved from the ledger database.
-type TransactionCache struct {
+// transactionCache maintains a cache of transaction retrieved from the ledger database.
+type transactionCache struct {
 	c cache.LoadingCache
 }
 
-func newTransactionCache(txnRepo *TransactionRepository, cacheSize int, expireMinutes int, localRoutingNum string, historyLimit int) *TransactionCache {
+func newTransactionCache(txnRepo *transactionRepository, cacheSize int, expireMinutes int, localRoutingNum string, historyLimit int) *transactionCache {
 	load := func(accountID cache.Key) (cache.Value, error) {
 		return txnRepo.findForAccount(accountID.(string), localRoutingNum, historyLimit)
 	}
 
-	return &TransactionCache{
+	return &transactionCache{
 		c: cache.NewLoadingCache(
 			load,
 			cache.WithMaximumSize(cacheSize),

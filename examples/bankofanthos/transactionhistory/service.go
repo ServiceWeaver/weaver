@@ -16,7 +16,6 @@ package transactionhistory
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/examples/bankofanthos/common"
@@ -24,8 +23,6 @@ import (
 )
 
 type T interface {
-	// Healthy returns the health status of this component.
-	Healthy(ctx context.Context) (string, int32, error)
 	// GetTransactions returns all the transactions of an account.
 	GetTransactions(ctx context.Context, accountID string) ([]model.Transaction, error)
 }
@@ -42,11 +39,15 @@ type impl struct {
 	weaver.Implements[T]
 	weaver.WithConfig[config]
 
-	txnRepo      *TransactionRepository
-	txnCache     *TransactionCache
+	txnRepo      *transactionRepository
+	txnCache     *transactionCache
 	ledgerReader *common.LedgerReader
 }
 
+var _ T = (*impl)(nil)
+var _ common.LedgerReaderCallback = (*impl)(nil)
+
+// ProcessTransaction implements the common.LedgerReaderCallback interface.
 func (i *impl) ProcessTransaction(transaction model.Transaction) {
 	fromID := transaction.FromAccountNum
 	fromRoutingNum := transaction.FromRoutingNum
@@ -92,14 +93,6 @@ func (i *impl) Init(ctx context.Context) error {
 	i.ledgerReader = common.NewLedgerReader(i.txnRepo, i.Logger(ctx))
 	i.ledgerReader.StartWithCallback(i)
 	return nil
-}
-
-func (i *impl) Healthy(ctx context.Context) (string, int32, error) {
-	if i.ledgerReader.IsAlive() {
-		return "ok", 200, nil
-	}
-	err := errors.New("Ledger reader is unhealthy")
-	return err.Error(), 500, err
 }
 
 func (i *impl) GetTransactions(ctx context.Context, accountID string) ([]model.Transaction, error) {

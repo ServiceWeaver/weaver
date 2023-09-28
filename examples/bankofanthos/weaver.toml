@@ -10,7 +10,7 @@ listeners.bank = {address = "localhost:9000"}
 ["github.com/ServiceWeaver/weaver/Main"]
 public_key_path = "/tmp/.ssh/jwtRS256.key.pub"
 local_routing_num = "883745000"
-bank_name = "883745000"
+bank_name = "Bank of Anthos"
 backend_timeout_seconds = 4
 
 ["github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader/T"]

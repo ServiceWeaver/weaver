@@ -20,21 +20,21 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-// TransactionRepository is a repository for performing queries on the ledger database.
-type TransactionRepository struct {
+// transactionRepository is a repository for performing queries on the ledger database.
+type transactionRepository struct {
 	common.LedgerReaderTransactionRepository
 }
 
-func newTransactionRepository(databaseURI string) (*TransactionRepository, error) {
+func newTransactionRepository(databaseURI string) (*transactionRepository, error) {
 	repo, err := common.NewLedgerReaderTransactionRepository(databaseURI)
 	if err != nil {
 		return nil, err
 	}
-	return &TransactionRepository{LedgerReaderTransactionRepository: *repo}, nil
+	return &transactionRepository{LedgerReaderTransactionRepository: *repo}, nil
 }
 
 // findForAccount returns a list of transactions for the given account and routing numbers.
-func (r *TransactionRepository) findForAccount(accountNum string, routingNum string, limit int) ([]model.Transaction, error) {
+func (r *transactionRepository) findForAccount(accountNum string, routingNum string, limit int) ([]model.Transaction, error) {
 	var txns []model.Transaction
 	result := r.DB.Table("transactions").Where("(from_acct=? AND from_route=?) OR (to_acct=? AND to_route=?)", accountNum, routingNum, accountNum, routingNum).Order("timestamp DESC").Find(&txns)
 	if result.Error != nil {

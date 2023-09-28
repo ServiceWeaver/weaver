@@ -31,6 +31,6 @@ func newTransactionRepository(databaseURI string) (*transactionRepository, error
 	return &transactionRepository{db: db}, nil
 }
 
-func (r *transactionRepository) Save(transaction *model.Transaction) error {
+func (r *transactionRepository) save(transaction *model.Transaction) error {
 	return r.db.Create(transaction).Error
 }

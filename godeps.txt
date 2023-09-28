@@ -67,7 +67,6 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos
 github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader
     context
     errors
-    fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/examples/bankofanthos/common
     github.com/ServiceWeaver/weaver/examples/bankofanthos/model
@@ -117,7 +116,6 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos/frontend
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/slices
-    golang.org/x/exp/slog
     html/template
     io/fs
     net

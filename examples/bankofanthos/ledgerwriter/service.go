@@ -60,6 +60,7 @@ func (i *impl) getAvailableBalance(ctx context.Context, accountNum string) (int6
 	return i.balanceReader.Get().GetBalance(ctx, accountNum)
 }
 
+// AddTransaction implements the T interface.
 func (i *impl) AddTransaction(ctx context.Context, requestUuid, authenticatedAccount string, transaction model.Transaction) error {
 	// Check for duplicate transactions.
 	if _, ok := i.cache.Get(requestUuid); ok {
@@ -85,7 +86,7 @@ func (i *impl) AddTransaction(ctx context.Context, requestUuid, authenticatedAcc
 	}
 
 	// Save transaction to ledger database as well as to the cache.
-	err = i.txnRepo.Save(&transaction)
+	err = i.txnRepo.save(&transaction)
 	if err != nil {
 		return err
 	}

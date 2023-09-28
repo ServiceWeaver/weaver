@@ -19,21 +19,21 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-// TransactionRepository is a repository for performing queries on the Transaction database.
-type TransactionRepository struct {
+// transactionRepository is a repository for performing queries on the Transaction database.
+type transactionRepository struct {
 	common.LedgerReaderTransactionRepository
 }
 
-func newTransactionRepository(databaseURI string) (*TransactionRepository, error) {
+func newTransactionRepository(databaseURI string) (*transactionRepository, error) {
 	repo, err := common.NewLedgerReaderTransactionRepository(databaseURI)
 	if err != nil {
 		return nil, err
 	}
-	return &TransactionRepository{LedgerReaderTransactionRepository: *repo}, nil
+	return &transactionRepository{LedgerReaderTransactionRepository: *repo}, nil
 }
 
 // findBalance returns the current balance of the given account.
-func (r *TransactionRepository) findBalance(accountNum, routingNum string) (int64, error) {
+func (r *transactionRepository) findBalance(accountNum, routingNum string) (int64, error) {
 	sql := `
 SELECT
   (

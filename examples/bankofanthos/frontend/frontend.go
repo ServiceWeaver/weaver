@@ -44,21 +44,8 @@ var (
 	validEnvs = []string{"local", "gcp"}
 )
 
-type platformDetails struct {
-	css      string
-	provider string
-}
-
-func platformDetailsForEnv(env string) platformDetails {
-	if env == "gcp" {
-		return platformDetails{provider: "Google Cloud", css: "gcp-platform"}
-	}
-	return platformDetails{provider: "local", css: "local"}
-}
-
-// ServerConfig contains configuration options for the server.
-// DO_NOT_SUBMIT: Unexport.
-type ServerConfig struct {
+// serverConfig contains configuration options for the server.
+type serverConfig struct {
 	publicKey       *rsa.PublicKey
 	localRoutingNum string
 	bankName        string
@@ -68,7 +55,7 @@ type ServerConfig struct {
 	podZone         string
 }
 
-// DO_NOT_SUBMIT: Document.
+// config contains configuration options read from a weaver TOML file.
 type config struct {
 	PublicKeyPath         string `toml:"public_key_path"`
 	LocalRoutingNum       string `toml:"local_routing_num"`
@@ -76,9 +63,8 @@ type config struct {
 	BackendTimeoutSeconds int    `toml:"backend_timeout_seconds"`
 }
 
-// Server is the application frontend.
-// DO_NOT_SUBMIT: Unexport.
-type Server struct {
+// server is the application frontend.
+type server struct {
 	weaver.Implements[weaver.Main]
 	weaver.WithConfig[config]
 	lis                weaver.Listener `weaver:"bank"`
@@ -88,13 +74,12 @@ type Server struct {
 	transactionHistory weaver.Ref[transactionhistory.T]
 	userService        weaver.Ref[userservice.T]
 
-	platform platformDetails
 	hostname string
-	config   ServerConfig
+	config   serverConfig
 }
 
 // Init initializes an application frontend.
-func (s *Server) Init(ctx context.Context) error {
+func (s *server) Init(ctx context.Context) error {
 	// Find out where we're running.
 	var env = os.Getenv("ENV_PLATFORM")
 	// Only override from env variable if set + valid env.
@@ -110,7 +95,6 @@ func (s *Server) Init(ctx context.Context) error {
 		env = "gcp"
 	}
 	s.Logger(ctx).Debug("ENV_PLATFORM", "platform", env)
-	s.platform = platformDetailsForEnv(strings.ToLower(env))
 
 	s.hostname, err = os.Hostname()
 	if err != nil {
@@ -143,13 +127,14 @@ func (s *Server) Init(ctx context.Context) error {
 	return nil
 }
 
-func Serve(ctx context.Context, s *Server) error {
+// Serve runs the Bank of Anthos server.
+func Serve(ctx context.Context, s *server) error {
 	// Setup the handler.
 	staticHTML, err := fs.Sub(fs.FS(staticFS), "static")
 	if err != nil {
 		return err
 	}
-	r := http.NewServeMux()
+	mux := http.NewServeMux()
 
 	// Helper that adds a handler with HTTP metric instrumentation.
 	instrument := func(label string, fn func(http.ResponseWriter, *http.Request), methods []string) http.Handler {
@@ -171,21 +156,21 @@ func Serve(ctx context.Context, s *Server) error {
 	const get = http.MethodGet
 	const post = http.MethodPost
 	const head = http.MethodHead
-	r.Handle("/", instrument("root", s.rootHandler, []string{get, head}))
-	r.Handle("/home/", instrument("home", s.homeHandler, []string{get, head}))
-	r.Handle("/payment", instrument("payment", s.paymentHandler, []string{post}))
-	r.Handle("/deposit", instrument("deposit", s.depositHandler, []string{post}))
-	r.Handle("/login", instrument("login", s.loginHandler, []string{get, post}))
-	r.Handle("/consent", instrument("consent", s.consentHandler, []string{get, post}))
-	r.Handle("/signup", instrument("signup", s.signupHandler, []string{get, post}))
-	r.Handle("/logout", instrument("logout", s.logoutHandler, []string{post}))
-	r.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static", http.FileServer(http.FS(staticHTML)))))
+	mux.Handle("/", instrument("root", s.rootHandler, []string{get, head}))
+	mux.Handle("/home/", instrument("home", s.homeHandler, []string{get, head}))
+	mux.Handle("/payment", instrument("payment", s.paymentHandler, []string{post}))
+	mux.Handle("/deposit", instrument("deposit", s.depositHandler, []string{post}))
+	mux.Handle("/login", instrument("login", s.loginHandler, []string{get, post}))
+	mux.Handle("/consent", instrument("consent", s.consentHandler, []string{get, post}))
+	mux.Handle("/signup", instrument("signup", s.signupHandler, []string{get, post}))
+	mux.Handle("/logout", instrument("logout", s.logoutHandler, []string{post}))
+	mux.Handle("/static/", weaver.InstrumentHandler("static", http.StripPrefix("/static", http.FileServer(http.FS(staticHTML)))))
 
 	// No instrumentation of /healthz
-	r.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
 
 	// Set handler and return.
-	var handler http.Handler = r
+	var handler http.Handler = mux
 	handler = newLogHandler(s, handler)            // add logging
 	handler = otelhttp.NewHandler(handler, "http") // add tracing
 	s.Logger(ctx).Debug("Frontend available", "addr", s.lis)
