@@ -74,6 +74,19 @@ db_driver = "mysql"
 db_uri = "root:password@tcp(mysql:3306)/chat"
 ```
 
+Then, update the `repo` field in `weaver.toml` with the Docker repository where
+the chat application will be uploaded. For example, if your Docker Hub username
+is `myusername`, you can update the `[kube]` section of `weaver.toml` to the
+following:
+
+```toml
+[kube]
+listeners.chat = {public = true}
+repo = "docker.io/myusername/"
+```
+
+See `weaver kube deploy --help` for more information on the `repo` field.
+
 Finally, deploy the application using `weaver kube`.
 
 ```shell
