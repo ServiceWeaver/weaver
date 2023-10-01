@@ -954,12 +954,12 @@ possible.
 S1027 14:40:55.210541 stdout d772dcad] This was printed by fmt.Println
 ```
 
-The logging API is leveragig the control of the application verbosity by 
-providing a configuration option(`log_level`). Nevertheless, for specific 
-components requiring distinct verbosity levels, you can achieve this by 
-invoking the component built-in `SetLogLevel` method. 
+The logging API offers control over the application logging verbosity via the 
+`log_level` configuration option. However, if there are individual components
+requiring to operate at different verbosity levels, you can do so by utilizing
+the `SetLogLevel` builtin method.
 
-For instance if the application log level is set to `debug`(highest verbosity level)
+For instance if the application log level is set to `debug`:
 ```toml
 [serviceweaver]
 log_level = debug
@@ -992,7 +992,7 @@ will look like:
 ```console
 E1103 08:55:15.650158 main.Adder 73ddcd04 adder.go:14 │ An error log. err="an error"
 ``` 
-`debug` and `info` entries being discarded.
+with `debug` and `info` entries being discarded.
 
 Refer to the deployer-specific documentation to learn how to search and filter
 logs for [single process](#single-process-logging),

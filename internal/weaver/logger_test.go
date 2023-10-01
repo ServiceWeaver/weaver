@@ -110,7 +110,7 @@ func (c collector) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func TestUnmarshalLogLevelString(t *testing.T) {
+func TestFillLogLevel(t *testing.T) {
 	type args struct {
 		level *slog.LevelVar
 		s     string
@@ -139,7 +139,7 @@ func TestUnmarshalLogLevelString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := tt.args.level
-			UnmarshalLogLevelString(l, tt.args.s)
+			FillLogLevel(l, tt.args.s)
 			if tt.want != l.Level() {
 				t.Errorf("UnmarshalLogLevelString(): actual level=%v, want level=%v", l.Level(), tt.want)
 			}

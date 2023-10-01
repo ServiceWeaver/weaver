@@ -333,7 +333,7 @@ func (w *SingleWeavelet) logger(name string) (*slog.Logger, *slog.LevelVar) {
 	}
 
 	level := new(slog.LevelVar)
-	UnmarshalLogLevelString(level, w.config.App.LogLevel)
+	FillLogLevel(level, w.config.App.LogLevel)
 
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{

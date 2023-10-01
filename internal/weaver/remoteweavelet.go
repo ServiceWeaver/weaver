@@ -649,7 +649,7 @@ func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogE
 // returned logger includes the provided attributes.
 func (w *RemoteWeavelet) logger(name string, attrs ...string) (*slog.Logger, *slog.LevelVar) {
 	level := new(slog.LevelVar)
-	UnmarshalLogLevelString(level, w.getAppLogLevel())
+	FillLogLevel(level, w.getAppLogLevel())
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        w.Info().App,

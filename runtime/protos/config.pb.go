@@ -138,8 +138,8 @@ type AppConfig struct {
 	// All config sections (includes [serviceweaver], [<deployer>], and
 	// [<component>] sections).
 	Sections map[string]string `protobuf:"bytes,7,rep,name=sections,proto3" json:"sections,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Set the application log level. Acceptable values are: DEBUG, INFO, WARNING
-	// and ERROR(lowercase values are also accepted)
+	// Set the application log level. Acceptable values are: DEBUG, INFO, WARN
+	// and ERROR(lowercase variants are valid as well)
 	// At component level this value can be overridden by calling its own
 	// SetLogLevel() method.
 	//

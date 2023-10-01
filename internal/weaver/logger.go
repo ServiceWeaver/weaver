@@ -86,10 +86,10 @@ func (rl *remoteLogger) run(ctx context.Context, dst func(context.Context, *prot
 	}
 }
 
-// UnmarshalLogLevelString unmarshals a string into a slog.LevelVar.
-// Either invalid of empty string is provided, the marshaled value will
-// be set to highest verbosity level.
-func UnmarshalLogLevelString(level *slog.LevelVar, s string) {
+// FillLogLevel populates the specified *slog.LevelVar variable with a corresponding
+// log level based on the provided string. If the string is not a valid or empty value,
+// the log level is set to the default value(slog.LevelDebug).
+func FillLogLevel(level *slog.LevelVar, s string) {
 	if level != nil {
 		if err := level.UnmarshalText([]byte(s)); err != nil {
 			level.Set(slog.LevelDebug)

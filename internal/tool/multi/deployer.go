@@ -122,7 +122,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 	}
 	loggerComponent := newLogger(logsDB)
 	logLevel := new(slog.LevelVar)
-	iweaver.UnmarshalLogLevelString(logLevel, config.App.LogLevel)
+	iweaver.FillLogLevel(logLevel, config.App.LogLevel)
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       config.App.Name,

@@ -81,8 +81,8 @@ message AppConfig {
   // [<component>] sections).
   map<string, string> sections = 7;
   
-  // Set the application log level. Acceptable values are: DEBUG, INFO, WARNING
-  // and ERROR(lowercase values are also accepted)
+  // Set the application log level. Acceptable values are: DEBUG, INFO, WARN 
+  // and ERROR(lowercase variants are valid as well)
   // At component level this value can be overridden by calling its own
   // SetLogLevel() method.
   //
