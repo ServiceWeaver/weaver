@@ -956,8 +956,8 @@ S1027 14:40:55.210541 stdout d772dcad] This was printed by fmt.Println
 
 The logging API is leveragig the control of the application verbosity by 
 providing a configuration option(`log_level`). Nevertheless, for specific 
-components requiring distinct verbosity levels, you can achieve this by invoking
-the componwnr built-in `SetLogLevel` method. 
+components requiring distinct verbosity levels, you can achieve this by 
+invoking the component built-in `SetLogLevel` method. 
 
 For instance if the application log level is set to `debug`(highest verbosity level)
 ```toml
