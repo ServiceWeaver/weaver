@@ -112,8 +112,7 @@ func (c collector) Write(data []byte) (int, error) {
 
 func TestFillLogLevel(t *testing.T) {
 	type args struct {
-		level *slog.LevelVar
-		s     string
+		s string
 	}
 	tests := []struct {
 		name string
@@ -122,24 +121,23 @@ func TestFillLogLevel(t *testing.T) {
 	}{
 		{
 			name: "invalid level string",
-			args: args{new(slog.LevelVar), "invalid_level"},
+			args: args{"invalid_level"},
 			want: slog.LevelDebug,
 		},
 		{
 			name: "empty level string",
-			args: args{new(slog.LevelVar), ""},
+			args: args{""},
 			want: slog.LevelDebug,
 		},
 		{
 			name: "valid level string",
-			args: args{new(slog.LevelVar), "error"},
+			args: args{"error"},
 			want: slog.LevelError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := tt.args.level
-			FillLogLevel(l, tt.args.s)
+			l := NewLogLevel(tt.args.s)
 			if tt.want != l.Level() {
 				t.Errorf("UnmarshalLogLevelString(): actual level=%v, want level=%v", l.Level(), tt.want)
 			}

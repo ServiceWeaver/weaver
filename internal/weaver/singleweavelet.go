@@ -332,8 +332,7 @@ func (w *SingleWeavelet) logger(name string) (*slog.Logger, *slog.LevelVar) {
 		fmt.Fprintln(os.Stderr, msg)
 	}
 
-	level := new(slog.LevelVar)
-	FillLogLevel(level, w.config.App.LogLevel)
+	level := NewLogLevel(w.config.App.LogLevel)
 
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{

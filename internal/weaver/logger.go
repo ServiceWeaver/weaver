@@ -86,13 +86,13 @@ func (rl *remoteLogger) run(ctx context.Context, dst func(context.Context, *prot
 	}
 }
 
-// FillLogLevel populates the specified *slog.LevelVar variable with a corresponding
-// log level based on the provided string. If the string is not a valid or empty value,
-// the log level is set to the default value(slog.LevelDebug).
-func FillLogLevel(level *slog.LevelVar, s string) {
-	if level != nil {
-		if err := level.UnmarshalText([]byte(s)); err != nil {
-			level.Set(slog.LevelDebug)
-		}
+// NewLogLevel returns a pointer to a slog.LevelVar value derived from given
+// string. If the string is not parsable or empty, the underlying value is set
+// to a default value(slog.LevelDebug).
+func NewLogLevel(s string) *slog.LevelVar {
+	level := new(slog.LevelVar)
+	if err := level.UnmarshalText([]byte(s)); err != nil {
+		level.Set(slog.LevelDebug)
 	}
+	return level
 }

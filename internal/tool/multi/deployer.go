@@ -121,8 +121,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
 	loggerComponent := newLogger(logsDB)
-	logLevel := new(slog.LevelVar)
-	iweaver.FillLogLevel(logLevel, config.App.LogLevel)
+	logLevel := iweaver.NewLogLevel(config.App.LogLevel)
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       config.App.Name,

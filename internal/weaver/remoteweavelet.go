@@ -648,8 +648,7 @@ func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogE
 // logger returns a logger for the component with the provided name. The
 // returned logger includes the provided attributes.
 func (w *RemoteWeavelet) logger(name string, attrs ...string) (*slog.Logger, *slog.LevelVar) {
-	level := new(slog.LevelVar)
-	FillLogLevel(level, w.getAppLogLevel())
+	level := NewLogLevel(w.getAppLogLevel())
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        w.Info().App,
@@ -752,28 +751,32 @@ func (w *RemoteWeavelet) verifyServerCertificate(certChain [][]byte, targetCompo
 	return w.conn.VerifyServerCertificateRPC(request)
 }
 
+// getAppLogLevel looks up the application log level in
+// the config sections
 func (w *RemoteWeavelet) getAppLogLevel() string {
 	const appKey = "github.com/ServiceWeaver/weaver"
 	const shortAppKey = "serviceweaver"
-	sections := w.Info().Sections
 	type logLevel struct {
 		Level string `toml:"log_level"`
 	}
-	section, ok := sections[appKey]
-	if !ok {
-		section, ok = sections[shortAppKey]
+	var (
+		section string
+		ok      bool
+	)
+
+	sections := w.Info().Sections
+	if section, ok = sections[appKey]; !ok {
+		if section, ok = sections[shortAppKey]; !ok {
+			return ""
+		}
 	}
-	if !ok {
-		// this should never happen;
-		// however, if it does, we set it
-		// to highest verbosity level
-		return "debug"
-	}
+
 	v := &logLevel{}
 	_, err := toml.Decode(section, v)
 	if err != nil {
-		return "debug"
+		return ""
 	}
+
 	return v.Level
 }
 
