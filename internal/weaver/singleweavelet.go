@@ -331,7 +331,10 @@ func (w *SingleWeavelet) logger(name string) (*slog.Logger, *slog.LevelVar) {
 		}
 		fmt.Fprintln(os.Stderr, msg)
 	}
-	var level = new(slog.LevelVar) // todo ionut: info by default, get it dynamically from config
+
+	level := new(slog.LevelVar)
+	UnmarshalLogLevelString(level, w.config.App.LogLevel)
+
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        w.config.App.Name,

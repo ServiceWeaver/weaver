@@ -109,6 +109,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 		Env      []string
 		Colocate [][]string
 		Rollout  time.Duration
+		LogLevel string `toml:"log_level"`
 	}
 
 	parsed := &appConfig{}
@@ -122,6 +123,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 	config.Args = parsed.Args
 	config.Env = parsed.Env
 	config.RolloutNanos = int64(parsed.Rollout)
+	config.LogLevel = parsed.LogLevel
 	for _, colocate := range parsed.Colocate {
 		group := &protos.ComponentGroup{Components: colocate}
 		config.Colocate = append(config.Colocate, group)

@@ -36,6 +36,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/certs"
+	iweaver "github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
@@ -120,12 +121,15 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
 	loggerComponent := newLogger(logsDB)
+	logLevel := new(slog.LevelVar)
+	iweaver.UnmarshalLogLevelString(logLevel, config.App.LogLevel)
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       config.App.Name,
 			Component: "deployer",
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
+			LogLevel:  logLevel,
 		},
 		// Local log entries are relayed directly to loggerComponent
 		// without going through any stubs.

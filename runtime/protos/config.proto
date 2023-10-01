@@ -80,6 +80,14 @@ message AppConfig {
   // All config sections (includes [serviceweaver], [<deployer>], and
   // [<component>] sections).
   map<string, string> sections = 7;
+  
+  // Set the application log level. Acceptable values are: DEBUG, INFO, WARNING
+  // and ERROR(lowercase values are also accepted)
+  // At component level this value can be overridden by calling its own
+  // SetLogLevel() method.
+  //
+  // If not specified, Service Weaver will pick a default value(DEBUG)
+  string log_level = 8; 
 }
 
 // Deployment holds internal information necessary for an application

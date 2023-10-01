@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -81,6 +82,17 @@ func (rl *remoteLogger) run(ctx context.Context, dst func(context.Context, *prot
 				}
 			}
 			batch.Entries = batch.Entries[:0]
+		}
+	}
+}
+
+// UnmarshalLogLevelString unmarshals a string into a slog.LevelVar.
+// Either invalid of empty string is provided, the marshaled value will
+// be set to highest verbosity level.
+func UnmarshalLogLevelString(level *slog.LevelVar, s string) {
+	if level != nil {
+		if err := level.UnmarshalText([]byte(s)); err != nil {
+			level.Set(slog.LevelDebug)
 		}
 	}
 }

@@ -17,6 +17,7 @@ package weaver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -107,4 +108,41 @@ type collector chan string
 func (c collector) Write(data []byte) (int, error) {
 	c <- string(data)
 	return len(data), nil
+}
+
+func TestUnmarshalLogLevelString(t *testing.T) {
+	type args struct {
+		level *slog.LevelVar
+		s     string
+	}
+	tests := []struct {
+		name string
+		args args
+		want slog.Level
+	}{
+		{
+			name: "invalid level string",
+			args: args{new(slog.LevelVar), "invalid_level"},
+			want: slog.LevelDebug,
+		},
+		{
+			name: "empty level string",
+			args: args{new(slog.LevelVar), ""},
+			want: slog.LevelDebug,
+		},
+		{
+			name: "valid level string",
+			args: args{new(slog.LevelVar), "error"},
+			want: slog.LevelError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := tt.args.level
+			UnmarshalLogLevelString(l, tt.args.s)
+			if tt.want != l.Level() {
+				t.Errorf("UnmarshalLogLevelString(): actual level=%v, want level=%v", l.Level(), tt.want)
+			}
+		})
+	}
 }

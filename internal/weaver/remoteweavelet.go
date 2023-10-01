@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/BurntSushi/toml"
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
@@ -648,6 +649,7 @@ func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogE
 // returned logger includes the provided attributes.
 func (w *RemoteWeavelet) logger(name string, attrs ...string) (*slog.Logger, *slog.LevelVar) {
 	level := new(slog.LevelVar)
+	UnmarshalLogLevelString(level, w.getAppLogLevel())
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        w.Info().App,
@@ -655,6 +657,7 @@ func (w *RemoteWeavelet) logger(name string, attrs ...string) (*slog.Logger, *sl
 			Component:  name,
 			Weavelet:   w.Info().Id,
 			Attrs:      attrs,
+			LogLevel:   level,
 		},
 		Write: w.logDst.log,
 	})
@@ -747,6 +750,31 @@ func (w *RemoteWeavelet) verifyServerCertificate(certChain [][]byte, targetCompo
 		TargetComponent: targetComponent,
 	}
 	return w.conn.VerifyServerCertificateRPC(request)
+}
+
+func (w *RemoteWeavelet) getAppLogLevel() string {
+	const appKey = "github.com/ServiceWeaver/weaver"
+	const shortAppKey = "serviceweaver"
+	sections := w.Info().Sections
+	type logLevel struct {
+		Level string `toml:"log_level"`
+	}
+	section, ok := sections[appKey]
+	if !ok {
+		section, ok = sections[shortAppKey]
+	}
+	if !ok {
+		// this should never happen;
+		// however, if it does, we set it
+		// to highest verbosity level
+		return "debug"
+	}
+	v := &logLevel{}
+	_, err := toml.Decode(section, v)
+	if err != nil {
+		return "debug"
+	}
+	return v.Level
 }
 
 // server serves RPC traffic from other RemoteWeavelets.
