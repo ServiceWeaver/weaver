@@ -58,6 +58,125 @@ github.com/ServiceWeaver/weaver/dev/docgen
     regexp
     strings
 github.com/ServiceWeaver/weaver/examples
+github.com/ServiceWeaver/weaver/examples/bankofanthos
+    context
+    flag
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/frontend
+    log
+github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader
+    context
+    errors
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/common
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/model
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/goburrow/cache
+    github.com/jinzhu/gorm/dialects/postgres
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+github.com/ServiceWeaver/weaver/examples/bankofanthos/common
+    fmt
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/model
+    github.com/jinzhu/gorm
+    log/slog
+    sync/atomic
+    time
+github.com/ServiceWeaver/weaver/examples/bankofanthos/contacts
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/jinzhu/gorm
+    github.com/jinzhu/gorm/dialects/postgres
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    os
+    reflect
+    regexp
+github.com/ServiceWeaver/weaver/examples/bankofanthos/frontend
+    context
+    crypto/rsa
+    embed
+    encoding/json
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/contacts
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/ledgerwriter
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/model
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/userservice
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/golang-jwt/jwt
+    github.com/google/uuid
+    go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
+    go.opentelemetry.io/otel/trace
+    golang.org/x/exp/slices
+    html/template
+    io/fs
+    net
+    net/http
+    net/url
+    os
+    reflect
+    strconv
+    strings
+    time
+github.com/ServiceWeaver/weaver/examples/bankofanthos/ledgerwriter
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/model
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/jinzhu/gorm
+    github.com/patrickmn/go-cache
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+    regexp
+    time
+github.com/ServiceWeaver/weaver/examples/bankofanthos/model
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    time
+github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory
+    context
+    errors
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/common
+    github.com/ServiceWeaver/weaver/examples/bankofanthos/model
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/goburrow/cache
+    github.com/jinzhu/gorm/dialects/postgres
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
+    time
+github.com/ServiceWeaver/weaver/examples/bankofanthos/userservice
+    context
+    crypto/rsa
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/golang-jwt/jwt
+    github.com/jinzhu/gorm
+    github.com/jinzhu/gorm/dialects/postgres
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    golang.org/x/crypto/bcrypt
+    math/rand
+    os
+    reflect
+    regexp
+    time
 github.com/ServiceWeaver/weaver/examples/chat
     bytes
     context

@@ -1,0 +1,166 @@
+<!--
+Copyright 2020 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+
+      {{ if .CymbalLogo }}
+      <title>CymbalBank</title>
+      {{ else }}
+      <title>{{ .BankName }}</title>
+      {{ end }}
+
+      <link rel="icon" href="/static/img/favicon.png"/>
+      <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
+      <link rel="preconnect" href="https://fonts.gstatic.com">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="/static/styles/cymbal.css">
+      <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+   </head>
+    <body>
+      <!-- Bank of Anthos Navigation Bar -->
+      <header>
+        <nav class="navbar navbar-expand-lg navbar-top">
+          <div class="container">
+            {{ if .CymbalLogo }}
+            <div class="logo-container">
+              <a href="/"><img id="cymbal-logo" src="/static/img/cymbal.svg"></a>
+            </div>
+            {{ else }}
+            <a class="navbar-brand">
+            {{ .BankName }}
+          </a>
+            {{ end }}
+          </div>
+
+
+
+        </nav>
+      </header>
+
+      <!-- Main Content -->
+      <main class="container">
+        <!-- Sign-in card -->
+        <div class="row mt-5 mb-5">
+          <!-- Alert on load -->
+          {{ if and .Message (not (eq .Message "Login Failed")) }}
+          <div class="col-md-8 offset-md-2">
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+              <span class="error-icon mr-2 material-icons">error</span>{{ .Message }}
+              <button type="button" class="close btn-primary" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+          </div>
+          {{ end }}
+          <div class="col-lg-6 offset-lg-3">
+              <div class="card">
+                <div class="card-title header-body">
+                  <div class="text-center col-10 offset-1">
+                    <p class="text-uppercase text-muted secondary-text">Welcome</p>
+                    <h2 class="mb-4 header-title">SIGN IN</h2>
+                  </div>
+                </div>
+                <div class="card-body sign-in">
+                  <div class="row align-items-center mt-2">
+                    <div class="col-10 offset-1 mb-4">
+                      <div id="alertBanner" class="alert alert-danger mb-4 hidden" role="alert">
+                        <span class="error-icon mr-2 material-icons">error</span>Login failed.
+                      </div>
+                      {{ if eq .ResponseType "code" }}
+                      <form id="login-form" class="needs-validation" novalidate="" method="POST" action="/login?response_type={{ .ResponseType }}&state={{ .State }}&redirect_uri={{ .RedirectURI }}&app_name={{ .AppName }}">
+                      {{ else }}
+                      <form id="login-form" class="needs-validation" novalidate="" method="POST" action="/login">
+                      {{ end }}
+                        <label class="text-uppercase text-muted secondary-text" for="username">Username</label>
+                        <div class="input-group mt-2d mb-5">
+                          <div class="input-group-prepend mr-2">
+                            <span class="input-group-text"><span class="material-icons">account_circle</span></span>
+                          </div>
+                          <input class="form-control" type="text" id="login-username" name="username" autocomplete="off" pattern="([a-zA-Z0-9_]){2,15}" value="{{ .DefaultUser }}" required>
+                          <div class="invalid-feedback">
+                            Please enter your username.
+                          </div>
+                        </div>
+                        <label class="text-uppercase text-muted secondary-text" for="password">Password</label>
+                        <div class="input-group mt-2 mb-5">
+                          <div class="input-group-prepend mr-2">
+                            <span class="input-group-text"><span class="material-icons">lock</span></span>
+                          </div>
+                          <input class="form-control" type="password" id="login-password" name="password" value="{{ .DefaultPassword }}" required>
+                          <div class="invalid-feedback">
+                            Please enter your password.
+                        </div>
+                        </div>
+                        <button class="btn btn-sign-in btn-block mb-4" type="submit">Sign in</button>
+                        <small class="text-uppercase secondary-text text-muted">
+                          Not registered?
+                        </small>
+                        <a href="/signup" class="btn btn-secondary btn-block mt-2 mb-4" id="create-account-btn" type="button">Create an Account</a>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Page Footer -->
+      <footer class="footer">
+        <div class="container">
+            <div class="row mb-2" class="footer-google-inc">© 2020-2022 Google LLC</div>
+            <div class="row mb-3">
+              <small>
+                <b>Cluster: </b>{{ .ClusterName }}, <b>Pod: </b>{{ .PodName }}<b>, Zone: </b>{{ .PodZone }}
+              </small>
+            </div>
+            <div class="row mb-3">
+              <small>
+                This website is hosted for demo purposes only. It is not an
+                actual bank. This is not an official Google project.
+              </small>
+            </div>
+        </div>
+      </footer>
+      <!-- JavaScript Libs -->
+      <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/popper.js@1.12.6/dist/umd/popper.js" integrity="sha384-fA23ZRQ3G/J53mElWqVJEGJzU0sTs+SvzG8fXVWP+kJQ1lwFAOkcUOysnlKJC33U" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/bootstrap-material-design@4.1.1/dist/js/bootstrap-material-design.js" integrity="sha384-CauSuKpEqAFajSpkdjv3z9t8E7RlpJ1UP0lKM/+NdtSarroVKu069AlsRPKkFBz9" crossorigin="anonymous"></script>
+      <script>
+        document.addEventListener("DOMContentLoaded", function(event) {
+          // Login client-side validation
+          var login = document.querySelector("#login-form");
+          login.addEventListener("submit", function(e) {
+            if(!login.checkValidity()){
+              e.preventDefault();
+              e.stopPropagation();
+            }
+            login.classList.add('was-validated');
+          });
+
+          var showAlert = (window.location.search == "?msg=Login+Failed");
+          if (showAlert){
+              document.querySelector("#alertBanner").classList.remove("hidden");
+          }
+        });
+      </script>
+    </body>
+</html>
