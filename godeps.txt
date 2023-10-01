@@ -440,6 +440,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/internal/tool/certs
     github.com/ServiceWeaver/weaver/internal/tool/config
+    github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/codegen
@@ -580,6 +581,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     crypto/x509
     errors
     fmt
+    github.com/BurntSushi/toml
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/config
