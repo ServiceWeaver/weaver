@@ -32,6 +32,7 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     fmt
     github.com/ServiceWeaver/weaver/internal/tool
     github.com/ServiceWeaver/weaver/internal/tool/callgraph
+    github.com/ServiceWeaver/weaver/internal/tool/exec
     github.com/ServiceWeaver/weaver/internal/tool/generate
     github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/internal/tool/single
@@ -521,6 +522,15 @@ github.com/ServiceWeaver/weaver/internal/tool/config
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/protos
     google.golang.org/protobuf/proto
+github.com/ServiceWeaver/weaver/internal/tool/exec
+    context
+    errors
+    flag
+    fmt
+    github.com/BurntSushi/toml
+    github.com/ServiceWeaver/weaver/internal/net/call
+    github.com/ServiceWeaver/weaver/internal/run
+    os
 github.com/ServiceWeaver/weaver/internal/tool/generate
     bytes
     crypto/sha256

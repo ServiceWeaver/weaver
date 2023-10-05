@@ -27,6 +27,7 @@ import (
 
 	itool "github.com/ServiceWeaver/weaver/internal/tool"
 	"github.com/ServiceWeaver/weaver/internal/tool/callgraph"
+	toolexec "github.com/ServiceWeaver/weaver/internal/tool/exec"
 	"github.com/ServiceWeaver/weaver/internal/tool/generate"
 	"github.com/ServiceWeaver/weaver/internal/tool/multi"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
@@ -118,6 +119,10 @@ Description:
 			fmt.Fprintln(os.Stderr, err)
 		}
 		fmt.Println(s)
+		return
+
+	case "exec":
+		toolexec.Run(os.Args[2:])
 		return
 
 	case "single", "multi", "ssh":

@@ -1,0 +1,18 @@
+id = "v1"
+
+[nodes.main]
+address = "localhost:9000"
+components = ["github.com/ServiceWeaver/weaver/Main"]
+listeners = {collatz = "localhost:8000"}
+
+[nodes.odd]
+address = "localhost:9001"
+components = ["github.com/ServiceWeaver/weaver/examples/collatz/Odd"]
+
+[nodes.even1]
+address = "localhost:9002"
+components = ["github.com/ServiceWeaver/weaver/examples/collatz/Even"]
+
+[nodes.even2]
+address = "localhost:9003"
+components = ["github.com/ServiceWeaver/weaver/examples/collatz/Even"]
