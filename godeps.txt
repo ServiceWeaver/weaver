@@ -394,7 +394,6 @@ github.com/ServiceWeaver/weaver/internal/routing
 github.com/ServiceWeaver/weaver/internal/run
     context
     fmt
-    github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
@@ -403,9 +402,12 @@ github.com/ServiceWeaver/weaver/internal/run
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     golang.org/x/sync/errgroup
+    net
     os
     slices
+    sort
     sync
+    time
 github.com/ServiceWeaver/weaver/internal/sim
     context
     crypto/sha256
@@ -524,11 +526,9 @@ github.com/ServiceWeaver/weaver/internal/tool/config
     google.golang.org/protobuf/proto
 github.com/ServiceWeaver/weaver/internal/tool/exec
     context
-    errors
     flag
     fmt
     github.com/BurntSushi/toml
-    github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/run
     os
 github.com/ServiceWeaver/weaver/internal/tool/generate

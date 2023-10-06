@@ -17,13 +17,11 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/run"
 )
 
@@ -159,14 +157,9 @@ func runImpl(configFile, topoFile, nodeName string) error {
 	// Collect the diable addresses for every component.
 	addresses := map[string][]string{}
 	for _, node := range topology.Nodes {
-		// TODO(mwhittaker): Right now, we assume tcp addresses. In the future,
-		// we may want to support things like "dns://headless-service-name" or
-		// "kubelabel://foo".
-		var dialAddress string
-		if node.DialAddress != "" {
-			dialAddress = "tcp://" + node.DialAddress
-		} else {
-			dialAddress = "tcp://" + node.Address
+		dialAddress := node.DialAddress
+		if dialAddress == "" {
+			dialAddress = node.Address
 		}
 		for _, component := range node.Components {
 			addresses[component] = append(addresses[component], dialAddress)
@@ -174,23 +167,13 @@ func runImpl(configFile, topoFile, nodeName string) error {
 	}
 
 	// Massage component addresses into resolvers.
-	resolvers := map[string]call.Resolver{}
-	var errs []error
+	//
+	// TODO(mwhittaker): Right now, we assume tcp addresses. In the future, we
+	// may want to support things like "dns://headless-service-name" or
+	// "kubelabel://foo".
+	resolvers := map[string]run.Resolver{}
 	for component, addrs := range addresses {
-		endpoints := make([]call.Endpoint, len(addrs))
-		for i, addr := range addrs {
-			endpoint, err := call.ParseNetEndpoint(addr)
-			if err != nil {
-				err = fmt.Errorf("component %q address %q: %w", component, addr, err)
-				errs = append(errs, err)
-				continue
-			}
-			endpoints[i] = endpoint
-		}
-		resolvers[component] = call.NewConstantResolver(endpoints...)
-	}
-	if err := errors.Join(errs...); err != nil {
-		return err
+		resolvers[component] = run.ConstantResolver(addrs...)
 	}
 
 	// Run the weavelet.
