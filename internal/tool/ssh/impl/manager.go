@@ -149,7 +149,7 @@ var _ status.Server = &manager{}
 
 // RunManager creates and runs a new manager.
 func RunManager(ctx context.Context, config *SshConfig, locations map[string]string) (func() error, error) {
-	dep := config.Deployment
+	app := config.App
 	// Create log saver.
 	fs, err := logging.NewFileStore(LogDir)
 	if err != nil {
@@ -159,7 +159,7 @@ func RunManager(ctx context.Context, config *SshConfig, locations map[string]str
 
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
-			App:       dep.App.Name,
+			App:       app.Name,
 			Component: "manager",
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
@@ -173,12 +173,12 @@ func RunManager(ctx context.Context, config *SshConfig, locations map[string]str
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 	traceSaver := func(spans *protos.TraceSpans) error {
-		return traceDB.Store(ctx, dep.App.Name, dep.Id, spans)
+		return traceDB.Store(ctx, app.Name, config.DepId, spans)
 	}
 
 	// Form co-location.
 	colocation := map[string]string{}
-	for _, group := range dep.App.Colocate {
+	for _, group := range app.Colocate {
 		for _, c := range group.Components {
 			colocation[c] = group.Components[0]
 		}
@@ -228,7 +228,7 @@ func RunManager(ctx context.Context, config *SshConfig, locations map[string]str
 	}()
 
 	return func() error {
-		return m.registry.Unregister(m.ctx, dep.Id)
+		return m.registry.Unregister(m.ctx, config.DepId)
 	}, nil
 }
 
@@ -279,8 +279,8 @@ func (m *manager) run() error {
 	}
 	m.registry = registry
 	reg := status.Registration{
-		DeploymentId: m.config.Deployment.Id,
-		App:          m.config.Deployment.App.Name,
+		DeploymentId: m.config.DepId,
+		App:          m.config.App.Name,
 		Addr:         lis.Addr().String(),
 	}
 	fmt.Fprint(os.Stderr, reg.Rolodex())
@@ -365,14 +365,14 @@ func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 			Addr: proxy.addr,
 		})
 	}
-	dep := m.config.Deployment
+	app := m.config.App
 	return &status.Status{
-		App:            dep.App.Name,
-		DeploymentId:   dep.Id,
+		App:            app.Name,
+		DeploymentId:   m.config.DepId,
 		SubmissionTime: timestamppb.New(m.started),
 		Components:     components,
 		Listeners:      listeners,
-		Config:         dep.App,
+		Config:         app,
 	}, nil
 }
 
@@ -588,7 +588,8 @@ func (m *manager) startColocationGroup(g *group, runMain bool) error {
 	for loc := range m.locations {
 		info := &BabysitterInfo{
 			ManagerAddr: m.mgrAddress,
-			Deployment:  m.config.Deployment,
+			App:         m.config.App,
+			DepId:       m.config.DepId,
 			Group:       g.name,
 			ReplicaId:   int32(replicaId),
 			LogDir:      LogDir,

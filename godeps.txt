@@ -629,7 +629,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
