@@ -321,8 +321,8 @@ Here's an explanation of the code:
 
 By default, all application listeners listen on a random port chosen by the
 operating system. Here, we want to change this default behavior and assign a
-fixed local listener port for the `hello` listener. To do so,
-we create a [TOML](https://toml.io) config file named `weaver.toml` with
+fixed local listener port for the `hello` listener. To do so, create a
+[TOML](https://toml.io) config file named `weaver.toml` with
 the following contents:
 
 ```toml
@@ -346,11 +346,13 @@ Listener names must be valid [Go identifiers][identifiers]. For example, the
 names `"foo"`, `"bar42"`, and `"_moo"` are legal, while `""`, `"foo bar"`, and
 `"foo-bar"` are illegal.
 
-Run `go mod tidy` and then `SERVICEWEAVER_CONFIG=weaver.toml go run .`.
+Run `weaver generate`, then `go mod tidy`, and then
+`SERVICEWEAVER_CONFIG=weaver.toml go run .`.
 The program should print out the name of the application and a unique
 deployment id. It should then block serving HTTP requests on `localhost:12345`.
 
 ```console
+$ weaver generate
 $ go mod tidy
 $ go run .
 ╭───────────────────────────────────────────────────╮
