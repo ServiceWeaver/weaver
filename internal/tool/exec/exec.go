@@ -17,13 +17,11 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/run"
 )
 
@@ -174,23 +172,9 @@ func runImpl(configFile, topoFile, nodeName string) error {
 	}
 
 	// Massage component addresses into resolvers.
-	resolvers := map[string]call.Resolver{}
-	var errs []error
+	resolvers := map[string]run.Resolver{}
 	for component, addrs := range addresses {
-		endpoints := make([]call.Endpoint, len(addrs))
-		for i, addr := range addrs {
-			endpoint, err := call.ParseNetEndpoint(addr)
-			if err != nil {
-				err = fmt.Errorf("component %q address %q: %w", component, addr, err)
-				errs = append(errs, err)
-				continue
-			}
-			endpoints[i] = endpoint
-		}
-		resolvers[component] = call.NewConstantResolver(endpoints...)
-	}
-	if err := errors.Join(errs...); err != nil {
-		return err
+		resolvers[component] = run.NewConstantResolver(addrs...)
 	}
 
 	// Run the weavelet.

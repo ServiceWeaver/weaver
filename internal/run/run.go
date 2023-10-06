@@ -24,7 +24,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
@@ -37,12 +36,12 @@ import (
 
 // Config configures a weavelet run with [Run].
 type Config struct {
-	ConfigFile      string                   // weaver TOML config filename
-	DeploymentId    string                   // globally unique deployment id
-	Components      []string                 // components to run
-	Resolvers       map[string]call.Resolver // resolvers for every component in the app
-	Listeners       map[string]string        // listener addresses, by listener name
-	WeaveletAddress string                   // internal weavelet address
+	ConfigFile      string              // weaver TOML config filename
+	DeploymentId    string              // globally unique deployment id
+	Components      []string            // components to run
+	Resolvers       map[string]Resolver // resolvers for every component in the app
+	Listeners       map[string]string   // listener addresses, by listener name
+	WeaveletAddress string              // internal weavelet address
 }
 
 // Run runs a weavelet with the provided set components.
@@ -161,13 +160,13 @@ func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateCom
 
 	// Case 2: the component resolves to a constant address.
 	if resolver.IsConstant() {
-		endpoints, _, err := resolver.Resolve(ctx, nil)
+		addrs, _, err := resolver.Resolve(ctx, nil)
 		if err != nil {
 			return nil, fmt.Errorf("resolve %q: %w", req.Component, err)
 		}
 		routing := &protos.RoutingInfo{
 			Component: req.Component,
-			Replicas:  addresses(endpoints),
+			Replicas:  addrs,
 		}
 		if err := h.envelope.UpdateRoutingInfo(routing); err != nil {
 			return nil, fmt.Errorf("update routing info for %q: %w", req.Component, err)
@@ -179,16 +178,16 @@ func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateCom
 	// addresses. Spawn a goroutine to watch the resolver and update the
 	// weavelet whenever the set addresses changes.
 	h.resolvers.Go(func() error {
-		var version *call.Version
+		var version *Version
 		for h.ctx.Err() == nil {
-			endpoints, newVersion, err := resolver.Resolve(h.ctx, version)
+			addrs, newVersion, err := resolver.Resolve(h.ctx, version)
 			if err != nil {
 				// TODO(mwhittaker): Ignore errors and retry?
 				return fmt.Errorf("resolve %q: %w", req.Component, err)
 			}
 			routing := &protos.RoutingInfo{
 				Component: req.Component,
-				Replicas:  addresses(endpoints),
+				Replicas:  addrs,
 			}
 			if err := h.envelope.UpdateRoutingInfo(routing); err != nil {
 				// TODO(mwhittaker): Ignore errors and retry?
@@ -229,13 +228,4 @@ func (h *handler) VerifyClientCertificate(context.Context, *protos.VerifyClientC
 // VerifyServerCertificate implements the envelope.EnvelopeHandler interface.
 func (h *handler) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
 	panic(fmt.Errorf("VerifyServerCertificate unimplemented"))
-}
-
-// addresses returns the addresses of a set of endpoints.
-func addresses(endpoints []call.Endpoint) []string {
-	addrs := make([]string, len(endpoints))
-	for i, endpoint := range endpoints {
-		addrs[i] = endpoint.Address()
-	}
-	return addrs
 }
