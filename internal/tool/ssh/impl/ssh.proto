@@ -24,7 +24,8 @@ import "runtime/protos/runtime.proto";
 // Service Weaver application using the SSH deployer.
 message SshConfig {
   // Information about the application deployment.
-  runtime.Deployment deployment = 1;
+  runtime.AppConfig app = 1;
+  string dep_id = 2;
 
   // Options for the application listeners, keyed by listener name.
   // If a listener isn't specified in the map, default options will be used.
@@ -33,22 +34,23 @@ message SshConfig {
       // host:port, or it may be the empty string, which is treated as ":0".
       string address = 1;
   }
-  map<string, ListenerOptions> listeners = 2;
+  map<string, ListenerOptions> listeners = 3;
 
   // File that contains the IP addresses of all locations where the application
   // can run.
-  string locations = 3;
+  string locations = 4;
 }
 
 // BabysitterInfo contains app deployment information that is needed by a
 // babysitter started using SSH to manage a colocation group.
 message BabysitterInfo {
-  runtime.Deployment deployment = 1;
-  string group = 2;
-  int32 replica_id = 3;
-  string manager_addr = 4;
-  string logDir = 5;
-  bool run_main = 6;
+  runtime.AppConfig app = 1;
+  string dep_id = 2;
+  string group = 3;
+  int32 replica_id = 4;
+  string manager_addr = 5;
+  string logDir = 6;
+  bool run_main = 7;
 }
 
 // A request from the babysitter to the manager to get the latest set of

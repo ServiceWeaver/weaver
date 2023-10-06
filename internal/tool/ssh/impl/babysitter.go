@@ -70,8 +70,8 @@ func RunBabysitter(ctx context.Context) error {
 		info: info,
 		logger: slog.New(&logging.LogHandler{
 			Opts: logging.Options{
-				App:        info.Deployment.App.Name,
-				Deployment: info.Deployment.Id,
+				App:        info.App.Name,
+				Deployment: info.DepId,
 				Component:  "Babysitter",
 				Weavelet:   uuid.NewString(),
 				Attrs:      []string{"serviceweaver/system", "", "weavelet", id},
@@ -91,13 +91,13 @@ func RunBabysitter(ctx context.Context) error {
 
 	// Start the envelope.
 	wlet := &protos.EnvelopeInfo{
-		App:          info.Deployment.App.Name,
-		DeploymentId: info.Deployment.Id,
+		App:          info.App.Name,
+		DeploymentId: info.DepId,
 		Id:           id,
-		Sections:     info.Deployment.App.Sections,
+		Sections:     info.App.Sections,
 		RunMain:      info.RunMain,
 	}
-	e, err := envelope.NewEnvelope(ctx, wlet, info.Deployment.App)
+	e, err := envelope.NewEnvelope(ctx, wlet, info.App)
 	if err != nil {
 		return err
 	}
