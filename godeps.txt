@@ -391,20 +391,6 @@ github.com/ServiceWeaver/weaver/internal/routing
     slices
     sort
     strings
-github.com/ServiceWeaver/weaver/internal/run
-    context
-    fmt
-    github.com/ServiceWeaver/weaver/runtime
-    github.com/ServiceWeaver/weaver/runtime/codegen
-    github.com/ServiceWeaver/weaver/runtime/colors
-    github.com/ServiceWeaver/weaver/runtime/envelope
-    github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/google/uuid
-    golang.org/x/sync/errgroup
-    os
-    slices
-    sync
 github.com/ServiceWeaver/weaver/internal/sim
     context
     crypto/sha256
@@ -526,7 +512,7 @@ github.com/ServiceWeaver/weaver/internal/tool/exec
     flag
     fmt
     github.com/BurntSushi/toml
-    github.com/ServiceWeaver/weaver/internal/run
+    github.com/ServiceWeaver/weaver/runtime/run
     os
 github.com/ServiceWeaver/weaver/internal/tool/generate
     bytes
@@ -956,6 +942,20 @@ github.com/ServiceWeaver/weaver/runtime/retry
     math/rand
     sync
     time
+github.com/ServiceWeaver/weaver/runtime/run
+    context
+    fmt
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/envelope
+    github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/google/uuid
+    golang.org/x/sync/errgroup
+    os
+    slices
+    sync
 github.com/ServiceWeaver/weaver/runtime/tool
     bufio
     context

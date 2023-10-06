@@ -22,7 +22,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/ServiceWeaver/weaver/internal/run"
+	"github.com/ServiceWeaver/weaver/runtime/run"
 )
 
 const usage = `Execute a Service Weaver application.
