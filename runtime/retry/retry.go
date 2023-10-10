@@ -70,7 +70,7 @@ func Begin() *Retry {
 //	  BackoffMultiplier: 2.0,
 //	  BackoffMinDuration: time.Second,
 //	}
-//	for r := retry.Begin(); r.Continue(ctx); {
+//	for r := retry.BeginWithOptions(opts); r.Continue(ctx); {
 //	  // Do nothing.
 //	}
 func BeginWithOptions(options Options) *Retry {
