@@ -15,12 +15,13 @@
 package userservice
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 
 	"github.com/ServiceWeaver/weaver"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // User contains data pertaining to a user.
@@ -44,7 +45,7 @@ type userDB struct {
 }
 
 func newUserDB(uri string) (*userDB, error) {
-	db, err := gorm.Open("postgres", uri)
+	db, err := gorm.Open(postgres.Open(uri))
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (udb *userDB) generateAccountID() string {
 		var user User
 		err := udb.db.Where("accountid = ?", accountID).First(&user).Error
 		// Break if a non-existant account_id has been generated. Else, try again.
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			break
 		}
 	}
@@ -73,7 +74,7 @@ func (udb *userDB) generateAccountID() string {
 func (udb *userDB) getUser(username string) (*User, error) {
 	var user User
 	err := udb.db.Where("username = ?", username).First(&user).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {

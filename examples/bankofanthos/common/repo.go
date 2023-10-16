@@ -16,7 +16,8 @@ package common
 
 import (
 	"github.com/ServiceWeaver/weaver/examples/bankofanthos/model"
-	"github.com/jinzhu/gorm"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // ReadOnlyTransactionRepository is a read-only interface over transaction repository.
@@ -35,7 +36,7 @@ type LedgerReaderTransactionRepository struct {
 
 // NewLedgerReaderTransactionRepository returns a new repository over a database.
 func NewLedgerReaderTransactionRepository(databaseURI string) (*LedgerReaderTransactionRepository, error) {
-	db, err := gorm.Open("postgres", databaseURI)
+	db, err := gorm.Open(postgres.Open(databaseURI))
 	if err != nil {
 		return nil, err
 	}

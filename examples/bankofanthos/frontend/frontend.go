@@ -90,7 +90,7 @@ func (s *server) Init(ctx context.Context) error {
 	// Autodetect GCP.
 	var err error
 	addrs, err := net.LookupHost("metadata.google.internal.")
-	if err == nil && len(addrs) >= 0 {
+	if err == nil && len(addrs) > 0 {
 		s.Logger(ctx).Debug("Detected Google metadata server, setting ENV_PLATFORM to GCP.", "address", addrs)
 		env = "gcp"
 	}
@@ -115,11 +115,11 @@ func (s *server) Init(ctx context.Context) error {
 
 	pubKeyBytes, err := os.ReadFile(s.Config().PublicKeyPath)
 	if err != nil {
-		return fmt.Errorf("unable to read public key file: %v", err)
+		return fmt.Errorf("unable to read public key file: %w", err)
 	}
 	s.config.publicKey, err = jwt.ParseRSAPublicKeyFromPEM(pubKeyBytes)
 	if err != nil {
-		return fmt.Errorf("unable to parse public key: %v", err)
+		return fmt.Errorf("unable to parse public key: %w", err)
 	}
 	s.config.localRoutingNum = s.Config().LocalRoutingNum
 	s.config.backendTimeout = time.Duration(s.Config().BackendTimeoutSeconds) * time.Second
@@ -197,14 +197,14 @@ func getClusterName(metadataURL string, metadataHeaders http.Header) string {
 
 	if resp.StatusCode != http.StatusOK {
 		return clusterName
-	} else {
-		clusterNameBytes := make([]byte, resp.ContentLength)
-		_, err = resp.Body.Read(clusterNameBytes)
-		if err != nil {
-			return clusterName
-		}
-		clusterName = string(clusterNameBytes)
 	}
+	
+	clusterNameBytes := make([]byte, resp.ContentLength)
+	_, err = resp.Body.Read(clusterNameBytes)
+	if err != nil {
+		return clusterName
+	}
+	clusterName = string(clusterNameBytes)
 	return clusterName
 }
 

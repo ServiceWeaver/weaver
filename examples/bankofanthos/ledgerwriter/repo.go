@@ -16,7 +16,8 @@ package ledgerwriter
 
 import (
 	"github.com/ServiceWeaver/weaver/examples/bankofanthos/model"
-	"github.com/jinzhu/gorm"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type transactionRepository struct {
@@ -24,7 +25,7 @@ type transactionRepository struct {
 }
 
 func newTransactionRepository(databaseURI string) (*transactionRepository, error) {
-	db, err := gorm.Open("postgres", databaseURI)
+	db, err := gorm.Open(postgres.Open(databaseURI))
 	if err != nil {
 		return nil, err
 	}

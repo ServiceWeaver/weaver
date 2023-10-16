@@ -61,17 +61,17 @@ func (i *impl) GetContacts(ctx context.Context, username string) ([]Contact, err
 func (i *impl) AddContact(ctx context.Context, authenticatedAccountID string, contact Contact) error {
 	err := i.validateNewContact(contact)
 	if err != nil {
-		return fmt.Errorf("error adding contact: %s", err)
+		return fmt.Errorf("error adding contact: %w", err)
 	}
 
 	err = i.checkContactAllowed(contact.Username, authenticatedAccountID, contact)
 	if err != nil {
-		return fmt.Errorf("error adding contact: %s", err)
+		return fmt.Errorf("error adding contact: %w", err)
 	}
 
 	i.Logger(ctx).Debug("Adding new contact to the database")
 	if err = i.db.addContact(contact); err != nil {
-		return fmt.Errorf("error adding contact: %s", err)
+		return fmt.Errorf("error adding contact: %w", err)
 	}
 	i.Logger(ctx).Info("Successfully added new contact.")
 	return nil

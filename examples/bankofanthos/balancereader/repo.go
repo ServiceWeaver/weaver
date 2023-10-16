@@ -16,7 +16,6 @@ package balancereader
 
 import (
 	"github.com/ServiceWeaver/weaver/examples/bankofanthos/common"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
 // transactionRepository is a repository for performing queries on the Transaction database.
@@ -49,6 +48,9 @@ SELECT
 `
 	var balance int64
 	row := r.DB.Raw(sql, accountNum, routingNum, accountNum, routingNum).Row()
-	row.Scan(&balance)
+	err := row.Scan(&balance)
+	if err != nil {
+		return 0, err
+	}
 	return balance, nil
 }

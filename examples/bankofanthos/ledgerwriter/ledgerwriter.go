@@ -105,7 +105,7 @@ func validateTransaction(localRoutingNum, authedAcct string, t *model.Transactio
 	// Validate account and routing numbers.
 	if !acctRegex.MatchString(t.FromAccountNum) || !acctRegex.MatchString(t.ToAccountNum) ||
 		!routeRegex.MatchString(t.FromRoutingNum) || !routeRegex.MatchString(t.ToRoutingNum) {
-		return fmt.Errorf("invalid transaction: Invalid account details: %v %v", t.FromRoutingNum, t.ToRoutingNum)
+		return fmt.Errorf("invalid transaction: Invalid account details: %s %s", t.FromRoutingNum, t.ToRoutingNum)
 	}
 
 	// If this is an internal transaction, ensure it originated from the authenticated user.
@@ -120,7 +120,7 @@ func validateTransaction(localRoutingNum, authedAcct string, t *model.Transactio
 
 	// Ensure that the amount is valid.
 	if t.Amount <= 0 {
-		return fmt.Errorf("invalid transaction: Transaction amount (%v) is invalid", t.Amount)
+		return fmt.Errorf("invalid transaction: Transaction amount (%d) is invalid", t.Amount)
 	}
 	return nil
 }
