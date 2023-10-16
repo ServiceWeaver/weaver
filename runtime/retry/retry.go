@@ -122,9 +122,10 @@ func randomized(ctx context.Context, d time.Duration) {
 // whichever occurs first.
 func sleep(ctx context.Context, d time.Duration) {
 	t := time.NewTimer(d)
+	defer t.Stop()
 	select {
 	case <-ctx.Done():
-		t.Stop()
+		return
 	case <-t.C:
 	}
 }
