@@ -44,7 +44,6 @@ type impl struct {
 	ledgerReader *common.LedgerReader
 }
 
-var _ T = (*impl)(nil)
 var _ common.LedgerReaderCallback = (*impl)(nil)
 
 // ProcessTransaction implements the common.LedgerReaderCallback interface.

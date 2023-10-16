@@ -15,9 +15,11 @@
 package contacts
 
 import (
+	"errors"
+
 	"github.com/ServiceWeaver/weaver"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // Contact represents an account's contact details.
@@ -35,7 +37,7 @@ type contactDB struct {
 }
 
 func newContactDB(uri string) (*contactDB, error) {
-	db, err := gorm.Open("postgres", uri)
+	db, err := gorm.Open(postgres.Open(uri))
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +51,7 @@ func (cdb *contactDB) addContact(contact Contact) error {
 func (cdb *contactDB) getContacts(username string) ([]Contact, error) {
 	contacts := []Contact{}
 	err := cdb.db.Where("username = ?", username).Find(&contacts).Error
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {

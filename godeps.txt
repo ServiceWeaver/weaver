@@ -72,14 +72,14 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader
     github.com/ServiceWeaver/weaver/examples/bankofanthos/model
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/goburrow/cache
-    github.com/jinzhu/gorm/dialects/postgres
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
 github.com/ServiceWeaver/weaver/examples/bankofanthos/common
     fmt
     github.com/ServiceWeaver/weaver/examples/bankofanthos/model
-    github.com/jinzhu/gorm
+    gorm.io/driver/postgres
+    gorm.io/gorm
     log/slog
     sync/atomic
     time
@@ -89,10 +89,10 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos/contacts
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
-    github.com/jinzhu/gorm
-    github.com/jinzhu/gorm/dialects/postgres
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    gorm.io/driver/postgres
+    gorm.io/gorm
     os
     reflect
     regexp
@@ -134,10 +134,11 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos/ledgerwriter
     github.com/ServiceWeaver/weaver/examples/bankofanthos/balancereader
     github.com/ServiceWeaver/weaver/examples/bankofanthos/model
     github.com/ServiceWeaver/weaver/runtime/codegen
-    github.com/jinzhu/gorm
     github.com/patrickmn/go-cache
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    gorm.io/driver/postgres
+    gorm.io/gorm
     reflect
     regexp
     time
@@ -154,7 +155,6 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos/transactionhistory
     github.com/ServiceWeaver/weaver/examples/bankofanthos/model
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/goburrow/cache
-    github.com/jinzhu/gorm/dialects/postgres
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     reflect
@@ -167,11 +167,11 @@ github.com/ServiceWeaver/weaver/examples/bankofanthos/userservice
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/golang-jwt/jwt
-    github.com/jinzhu/gorm
-    github.com/jinzhu/gorm/dialects/postgres
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     golang.org/x/crypto/bcrypt
+    gorm.io/driver/postgres
+    gorm.io/gorm
     math/rand
     os
     reflect

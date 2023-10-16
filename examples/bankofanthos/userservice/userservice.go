@@ -144,7 +144,7 @@ func (i *impl) Login(ctx context.Context, r LoginRequest) (string, error) {
 	i.Logger(ctx).Debug("Getting user data.")
 	user, err := i.db.getUser(r.Username)
 	if err != nil {
-		err = fmt.Errorf("error logging in: %v", err)
+		err = fmt.Errorf("error logging in: %w", err)
 		return "", err
 	}
 	if user == nil {
@@ -167,7 +167,7 @@ func (i *impl) Login(ctx context.Context, r LoginRequest) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, payload)
 	tokenStr, err := token.SignedString(i.privateKey)
 	if err != nil {
-		return "", fmt.Errorf("couldn't sign jwt: %v", err)
+		return "", fmt.Errorf("couldn't sign jwt: %w", err)
 	}
 	i.Logger(ctx).Info("Login successful.")
 	return tokenStr, nil

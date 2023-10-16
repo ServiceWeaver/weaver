@@ -443,7 +443,7 @@ func (s *server) loginPostHelper(w http.ResponseWriter, r *http.Request) error {
 	}
 	claims, err := decodeToken(token, s.config.publicKey)
 	if err != nil {
-		return fmt.Errorf("Unable to decode jwt token: %v", err)
+		return fmt.Errorf("unable to decode jwt token: %w", err)
 	}
 	maxAge := int(claims["exp"].(float64) - claims["iat"].(float64))
 	cookie := &http.Cookie{
