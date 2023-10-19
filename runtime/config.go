@@ -100,6 +100,13 @@ func extractApp(file string, config *protos.AppConfig) error {
 	const appKey = "github.com/ServiceWeaver/weaver"
 	const shortAppKey = "serviceweaver"
 
+	// colocationGroup contains information regarding a particular colocation group
+	// as specified in the TOML config.
+	type colocationGroup struct {
+		Name       string
+		Components []string
+	}
+
 	// appConfig holds the data from under appKey in the TOML config.
 	// It matches the contents of the Config proto.
 	type appConfig struct {
@@ -107,7 +114,7 @@ func extractApp(file string, config *protos.AppConfig) error {
 		Binary   string
 		Args     []string
 		Env      []string
-		Colocate [][]string
+		Colocate []colocationGroup
 		Rollout  time.Duration
 	}
 
@@ -122,8 +129,9 @@ func extractApp(file string, config *protos.AppConfig) error {
 	config.Args = parsed.Args
 	config.Env = parsed.Env
 	config.RolloutNanos = int64(parsed.Rollout)
+
 	for _, colocate := range parsed.Colocate {
-		group := &protos.ComponentGroup{Components: colocate}
+		group := &protos.ComponentGroup{Name: colocate.Name, Components: colocate.Components}
 		config.Colocate = append(config.Colocate, group)
 	}
 

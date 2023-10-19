@@ -87,12 +87,11 @@ func TestTwoComponents(t *testing.T) {
 	colocate.Name = "Colocate"
 	colocate.Config = `
 		[serviceweaver]
-		colocate = [
-		  [
-		    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
-		    "github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
-		  ]
-	]`
+		[[serviceweaver.colocate]]
+			components = [
+				"github.com/ServiceWeaver/weaver/weavertest/internal/simple/Source",
+				"github.com/ServiceWeaver/weaver/weavertest/internal/simple/Destination",
+			]`
 
 	for _, runner := range append(weavertest.AllRunners(), colocate) {
 		runner.Test(t, func(t *testing.T, src simple.Source, dst simple.Destination) {

@@ -107,8 +107,12 @@ var _ envelope.EnvelopeHandler = &handler{}
 func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, locals []reflect.Type, logWriter func(*protos.LogEntry)) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
+		groupName := group.Name
+		if groupName == "" {
+			groupName = group.Components[0]
+		}
 		for _, c := range group.Components {
-			colocation[c] = group.Components[0]
+			colocation[c] = groupName
 		}
 	}
 	ctx, cancel := context.WithCancel(ctx)

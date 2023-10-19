@@ -2828,10 +2828,15 @@ name = "hello"
 binary = "./hello"
 args = ["these", "are", "command", "line", "arguments"]
 env = ["PUT=your", "ENV=vars", "HERE="]
-colocate = [
-    ["main/Rock", "main/Paper", "main/Scissors"],
-    ["github.com/example/sandy/PeanutButter", "github.com/example/sandy/Jelly"],
-]
+
+[[serviceweaver.colocate]]
+name = "group1"
+components = ["main/Rock", "main/Paper", "main/Scissors"]
+
+[[serviceweaver.colocate]]
+name = "group2"
+components = ["github.com/example/sandy/PeanutButter", "github.com/example/sandy/Jelly"]
+
 rollout = "1m"
 ```
 

@@ -133,7 +133,7 @@ type server struct {
 	srv   *http.Server
 }
 
-func (s *server) Init(ctx context.Context) error {
+func (s *server) Init(context.Context) error {
 	s.addr = s.hello.String()
 	s.proxy = s.hello.ProxyAddr()
 
@@ -152,6 +152,6 @@ func (s *server) Init(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) Address(ctx context.Context) (string, error)      { return s.addr, nil }
-func (s *server) ProxyAddress(ctx context.Context) (string, error) { return s.proxy, nil }
-func (s *server) Shutdown(ctx context.Context) error               { return s.srv.Shutdown(ctx) }
+func (s *server) Address(context.Context) (string, error)      { return s.addr, nil }
+func (s *server) ProxyAddress(context.Context) (string, error) { return s.proxy, nil }
+func (s *server) Shutdown(ctx context.Context) error           { return s.srv.Shutdown(ctx) }

@@ -19,7 +19,8 @@ package runtime;
 
 // A group of components.
 message ComponentGroup {
-  repeated string components = 1;
+  string name = 1;
+  repeated string components = 2;
 }
 
 // AppConfig holds configuration for a Service Weaver application.

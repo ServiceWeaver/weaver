@@ -179,8 +179,13 @@ func RunManager(ctx context.Context, config *SshConfig, locations map[string]str
 	// Form co-location.
 	colocation := map[string]string{}
 	for _, group := range app.Colocate {
+		groupName := group.Name
+		if groupName == "" {
+			groupName = group.Components[0]
+		}
+
 		for _, c := range group.Components {
-			colocation[c] = group.Components[0]
+			colocation[c] = groupName
 		}
 	}
 

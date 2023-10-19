@@ -218,13 +218,10 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 // listed component as the co-location group name.
 func (d *deployer) computeGroups() error {
 	groups := map[string]*group{}
-	ensureGroup := func(component string) (*group, error) {
-		if g, ok := groups[component]; ok {
-			return g, nil
-		}
+	createGroup := func(groupName string) (*group, error) {
 		var certPEM, keyPEM []byte
 		if d.config.Mtls {
-			cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, component)
+			cert, key, err := certs.GenerateSignedCert(d.caCert, d.caKey, groupName)
 			if err != nil {
 				return nil, fmt.Errorf("cannot generate cert: %w", err)
 			}
@@ -236,7 +233,7 @@ func (d *deployer) computeGroups() error {
 		g := &group{
 			// TODO(spetrovic): ensure a consistent name is picked for
 			// colocation groups across versions.
-			name:        component,
+			name:        groupName,
 			started:     map[string]bool{},
 			addresses:   map[string]bool{},
 			assignments: map[string]*protos.Assignment{},
@@ -244,7 +241,6 @@ func (d *deployer) computeGroups() error {
 			certPEM:     certPEM,
 			keyPEM:      keyPEM,
 		}
-		groups[component] = g
 		return g, nil
 	}
 
@@ -254,11 +250,23 @@ func (d *deployer) computeGroups() error {
 		if len(grp.Components) == 0 {
 			continue
 		}
-		g, err := ensureGroup(grp.Components[0])
-		if err != nil {
-			return err
+
+		groupName := grp.Name
+		if groupName == "" {
+			groupName = grp.Components[0]
 		}
-		for i := 1; i < len(grp.Components); i++ {
+
+		// Create a group if needed.
+		g := groups[groupName]
+		if g == nil {
+			var err error
+			g, err = createGroup(groupName)
+			if err != nil {
+				return err
+			}
+		}
+
+		for i := 0; i < len(grp.Components); i++ {
 			groups[grp.Components[i]] = g
 		}
 	}
@@ -271,7 +279,16 @@ func (d *deployer) computeGroups() error {
 		return fmt.Errorf("cannot read the call graph from the application binary: %w", err)
 	}
 	g.PerNode(func(n graph.Node) {
-		ensureGroup(components[n])
+		c := components[n]
+		g := groups[c]
+		if g == nil {
+			var err error
+			g, err = createGroup(c)
+			if err != nil {
+				panic(fmt.Errorf("unable to create group for component %s: %w", c, err))
+			}
+		}
+		groups[c] = g
 	})
 	graph.PerEdge(g, func(e graph.Edge) {
 		src := components[e.Src]

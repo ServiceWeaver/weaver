@@ -1,13 +1,13 @@
 [serviceweaver]
 binary = "./collatz"
-args = ["--local_addr=localhost:10000"]
 rollout = "5m"
-colocate = [
-  [
-    "main",
+
+[[serviceweaver.colocate]]
+name = "all"
+components = [
+    "github.com/ServiceWeaver/weaver/Main",
     "github.com/ServiceWeaver/weaver/examples/collatz/Even",
     "github.com/ServiceWeaver/weaver/examples/collatz/Odd"
-  ]
 ]
 
 [ssh]
