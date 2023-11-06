@@ -1,0 +1,80 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Path to the app config.
+appConfig: weaver.toml
+
+# Registry to upload the app docker image.
+repo: docker.io/my_docker_hub_username/
+
+listeners:
+  - name: collatz
+    public: true
+
+# Check `weaver kube deploy -h` to see which other options you can configure.
+#
+# E.g., to specify the namespace where your app should run:
+# namespace: your_namespace
+#
+# E.g., to specify the service account under which to run the pods:
+# serviceAccount: your_service_account
+#
+# E.g., to run all the components colocated, you can set:
+#groups:
+#- name: colocated
+#  components:
+#  - github.com/ServiceWeaver/weaver/Main
+#  - github.com/ServiceWeaver/weaver/examples/collatz/Even
+#  - github.com/ServiceWeaver/weaver/examples/collatz/Odd
+#
+# E.g., to specify the resource requirements for the pods, you can set:
+#resourceSpec:
+#  requests:
+#    memory: "64Mi"
+#    cpu: "250m"
+#  limits:
+#    memory: "128Mi"
+#    cpu: "500m"
+#
+# E.g., to specify the scaling requirements, you can set:
+#scalingSpec:
+#  minReplicas: 2
+#  maxReplicas: 5
+#  metrics:
+#  - type: Resource
+#    resource:
+#      name: cpu
+#      target:
+#        type: Utilization
+#        averageUtilization: 50
+#
+# E.g., to mount a secret, you can set:
+#storageSpec:
+#  volumes:
+#    - name: my-secret
+#      volumeSource:
+#        secret:
+#          secretName: my-secret-name
+#      volumeMounts:
+#        - name: my-secret
+#          mountPath: /etc/secret
+#
+# E.g., to specify a liveness probe, you can set:
+#probeSpec:
+#  livenessProbe:
+#    httpGet:
+#      path: /healthz
+#      port: 80
+#    initialDelaySeconds: 15
+#    periodSeconds: 10

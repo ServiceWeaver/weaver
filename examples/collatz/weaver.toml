@@ -15,8 +15,3 @@ locations = "./ssh_locations.txt"
 [gke]
 regions = ["us-west1"]
 listeners.collatz = {public_hostname = "collatz.example.com"}
-
-[kube]
-listeners.collatz = {public = true}
-# To upload the image to another repository, check `weaver kube deploy -h`.
-repo = "docker.io/my_docker_hub_username/"
