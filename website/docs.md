@@ -1986,6 +1986,385 @@ with the same arg value`.
 Refer to [Perfetto UI Docs](https://perfetto.dev/docs/visualization/perfetto-ui)
 to learn more about how to use the tracing UI.
 
+# Kube
+
+[Kube][kube] is a deployer that allows you to run Service Weaver applications in
+any [Kubernetes][kubernetes] environment, i.e. [GKE][gke], [EKS][eks], [AKS][aks],
+[minikube][minikube], etc.
+
+Features:
+* You control how to run your application (e.g., resource requirements, scaling
+specifications, volumes).
+* You decide how to export telemetry (e.g., traces to Jaeger, metrics to Prometheus, write custom plugins).
+* You can use existing tools to deploy your application (e.g., [kubectl][kubectl],
+CI/CD pipelines like [Github Actions][github_actions], [Argo CD][argocd] or
+[Jenkins][jenkins]).
+
+## Overview
+
+The figure below shows a high level overview of the `Kube` deployer. The user
+provides an application binary and a configuration file `config.yaml`. The deployer
+builds a container image for the application, and generates Kubernetes resources that
+enable the application to run in a Kubernetes cluster.
+
+![Kube Overview](assets/images/kube_overview.png)
+
+Finally, the user can use [kubectl][kubectl] or a CI/CD pipeline to deploy the application.
+
+```console
+$ kubectl apply -f deployment.yaml
+```
+
+Note that the generated Kubernetes resources encapsulate information provided by
+the user in the `config.yaml`. For example, the user can colocate components into
+groups ([`Foo`, `Bar`]), specify resource requirements for running pods, min and
+max replicas, mount volumes, etc. More details on configuration options [here](#kube-config).
+
+By default, the `Kube` deployer exports logs to `stdout` and discards metrics
+and traces. To customize how to export telemetry data, you have to use the
+`Kube` [plugin API][kube_telemetry_api] to register plugins that contains
+implementations on how to export logs, metrics, and traces. [Here][kube_telemetry]
+is an example of how to export metrics to [Prometheus][prometheus] and traces to
+[Jaeger][jaeger]. More details on how to write plugins [here](#kube-telemetry).
+
+**Note** that the `Kube` deployer allows you to deploy a Service Weaver application
+in a single region.
+
+## Installation
+
+First, [ensure you have Service Weaver installed](#installation). Next, install
+[Docker][docker] and [kubectl][kubectl]. Finally, install the `weaver-kube` command:
+
+```console
+$ go install github.com/ServiceWeaver/weaver-kube/cmd/weaver-kube@latest
+```
+
+**Note**: Make sure you've created a Kubernetes cluster before you attempt to
+deploy using the `Kube` deployer.
+
+## Getting Started
+
+Consider again the "Hello, World!" Service Weaver application from the [Step by
+Step Tutorial](#step-by-step-tutorial) section. The application runs an HTTP
+server on a listener named `hello` with a `/hello?name=<name>` endpoint that
+returns a `Hello, <name>!` greeting. To deploy this application on Kubernetes, first
+create a [Service Weaver application config file](#config-files), say `weaver.toml`,
+with the following contents:
+
+```toml
+[serviceweaver]
+binary = "./hello"
+```
+
+The `[serviceweaver]` section of the config file specifies the compiled Service
+Weaver binary.
+
+Then, create a `Kube` configuration file say `config.yaml`, with the following
+contents:
+
+```yaml
+appConfig: weaver.toml
+repo: docker.io/mydockerid
+
+listeners:
+  - name: hello
+    public: true
+```
+
+The `Kube` configuration file contains a pointer to the application config
+file. It also declares the list of listeners the application should export, and
+which listeners should be **public**, i.e., which listeners should be accessible
+from the public internet. By default, all listeners are **private**, i.e.,
+accessible only from the cluster's internal network. In our example, we declare
+that the`hello` listener is public.
+
+Deploy the application using `weaver kube deploy`:
+
+```console
+$ go build .
+$ weaver kube deploy config.yaml
+...
+Building image hello:ffa65856...
+...
+Uploading image to docker.io/mydockerid/...
+...
+Generating kube deployment info ...
+...
+kube deployment information successfully generated
+/tmp/kube_ffa65856.yaml
+```
+
+`/tmp/kube_ffa65856.yaml` contains the generated Kubernetes resources for the
+"Hello, World!" application.
+
+```yaml
+# Listener Service for group github.com/ServiceWeaver/weaver/Main
+apiVersion: v1
+kind: Service
+spec:
+  type: LoadBalancer
+...
+
+---
+# Deployment for group github.com/ServiceWeaver/weaver/Main
+apiVersion: apps/v1
+kind: Deployment
+...
+
+---
+# Autoscaler for group github.com/ServiceWeaver/weaver/Main
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+...
+
+---
+# Deployment for group github.com/ServiceWeaver/weaver/examples/hello/Reverser
+apiVersion: apps/v1
+kind: Deployment
+...
+
+---
+# Autoscaler for group github.com/ServiceWeaver/weaver/examples/hello/Reverser
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+...
+```
+
+You can simply deploy `/tmp/kube_ffa65856.yaml` as follows:
+
+```console
+$ kubectl apply -f /tmp/kube_ffa65856.yaml
+
+role.rbac.authorization.k8s.io/pods-getter created
+rolebinding.rbac.authorization.k8s.io/default-pods-getter created
+configmap/config-ffa65856 created
+service/hello-ffa65856 created
+deployment.apps/weaver-main-ffa65856-acfd658f created
+horizontalpodautoscaler.autoscaling/weaver-main-ffa65856-acfd658f created
+deployment.apps/hello-reverser-ffa65856-58d0b71e created
+horizontalpodautoscaler.autoscaling/hello-reverser-ffa65856-58d0b71e created
+```
+
+To see whether your application has been deployed, you can run `kubectl get all`.
+
+```console
+$ kubectl get all
+
+NAME                                                   READY   STATUS    RESTARTS   AGE
+pod/hello-reverser-ffa65856-58d0b71e-5c96fb875-zsjrb   1/1     Running   0          4m
+pod/weaver-main-ffa65856-acfd658f-86684754b-w94vc      1/1     Running   0          4m
+
+NAME                     TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)        AGE
+service/hello-ffa65856   LoadBalancer   10.103.133.111   10.103.133.111   80:30410/TCP   4m1s
+
+NAME                                               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/hello-reverser-ffa65856-58d0b71e   1/1     1            1           4m1s
+deployment.apps/weaver-main-ffa65856-acfd658f      1/1     1            1           4m1s
+
+NAME                                                         DESIRED   CURRENT   READY   AGE
+replicaset.apps/hello-reverser-ffa65856-58d0b71e-5c96fb875   1         1         1       4m1s
+replicaset.apps/weaver-main-ffa65856-acfd658f-86684754b      1         1         1       4m1s
+
+NAME                                                                   REFERENCE                                     TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/hello-reverser-ffa65856-58d0b71e   Deployment/hello-reverser-ffa65856-58d0b71e    1%/80%     1         10        1        4m
+horizontalpodautoscaler.autoscaling/weaver-main-ffa65856-acfd658f      Deployment/weaver-main-ffa65856-acfd658f       2%/80%     1         10        1        4m
+```
+
+Note that by default, the `Kube` deployer generates a deployment for each
+component; in this example, deployments for the `Main` and `Reverser` components.
+
+`Kube` configures your application to autoscale using the [Kubernetes Horizontal Pod Autoscaler][hpa].
+As the load on your application increases, the number of replicas of the
+overloaded components will increase. Conversely, as the load on your application
+decreases, the number of replicas decreases. Service Weaver can independently
+scale the different components of your application, meaning that heavily loaded
+components can be scaled up while lesser loaded components can simultaneously be
+scaled down.
+
+For an application running in production, you will likely want to configure DNS
+to map your domain name (e.g. `hello.com`), to the address of the load balancer
+(e.g., `http://10.103.133.111`). When testing and debugging an application, however,
+we can also simply curl the load balancer. For example:
+
+```console
+$ curl "http://10.103.133.111/hello?name=Weaver"
+Hello, Weaver!
+```
+
+The `/tmp/kube_ffa65856.yaml` header contains more details on the generated
+Kubernetes resources and how to view/delete resources. For example, to delete
+the resources associated with this deployment, you can run:
+
+```console
+$ kubectl delete all,configmaps --selector=serviceweaver/version=ffa65856
+```
+
+To view the application logs, you can run:
+
+```console
+$ kubectl logs -l serviceweaver/app=hello --all-containers=true
+
+D1107 23:39:38.096525 weavelet             643fc8a3 remoteweavelet.go:231                │ 🧶 weavelet started addr="tcp://[::]:10000"
+D1107 23:39:38.097369 weavelet             643fc8a3 remoteweavelet.go:485                │ Updating components="hello.Reverser"
+D1107 23:39:38.097398 weavelet             643fc8a3 remoteweavelet.go:330                │ Constructing component="hello.Reverser"
+D1107 23:39:38.097438 weavelet             643fc8a3 remoteweavelet.go:336                │ Constructed component="hello.Reverser"
+D1107 23:39:38.097443 weavelet             643fc8a3 remoteweavelet.go:491                │ Updated component="hello.Reverser"
+D1107 23:39:37.295945 weavelet             49c6e04e remoteweavelet.go:273                │ Activated component="hello.Reverser"
+D1107 23:39:38.349496 weavelet             49c6e04e remoteweavelet.go:415                │ Connecting to remote component="hello.Reverser"
+D1107 23:39:38.349587 weavelet             49c6e04e remoteweavelet.go:515                │ Updated routing info addr="[tcp://10.244.2.74:10000]" component="hello.Reverser"
+I1107 23:39:38.349646 weavelet             49c6e04e call.go:690                        │ connection addr="tcp://10.244.2.74:10000" from="missing" to="disconnected"
+I1107 23:39:38.350108 weavelet             49c6e04e call.go:690                        │ connection addr="tcp://10.244.2.74:10000" from="disconnected" to="checking"
+I1107 23:39:38.350252 weavelet             49c6e04e call.go:690                        │ connection addr="tcp://10.244.2.74:10000" from="checking" to="idle"
+D1107 23:39:38.358632 weavelet             49c6e04e remoteweavelet.go:429                │ Connected to remote component="hello.Reverser"
+S0101 00:00:00.000000 stdout               49c6e04e                       │ hello listener available on [::]:20000
+D1107 23:39:38.360294 weavelet             49c6e04e remoteweavelet.go:336                │ Constructed component="weaver.Main"
+D1107 23:39:38.360337 weavelet             49c6e04e remoteweavelet.go:491                │ Updated component="weaver.Main"
+```
+
+## Config
+
+You can configure the `Kube` deployer using the knobs exported in the [config file][kube_config_file].
+
+| Field          | Required? | Description                                                                                                                                                                                                                                                                              |
+|----------------|-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| appConfig      | required  | Path to the Service Weaver application config file.                                                                                                                                                                                                                                      |
+| image          | optional  | Name of the container image `Kube` creates. If absent, the image name defaults to `<app_name>:<app_version>`.                                                                                                                                                                            |
+| repo           | optional  | Name of the repository where the container image is uploaded. If empty, the image is not pushed to a repository.                                                                                                                                                                         |
+| namespace      | optional  | Name of the Kubernetes namespace where the application should be deployed. Defaults to `default`.                                                                                                                                                                                        |
+| serviceAccount | optional  | Name of the Kubernetes service account under which to run the pods. If absent, it uses the default service account for your namespace.                                                                                                                                                   |
+| listeners      | optional  | Options for the application listeners. If absent, default options will be used.                                                                                                                                                                                                          |
+| groups         | optional  | Options for groups of colocated components. If absent, each component runs in its own group.                                                                                                                                                                                             |
+| resourceSpec   | optional  | Resource requirements needed to run the pods. Should satisfy the Kubernetes [resource format][kubernetes_resources]. If absent, `Kube` will use the default resource requirements as configured by Kubernetes.                                                                           |
+| scalingSpec    | optional  | Specifications on how to scale the pods using the [Kubernetes Horizontal Pod Autoscaler][hpa]. Should satisfy the Kubernetes HPA [spec format][kubernetes_hpa_spec]. If absent, default options will be used (`minReplicas=1`, `maxReplicas=10`, `CPU` metric, `averageUtilization=80)`. |
+| probeSpec      | optional  | Configure Kubernetes [probes][kubernetes_probes] to monitor the healthiness, liveness and readiness of the pods. Should satisfy the Kubernetes [probes format][kubernetes_probes]. If absent, no probe is configured.                                                                    |
+| storageSpec    | optional  | Options to configure Kubernetes [volumes][kubernetes_volumes] and [volume mounts][kubernetes_volumes]. If absent, no storage is configured.                                                                                                                                              |
+| useHostNetwork | optional  | If true, application listeners use the underlying nodes' network. This behavior is generally discouraged, but it may be useful when running the application in a minikube environment.                                                                                                   |
+
+For more details on specific subfields of each configuration knob, please check
+all the [configuration options][kube_config_file].
+
+**Note**: Configuration knobs such as `resourceSpec`, `scalingSpec`, `storageSpec`
+can be configured both per deployment and per group of colocated components.
+However, if a field has definitions both per deployment and per group, the `Kube`
+deployer will consider the per group value of the field (except for the `storageSpec`
+where it considers the concatenation of both). For example in the example below,
+the `Kube` deployer will run two colocation groups, where the pods that run the
+`Reverser` component require at least `256Mi` memory while the pods that run the
+`Main` component require at least `64Mi` memory.
+
+```yaml
+appConfig: weaver.toml
+repo: docker.io/mydockerid
+
+listeners:
+- name: hello
+  public: true
+
+resourceSpec:
+  requests:
+    memory: "64Mi"
+
+groups:
+  - name: reverser-group
+    components:
+      -  github.com/ServiceWeaver/weaver/examples/hello/Reverser
+    resourceSpec:
+      requests:
+        memory: "256Mi"
+```
+
+## Telemetry
+
+The `Kube` deployer allows you to customize how to export logs, metrics and
+traces. To do that, you need to implement a wrapper deployer on top of the
+`Kube` deployer using the [Kube tool][kube_telemetry_api] abstraction.
+
+[Here][kube_telemetry] is an example on how we export metrics to [Prometheus][prometheus] and traces to
+[Jaeger][jaeger].
+
+For example, to export traces to Jaeger, you have to do the following:
+1. Deploy [Jaeger][jaeger] in the Kubernetes cluster as typical Kubernetes services.
+This is what someone will have to do in practice as well.
+```console
+$ kubectl apply -f jaeger.yaml
+```
+2. Write a simple binary that implements the plugin to export traces to Jaeger. The code looks as follows:
+
+```go
+// ./examples/customkube
+...
+
+const jaegerPort = 14268 // Port on which the Jaeger service is receiving traces.
+
+func main() {
+  // Implementation of how to export the traces to Jaeger.
+  jaegerURL := fmt.Sprintf("http://jaeger:%d/api/traces", jaegerPort)
+  endpoint := jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(jaegerURL))
+  traceExporter, err := jaeger.New(endpoint)
+  if err != nil {
+    panic(err)
+  }
+  handleTraceSpans := func(ctx context.Context, spans []trace.ReadOnlySpan) error {
+    return traceExporter.ExportSpans(ctx, spans)
+  }
+
+  // Invokes the `Kube` deployer with the plugin to export traces as instructed
+  // by handleTraceSpans.
+  tool.Run("customkube", tool.Plugins{
+    HandleTraceSpans: handleTraceSpans,
+  })
+}
+```
+
+3. Build and deploy the application using the `customkube` deployer.
+```console
+$ go build
+$ kubectl apply -f $(customkube deploy config.yaml)
+```
+4. You can access the Jaeger UI to see the Service Weaver traces for your application.
+
+## CI/CD Pipelines
+
+The `Kube` deployer should integrate easily with your CI/CD pipeline.
+[Here][kube_github_actions] is an example on how to integrate with [Github Actions][github_actions].
+
+We've also tried [ArgoCD][argocd] and [Jenkins][jenkins]. Please contact us on
+[Discord](https://discord.gg/FzbQ3SM8R5) if you have issues integrating `Kube` with
+your own CI/CD pipeline.
+
+## Versioning
+
+To roll out a new version of your application, simply rebuild your application and
+run `weaver kube deploy` again. Once you deploy the newly generated Kubernetes resources,
+it will start a new tree that runs the new application version.
+
+**Note** that it is the responsibility of the user to make sure that the new
+application version behaves well, and the traffic is shifted to the new version.
+
+We found out that typically the user starts the new version in the test cluster first.
+Once it has enough confidence that the new version behaves as expected, it rollouts
+the new version in the production cluster, and triggers an atomic rollout. You can
+do this with the `Kube` deployer by preserving the external listener service name
+across versions.
+
+For example, if you want to do atomic rollouts across multiple versions of the
+"Hello, World!" application mentioned above, you can configure the `hello`
+listener as follows:
+
+```yaml
+appConfig: weaver.toml
+repo: docker.io/mydockerid
+
+listeners:
+  - name: hello
+    public: true
+    serviceName: uniqueServiceName
+```
+
+This will guarantee that every time you release a new version of the "Hello, World!"
+application, the load balancer service that runs the `hello` listener will always
+point out to the newest version of your application version.
+
 # GKE
 
 [Google Kubernetes Engine (GKE)][gke] is a Google Cloud managed service that
@@ -2975,6 +3354,9 @@ both worlds: the ease of development of monolithic applications, with the
 runtime benefits of microservices.
 
 [actors]: https://en.wikipedia.org/wiki/Actor_model
+[aks]: https://azure.microsoft.com/en-us/products/kubernetes-service
+[argocd]: https://argoproj.github.io/cd/
+[jenkins]: https://www.jenkins.io/
 [binary_marshaler]: https://pkg.go.dev/encoding#BinaryMarshaler
 [binary_unmarshaler]: https://pkg.go.dev/encoding#BinaryUnmarshaler
 [blue_green]: https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html
@@ -2985,23 +3367,39 @@ runtime benefits of microservices.
 [cloud_metrics]: https://cloud.google.com/monitoring/api/metrics_gcp
 [cloud_trace]: https://cloud.google.com/trace
 [db_engines]: https://db-engines.com/en/ranking
+[docker]: https://docs.docker.com/engine/install/
 [emojis]: https://emojis.serviceweaver.dev/
+[eks]: https://aws.amazon.com/eks/
 [gcloud_billing]: https://console.cloud.google.com/billing
 [gcloud_billing_projects]: https://console.cloud.google.com/billing/projects
 [gcloud_install]: https://cloud.google.com/sdk/docs/install
+[github_actions]: https://github.com/features/actions
 [gke]: https://cloud.google.com/kubernetes-engine
 [gke_create_project]: https://cloud.google.com/resource-manager/docs/creating-managing-projects#gcloud
 [go_generate]: https://pkg.go.dev/cmd/go/internal/generate
 [go_install]: https://go.dev/doc/install
 [go_interfaces]: https://go.dev/tour/methods/9
 [hello_app]: https://github.com/ServiceWeaver/weaver/tree/main/examples/hello
+[hpa]: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
 [http_pprof]: https://pkg.go.dev/net/http/pprof
 [identifiers]: https://go.dev/ref/spec#Identifiers
 [isolation]: https://sre.google/workbook/canarying-releases/#dependencies-and-isolation
+[jaeger]: https://www.jaegertracing.io/
+[kube]: https://github.com/ServiceWeaver/weaver-kube
+[kubectl]: https://kubernetes.io/docs/reference/kubectl/
 [kubernetes]: https://kubernetes.io/
+[kube_telemetry]: https://github.com/ServiceWeaver/weaver-kube/tree/main/examples/telemetry
+[kube_telemetry_api]: https://github.com/ServiceWeaver/weaver-kube/blob/main/tool/tool.go
+[kube_github_actions]: https://github.com/ServiceWeaver/weaver-kube/blob/main/.github/workflows/integration.yml
+[kube_config_file]: https://github.com/ServiceWeaver/weaver-kube/blob/main/internal/impl/config.go
+[kubernetes_resources]: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+[kubernetes_volumes]: https://kubernetes.io/docs/concepts/storage/volumes/
+[kubernetes_hpa_spec]: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+[kubernetes_probes]: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 [logs_explorer]: https://cloud.google.com/logging/docs/view/logs-explorer-interface
 [metric_types]: https://prometheus.io/docs/concepts/metric_types/
 [metrics_explorer]: https://cloud.google.com/monitoring/charts/metrics-explorer
+[minikube]: https://minikube.sigs.k8s.io/docs/
 [n_queens]: https://en.wikipedia.org/wiki/Eight_queens_puzzle
 [net_listen]: https://pkg.go.dev/net#Listen
 [otel]: https://opentelemetry.io/docs/instrumentation/go/getting-started/
