@@ -10,8 +10,9 @@ locally on your machine, and then deploy the application to the cloud with a
 single command.
 
 ```console
-$ go run .                      # Run locally.
-$ weaver gke deploy weaver.toml # Run in the cloud.
+$ go run .                       # Run locally.
+$ weaver gke deploy weaver.toml  # Run on Google Cloud.
+$ weaver kube deploy weaver.toml # Run on Kubernetes.
 ```
 
 A Service Weaver application is composed of a number of **components**. A
@@ -65,15 +66,17 @@ USAGE
   ...
 ```
 
-**Note**: For GKE deployments you should also install the `weaver gke` command
-(see the [GKE](#gke) section for details):
+**Note**: For cloud deployments you should also install the `weaver gke` or
+`weaver kube` command (see the [GKE](#gke), [Kube](#kube) sections for details):
 
 ```console
 $ go install github.com/ServiceWeaver/weaver-gke/cmd/weaver-gke@latest
+$ go install github.com/ServiceWeaver/weaver-kube/cmd/weaver-kube@latest
 ```
 
-**Note**: If you run into issues installing `weaver` and `weaver gke` commands on
-macOS, you may want to prefix the install command with `export CGO_ENABLED=1; export CC=gcc`.
+**Note**: If you run into issues installing `weaver`, `weaver gke` or `weaver kube`
+commands on macOS, you may want to prefix the install command with
+`export CGO_ENABLED=1; export CC=gcc`.
 For example:
 ```console
 $ export CGO_ENABLED=1; export CC=gcc; go install github.com/ServiceWeaver/weaver/cmd/weaver@latest
@@ -524,7 +527,7 @@ Cloud Tracing][cloud_trace], etc.
   demonstrate what Service Weaver has to offer.
 - Dive deeper into the various ways you can deploy a Service Weaver application,
   including [single process](#single-process), [multiprocess](#multiprocess),
-  and [GKE](#gke) deployers.
+  [GKE](#gke) and [Kube](#kube) deployers.
 - Check out [Service Weaver's source code on GitHub][weaver_github].
 - Chat with us on [Discord](https://discord.gg/FzbQ3SM8R5) or send us an
   [email](serviceweaver@google.com).
