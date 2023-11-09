@@ -74,6 +74,9 @@ var files = []file{
 	{dst: "blog/weaver_generate.html", markdown: "blog/weaver_generate.md", template: "blog_entry.html", title: "Using Advanced Go Features to Detect Stale Code", license: true},
 	{dst: "blog/history.html", markdown: "blog/history.md", template: "blog_entry.html", title: "A History of Service Weaver's Core API", license: true},
 
+	{dst: "blog/kubernetes.html", markdown: "blog/kubernetes.md", template: "blog_entry.html", title: "Service Weaver and Kubernetes", license: true},
+	staticFile("blog/deployers/kube/kube_overview.png"),
+
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
