@@ -1,0 +1,58 @@
+project_name: weaver
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+
+    main: ./cmd/weaver
+
+    flags:
+      - "-mod=readonly"
+      - "-trimpath"
+
+    ldflags:
+      - "-s -w"
+
+    goos:
+      - linux
+      - darwin
+
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{- .Os }}_{{- .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+
+signs:
+  - artifacts: checksum
+    cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - "sign-blob"
+      - "--oidc-issuer=https://token.actions.githubusercontent.com"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+
+snapshot:
+  name_template: "{{ .Version }}-next"
+
+changelog:
+  use: github-native
+
+release:
+  prerelease: auto
+  # If you want to examine the release before its live, uncomment this line:
+  # draft: false
