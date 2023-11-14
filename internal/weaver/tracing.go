@@ -17,6 +17,7 @@ package weaver
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"go.opentelemetry.io/otel"
@@ -29,18 +30,21 @@ import (
 
 // tracer returns a tracer for the provided app, deploymentId, and weaveletId
 // that uses the provided exporter. The tracer is also set as the otel default.
-func tracer(exporter sdktrace.SpanExporter, app, deploymentId, weaveletId string) trace.Tracer {
+func tracer(exporter sdktrace.SpanExporter, app, deploymentId, weaveletId string,
+	components []string, serviceNamespace, serviceName string) trace.Tracer {
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", weaveletId)),
+			semconv.ServiceNameKey.String(serviceName),
+			semconv.ServiceNamespaceKey.String(serviceNamespace),
+			semconv.ServiceInstanceIDKey.String(weaveletId),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
 			traceio.AppTraceKey.String(app),
 			traceio.DeploymentIdTraceKey.String(deploymentId),
-			traceio.WeaveletIdTraceKey.String(weaveletId),
+			traceio.WeaveletComponentsTraceKey.StringSlice(components),
 		)),
 		// TODO(spetrovic): Allow the user to create new TracerProviders where
 		// they can control trace sampling and other options.
@@ -51,4 +55,20 @@ func tracer(exporter sdktrace.SpanExporter, app, deploymentId, weaveletId string
 	otel.SetTracerProvider(tracerProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 	return tracer
+}
+
+// tracingInfo takes as argument a full component name that is of the format
+// <path1>/<path2>/.../<pathN>/<IfaceType> and returns the service namespace and
+// the service name information that's used to export corresponding traces for
+// the component.
+func tracingInfo(component string) (string, string) {
+	parts := strings.Split(component, "/")
+	switch len(parts) {
+	case 0: // should never happen
+		panic(fmt.Errorf("invalid component name: %s", component))
+	case 1:
+		return "", parts[0]
+	default:
+		return parts[len(parts)-2], fmt.Sprintf("%s/%s", parts[len(parts)-2], parts[len(parts)-1])
+	}
 }

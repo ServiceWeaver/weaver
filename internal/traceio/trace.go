@@ -25,9 +25,10 @@ const (
 	// Trace attribute keys for various Service Weaver identifiers. These
 	// are attached to all exported traces by the weavelet, and displayed
 	// in the UI by the Service Weaver visualization tools (e.g., dashboard).
-	AppTraceKey          = attribute.Key("serviceweaver.app")
-	DeploymentIdTraceKey = attribute.Key("serviceweaver.deployment_id")
-	WeaveletIdTraceKey   = attribute.Key("serviceweaver.weavelet_id")
+	AppTraceKey                = attribute.Key("serviceweaver.app")
+	DeploymentIdTraceKey       = attribute.Key("serviceweaver.deployment_id")
+	WeaveletIdTraceKey         = attribute.Key("serviceweaver.weavelet_id")
+	WeaveletComponentsTraceKey = attribute.Key("serviceweaver.weavelet_components")
 )
 
 // TestTracer returns a simple tracer suitable for tests.

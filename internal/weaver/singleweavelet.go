@@ -24,6 +24,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -101,13 +102,8 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 		}
 	}
 
-	// Set up tracer.
-	deploymentId := uuid.New().String()
-	id := uuid.New().String()
-	tracer, err := singleTracer(ctx, config.App.Name, deploymentId, id)
-	if err != nil {
-		return nil, err
-	}
+	// List of all components hosted by the weavelet.
+	var weaveletComponents []string
 
 	// Index registrations.
 	regsByName := map[string]*codegen.Registration{}
@@ -117,6 +113,21 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 		regsByName[reg.Name] = reg
 		regsByIntf[reg.Iface] = reg
 		regsByImpl[reg.Impl] = reg
+		weaveletComponents = append(weaveletComponents, reg.Name)
+	}
+
+	sort.Strings(weaveletComponents)
+
+	// Set up tracing.
+	deploymentId := uuid.New().String()
+
+	// TODO(rgrandl): provide better names.
+	serviceNamespace, serviceName := "all", "all"
+	id := uuid.New().String()
+	tracer, err := singleTracer(ctx, config.App.Name, deploymentId, id,
+		weaveletComponents, serviceNamespace, serviceName)
+	if err != nil {
+		return nil, err
 	}
 
 	// Print rolodex card.
@@ -183,7 +194,8 @@ func parseSingleConfig(regs []*codegen.Registration, filename, contents string) 
 }
 
 // singleTracer returns a tracer for single process execution.
-func singleTracer(ctx context.Context, app, deploymentId, id string) (trace.Tracer, error) {
+func singleTracer(ctx context.Context, app, deploymentId, id string, components []string,
+	serviceNamespace, serviceName string) (trace.Tracer, error) {
 	traceDB, err := traces.OpenDB(ctx, single.PerfettoFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
@@ -191,7 +203,7 @@ func singleTracer(ctx context.Context, app, deploymentId, id string) (trace.Trac
 	exporter := traceio.NewWriter(func(spans *protos.TraceSpans) error {
 		return traceDB.Store(ctx, app, deploymentId, spans)
 	})
-	return tracer(exporter, app, deploymentId, id), nil
+	return tracer(exporter, app, deploymentId, id, components, serviceNamespace, serviceName), nil
 }
 
 // GetIntf implements the Weavelet interface.

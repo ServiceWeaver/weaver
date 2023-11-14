@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 
@@ -150,9 +151,8 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	// Set up logging.
 	w.syslogger = w.logger("weavelet", "serviceweaver/system", "")
 
-	// Set up tracing.
-	exporter := traceio.NewWriter(w.conn.SendTraceSpans)
-	w.tracer = tracer(exporter, info.App, info.DeploymentId, info.Id)
+	// List of all components hosted by the weavelet.
+	var weaveletComponents []string
 
 	// Initialize the component structs.
 	for _, reg := range regs {
@@ -160,6 +160,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		w.componentsByName[reg.Name] = c
 		w.componentsByIntf[reg.Iface] = c
 		w.componentsByImpl[reg.Impl] = c
+		weaveletComponents = append(weaveletComponents, reg.Name)
 
 		// Initialize the load collector.
 		if reg.Routed {
@@ -184,6 +185,40 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		// Initialize the resolver and balancer.
 		c.resolver = newRoutingResolver()
 		c.balancer = newRoutingBalancer(c.clientTLS)
+	}
+
+	sort.Strings(weaveletComponents)
+
+	// Set up tracing.
+	// For each weavelet we have to set the service information. To do that, we need
+	// to export three fields:
+	//  ServiceNameKey
+	//  - it should be unique across across all weavelets that are instances of the
+	//  same colocation group (e.g., Odd, Even);
+	//  - we set this to be the pkg/interfaceName of the first component in the
+	// list of lexicographically sorted order of components that run in the weavelet.
+	// TODO(rgrandl): ideally, the name should reflect all the components in the
+	// colocation group.
+	//
+	//  ServiceNamespaceKey
+	//  - it helps to distinguish a group of services, e.g., different teams;
+	//  - we set this to be the package name of the first component in the
+	// list of lexicographically sorted order of components that run in the weavelet.
+	//
+	//  ServiceInstanceKey
+	//  - unique identifier that helps to distinguish instances of the same service
+	// that exist at the same time;
+	//  - we set this to be the weavelet id.
+	//
+	// More details in [1].
+	//
+	// [1] https://github.com/open-telemetry/opentelemetry-go/blob/v1.20.0/semconv/v1.7.0/resource.go#L813
+	if len(weaveletComponents) < 1 {
+		w.syslogger.Error("unable to set up tracing", "err", fmt.Errorf("weavelet has zero components to run"))
+	} else {
+		namespace, name := tracingInfo(weaveletComponents[0])
+		exporter := traceio.NewWriter(w.conn.SendTraceSpans)
+		w.tracer = tracer(exporter, info.App, info.DeploymentId, info.Id, weaveletComponents, namespace, name)
 	}
 
 	// Process all redirects.
