@@ -15,7 +15,6 @@
 package weaver
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -29,6 +28,14 @@ import (
 
 // tracer returns a tracer for the provided app, deploymentId, and weaveletId
 // that uses the provided exporter. The tracer is also set as the otel default.
+//
+// Note that we set the ServiceNameKey attribute to the name of the app. Based on
+// the otel resource definition in [1], the ServiceNameKey should be unique across
+// all instances of the application. Ideally, it should be the name of the
+// colocation group, however, given that the trace provider is globally defined
+// per application, it makes sense to be the application name.
+//
+// [1] https://github.com/open-telemetry/opentelemetry-go/blob/v1.20.0/semconv/v1.7.0/resource.go#L813
 func tracer(exporter sdktrace.SpanExporter, app, deploymentId, weaveletId string) trace.Tracer {
 	const instrumentationLibrary = "github.com/ServiceWeaver/weaver/serviceweaver"
 	const instrumentationVersion = "0.0.1"
@@ -36,7 +43,8 @@ func tracer(exporter sdktrace.SpanExporter, app, deploymentId, weaveletId string
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceNameKey.String(fmt.Sprintf("serviceweaver/%s", weaveletId)),
+			semconv.ServiceNameKey.String(app),
+			semconv.ServiceInstanceIDKey.String(weaveletId),
 			semconv.ProcessPIDKey.Int(os.Getpid()),
 			traceio.AppTraceKey.String(app),
 			traceio.DeploymentIdTraceKey.String(deploymentId),
