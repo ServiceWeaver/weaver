@@ -785,8 +785,8 @@ binary = "./hello"
 
 A config file may additionally contain deployer-specific configuration sections,
 which allow you to configure the execution when a given deployer is used.
-For example, the following multiprocess config will enable `mTLS`
-communication between components when the application is deployed using the
+For example, the following multiprocess config will enable encrypted secure
+communication via `mTLS` between components when the application is deployed using the
 [multiprocess](#multiprocess) deployer:
 
 ```toml
