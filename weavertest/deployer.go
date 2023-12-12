@@ -18,13 +18,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
+	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"golang.org/x/exp/maps"
@@ -52,6 +55,7 @@ const DefaultReplication = 2
 type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
+	tmpDir     string
 	runner     Runner                 // holds runner-specific info like config
 	wlet       *protos.EnvelopeInfo   // info for subprocesses
 	config     *protos.AppConfig      // application config
@@ -104,7 +108,7 @@ var _ envelope.EnvelopeHandler = &handler{}
 // newDeployer returns a new weavertest multiprocess deployer. locals contains
 // components that should be co-located with the main component and not
 // replicated.
-func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, locals []reflect.Type, logWriter func(*protos.LogEntry)) *deployer {
+func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, locals []reflect.Type, logWriter func(*protos.LogEntry), tmpDir string) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
 		for _, c := range group.Components {
@@ -115,6 +119,7 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	d := &deployer{
 		ctx:        ctx,
 		ctxCancel:  cancel,
+		tmpDir:     tmpDir,
 		runner:     runner,
 		wlet:       wlet,
 		config:     config,
@@ -162,6 +167,9 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 		Id:              uuid.New().String(),
 		Sections:        d.wlet.Sections,
 		InternalAddress: "localhost:0",
+
+		// Create ControlSocket ourselves since we are not using envelope.NewEnvelope().
+		ControlSocket: deployers.NewUnixSocketPath(d.tmpDir),
 	}
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
@@ -364,7 +372,13 @@ func (d *deployer) startGroup(g *group) error {
 			group:      g,
 			subscribed: map[string]bool{},
 		}
-		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config)
+		logger := slog.New(&logging.LogHandler{
+			Opts:  logging.Options{Component: "envelope", Weavelet: wlet.Id},
+			Write: d.log,
+		})
+		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config, envelope.Options{
+			Logger: logger,
+		})
 		if err != nil {
 			return err
 		}

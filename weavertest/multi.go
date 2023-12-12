@@ -98,7 +98,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 	}
 
 	// Launch the deployer.
-	d := newDeployer(ctx, wlet, appConfig, runner, locals, logWriter)
+	d := newDeployer(ctx, wlet, appConfig, runner, locals, logWriter, t.TempDir())
 	bootstrap, err = d.start()
 	if err != nil {
 		return runtime.Bootstrap{}, nil, err

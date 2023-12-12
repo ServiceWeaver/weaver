@@ -447,6 +447,9 @@ and [`weaver gke`][weaver_gke_github] deployers for reference.
 
 ## Appendix: Envelope-Weavelet Protocol
 
+TODO(sanjay,mwhittaker): Drop this section and replace it with the component
+method call based protocol once we have fully transitioned to it.
+
 In this appendix, we describe the low-level communication protocol between an
 envelope and a weavelet. Most deployers should use the high-level
 [`Envelope`][Envelope] API described earlier, but understanding the low-level

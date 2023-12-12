@@ -41,7 +41,7 @@ var _ codegen.Stub = &stub{}
 func NewStub(name string, reg *codegen.Registration, conn Connection, tracer trace.Tracer, injectRetries int) codegen.Stub {
 	return &stub{
 		conn:          conn,
-		methods:       makeStubMethods(name, reg), // XXX Remove reg.Name arg from makeStubMethods
+		methods:       makeStubMethods(name, reg),
 		tracer:        tracer,
 		injectRetries: injectRetries,
 	}

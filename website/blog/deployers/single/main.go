@@ -27,6 +27,8 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
+
+	_ "github.com/ServiceWeaver/weaver" // Deployer must depend on the weaver package
 )
 
 // deployer is a simple single process deployer that runs every component in a
@@ -61,7 +63,7 @@ func deploy(binary string) error {
 		Name:   "app",  // the application name
 		Binary: binary, // the application binary
 	}
-	envelope, err := envelope.NewEnvelope(context.Background(), info, config)
+	envelope, err := envelope.NewEnvelope(context.Background(), info, config, envelope.Options{})
 	if err != nil {
 		return err
 	}

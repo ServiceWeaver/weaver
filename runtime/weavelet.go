@@ -37,5 +37,8 @@ func CheckEnvelopeInfo(w *protos.EnvelopeInfo) error {
 	if w.Id == "" {
 		return fmt.Errorf("EnvelopeInfo: missing weavelet id")
 	}
+	if w.ControlSocket == "" {
+		return fmt.Errorf("EnvelopeInfo: missing control socket")
+	}
 	return nil
 }

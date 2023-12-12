@@ -17,8 +17,11 @@ package deployers
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
+	"path/filepath"
+	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 )
@@ -51,4 +54,23 @@ var _ call.Listener = &fixedListener{}
 func (f *fixedListener) Accept() (net.Conn, *call.HandlerMap, error) {
 	c, err := f.Listener.Accept()
 	return c, f.handlers, err
+}
+
+var (
+	pathMu      sync.Mutex
+	pathCounter int64
+)
+
+// NewUnixSocketPath returns the path to use for a new Unix domain socket.
+// The path exists in dir, which should be a directory entirely owned by this
+// process, with a short full path-name, typically created by runtime.NewTempDir().
+func NewUnixSocketPath(dir string) string {
+	pathMu.Lock()
+	defer pathMu.Unlock()
+
+	// Since dir is private to this process, we can generate unique paths by
+	// using a simple incrementing counter. We keep the names small since
+	// Unix domain socket paths have a short maximum length.
+	pathCounter++
+	return filepath.Join(dir, fmt.Sprintf("_uds%d", pathCounter))
 }

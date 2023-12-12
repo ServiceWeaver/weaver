@@ -28,6 +28,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
@@ -212,6 +213,7 @@ func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]st
 	for name := range placement {
 		info := protomsg.Clone(info)
 		info.Id = uuid.New().String()
+		info.ControlSocket = deployers.NewUnixSocketPath(t.TempDir())
 		weavelet, err := spawn(ctx, info, d)
 		if err != nil {
 			t.Fatal(err)
@@ -244,7 +246,7 @@ func (d *deployer) ActivateComponent(ctx context.Context, req *protos.ActivateCo
 	replicas := []string{}
 	for _, name := range d.placedAt[req.Component] {
 		weavelet := d.weavelets[name]
-		if _, err := weavelet.wlet.UpdateComponents(components); err != nil {
+		if _, err := weavelet.wlet.UpdateComponents(ctx, components); err != nil {
 			return nil, err
 		}
 		replicas = append(replicas, weavelet.env.WeaveletInfo().DialAddr)
@@ -416,6 +418,7 @@ func TestLocalhostWeaveletAddress(t *testing.T) {
 	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
+		ControlSocket:   deployers.NewUnixSocketPath(t.TempDir()),
 		InternalAddress: "localhost:12345",
 	})
 	defer d.shutdown()
@@ -443,6 +446,7 @@ func TestHostnameWeaveletAddress(t *testing.T) {
 	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
+		ControlSocket:   deployers.NewUnixSocketPath(t.TempDir()),
 		InternalAddress: net.JoinHostPort(ips[0].String(), "12345"),
 	})
 	defer d.shutdown()
@@ -488,7 +492,7 @@ func TestFailActivateComponent(t *testing.T) {
 			return nil, err
 		}
 		components := &protos.UpdateComponentsRequest{Components: []string{req.Component}}
-		if _, err := d.weavelets["1"].wlet.UpdateComponents(components); err != nil {
+		if _, err := d.weavelets["1"].wlet.UpdateComponents(ctx, components); err != nil {
 			return nil, err
 		}
 		return &protos.ActivateComponentReply{}, nil
@@ -607,7 +611,7 @@ func TestUpdateMissingComponents(t *testing.T) {
 
 	// Update the weavelet with components that don't exist.
 	components := &protos.UpdateComponentsRequest{Components: []string{"foo", "bar"}}
-	if _, err := d.weavelets["1"].wlet.UpdateComponents(components); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateComponents(context.Background(), components); err == nil {
 		t.Fatal("unexpected success")
 	}
 
@@ -623,7 +627,7 @@ func TestUpdateExistingComponents(t *testing.T) {
 	components := &protos.UpdateComponentsRequest{
 		Components: []string{componenta, componentb, componentc},
 	}
-	if _, err := d.weavelets["1"].wlet.UpdateComponents(components); err != nil {
+	if _, err := d.weavelets["1"].wlet.UpdateComponents(context.Background(), components); err != nil {
 		t.Fatal(err)
 	}
 
@@ -756,7 +760,7 @@ func TestUpdateBadRoutingInfo(t *testing.T) {
 			componentc: d.weavelets["3"],
 		}
 		weavelet := weavelets[req.Component]
-		if _, err := weavelet.wlet.UpdateComponents(components); err != nil {
+		if _, err := weavelet.wlet.UpdateComponents(ctx, components); err != nil {
 			return nil, err
 		}
 

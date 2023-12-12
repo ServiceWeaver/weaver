@@ -97,7 +97,9 @@ func RunBabysitter(ctx context.Context) error {
 		Sections:     info.App.Sections,
 		RunMain:      info.RunMain,
 	}
-	e, err := envelope.NewEnvelope(ctx, wlet, info.App)
+	e, err := envelope.NewEnvelope(ctx, wlet, info.App, envelope.Options{
+		Logger: b.logger,
+	})
 	if err != nil {
 		return err
 	}

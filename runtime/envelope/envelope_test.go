@@ -195,7 +195,7 @@ func (*handlerForTest) VerifyServerCertificate(context.Context, *protos.VerifySe
 func TestWeaveletExit(t *testing.T) {
 	ctx := context.Background()
 	wlet, config := wlet("/usr/bin/env", "bash", "-c", `echo "hello from stdout"; echo "hello from stderr" >&2 && exit 1`)
-	_, err := NewEnvelope(ctx, wlet, config)
+	_, err := NewEnvelope(ctx, wlet, config, Options{})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -227,7 +227,7 @@ func TestStartStop(t *testing.T) {
 			var started atomic.Bool
 			args := append([]string{test.subcommand}, test.args...)
 			wlet, config := wlet(executable, args...)
-			e, err := NewEnvelope(ctx, wlet, config)
+			e, err := NewEnvelope(ctx, wlet, config, Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -290,7 +290,7 @@ func TestBigPrints(t *testing.T) {
 
 	n := 10000
 	wlet, config := wlet(executable, "bigprint", strconv.Itoa(n))
-	e, err := NewEnvelope(ctx, wlet, config)
+	e, err := NewEnvelope(ctx, wlet, config, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +312,7 @@ func TestBigPrints(t *testing.T) {
 func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	wlet, config := wlet(executable, "loop")
-	e, err := NewEnvelope(ctx, wlet, config)
+	e, err := NewEnvelope(ctx, wlet, config, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +385,7 @@ func writeTraces(conn *conn.WeaveletConn) error {
 func TestTraces(t *testing.T) {
 	wlet, config := wlet(executable, "writetraces")
 	ctx, cancel := context.WithCancel(context.Background())
-	e, err := NewEnvelope(ctx, wlet, config)
+	e, err := NewEnvelope(ctx, wlet, config, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestRPCBeforeServe(t *testing.T) {
 	// weavelet-initiated messages.
 	ctx, cancel := context.WithCancel(context.Background())
 	wlet, config := wlet(executable, "writetraces")
-	e, err := NewEnvelope(ctx, wlet, config)
+	e, err := NewEnvelope(ctx, wlet, config, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -467,7 +467,7 @@ func TestRPCBeforeServe(t *testing.T) {
 
 func startEnvelope(ctx context.Context, t *testing.T) (*Envelope, chan error) {
 	wlet, config := wlet(executable, "serve_conn")
-	e, err := NewEnvelope(ctx, wlet, config)
+	e, err := NewEnvelope(ctx, wlet, config, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

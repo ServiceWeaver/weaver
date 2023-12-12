@@ -24,10 +24,14 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/prototext"
+
+	_ "github.com/ServiceWeaver/weaver" // Deployer must depend on the weaver package
 )
 
 // Usage: ./pipes <service weaver binary>
@@ -40,6 +44,16 @@ func main() {
 }
 
 func run(ctx context.Context, binary string) error {
+	// Step 0. Create a unix domain socket where the weavelet will listen for
+	// control messages.
+	tmpDir, err := os.MkdirTemp("", "pipedep")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+	runtime.OnExitSignal(func() { os.RemoveAll(tmpDir) })
+	socket := deployers.NewUnixSocketPath(tmpDir)
+
 	// Step 1. Run the binary and establish the pipes between the envelope and
 	// the weavelet.
 	//
@@ -75,6 +89,7 @@ func run(ctx context.Context, binary string) error {
 			Id:              uuid.New().String(), // the weavelet id
 			RunMain:         true,                // should the weavelet run main?
 			InternalAddress: "localhost:0",       // internal address of the weavelet
+			ControlSocket:   socket,              // socket where weavelet will listen for control calls
 		},
 	}
 	if err := protomsg.Write(envelopeWriter, info); err != nil {

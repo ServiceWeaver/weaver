@@ -22,15 +22,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
+	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
+	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
+	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -99,15 +106,26 @@ type Envelope struct {
 	// Fields below are constant after construction.
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
+	tmpDir     string
 	weavelet   *protos.EnvelopeInfo
 	config     *protos.AppConfig
 	conn       *conn.EnvelopeConn // conn to weavelet
 	cmd        *pipe.Cmd          // command that started the weavelet
 	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
 	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
+	controller controller         // Stub that talks to the weavelet controller
 
 	mu        sync.Mutex // guards the following fields
 	profiling bool       // are we currently collecting a profile?
+}
+
+// Options contains optional arguments for the envelope.
+type Options struct {
+	// Logger is used for logging internal messages. If nil, a default logger is used.
+	Logger *slog.Logger
+
+	// Tracer is used for tracing internal calls. If nil, internal calls are not traced.
+	Tracer trace.Tracer
 }
 
 // NewEnvelope creates a new envelope, starting a weavelet subprocess and
@@ -116,13 +134,42 @@ type Envelope struct {
 //
 // You can issue RPCs *to* the weavelet using the returned Envelope. To start
 // receiving messages *from* the weavelet, call [Serve].
-func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig) (*Envelope, error) {
+func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, options Options) (*Envelope, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	defer func() { cancel() }() // cancel may be changed below if we want to delay it
+
+	if options.Logger == nil {
+		options.Logger = slog.Default()
+	}
+
+	// Make a temporary directory for unix domain sockets.
+	tmpDir, err := runtime.NewTempDir()
+	if err != nil {
+		return nil, err
+	}
+	runtime.OnExitSignal(func() { os.RemoveAll(tmpDir) }) // Cleanup when process exits
+
+	// Arrange to delete tmpDir if this function returns an error.
+	removeDir := true // Cleared on a successful return
+	defer func() {
+		if removeDir {
+			os.RemoveAll(tmpDir)
+		}
+	}()
+
+	wlet = protomsg.Clone(wlet)
+	wlet.ControlSocket = deployers.NewUnixSocketPath(tmpDir)
+	controller, err := getController(ctx, wlet.ControlSocket, options)
+	if err != nil {
+		return nil, err
+	}
 	e := &Envelope{
-		ctx:       ctx,
-		ctxCancel: cancel,
-		weavelet:  wlet,
-		config:    config,
+		ctx:        ctx,
+		ctxCancel:  cancel,
+		tmpDir:     tmpDir,
+		weavelet:   wlet,
+		config:     config,
+		controller: controller,
 	}
 
 	// Form the weavelet command.
@@ -184,6 +231,9 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	e.conn = conn
 	e.stdoutPipe = outpipe
 	e.stderrPipe = errpipe
+
+	removeDir = false  // Serve() is now responsible for deletion
+	cancel = func() {} // Delay real context cancellation
 	return e, nil
 }
 
@@ -193,6 +243,9 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 // the connection by cancelling the context passed to [NewEnvelope]. This
 // method never returns a non-nil error.
 func (e *Envelope) Serve(h EnvelopeHandler) error {
+	// Cleanup when we are done with the envelope.
+	defer os.RemoveAll(e.tmpDir)
+
 	var running errgroup.Group
 
 	var stopErr error
@@ -298,7 +351,11 @@ func (e *Envelope) GetLoad() (*protos.LoadReport, error) {
 // UpdateComponents updates the weavelet with the latest set of components it
 // should be running.
 func (e *Envelope) UpdateComponents(components []string) error {
-	return e.conn.UpdateComponentsRPC(components)
+	req := &protos.UpdateComponentsRequest{
+		Components: components,
+	}
+	_, err := e.controller.UpdateComponents(context.TODO(), req)
+	return err
 }
 
 // UpdateRoutingInfo updates the weavelet with a component's most recent
@@ -340,4 +397,39 @@ func dropNewline(line []byte) []byte {
 		line = line[:len(line)-1]
 	}
 	return line
+}
+
+// Copy of weaver.controller used for making calls to that component.
+type controller interface {
+	GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error)
+	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
+}
+
+// getController returns a controller that forwards calls to the controller component
+// in the weavelet at the specified socket.
+func getController(ctx context.Context, socket string, options Options) (controller, error) {
+	const controllerName = "github.com/ServiceWeaver/weaver/controller"
+	controllerReg, ok := codegen.Find(controllerName)
+	if !ok {
+		return nil, fmt.Errorf("controller component (%s) not found", controllerName)
+	}
+	controlEndpoint, err := call.ParseNetEndpoint("unix://" + socket)
+	if err != nil {
+		return nil, err
+	}
+	resolver := call.NewConstantResolver(controlEndpoint)
+	opts := call.ClientOptions{Logger: options.Logger}
+	conn, err := call.Connect(ctx, resolver, opts)
+	if err != nil {
+		return nil, err
+	}
+	// We skip waitUntilReady() and rely on automatic retries of methods
+	stub := call.NewStub(controllerName, controllerReg, conn, options.Tracer, 0)
+	obj := controllerReg.ClientStubFn(stub, "envelope")
+	ctrl, ok := obj.(controller)
+	if !ok {
+		return nil, fmt.Errorf("internal error: controller type mismatch, got %T, expecting %v",
+			obj, reflection.Type[controller]())
+	}
+	return ctrl, nil
 }
