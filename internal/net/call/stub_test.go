@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package weaver
+package call
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/google/go-cmp/cmp"
@@ -32,9 +31,9 @@ type localClient struct {
 	fn interface{}
 }
 
-var _ call.Connection = &localClient{}
+var _ Connection = &localClient{}
 
-func (c *localClient) Call(ctx context.Context, _ call.MethodKey, args []byte, _ call.CallOptions) ([]byte, error) {
+func (c *localClient) Call(ctx context.Context, _ MethodKey, args []byte, _ CallOptions) ([]byte, error) {
 	return handleCall(ctx, reflect.ValueOf(c.fn), args)
 }
 
@@ -135,7 +134,7 @@ func TestCall(t *testing.T) {
 			stub := stub{
 				conn: &localClient{fn: test.fn},
 				methods: []stubMethod{
-					{key: call.MakeMethodKey("", "test")},
+					{key: MakeMethodKey("", "test")},
 				},
 			}
 			out, err := stub.Run(context.Background(), 0, enc.Data(), 0)
@@ -181,7 +180,7 @@ func TestErrorArgsNotEncoded(t *testing.T) {
 		stub := stub{
 			conn: &localClient{fn: fn},
 			methods: []stubMethod{
-				{key: call.MakeMethodKey("", "test")},
+				{key: MakeMethodKey("", "test")},
 			},
 		}
 		_, err := stub.Run(context.Background(), 0, nil, 0)
@@ -218,7 +217,7 @@ func TestErrorResultsNotDecoded(t *testing.T) {
 	stub := stub{
 		conn: &localClient{fn: fn},
 		methods: []stubMethod{
-			{key: call.MakeMethodKey("", "test")},
+			{key: MakeMethodKey("", "test")},
 		},
 	}
 	if _, err := stub.Run(context.Background(), 0, enc.Data(), 0); err != nil {

@@ -103,9 +103,9 @@ type component struct {
 	resolver *routingResolver // client resolver
 	balancer *routingBalancer // client balancer
 
-	stubInit sync.Once // used to initialize stub
-	stubErr  error     // non-nil if stub creation fails
-	stub     *stub     // network stub to remote component
+	stubInit sync.Once    // used to initialize stub
+	stubErr  error        // non-nil if stub creation fails
+	stub     codegen.Stub // network stub to remote component
 
 	local register.WriteOnce[bool] // routed locally?
 	load  *loadCollector           // non-nil for routed components
@@ -401,7 +401,7 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 }
 
 // getStub returns a component's client stub, initializing it if necessary.
-func (w *RemoteWeavelet) getStub(c *component) (*stub, error) {
+func (w *RemoteWeavelet) getStub(c *component) (codegen.Stub, error) {
 	c.stubInit.Do(func() {
 		c.stub, c.stubErr = w.makeStub(c.reg.Name, c.reg, c.resolver, c.balancer)
 	})
@@ -409,7 +409,7 @@ func (w *RemoteWeavelet) getStub(c *component) (*stub, error) {
 }
 
 // makeStub makes a new stub with the provided resolver and balancer.
-func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer) (*stub, error) {
+func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer) (codegen.Stub, error) {
 	// Create the client connection.
 	name := logging.ShortenComponent(fullName)
 	w.syslogger.Debug("Connecting to remote", "component", name)
@@ -428,13 +428,7 @@ func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, re
 	}
 	w.syslogger.Debug("Connected to remote", "component", name)
 
-	return &stub{
-		component:     fullName,
-		conn:          conn,
-		methods:       makeStubMethods(fullName, reg),
-		tracer:        w.tracer,
-		injectRetries: w.opts.InjectRetries,
-	}, nil
+	return call.NewStub(fullName, reg, conn, w.tracer, w.opts.InjectRetries), nil
 }
 
 // GetLoad implements the conn.WeaveletHandler interface.

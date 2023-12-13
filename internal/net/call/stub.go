@@ -12,31 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package weaver
+package call
 
 import (
 	"context"
 
-	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // stub holds information about a client stub to the remote component.
 type stub struct {
-	component     string          // name of the remote component
-	conn          call.Connection // connection to talk to the remote component
-	methods       []stubMethod    // per method info
-	tracer        trace.Tracer    // component tracer
-	injectRetries int             // Number of artificial retries per retriable call
+	conn          Connection   // connection to talk to the remote component
+	methods       []stubMethod // per method info
+	tracer        trace.Tracer // component tracer
+	injectRetries int          // Number of artificial retries per retriable call
 }
 
 type stubMethod struct {
-	key   call.MethodKey // key for remote component method
-	retry bool           // Whether or not the method should be retred
+	key   MethodKey // key for remote component method
+	retry bool      // Whether or not the method should be retred
 }
 
 var _ codegen.Stub = &stub{}
+
+// NewStub creates a client-side stub of the type matching reg. Calls on the stub are sent on
+// conn to the component with the specified name.
+func NewStub(name string, reg *codegen.Registration, conn Connection, tracer trace.Tracer, injectRetries int) codegen.Stub {
+	return &stub{
+		conn:          conn,
+		methods:       makeStubMethods(name, reg), // XXX Remove reg.Name arg from makeStubMethods
+		tracer:        tracer,
+		injectRetries: injectRetries,
+	}
+}
 
 // Tracer implements the codegen.Stub interface.
 func (s *stub) Tracer() trace.Tracer {
@@ -46,7 +55,7 @@ func (s *stub) Tracer() trace.Tracer {
 // Run implements the codegen.Stub interface.
 func (s *stub) Run(ctx context.Context, method int, args []byte, shardKey uint64) (result []byte, err error) {
 	m := s.methods[method]
-	opts := call.CallOptions{
+	opts := CallOptions{
 		Retry:    m.retry,
 		ShardKey: shardKey,
 	}
@@ -68,7 +77,7 @@ func makeStubMethods(fullName string, reg *codegen.Registration) []stubMethod {
 	methods := make([]stubMethod, n)
 	for i := 0; i < n; i++ {
 		mname := reg.Iface.Method(i).Name
-		methods[i].key = call.MakeMethodKey(fullName, mname)
+		methods[i].key = MakeMethodKey(fullName, mname)
 		methods[i].retry = true // Retry by default
 	}
 	for _, m := range reg.NoRetry {
