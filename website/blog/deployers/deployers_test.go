@@ -68,6 +68,9 @@ func deployCollatz(t *testing.T, deployer string) {
 		t.Fatal(err)
 	}
 	errpipe, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
