@@ -61,7 +61,7 @@ func deploy(binary string) error {
 		Name:   "app",  // the application name
 		Binary: binary, // the application binary
 	}
-	envelope, err := envelope.NewEnvelope(context.Background(), info, config)
+	envelope, err := envelope.NewEnvelope(context.Background(), info, config, envelope.Options{})
 	if err != nil {
 		return err
 	}

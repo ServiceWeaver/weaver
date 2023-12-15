@@ -28,12 +28,14 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
+	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/register"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
@@ -55,6 +57,8 @@ type RemoteWeaveletOptions struct {
 // coordinates with a deployer over a set of Unix pipes to start other
 // components remotely. It is the weavelet used by all deployers, except for
 // the single process deployer.
+//
+// RemoteWeavelet must implement the weaver.controller component interface.
 type RemoteWeavelet struct {
 	ctx       context.Context       // shuts down the weavelet when canceled
 	servers   *errgroup.Group       // background servers
@@ -72,6 +76,8 @@ type RemoteWeavelet struct {
 	lismu     sync.Mutex           // guards listeners
 	listeners map[string]*listener // listeners, by name
 }
+
+var _ control.Controller = (*RemoteWeavelet)(nil)
 
 type redirect struct {
 	component *component
@@ -140,12 +146,16 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	if err != nil {
 		return nil, err
 	}
-	// TODO(mwhittaker): Pass handler to Serve, not NewWeaveletConn.
+
 	w.conn, err = conn.NewWeaveletConn(toWeavelet, toEnvelope)
 	if err != nil {
 		return nil, fmt.Errorf("new weavelet conn: %w", err)
 	}
 	info := w.conn.EnvelopeInfo()
+	controlSocket, err := net.Listen("unix", info.ControlSocket)
+	if err != nil {
+		return nil, err
+	}
 
 	// Set up logging.
 	w.syslogger = w.logger("weavelet", "serviceweaver/system", "")
@@ -212,6 +222,13 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 			return err
 		}
 		return nil
+	})
+
+	// Serve the control component.
+	servers.Go(func() error {
+		return deployers.ServeComponents(ctx, controlSocket, w.syslogger, map[string]any{
+			"github.com/ServiceWeaver/weaver/controller": w,
+		})
 	})
 
 	// Serve RPC requests from other weavelets.
@@ -448,8 +465,13 @@ func (w *RemoteWeavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, 
 	return &protos.GetLoadReply{Load: report}, nil
 }
 
-// UpdateComponents implements the conn.WeaverHandler interface.
-func (w *RemoteWeavelet) UpdateComponents(req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
+// GetHealth implements the weaver.controller interface.
+func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
+	return &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}, nil
+}
+
+// UpdateComponents implements weaver.controller and conn.WeaverHandler interfaces.
+func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	var errs []error
 	var components []*component
 	var shortened []string

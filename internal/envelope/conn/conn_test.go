@@ -28,6 +28,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
@@ -106,6 +107,7 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 		App:             "app",
 		DeploymentId:    uuid.New().String(),
 		Id:              uuid.New().String(),
+		ControlSocket:   deployers.NewUnixSocketPath(t.TempDir()),
 		InternalAddress: "localhost:0",
 	}
 

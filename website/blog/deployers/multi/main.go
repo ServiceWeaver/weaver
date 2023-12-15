@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -56,7 +57,10 @@ var deploymentId = uuid.New().String()
 func main() {
 	flag.Parse()
 	d := &deployer{handlers: map[string]*handler{}}
-	d.spawn(runtime.Main)
+	if _, err := d.spawn(runtime.Main); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	select {} // block forever
 }
 
@@ -85,7 +89,7 @@ func (d *deployer) spawn(component string) (*handler, error) {
 		Name:   "app",       // the application name
 		Binary: flag.Arg(0), // the application binary
 	}
-	envelope, err := envelope.NewEnvelope(context.Background(), info, config)
+	envelope, err := envelope.NewEnvelope(context.Background(), info, config, envelope.Options{})
 	if err != nil {
 		return nil, err
 	}

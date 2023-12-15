@@ -23,7 +23,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"path/filepath"
 	"slices"
 	"sync"
 	"syscall"
@@ -60,6 +59,7 @@ type deployer struct {
 	ctx             context.Context
 	ctxCancel       context.CancelFunc
 	deploymentId    string
+	tmpDir          string // Private directory for this weavelet/envelope
 	udsPath         string // Path to Unix domain socket
 	config          *MultiConfig
 	started         time.Time
@@ -147,7 +147,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 	}
 
 	// Make Unix domain socket listener for serving hosted system components.
-	udsPath := filepath.Join(tmpDir, "socket")
+	udsPath := deployers.NewUnixSocketPath(tmpDir)
 	uds, err := net.Listen("unix", udsPath)
 	if err != nil {
 		return nil, err
@@ -157,6 +157,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 	d := &deployer{
 		ctx:             ctx,
 		ctxCancel:       cancel,
+		tmpDir:          tmpDir,
 		udsPath:         udsPath,
 		logger:          logger,
 		caCert:          caCert,
@@ -357,7 +358,9 @@ func (d *deployer) startColocationGroup(g *group) error {
 				},
 			},
 		}
-		e, err := envelope.NewEnvelope(d.ctx, info, d.config.App)
+		e, err := envelope.NewEnvelope(d.ctx, info, d.config.App, envelope.Options{
+			Logger: d.logger,
+		})
 		if err != nil {
 			return err
 		}

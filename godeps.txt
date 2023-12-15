@@ -3,6 +3,7 @@ github.com/ServiceWeaver/weaver
     context
     errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/metrics
@@ -300,6 +301,9 @@ github.com/ServiceWeaver/weaver/internal/config
     fmt
     reflect
     strings
+github.com/ServiceWeaver/weaver/internal/control
+    context
+    github.com/ServiceWeaver/weaver/runtime/protos
 github.com/ServiceWeaver/weaver/internal/env
     fmt
     strings
@@ -701,6 +705,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/DataDog/hyperloglog
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/config
+    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/env
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/metrics
@@ -712,6 +717,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -812,21 +818,32 @@ github.com/ServiceWeaver/weaver/runtime/colors
     strings
 github.com/ServiceWeaver/weaver/runtime/deployers
     context
+    fmt
     github.com/ServiceWeaver/weaver/internal/net/call
     log/slog
     net
+    path/filepath
+    sync
 github.com/ServiceWeaver/weaver/runtime/envelope
     bufio
     context
     errors
     fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/envelope/conn
+    github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/pipe
     github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/metrics
+    github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
+    go.opentelemetry.io/otel/trace
     golang.org/x/sync/errgroup
     io
+    log/slog
     os
     strconv
     sync
@@ -983,12 +1000,14 @@ github.com/ServiceWeaver/weaver/weavertest
     github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
     golang.org/x/exp/maps
     golang.org/x/sync/errgroup
+    log/slog
     os
     reflect
     regexp
@@ -1072,11 +1091,14 @@ github.com/ServiceWeaver/weaver/website/blog/deployers/multi
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid
+    os
     sync
 github.com/ServiceWeaver/weaver/website/blog/deployers/pipes
     context
     flag
     fmt
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/google/uuid

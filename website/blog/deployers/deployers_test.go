@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 )
 
@@ -65,16 +67,30 @@ func deployCollatz(t *testing.T, deployer string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	errpipe, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	defer cmd.Process.Kill()
+	defer cmd.Process.Signal(syscall.SIGTERM) // Give child a chance to cleanup
+
+	// Log stderr messages if any
+	log := asyncLogger(t)
+	go func() {
+		scanner := bufio.NewScanner(errpipe)
+		for scanner.Scan() {
+			log(scanner.Text())
+		}
+	}()
 
 	// Parse the listener address from the logs (yes, this is janky).
 	addr := ""
 	scanner := bufio.NewScanner(out)
 	for scanner.Scan() {
 		line := scanner.Text()
+		log(line)
 		if strings.HasPrefix(line, "Weavelet listening on ") {
 			addr, _ = strings.CutPrefix(line, "Weavelet listening on ")
 			break
@@ -82,6 +98,9 @@ func deployCollatz(t *testing.T, deployer string) {
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatal(err)
+	}
+	if addr == "" {
+		t.Fatal("did not find weavelet port")
 	}
 
 	// Curl the listener.
@@ -99,5 +118,24 @@ func deployCollatz(t *testing.T, deployer string) {
 	const want = "10\n5\n16\n8\n4\n2\n1\n"
 	if got != want {
 		t.Fatalf("curl %s: got %q, want %q", url, got, want)
+	}
+}
+
+// asyncLogger returns a function that logs a line to t until t is done, after which
+// it discards log entries.
+func asyncLogger(t *testing.T) func(string) {
+	var mu sync.Mutex
+	done := false
+	t.Cleanup(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		done = true
+	})
+	return func(line string) {
+		mu.Lock()
+		defer mu.Unlock()
+		if !done {
+			t.Log(line)
+		}
 	}
 }

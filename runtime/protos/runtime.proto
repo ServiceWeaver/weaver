@@ -169,6 +169,10 @@ message EnvelopeInfo {
   // should be propagated from the deployer.
   string internal_address = 10;
 
+  // Unix domain socket path where weavelet should serve Control component
+  // method calls.
+  string control_socket = 13;
+
   // A redirect entry instructs the weavelet to direct calls made to component
   // to be instead sent to the component named target at the specified address.
   message Redirect {
