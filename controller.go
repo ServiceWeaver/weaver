@@ -18,22 +18,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
 // controller is a component hosted in every weavelet. Deployers make calls to this component to
 // fetch information about the weavelet, and to make it do various things.
-//
-// Arguments and results are protobufs to allow deployers to evolve independently of application
-// binaries.
-type controller interface {
-	// GetHealth returns the health of the weavelet.
-	GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error)
-
-	// UpdateComponents updates the weavelet with the latest set of components it
-	// should be running.
-	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
-}
+type controller control.Controller
 
 // noopController is a no-op implementation of controller. It exists solely to cause
 // controller to be registered as a component. The actual implementation is provided

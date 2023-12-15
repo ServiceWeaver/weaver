@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
+	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/register"
@@ -57,7 +58,7 @@ type RemoteWeaveletOptions struct {
 // components remotely. It is the weavelet used by all deployers, except for
 // the single process deployer.
 //
-// RemoteWeavelet must implement the weaver.Controls component interface.
+// RemoteWeavelet must implement the weaver.controller component interface.
 type RemoteWeavelet struct {
 	ctx       context.Context       // shuts down the weavelet when canceled
 	servers   *errgroup.Group       // background servers
@@ -75,6 +76,8 @@ type RemoteWeavelet struct {
 	lismu     sync.Mutex           // guards listeners
 	listeners map[string]*listener // listeners, by name
 }
+
+var _ control.Controller = (*RemoteWeavelet)(nil)
 
 type redirect struct {
 	component *component
@@ -462,12 +465,12 @@ func (w *RemoteWeavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, 
 	return &protos.GetLoadReply{Load: report}, nil
 }
 
-// GetHealth implements the controls.Control interface.
+// GetHealth implements the weaver.controller interface.
 func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
 	return &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}, nil
 }
 
-// UpdateComponents implements controls.Control and conn.WeaverHandler interfaces.
+// UpdateComponents implements weaver.controller and conn.WeaverHandler interfaces.
 func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	var errs []error
 	var components []*component

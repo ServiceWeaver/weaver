@@ -27,10 +27,10 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/pipe"
-	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
@@ -39,6 +39,9 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+
+	// We rely on the weaver.controller component registrattion entry.
+	_ "github.com/ServiceWeaver/weaver"
 )
 
 // EnvelopeHandler handles messages from the weavelet. Values passed to the
@@ -113,7 +116,7 @@ type Envelope struct {
 	cmd        *pipe.Cmd          // command that started the weavelet
 	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
 	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
-	controller controller         // Stub that talks to the weavelet controller
+	controller control.Controller // Stub that talks to the weavelet controller
 
 	mu        sync.Mutex // guards the following fields
 	profiling bool       // are we currently collecting a profile?
@@ -399,24 +402,15 @@ func dropNewline(line []byte) []byte {
 	return line
 }
 
-// Copy of weaver.controller used for making calls to that component.
-type controller interface {
-	GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error)
-	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
-}
-
 // getController returns a controller that forwards calls to the controller component
 // in the weavelet at the specified socket.
-func getController(ctx context.Context, socket string, options Options) (controller, error) {
+func getController(ctx context.Context, socket string, options Options) (control.Controller, error) {
 	const controllerName = "github.com/ServiceWeaver/weaver/controller"
 	controllerReg, ok := codegen.Find(controllerName)
 	if !ok {
 		return nil, fmt.Errorf("controller component (%s) not found", controllerName)
 	}
-	controlEndpoint, err := call.ParseNetEndpoint("unix://" + socket)
-	if err != nil {
-		return nil, err
-	}
+	controlEndpoint := call.Unix(socket)
 	resolver := call.NewConstantResolver(controlEndpoint)
 	opts := call.ClientOptions{Logger: options.Logger}
 	conn, err := call.Connect(ctx, resolver, opts)
@@ -426,10 +420,5 @@ func getController(ctx context.Context, socket string, options Options) (control
 	// We skip waitUntilReady() and rely on automatic retries of methods
 	stub := call.NewStub(controllerName, controllerReg, conn, options.Tracer, 0)
 	obj := controllerReg.ClientStubFn(stub, "envelope")
-	ctrl, ok := obj.(controller)
-	if !ok {
-		return nil, fmt.Errorf("internal error: controller type mismatch, got %T, expecting %v",
-			obj, reflection.Type[controller]())
-	}
-	return ctrl, nil
+	return obj.(control.Controller), nil
 }

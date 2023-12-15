@@ -30,8 +30,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/prototext"
-
-	_ "github.com/ServiceWeaver/weaver" // Deployer must depend on the weaver package
 )
 
 // Usage: ./pipes <service weaver binary>

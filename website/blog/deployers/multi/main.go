@@ -29,8 +29,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/uuid"
-
-	_ "github.com/ServiceWeaver/weaver" // Deployer must depend on the weaver package
 )
 
 // deployer is a simple multiprocess deployer that doesn't implement
