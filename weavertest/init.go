@@ -213,17 +213,13 @@ func (r Runner) sub(t testing.TB, isBench bool, testBody any) {
 			t.Fatal(err)
 		}
 	} else {
+		opts := weaver.RemoteWeaveletOptions{Fakes: fakes, InjectRetries: r.injectRetries}
 		logger := logging.NewTestLogger(t, testing.Verbose())
-		bootstrap, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, intfs, logger.Log)
+		wlet, multiCleanup, err := initMultiProcess(ctx, t, isBench, r, intfs, logger.Log, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		opts := weaver.RemoteWeaveletOptions{Fakes: fakes, InjectRetries: r.injectRetries}
-		wlet, err := weaver.NewRemoteWeavelet(ctx, codegen.Registered(), bootstrap, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
 		cleanup = func() error {
 			if err := multiCleanup(); err != nil {
 				return err

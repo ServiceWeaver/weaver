@@ -26,9 +26,6 @@ import (
 // Arguments and results are protobufs to allow deployers to evolve independently of
 // application binaries.
 type Controller interface {
-	// GetHealth returns the health of the weavelet.
-	GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error)
-
 	// UpdateComponents updates the weavelet with the latest set of components it
 	// should be running.
 	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)

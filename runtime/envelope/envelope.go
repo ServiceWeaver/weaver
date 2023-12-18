@@ -240,6 +240,9 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	return e, nil
 }
 
+// Controller returns the controller component for the weavelet managed by this envelope.
+func (e *Envelope) Controller() control.Controller { return e.controller }
+
 // Serve accepts incoming messages from the weavelet. RPC requests are handled
 // serially in the order they are received. Serve blocks until the connection
 // terminates, returning the error that caused it to terminate. You can cancel

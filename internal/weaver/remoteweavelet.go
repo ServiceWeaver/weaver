@@ -465,11 +465,6 @@ func (w *RemoteWeavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, 
 	return &protos.GetLoadReply{Load: report}, nil
 }
 
-// GetHealth implements the weaver.controller interface.
-func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
-	return &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}, nil
-}
-
 // UpdateComponents implements weaver.controller and conn.WeaverHandler interfaces.
 func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	var errs []error

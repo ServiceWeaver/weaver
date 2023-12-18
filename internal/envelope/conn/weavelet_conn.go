@@ -39,10 +39,6 @@ type WeaveletHandler interface {
 	// GetLoad returns a load report.
 	GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error)
 
-	// UpdateComponents updates the set of components the weavelet should be
-	// running. Currently, the set of components only increases over time.
-	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
-
 	// UpdateRoutingInfo updates a component's routing information.
 	UpdateRoutingInfo(*protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error)
 }
@@ -199,13 +195,6 @@ func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.Envelo
 			})
 		}()
 		return nil
-	case msg.UpdateComponentsRequest != nil:
-		reply, err := handler.UpdateComponents(context.Background(), msg.UpdateComponentsRequest)
-		return w.conn.send(&protos.WeaveletMsg{
-			Id:                    -msg.Id,
-			Error:                 errstring(err),
-			UpdateComponentsReply: reply,
-		})
 	case msg.UpdateRoutingInfoRequest != nil:
 		reply, err := handler.UpdateRoutingInfo(msg.UpdateRoutingInfoRequest)
 		return w.conn.send(&protos.WeaveletMsg{

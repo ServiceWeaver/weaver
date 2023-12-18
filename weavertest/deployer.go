@@ -23,8 +23,11 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
+	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
@@ -98,6 +101,8 @@ type handler struct {
 // like this? Having a weavelet run in the same process is rare though, so it
 // might not be worth it.
 type connection struct {
+	controller control.Controller // Weavelet controller (either local, or a stub)
+
 	// One of the following fields will be nil.
 	envelope *envelope.Envelope // envelope to non-main weavelet
 	conn     *conn.EnvelopeConn // conn to main weavelet
@@ -143,7 +148,7 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	return d
 }
 
-func (d *deployer) start() (runtime.Bootstrap, error) {
+func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeavelet, error) {
 	// Set up the pipes between the envelope and the main weavelet. The
 	// pipes will be closed by the envelope and weavelet conns.
 	//
@@ -154,11 +159,11 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 	//                         └────┘
 	fromWeaveletReader, fromWeaveletWriter, err := os.Pipe()
 	if err != nil {
-		return runtime.Bootstrap{}, fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
+		return nil, fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
 	}
 	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
 	if err != nil {
-		return runtime.Bootstrap{}, fmt.Errorf("cannot create toWeavelet pipe: %v", err)
+		return nil, fmt.Errorf("cannot create toWeavelet pipe: %v", err)
 	}
 	// Run an envelope connection to the main co-location group.
 	wlet := &protos.EnvelopeInfo{
@@ -171,11 +176,26 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 		// Create ControlSocket ourselves since we are not using envelope.NewEnvelope().
 		ControlSocket: deployers.NewUnixSocketPath(d.tmpDir),
 	}
+
 	bootstrap := runtime.Bootstrap{
 		ToWeaveletFile: toWeaveletReader,
 		ToEnvelopeFile: fromWeaveletWriter,
 	}
+	origCtx := d.ctx
 	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
+
+	// We concurrently start the creation of the weavelet and the creation of the envelope
+	// connection to the weavelet since they both talk to each other.
+	type weaveletResult struct {
+		weavelet *weaver.RemoteWeavelet
+		err      error
+	}
+	wchan := make(chan weaveletResult)
+	go func() {
+		weavelet, err := weaver.NewRemoteWeavelet(origCtx, codegen.Registered(), bootstrap, opts)
+		wchan <- weaveletResult{weavelet, err} // Give weavelet to caller
+		wchan <- weaveletResult{weavelet, err} // Give weavelet to NewEnvelopeConn goroutine
+	}()
 
 	// NOTE: NewEnvelopeConn initiates a blocking handshake with the weavelet
 	// and therefore we run the rest of the initialization in a goroutine which
@@ -186,15 +206,23 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 			d.stop(err)
 			return
 		}
+
+		w := <-wchan
+		if w.err != nil {
+			d.stop(err)
+			return
+		}
+		c := connection{controller: w.weavelet, conn: e}
+
 		d.mu.Lock()
 		defer d.mu.Unlock()
 		g := d.group("main")
-		g.conns = append(g.conns, connection{conn: e})
+		g.conns = append(g.conns, c)
 		handler := &handler{
 			deployer:   d,
 			group:      g,
 			subscribed: map[string]bool{},
-			conn:       connection{conn: e},
+			conn:       c,
 		}
 		d.running.Go(func() error {
 			err := e.Serve(handler)
@@ -205,7 +233,9 @@ func (d *deployer) start() (runtime.Bootstrap, error) {
 			d.stopLocked(fmt.Errorf(`cannot register the replica for "main": %w`, err))
 		}
 	}()
-	return bootstrap, nil
+
+	w := <-wchan
+	return w.weavelet, w.err
 }
 
 // stop stops the deployer.
@@ -298,7 +328,7 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 }
 
 // ActivateComponent implements the envelope.EnvelopeHandler interface.
-func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
+func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -308,9 +338,9 @@ func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateCompo
 		target.components[req.Component] = true
 
 		// Notify the weavelets.
-		components := maps.Keys(target.components)
+		update := &protos.UpdateComponentsRequest{Components: maps.Keys(target.components)}
 		for _, envelope := range target.conns {
-			if err := envelope.UpdateComponents(components); err != nil {
+			if _, err := envelope.controller.UpdateComponents(ctx, update); err != nil {
 				return nil, err
 			}
 		}
@@ -357,7 +387,7 @@ func (d *deployer) startGroup(g *group) error {
 		return nil
 	}
 
-	components := maps.Keys(g.components)
+	update := &protos.UpdateComponentsRequest{Components: maps.Keys(g.components)}
 	for r := 0; r < DefaultReplication; r++ {
 		// Start the weavelet.
 		wlet := &protos.EnvelopeInfo{
@@ -390,10 +420,10 @@ func (d *deployer) startGroup(g *group) error {
 		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
 			return err
 		}
-		if err := e.UpdateComponents(components); err != nil {
+		if _, err := e.Controller().UpdateComponents(d.ctx, update); err != nil {
 			return err
 		}
-		c := connection{envelope: e}
+		c := connection{controller: e.Controller(), envelope: e}
 		handler.conn = c
 		g.conns = append(g.conns, c)
 	}
@@ -445,17 +475,6 @@ func (c connection) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
 	}
 	if c.conn != nil {
 		return c.conn.UpdateRoutingInfoRPC(routing)
-	}
-	panic(fmt.Errorf("nil connection"))
-}
-
-// UpdateComponents is equivalent to Envelope.UpdateComponents.
-func (c connection) UpdateComponents(components []string) error {
-	if c.envelope != nil {
-		return c.envelope.UpdateComponents(components)
-	}
-	if c.conn != nil {
-		return c.conn.UpdateComponentsRPC(components)
 	}
 	panic(fmt.Errorf("nil connection"))
 }

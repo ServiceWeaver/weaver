@@ -304,24 +304,6 @@ func (e *EnvelopeConn) GetProfileRPC(req *protos.GetProfileRequest) ([]byte, err
 	return reply.GetProfileReply.Data, nil
 }
 
-// UpdateComponentsRPC updates the weavelet with the latest set of components
-// it should be running.
-func (e *EnvelopeConn) UpdateComponentsRPC(components []string) error {
-	req := &protos.EnvelopeMsg{
-		UpdateComponentsRequest: &protos.UpdateComponentsRequest{
-			Components: components,
-		},
-	}
-	reply, err := e.rpc(req)
-	if err != nil {
-		return err
-	}
-	if reply.UpdateComponentsReply == nil {
-		return fmt.Errorf("nil UpdateComponentsReply received from weavelet")
-	}
-	return nil
-}
-
 // UpdateRoutingInfoRPC updates the weavelet with a component's most recent
 // routing info.
 func (e *EnvelopeConn) UpdateRoutingInfoRPC(routing *protos.RoutingInfo) error {
