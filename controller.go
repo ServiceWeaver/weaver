@@ -35,11 +35,6 @@ type noopController struct {
 
 var _ controller = &noopController{}
 
-// GetHealth implements controller interface.
-func (*noopController) GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
-	return nil, fmt.Errorf("controller.GetHealth not implemented")
-}
-
 // UpdateComponents implements controller interface.
 func (*noopController) UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	return nil, fmt.Errorf("controller.UpdateComponents not implemented")

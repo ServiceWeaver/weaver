@@ -45,7 +45,7 @@ func TestDeployerVersion(t *testing.T) {
 	got := fmt.Sprintf("%x", h.Sum(nil))
 
 	// If runtime.proto has changed, the deployer API version may need updating.
-	const want = "3581f94362e6818a7c0ca62d3a1de384ecdc1792275f10a387cb43e2e10a79b2"
+	const want = "3ae7d074ab8d0a16eba8e54cb61961a1913004bf7499c1c4ce173cb4b909828a"
 	if got != want {
 		t.Fatalf(`Unexpected SHA-256 hash of runtime.proto: got %s, want %s. If this change is meaningful, REMEMBER TO UPDATE THE DEPLOYER API VERSION in runtime/version/version.go.`, got, want)
 	}

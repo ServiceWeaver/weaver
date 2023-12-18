@@ -995,6 +995,7 @@ github.com/ServiceWeaver/weaver/weavertest
     context
     errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/weaver
