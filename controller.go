@@ -39,3 +39,8 @@ var _ controller = &noopController{}
 func (*noopController) UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	return nil, fmt.Errorf("controller.UpdateComponents not implemented")
 }
+
+// UpdateRoutingInfo implements controller interface.
+func (*noopController) UpdateRoutingInfo(context.Context, *protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error) {
+	return nil, fmt.Errorf("controller.UpdateRoutingInfo not implemented")
+}

@@ -37,10 +37,10 @@ func init() {
 		Iface: reflect.TypeOf((*controller)(nil)).Elem(),
 		Impl:  reflect.TypeOf(noopController{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return controller_local_stub{impl: impl.(controller), tracer: tracer, updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: false})}
+			return controller_local_stub{impl: impl.(controller), tracer: tracer, updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return controller_client_stub{stub: stub, updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: true})}
+			return controller_client_stub{stub: stub, updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return controller_server_stub{impl: impl.(controller), addLoad: addLoad}
@@ -92,9 +92,10 @@ func (s logger_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatc
 }
 
 type controller_local_stub struct {
-	impl                    controller
-	tracer                  trace.Tracer
-	updateComponentsMetrics *codegen.MethodMetrics
+	impl                     controller
+	tracer                   trace.Tracer
+	updateComponentsMetrics  *codegen.MethodMetrics
+	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
 
 // Check that controller_local_stub implements the controller interface.
@@ -118,6 +119,26 @@ func (s controller_local_stub) UpdateComponents(ctx context.Context, a0 *protos.
 	}
 
 	return s.impl.UpdateComponents(ctx, a0)
+}
+
+func (s controller_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
+	// Update metrics.
+	begin := s.updateRoutingInfoMetrics.Begin()
+	defer func() { s.updateRoutingInfoMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.controller.UpdateRoutingInfo", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.UpdateRoutingInfo(ctx, a0)
 }
 
 // Client stub implementations.
@@ -181,8 +202,9 @@ func (s logger_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBat
 }
 
 type controller_client_stub struct {
-	stub                    codegen.Stub
-	updateComponentsMetrics *codegen.MethodMetrics
+	stub                     codegen.Stub
+	updateComponentsMetrics  *codegen.MethodMetrics
+	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
 
 // Check that controller_client_stub implements the controller interface.
@@ -235,6 +257,57 @@ func (s controller_client_stub) UpdateComponents(ctx context.Context, a0 *protos
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
 	r0 = serviceweaver_dec_ptr_UpdateComponentsReply_93bebb77(dec)
+	err = dec.Error()
+	return
+}
+
+func (s controller_client_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.updateRoutingInfoMetrics.Begin()
+	defer func() { s.updateRoutingInfoMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.UpdateRoutingInfo", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_UpdateRoutingInfoRequest_e752cfad(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_UpdateRoutingInfoReply_d1854fd5(dec)
 	err = dec.Error()
 	return
 }
@@ -319,6 +392,8 @@ func (s controller_server_stub) GetStubFn(method string) func(ctx context.Contex
 	switch method {
 	case "UpdateComponents":
 		return s.updateComponents
+	case "UpdateRoutingInfo":
+		return s.updateRoutingInfo
 	default:
 		return nil
 	}
@@ -349,6 +424,31 @@ func (s controller_server_stub) updateComponents(ctx context.Context, args []byt
 	return enc.Data(), nil
 }
 
+func (s controller_server_stub) updateRoutingInfo(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.UpdateRoutingInfoRequest
+	a0 = serviceweaver_dec_ptr_UpdateRoutingInfoRequest_e752cfad(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.UpdateRoutingInfo(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_UpdateRoutingInfoReply_d1854fd5(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
 // Reflect stub implementations.
 
 type logger_reflect_stub struct {
@@ -372,6 +472,11 @@ var _ controller = (*controller_reflect_stub)(nil)
 
 func (s controller_reflect_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	err = s.caller("UpdateComponents", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+func (s controller_reflect_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
+	err = s.caller("UpdateRoutingInfo", ctx, []any{a0}, []any{&r0})
 	return
 }
 
@@ -427,6 +532,42 @@ func serviceweaver_dec_ptr_UpdateComponentsReply_93bebb77(dec *codegen.Decoder) 
 		return nil
 	}
 	var res protos.UpdateComponentsReply
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_UpdateRoutingInfoRequest_e752cfad(enc *codegen.Encoder, arg *protos.UpdateRoutingInfoRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_UpdateRoutingInfoRequest_e752cfad(dec *codegen.Decoder) *protos.UpdateRoutingInfoRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.UpdateRoutingInfoRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_UpdateRoutingInfoReply_d1854fd5(enc *codegen.Encoder, arg *protos.UpdateRoutingInfoReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_UpdateRoutingInfoReply_d1854fd5(dec *codegen.Decoder) *protos.UpdateRoutingInfoReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.UpdateRoutingInfoReply
 	dec.DecodeProto(&res)
 	return &res
 }

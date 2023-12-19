@@ -268,7 +268,7 @@ func (d *deployer) ActivateComponent(ctx context.Context, req *protos.ActivateCo
 		}
 	}
 	for _, weavelet := range d.weavelets {
-		if _, err := weavelet.wlet.UpdateRoutingInfo(routing); err != nil {
+		if _, err := weavelet.wlet.UpdateRoutingInfo(ctx, routing); err != nil {
 			return nil, err
 		}
 	}
@@ -488,7 +488,7 @@ func TestFailActivateComponent(t *testing.T) {
 		}
 
 		routing := &protos.UpdateRoutingInfoRequest{RoutingInfo: &protos.RoutingInfo{Component: req.Component, Local: true}}
-		if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err != nil {
+		if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(ctx, routing); err != nil {
 			return nil, err
 		}
 		components := &protos.UpdateComponentsRequest{Components: []string{req.Component}}
@@ -635,12 +635,13 @@ func TestUpdateExistingComponents(t *testing.T) {
 }
 
 func TestUpdateNilRoutingInfo(t *testing.T) {
-	d := deploy(t, context.Background(), colocated)
+	ctx := context.Background()
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with a nil routing info.
 	routing := &protos.UpdateRoutingInfoRequest{}
-	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(ctx, routing); err == nil {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 
@@ -648,7 +649,8 @@ func TestUpdateNilRoutingInfo(t *testing.T) {
 }
 
 func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
-	d := deploy(t, context.Background(), colocated)
+	ctx := context.Background()
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with routing info for a component that doesn't
@@ -659,7 +661,7 @@ func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
 			Local:     true,
 		},
 	}
-	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(ctx, routing); err == nil {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 
@@ -667,7 +669,8 @@ func TestUpdateRoutingInfoMissingComponent(t *testing.T) {
 }
 
 func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
-	d := deploy(t, context.Background(), colocated)
+	ctx := context.Background()
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 
 	// Update the weavelet with routing info for a component that has hasn't
@@ -678,14 +681,15 @@ func TestUpdateRoutingInfoNotStartedComponent(t *testing.T) {
 			Local:     true,
 		},
 	}
-	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err != nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(ctx, routing); err != nil {
 		t.Fatal(err)
 	}
 	testComponents(d)
 }
 
 func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
-	d := deploy(t, context.Background(), colocated)
+	ctx := context.Background()
+	d := deploy(t, ctx, colocated)
 	defer d.shutdown()
 	testComponents(d)
 
@@ -697,19 +701,20 @@ func TestUpdateLocalRoutingInfoWithNonLocal(t *testing.T) {
 			Component: componenta,
 		},
 	}
-	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(routing); err == nil {
+	if _, err := d.weavelets["1"].wlet.UpdateRoutingInfo(ctx, routing); err == nil {
 		t.Fatal("UpdateRoutingInfo: unexpected success")
 	}
 	testComponents(d)
 }
 
 func TestFailReplica(t *testing.T) {
+	ctx := context.Background()
 	placement := map[string][]string{
 		"1": {componenta},
 		"2": {componentb, componentc},
 		"3": {componentb, componentc},
 	}
-	d := deploy(t, context.Background(), placement)
+	d := deploy(t, ctx, placement)
 	defer d.shutdown()
 	testComponents(d)
 
@@ -728,7 +733,7 @@ func TestFailReplica(t *testing.T) {
 					Replicas:  []string{d.weavelets["2"].env.WeaveletInfo().DialAddr},
 				},
 			}
-			if _, err := d.weavelets[wlet].wlet.UpdateRoutingInfo(routing); err != nil {
+			if _, err := d.weavelets[wlet].wlet.UpdateRoutingInfo(ctx, routing); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -738,12 +743,13 @@ func TestFailReplica(t *testing.T) {
 }
 
 func TestUpdateBadRoutingInfo(t *testing.T) {
+	ctx := context.Background()
 	placement := map[string][]string{
 		"1": {componenta},
 		"2": {componentb},
 		"3": {componentc},
 	}
-	d := deploy(t, context.Background(), placement)
+	d := deploy(t, ctx, placement)
 	defer d.shutdown()
 
 	// When activating components, provide incorrect routing info. Later, send
@@ -772,7 +778,7 @@ func TestUpdateBadRoutingInfo(t *testing.T) {
 			},
 		}
 		for _, weavelet := range d.weavelets {
-			if _, err := weavelet.wlet.UpdateRoutingInfo(routing); err != nil {
+			if _, err := weavelet.wlet.UpdateRoutingInfo(ctx, routing); err != nil {
 				return nil, err
 			}
 		}
@@ -782,7 +788,7 @@ func TestUpdateBadRoutingInfo(t *testing.T) {
 		go func() {
 			time.Sleep(100 * time.Millisecond)
 			for _, weavelet := range d.weavelets {
-				if _, err := weavelet.wlet.UpdateRoutingInfo(routing); err != nil {
+				if _, err := weavelet.wlet.UpdateRoutingInfo(ctx, routing); err != nil {
 					mu.Lock()
 					activateErr = err
 					mu.Unlock()

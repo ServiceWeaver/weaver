@@ -74,38 +74,19 @@ type deployer struct {
 
 // A group contains information about a co-location group.
 type group struct {
-	name        string                  // group name
-	conns       []connection            // connections to the weavelet
-	components  map[string]bool         // started components
-	addresses   map[string]bool         // weavelet addresses
-	subscribers map[string][]connection // routing info subscribers, by component
+	name        string                          // group name
+	controllers []control.Controller            // weavelet controllers
+	components  map[string]bool                 // started components
+	addresses   map[string]bool                 // weavelet addresses
+	subscribers map[string][]control.Controller // routing info subscribers, by component
 }
 
 // handler handles a connection to a weavelet.
 type handler struct {
 	*deployer
 	group      *group
-	conn       connection
+	controller control.Controller
 	subscribed map[string]bool // routing info subscriptions, by component
-}
-
-// A connection is either an Envelope or an EnvelopeConn.
-//
-// The weavertest deployer has to deal with the annoying fact that the main
-// weavelet runs in the same process as the deployer. Thus, the connection to
-// the main weavelet is an EnvelopeConn. On the other hand, the connection to
-// all other weavelets is an Envelope. A connection encapsulates the common
-// logic between the two.
-//
-// TODO(mwhittaker): Can we revise the Envelope API to avoid having to do stuff
-// like this? Having a weavelet run in the same process is rare though, so it
-// might not be worth it.
-type connection struct {
-	controller control.Controller // Weavelet controller (either local, or a stub)
-
-	// One of the following fields will be nil.
-	envelope *envelope.Envelope // envelope to non-main weavelet
-	conn     *conn.EnvelopeConn // conn to main weavelet
 }
 
 var _ envelope.EnvelopeHandler = &handler{}
@@ -212,17 +193,16 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 			d.stop(err)
 			return
 		}
-		c := connection{controller: w.weavelet, conn: e}
 
 		d.mu.Lock()
 		defer d.mu.Unlock()
 		g := d.group("main")
-		g.conns = append(g.conns, c)
+		g.controllers = append(g.controllers, w.weavelet)
 		handler := &handler{
 			deployer:   d,
 			group:      g,
 			subscribed: map[string]bool{},
-			conn:       c,
+			controller: w.weavelet,
 		}
 		d.running.Go(func() error {
 			err := e.Serve(handler)
@@ -317,9 +297,9 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 
 	// Notify subscribers.
 	for component := range g.components {
-		routing := g.routing(component)
+		update := &protos.UpdateRoutingInfoRequest{RoutingInfo: g.routing(component)}
 		for _, sub := range g.subscribers[component] {
-			if err := sub.UpdateRoutingInfo(routing); err != nil {
+			if _, err := sub.UpdateRoutingInfo(d.ctx, update); err != nil {
 				return err
 			}
 		}
@@ -339,16 +319,16 @@ func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateCom
 
 		// Notify the weavelets.
 		update := &protos.UpdateComponentsRequest{Components: maps.Keys(target.components)}
-		for _, envelope := range target.conns {
-			if _, err := envelope.controller.UpdateComponents(ctx, update); err != nil {
+		for _, controller := range target.controllers {
+			if _, err := controller.UpdateComponents(ctx, update); err != nil {
 				return nil, err
 			}
 		}
 
 		// Notify the subscribers.
-		routing := target.routing(req.Component)
+		routing := &protos.UpdateRoutingInfoRequest{RoutingInfo: target.routing(req.Component)}
 		for _, sub := range target.subscribers[req.Component] {
-			if err := sub.UpdateRoutingInfo(routing); err != nil {
+			if _, err := sub.UpdateRoutingInfo(ctx, routing); err != nil {
 				return nil, err
 			}
 		}
@@ -360,14 +340,14 @@ func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateCom
 
 		if !h.runner.forceRPC && h.group.name == target.name {
 			// Route locally.
-			routing := &protos.RoutingInfo{Component: req.Component, Local: true}
-			if err := h.conn.UpdateRoutingInfo(routing); err != nil {
+			routing := &protos.UpdateRoutingInfoRequest{RoutingInfo: &protos.RoutingInfo{Component: req.Component, Local: true}}
+			if _, err := h.controller.UpdateRoutingInfo(ctx, routing); err != nil {
 				return nil, err
 			}
 		} else {
 			// Route remotely.
-			target.subscribers[req.Component] = append(target.subscribers[req.Component], h.conn)
-			if err := h.conn.UpdateRoutingInfo(target.routing(req.Component)); err != nil {
+			target.subscribers[req.Component] = append(target.subscribers[req.Component], h.controller)
+			if _, err := h.controller.UpdateRoutingInfo(ctx, &protos.UpdateRoutingInfoRequest{RoutingInfo: target.routing(req.Component)}); err != nil {
 				return nil, err
 			}
 		}
@@ -382,7 +362,7 @@ func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateCom
 //
 // REQUIRES: d.mu is held.
 func (d *deployer) startGroup(g *group) error {
-	if len(g.conns) > 0 {
+	if len(g.controllers) > 0 {
 		// Envelopes already started
 		return nil
 	}
@@ -423,9 +403,8 @@ func (d *deployer) startGroup(g *group) error {
 		if _, err := e.Controller().UpdateComponents(d.ctx, update); err != nil {
 			return err
 		}
-		c := connection{controller: e.Controller(), envelope: e}
-		handler.conn = c
-		g.conns = append(g.conns, c)
+		handler.controller = e.Controller()
+		g.controllers = append(g.controllers, e.Controller())
 	}
 	return nil
 }
@@ -451,7 +430,7 @@ func (d *deployer) group(component string) *group {
 			name:        name,
 			components:  map[string]bool{},
 			addresses:   map[string]bool{},
-			subscribers: map[string][]connection{},
+			subscribers: map[string][]control.Controller{},
 		}
 		d.groups[name] = g
 	}
@@ -466,15 +445,4 @@ func (g *group) routing(component string) *protos.RoutingInfo {
 		Component: component,
 		Replicas:  maps.Keys(g.addresses),
 	}
-}
-
-// UpdateRoutingInfo is equivalent to Envelope.UpdateRoutingInfo.
-func (c connection) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
-	if c.envelope != nil {
-		return c.envelope.UpdateRoutingInfo(routing)
-	}
-	if c.conn != nil {
-		return c.conn.UpdateRoutingInfoRPC(routing)
-	}
-	panic(fmt.Errorf("nil connection"))
 }

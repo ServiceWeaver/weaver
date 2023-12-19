@@ -29,4 +29,7 @@ type Controller interface {
 	// UpdateComponents updates the weavelet with the latest set of components it
 	// should be running.
 	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
+
+	// UpdateRoutingInfo updates the weavelet with a component's most recent routing info.
+	UpdateRoutingInfo(context.Context, *protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error)
 }

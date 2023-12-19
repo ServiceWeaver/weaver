@@ -101,7 +101,6 @@ message EnvelopeMsg {
   GetMetricsRequest get_metrics_request = 4;
   GetLoadRequest get_load_request = 5;
   GetProfileRequest get_profile_request = 6;
-  UpdateRoutingInfoRequest update_routing_info_request = 7;
 
   // Weavelet initiated RPC replies.
   string error = 9;  // non-nil on error
@@ -112,7 +111,7 @@ message EnvelopeMsg {
   VerifyClientCertificateReply verify_client_certificate_reply = 13;
   VerifyServerCertificateReply verify_server_certificate_reply = 14;
 
-  reserved 8;
+  reserved 7, 8;
 }
 
 // WeaveletMsg is a message sent by a weavelet to an envelope.
@@ -136,7 +135,6 @@ message WeaveletMsg {
   GetMetricsReply get_metrics_reply = 7;
   GetLoadReply get_load_reply = 8;
   GetProfileReply get_profile_reply = 9;
-  UpdateRoutingInfoReply update_routing_info_reply = 10;
 
   // Weavelet initiated RPC requests.
   ActivateComponentRequest activate_component_request = 12;
@@ -146,7 +144,7 @@ message WeaveletMsg {
   VerifyClientCertificateRequest verify_client_certificate_request = 15;
   VerifyServerCertificateRequest verify_server_certificate_request = 16;
 
-  reserved 11;
+  reserved 10, 11;
 }
 
 // EnvelopeInfo is the information provided by an envelope to a weavelet during
