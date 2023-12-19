@@ -1552,8 +1552,8 @@ func (x *LoadReport) GetLoads() map[string]*LoadReport_ComponentLoad {
 }
 
 // GetProfileRequest is a request from an envelope for a weavelet to collect and
-// return a profile. There can only be one outstanding GetProfileRequest at a
-// time.
+// return a profile. Some profile types only support a single profile request at a
+// time and an error will be returned if another profile request is active.
 type GetProfileRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
