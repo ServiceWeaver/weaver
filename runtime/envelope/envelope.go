@@ -367,7 +367,11 @@ func (e *Envelope) UpdateComponents(components []string) error {
 // UpdateRoutingInfo updates the weavelet with a component's most recent
 // routing info.
 func (e *Envelope) UpdateRoutingInfo(routing *protos.RoutingInfo) error {
-	return e.conn.UpdateRoutingInfoRPC(routing)
+	req := &protos.UpdateRoutingInfoRequest{
+		RoutingInfo: routing,
+	}
+	_, err := e.controller.UpdateRoutingInfo(context.TODO(), req)
+	return err
 }
 
 func (e *Envelope) logLines(component string, src io.Reader, h EnvelopeHandler) error {

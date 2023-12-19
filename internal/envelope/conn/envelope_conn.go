@@ -304,24 +304,6 @@ func (e *EnvelopeConn) GetProfileRPC(req *protos.GetProfileRequest) ([]byte, err
 	return reply.GetProfileReply.Data, nil
 }
 
-// UpdateRoutingInfoRPC updates the weavelet with a component's most recent
-// routing info.
-func (e *EnvelopeConn) UpdateRoutingInfoRPC(routing *protos.RoutingInfo) error {
-	req := &protos.EnvelopeMsg{
-		UpdateRoutingInfoRequest: &protos.UpdateRoutingInfoRequest{
-			RoutingInfo: routing,
-		},
-	}
-	reply, err := e.rpc(req)
-	if err != nil {
-		return err
-	}
-	if reply.UpdateRoutingInfoReply == nil {
-		return fmt.Errorf("nil UpdateRoutingInfoReply received from weavelet")
-	}
-	return nil
-}
-
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
 	response, err := e.conn.doBlockingRPC(request)
 	if err != nil {

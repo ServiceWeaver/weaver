@@ -507,7 +507,7 @@ func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.Updat
 }
 
 // UpdateRoutingInfo implements the conn.WeaverHandler interface.
-func (w *RemoteWeavelet) UpdateRoutingInfo(req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
+func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
 	if req.RoutingInfo == nil {
 		w.syslogger.Error("Failed to update nil routing info")
 		return nil, fmt.Errorf("nil RoutingInfo")

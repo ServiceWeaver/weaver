@@ -38,9 +38,6 @@ type WeaveletHandler interface {
 
 	// GetLoad returns a load report.
 	GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error)
-
-	// UpdateRoutingInfo updates a component's routing information.
-	UpdateRoutingInfo(*protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error)
 }
 
 // WeaveletConn is the weavelet side of the connection between a weavelet and
@@ -195,13 +192,6 @@ func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.Envelo
 			})
 		}()
 		return nil
-	case msg.UpdateRoutingInfoRequest != nil:
-		reply, err := handler.UpdateRoutingInfo(msg.UpdateRoutingInfoRequest)
-		return w.conn.send(&protos.WeaveletMsg{
-			Id:                     -msg.Id,
-			Error:                  errstring(err),
-			UpdateRoutingInfoReply: reply,
-		})
 	default:
 		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
 		w.conn.cleanup(err)
