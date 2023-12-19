@@ -33,6 +33,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/pprof/profile"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
@@ -804,5 +805,46 @@ func TestUpdateBadRoutingInfo(t *testing.T) {
 
 	if activateErr != nil {
 		t.Fatal(activateErr)
+	}
+}
+
+func TestProfile(t *testing.T) {
+	// Ensure things are started.
+	ctx := context.Background()
+	placement := map[string][]string{
+		"1": {componenta},
+		"2": {componentb, componentc},
+		"3": {componentb, componentc},
+	}
+	d := deploy(t, ctx, placement)
+	defer d.shutdown()
+	testComponents(d)
+
+	target := d.weavelets["2"]
+	for _, typ := range []protos.ProfileType{protos.ProfileType_Heap, protos.ProfileType_CPU} {
+		typ := typ
+		t.Run(typ.String(), func(t *testing.T) {
+			// Send a profiling request and wait for a reply.
+			start := time.Now()
+			req := &protos.GetProfileRequest{
+				ProfileType:   typ,
+				CpuDurationNs: int64(100 * time.Millisecond / time.Nanosecond),
+			}
+			reply, err := target.wlet.GetProfile(ctx, req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			end := time.Now()
+
+			// Small sanity check of the profile.
+			p, err := profile.ParseData(reply.Data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			when := time.Unix(0, p.TimeNanos)
+			if when.Before(start) || end.Before(when) {
+				t.Errorf("profile timestamp %v is not in profiling time range [%v,%v]", when, start, end)
+			}
+		})
 	}
 }

@@ -308,7 +308,6 @@ github.com/ServiceWeaver/weaver/internal/env
     fmt
     strings
 github.com/ServiceWeaver/weaver/internal/envelope/conn
-    bytes
     context
     fmt
     github.com/ServiceWeaver/weaver/internal/queue
@@ -321,9 +320,7 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     google.golang.org/protobuf/proto
     io
     net
-    runtime/pprof
     sync
-    time
 github.com/ServiceWeaver/weaver/internal/files
     fmt
     os
@@ -697,6 +694,7 @@ github.com/ServiceWeaver/weaver/internal/versioned
     github.com/google/uuid
     sync
 github.com/ServiceWeaver/weaver/internal/weaver
+    bytes
     context
     crypto/tls
     crypto/x509
@@ -744,6 +742,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     os/signal
     path/filepath
     reflect
+    runtime/pprof
     sort
     strings
     sync

@@ -291,19 +291,6 @@ func (e *EnvelopeConn) GetLoadRPC() (*protos.LoadReport, error) {
 	return reply.GetLoadReply.Load, nil
 }
 
-// GetProfileRPC gets a profile from the weavelet. There can only be one
-// outstanding GetProfileRPC at a time.
-func (e *EnvelopeConn) GetProfileRPC(req *protos.GetProfileRequest) ([]byte, error) {
-	reply, err := e.rpc(&protos.EnvelopeMsg{GetProfileRequest: req})
-	if err != nil {
-		return nil, err
-	}
-	if reply.GetProfileReply == nil {
-		return nil, fmt.Errorf("nil GetProfileReply received from weavelet")
-	}
-	return reply.GetProfileReply.Data, nil
-}
-
 func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
 	response, err := e.conn.doBlockingRPC(request)
 	if err != nil {

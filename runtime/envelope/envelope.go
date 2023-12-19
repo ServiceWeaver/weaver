@@ -117,9 +117,6 @@ type Envelope struct {
 	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
 	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
 	controller control.Controller // Stub that talks to the weavelet controller
-
-	mu        sync.Mutex // guards the following fields
-	profiling bool       // are we currently collecting a profile?
 }
 
 // Options contains optional arguments for the envelope.
@@ -302,20 +299,6 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 	return stopErr
 }
 
-// toggleProfiling compares the value of e.profiling to the given expected
-// value, and if they are the same, toggles the value of e.profiling and
-// returns true; otherwise, it leaves the value of e.profiling unchanged
-// and returns false.
-func (e *Envelope) toggleProfiling(expected bool) bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.profiling != expected {
-		return false
-	}
-	e.profiling = !e.profiling
-	return true
-}
-
 // Pid returns the process id of the subprocess.
 func (e *Envelope) Pid() int {
 	return e.cmd.Process.Pid
@@ -337,11 +320,11 @@ func (e *Envelope) GetHealth() protos.HealthStatus {
 
 // GetProfile gets a profile from the weavelet.
 func (e *Envelope) GetProfile(req *protos.GetProfileRequest) ([]byte, error) {
-	if ok := e.toggleProfiling(false); !ok {
-		return nil, fmt.Errorf("profiling already in progress")
+	reply, err := e.controller.GetProfile(context.TODO(), req)
+	if err != nil {
+		return nil, err
 	}
-	defer e.toggleProfiling(true)
-	return e.conn.GetProfileRPC(req)
+	return reply.Data, nil
 }
 
 // GetMetrics returns a weavelet's metrics.

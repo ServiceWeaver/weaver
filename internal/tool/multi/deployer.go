@@ -759,6 +759,7 @@ func runProfiling(_ context.Context, req *protos.GetProfileRequest, processes ma
 	for _, envelopes := range processes {
 		group := make([]func() ([]byte, error), 0, len(envelopes))
 		for _, e := range envelopes {
+			e := e
 			group = append(group, func() ([]byte, error) {
 				return e.GetProfile(req)
 			})

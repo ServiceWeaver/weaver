@@ -30,7 +30,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/env"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
@@ -494,8 +493,8 @@ func (w *SingleWeavelet) Metrics(context.Context) (*status.Metrics, error) {
 }
 
 // Profile implements the status.Server interface.
-func (w *SingleWeavelet) Profile(_ context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
-	data, err := conn.Profile(req)
+func (w *SingleWeavelet) Profile(ctx context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
+	data, err := getProfile(ctx, req)
 	return &protos.GetProfileReply{Data: data}, err
 }
 

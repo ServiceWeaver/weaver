@@ -44,3 +44,8 @@ func (*noopController) UpdateComponents(context.Context, *protos.UpdateComponent
 func (*noopController) UpdateRoutingInfo(context.Context, *protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error) {
 	return nil, fmt.Errorf("controller.UpdateRoutingInfo not implemented")
 }
+
+// GetProfile implements controller nterface.
+func (*noopController) GetProfile(context.Context, *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
+	return nil, fmt.Errorf("controller.GetProfile not implemented")
+}

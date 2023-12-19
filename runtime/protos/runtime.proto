@@ -100,7 +100,6 @@ message EnvelopeMsg {
   GetHealthRequest get_health_request = 3;
   GetMetricsRequest get_metrics_request = 4;
   GetLoadRequest get_load_request = 5;
-  GetProfileRequest get_profile_request = 6;
 
   // Weavelet initiated RPC replies.
   string error = 9;  // non-nil on error
@@ -111,7 +110,7 @@ message EnvelopeMsg {
   VerifyClientCertificateReply verify_client_certificate_reply = 13;
   VerifyServerCertificateReply verify_server_certificate_reply = 14;
 
-  reserved 7, 8;
+  reserved 6, 7, 8;
 }
 
 // WeaveletMsg is a message sent by a weavelet to an envelope.
@@ -134,7 +133,6 @@ message WeaveletMsg {
   GetHealthReply get_health_reply = 6;
   GetMetricsReply get_metrics_reply = 7;
   GetLoadReply get_load_reply = 8;
-  GetProfileReply get_profile_reply = 9;
 
   // Weavelet initiated RPC requests.
   ActivateComponentRequest activate_component_request = 12;
@@ -144,7 +142,7 @@ message WeaveletMsg {
   VerifyClientCertificateRequest verify_client_certificate_request = 15;
   VerifyServerCertificateRequest verify_server_certificate_request = 16;
 
-  reserved 10, 11;
+  reserved 9, 10, 11;
 }
 
 // EnvelopeInfo is the information provided by an envelope to a weavelet during
@@ -359,8 +357,8 @@ message LoadReport {
 }
 
 // GetProfileRequest is a request from an envelope for a weavelet to collect and
-// return a profile. There can only be one outstanding GetProfileRequest at a
-// time.
+// return a profile. Some profile types only support a single profile request at a
+// time and an error will be returned if another profile request is active.
 message GetProfileRequest {
   // Type of the profile (e.g., heap, cpu).
   ProfileType profile_type = 1;
