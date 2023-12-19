@@ -37,10 +37,10 @@ func init() {
 		Iface: reflect.TypeOf((*controller)(nil)).Elem(),
 		Impl:  reflect.TypeOf(noopController{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return controller_local_stub{impl: impl.(controller), tracer: tracer, updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: false})}
+			return controller_local_stub{impl: impl.(controller), tracer: tracer, getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetProfile", Remote: false}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return controller_client_stub{stub: stub, updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: true})}
+			return controller_client_stub{stub: stub, getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetProfile", Remote: true}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return controller_server_stub{impl: impl.(controller), addLoad: addLoad}
@@ -94,12 +94,33 @@ func (s logger_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatc
 type controller_local_stub struct {
 	impl                     controller
 	tracer                   trace.Tracer
+	getProfileMetrics        *codegen.MethodMetrics
 	updateComponentsMetrics  *codegen.MethodMetrics
 	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
 
 // Check that controller_local_stub implements the controller interface.
 var _ controller = (*controller_local_stub)(nil)
+
+func (s controller_local_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
+	// Update metrics.
+	begin := s.getProfileMetrics.Begin()
+	defer func() { s.getProfileMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.controller.GetProfile", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.GetProfile(ctx, a0)
+}
 
 func (s controller_local_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	// Update metrics.
@@ -203,12 +224,64 @@ func (s logger_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBat
 
 type controller_client_stub struct {
 	stub                     codegen.Stub
+	getProfileMetrics        *codegen.MethodMetrics
 	updateComponentsMetrics  *codegen.MethodMetrics
 	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
 
 // Check that controller_client_stub implements the controller interface.
 var _ controller = (*controller_client_stub)(nil)
+
+func (s controller_client_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.getProfileMetrics.Begin()
+	defer func() { s.getProfileMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.GetProfile", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_GetProfileRequest_d1544fcf(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_GetProfileReply_10a79dcc(dec)
+	err = dec.Error()
+	return
+}
 
 func (s controller_client_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	// Update metrics.
@@ -247,7 +320,7 @@ func (s controller_client_stub) UpdateComponents(ctx context.Context, a0 *protos
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -298,7 +371,7 @@ func (s controller_client_stub) UpdateRoutingInfo(ctx context.Context, a0 *proto
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -390,6 +463,8 @@ var _ codegen.Server = (*controller_server_stub)(nil)
 // GetStubFn implements the codegen.Server interface.
 func (s controller_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
+	case "GetProfile":
+		return s.getProfile
 	case "UpdateComponents":
 		return s.updateComponents
 	case "UpdateRoutingInfo":
@@ -397,6 +472,31 @@ func (s controller_server_stub) GetStubFn(method string) func(ctx context.Contex
 	default:
 		return nil
 	}
+}
+
+func (s controller_server_stub) getProfile(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.GetProfileRequest
+	a0 = serviceweaver_dec_ptr_GetProfileRequest_d1544fcf(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.GetProfile(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_GetProfileReply_10a79dcc(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
 }
 
 func (s controller_server_stub) updateComponents(ctx context.Context, args []byte) (res []byte, err error) {
@@ -470,6 +570,11 @@ type controller_reflect_stub struct {
 // Check that controller_reflect_stub implements the controller interface.
 var _ controller = (*controller_reflect_stub)(nil)
 
+func (s controller_reflect_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
+	err = s.caller("GetProfile", ctx, []any{a0}, []any{&r0})
+	return
+}
+
 func (s controller_reflect_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	err = s.caller("UpdateComponents", ctx, []any{a0}, []any{&r0})
 	return
@@ -496,6 +601,42 @@ func serviceweaver_dec_ptr_LogEntryBatch_fec9a5d4(dec *codegen.Decoder) *protos.
 		return nil
 	}
 	var res protos.LogEntryBatch
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_GetProfileRequest_d1544fcf(enc *codegen.Encoder, arg *protos.GetProfileRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_GetProfileRequest_d1544fcf(dec *codegen.Decoder) *protos.GetProfileRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.GetProfileRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_GetProfileReply_10a79dcc(enc *codegen.Encoder, arg *protos.GetProfileReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_GetProfileReply_10a79dcc(dec *codegen.Decoder) *protos.GetProfileReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.GetProfileReply
 	dec.DecodeProto(&res)
 	return &res
 }

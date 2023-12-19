@@ -32,4 +32,7 @@ type Controller interface {
 
 	// UpdateRoutingInfo updates the weavelet with a component's most recent routing info.
 	UpdateRoutingInfo(context.Context, *protos.UpdateRoutingInfoRequest) (*protos.UpdateRoutingInfoReply, error)
+
+	// GetProfile gets a profile from the weavelet.
+	GetProfile(context.Context, *protos.GetProfileRequest) (*protos.GetProfileReply, error)
 }

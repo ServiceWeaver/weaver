@@ -15,17 +15,13 @@
 package conn
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net"
-	"runtime/pprof"
-	"time"
 
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
-	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/version"
 )
@@ -176,22 +172,6 @@ func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.Envelo
 			Error:        errstring(err),
 			GetLoadReply: reply,
 		})
-	case msg.GetProfileRequest != nil:
-		// This is a blocking call, and therefore we process it in a separate
-		// goroutine. Note that this will cause profiling requests to be
-		// processed out-of-order w.r.t. other messages.
-		id := msg.Id
-		req := protomsg.Clone(msg.GetProfileRequest)
-		go func() {
-			data, err := Profile(req)
-			// Reply with profile data.
-			w.conn.send(&protos.WeaveletMsg{
-				Id:              -id,
-				Error:           errstring(err),
-				GetProfileReply: &protos.GetProfileReply{Data: data},
-			})
-		}()
-		return nil
 	default:
 		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
 		w.conn.cleanup(err)
@@ -303,28 +283,4 @@ func (w *WeaveletConn) SendLogEntry(entry *protos.LogEntry) error {
 // for a reply.
 func (w *WeaveletConn) SendTraceSpans(spans *protos.TraceSpans) error {
 	return w.conn.send(&protos.WeaveletMsg{TraceSpans: spans})
-}
-
-// Profile collects profiles for the weavelet.
-func Profile(req *protos.GetProfileRequest) ([]byte, error) {
-	var buf bytes.Buffer
-	switch req.ProfileType {
-	case protos.ProfileType_Heap:
-		if err := pprof.WriteHeapProfile(&buf); err != nil {
-			return nil, err
-		}
-	case protos.ProfileType_CPU:
-		if req.CpuDurationNs == 0 {
-			return nil, fmt.Errorf("invalid zero duration for the CPU profile collection")
-		}
-		dur := time.Duration(req.CpuDurationNs) * time.Nanosecond
-		if err := pprof.StartCPUProfile(&buf); err != nil {
-			return nil, err
-		}
-		time.Sleep(dur)
-		pprof.StopCPUProfile()
-	default:
-		return nil, fmt.Errorf("unspecified profile collection type")
-	}
-	return buf.Bytes(), nil
 }

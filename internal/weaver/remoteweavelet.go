@@ -506,7 +506,7 @@ func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.Updat
 	return &protos.UpdateComponentsReply{}, errors.Join(errs...)
 }
 
-// UpdateRoutingInfo implements the conn.WeaverHandler interface.
+// UpdateRoutingInfo implements controller.UpdateRoutingInfo.
 func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
 	if req.RoutingInfo == nil {
 		w.syslogger.Error("Failed to update nil routing info")
@@ -569,6 +569,15 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.Upda
 	}
 
 	return &protos.UpdateRoutingInfoReply{}, nil
+}
+
+// GetProfile implements controller.GetProfile.
+func (w *RemoteWeavelet) GetProfile(ctx context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
+	data, err := getProfile(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return &protos.GetProfileReply{Data: data}, nil
 }
 
 // Info returns the EnvelopeInfo received from the envelope.
