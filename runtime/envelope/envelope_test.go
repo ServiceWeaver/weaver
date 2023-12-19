@@ -465,22 +465,6 @@ func TestRPCBeforeServe(t *testing.T) {
 	}
 }
 
-func startEnvelope(ctx context.Context, t *testing.T) (*Envelope, chan error) {
-	wlet, config := wlet(executable, "serve_conn")
-	e, err := NewEnvelope(ctx, wlet, config, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	done := make(chan error)
-	go func() {
-		h := &handlerForTest{logSaver: testSaver(t)}
-		err := e.Serve(h)
-		done <- err
-	}()
-	return e, done
-}
-
 type A interface{}
 
 type aimpl struct {
