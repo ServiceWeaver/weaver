@@ -87,6 +87,7 @@ sum, err := adder.Add(ctx, 1, 2)
 ```shell
 $ go test .                       # Test locally.
 $ go run .                        # Run locally.
+$ weaver ssh deploy weaver.toml   # Run on multiple machines.
 $ weaver gke deploy weaver.toml   # Run on Google Cloud.
 $ weaver kube deploy weaver.toml  # Run on Kubernetes.
 </markdown>
