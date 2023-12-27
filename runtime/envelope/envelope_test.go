@@ -432,9 +432,8 @@ func TestRPCBeforeServe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	health := e.GetHealth()
-	if health != protos.HealthStatus_HEALTHY {
-		t.Fatalf("expected healthy, got %v", health)
+	if _, err := e.GetMetrics(); err != nil {
+		t.Fatalf("expected metrics, got %v", err)
 	}
 	h := &handlerForTest{logSaver: testSaver(t)}
 

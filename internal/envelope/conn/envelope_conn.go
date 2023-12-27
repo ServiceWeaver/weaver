@@ -114,8 +114,8 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, inf
 	//     }
 	//
 	// If an EnvelopeHandler, invoked by handleMessage, calls an RPC on the
-	// weavelet (e.g., GetHealth), then it will block forever, as the RPC
-	// response will never be read by conn.recv.
+	// weavelet, then it will block forever, as the RPC response will never
+	// be read by conn.recv.
 	e.running.Go(func() error {
 		for {
 			msg := &protos.WeaveletMsg{}
@@ -263,19 +263,6 @@ func (e *EnvelopeConn) GetMetricsRPC() ([]*metrics.MetricSnapshot, error) {
 		return nil, fmt.Errorf("nil GetMetricsReply received from weavelet")
 	}
 	return e.metrics.Import(reply.GetMetricsReply.Update)
-}
-
-// GetHealthRPC gets a weavelet's health.
-func (e *EnvelopeConn) GetHealthRPC() (protos.HealthStatus, error) {
-	req := &protos.EnvelopeMsg{GetHealthRequest: &protos.GetHealthRequest{}}
-	reply, err := e.rpc(req)
-	if err != nil {
-		return protos.HealthStatus_UNHEALTHY, err
-	}
-	if reply.GetHealthReply == nil {
-		return protos.HealthStatus_UNHEALTHY, fmt.Errorf("nil HealthStatusReply received from weavelet")
-	}
-	return reply.GetHealthReply.Status, nil
 }
 
 // GetLoadRPC gets a load report from the weavelet.

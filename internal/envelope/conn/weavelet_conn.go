@@ -160,11 +160,6 @@ func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.Envelo
 			Id:              -msg.Id,
 			GetMetricsReply: &protos.GetMetricsReply{Update: update},
 		})
-	case msg.GetHealthRequest != nil:
-		return w.conn.send(&protos.WeaveletMsg{
-			Id:             -msg.Id,
-			GetHealthReply: &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY},
-		})
 	case msg.GetLoadRequest != nil:
 		reply, err := handler.GetLoad(msg.GetLoadRequest)
 		return w.conn.send(&protos.WeaveletMsg{
