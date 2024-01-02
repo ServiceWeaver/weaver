@@ -571,6 +571,11 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.Upda
 	return &protos.UpdateRoutingInfoReply{}, nil
 }
 
+// GetHealth implements controller.GetHealth.
+func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
+	return &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}, nil
+}
+
 // GetProfile implements controller.GetProfile.
 func (w *RemoteWeavelet) GetProfile(ctx context.Context, req *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
 	data, err := getProfile(ctx, req)

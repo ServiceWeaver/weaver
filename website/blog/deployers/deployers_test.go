@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ func build(t *testing.T, dirs ...string) {
 	t.Helper()
 	for _, dir := range dirs {
 		cmd := exec.Command("go", "build", ".")
+		cmd.Stderr = os.Stderr
 		cmd.Dir = dir
 		if err := cmd.Run(); err != nil {
 			t.Fatal(err)
@@ -42,6 +44,7 @@ func build(t *testing.T, dirs ...string) {
 func TestPipesDeployer(t *testing.T) {
 	build(t, "./pipes", "../../../examples/collatz")
 	cmd := exec.Command("./pipes/pipes", "../../../examples/collatz/collatz")
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}
