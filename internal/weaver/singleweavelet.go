@@ -58,6 +58,8 @@ type SingleWeaveletOptions struct {
 // SingleWeavelet is a weavelet that runs all components locally in a single
 // process. It is the weavelet used when you "go run" a Service Weaver app.
 type SingleWeavelet struct {
+	ctx context.Context // the propagated context
+
 	// Registrations.
 	regs       []*codegen.Registration                // registered components
 	regsByName map[string]*codegen.Registration       // registrations by component name
@@ -130,6 +132,7 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 	}
 
 	return &SingleWeavelet{
+		ctx:          ctx,
 		regs:         regs,
 		regsByName:   regsByName,
 		regsByIntf:   regsByIntf,
@@ -283,8 +286,7 @@ func (w *SingleWeavelet) get(reg *codegen.Registration) (any, error) {
 
 	// Call Init if available.
 	if i, ok := obj.(interface{ Init(context.Context) error }); ok {
-		// TODO(mwhittaker): Use better context.
-		if err := i.Init(context.Background()); err != nil {
+		if err := i.Init(w.ctx); err != nil {
 			return nil, fmt.Errorf("component %q initialization failed: %w", reg.Name, err)
 		}
 	}
