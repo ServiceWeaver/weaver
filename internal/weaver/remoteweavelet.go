@@ -585,6 +585,17 @@ func (w *RemoteWeavelet) GetMetrics(ctx context.Context, req *protos.GetMetricsR
 	// metrics.Exporter. The reader echoes back the version of the last set of
 	// updates it read. If the echoed version does not match, send everything.
 	updates := w.metrics.Export()
+
+	// Add weavelet labels to the metrics.
+	for _, def := range updates.Defs {
+		if def.Labels == nil {
+			def.Labels = map[string]string{}
+		}
+		def.Labels["serviceweaver_app"] = w.Info().App
+		def.Labels["serviceweaver_version"] = w.Info().DeploymentId
+		def.Labels["serviceweaver_node"] = w.Info().Id
+	}
+
 	return &protos.GetMetricsReply{Update: updates}, nil
 }
 
