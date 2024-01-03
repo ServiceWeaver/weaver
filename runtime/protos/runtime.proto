@@ -96,9 +96,6 @@ message EnvelopeMsg {
   // Handshake.
   EnvelopeInfo envelope_info = 2;
 
-  // Envelope initiated RPC requests.
-  GetLoadRequest get_load_request = 5;
-
   // Weavelet initiated RPC replies.
   string error = 9;  // non-nil on error
   ActivateComponentReply activate_component_reply = 10;
@@ -108,7 +105,7 @@ message EnvelopeMsg {
   VerifyClientCertificateReply verify_client_certificate_reply = 13;
   VerifyServerCertificateReply verify_server_certificate_reply = 14;
 
-  reserved 3, 4, 6, 7, 8;
+  reserved 3, 4, 5, 6, 7, 8;
 }
 
 // WeaveletMsg is a message sent by a weavelet to an envelope.
@@ -126,10 +123,6 @@ message WeaveletMsg {
   LogEntry log_entry = 3;
   TraceSpans trace_spans = 4;
 
-  // Envelope initiated RPC replies.
-  string error = 5;  // non-nil on error
-  GetLoadReply get_load_reply = 8;
-
   // Weavelet initiated RPC requests.
   ActivateComponentRequest activate_component_request = 12;
   GetListenerAddressRequest get_listener_address_request = 13;
@@ -138,7 +131,7 @@ message WeaveletMsg {
   VerifyClientCertificateRequest verify_client_certificate_request = 15;
   VerifyServerCertificateRequest verify_server_certificate_request = 16;
 
-  reserved 6, 7, 9, 10, 11;
+  reserved 6, 7, 8, 9, 10, 11;
 }
 
 // EnvelopeInfo is the information provided by an envelope to a weavelet during

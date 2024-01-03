@@ -36,6 +36,9 @@ type Controller interface {
 	// GetHealth fetches weavelet health information.
 	GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error)
 
+	// GetLoad fetches weavelet load information.
+	GetLoad(context.Context, *protos.GetLoadRequest) (*protos.GetLoadReply, error)
+
 	// GetMetrics fetches metrics from the weavelet.
 	GetMetrics(context.Context, *protos.GetMetricsRequest) (*protos.GetMetricsReply, error)
 

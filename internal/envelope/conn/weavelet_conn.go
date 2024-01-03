@@ -25,16 +25,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/version"
 )
 
-// WeaveletHandler handles messages from the envelope. A handler should not
-// block and should not perform RPCs over the pipe. Values passed to the
-// handlers are only valid for the duration of the handler's execution.
-type WeaveletHandler interface {
-	// TODO(mwhittaker): Add context.Context to these methods?
-
-	// GetLoad returns a load report.
-	GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error)
-}
-
 // WeaveletConn is the weavelet side of the connection between a weavelet and
 // an envelope. For more information, refer to runtime/protos/runtime.proto and
 // https://serviceweaver.dev/blog/deployers.html.
@@ -97,24 +87,21 @@ func NewWeaveletConn(r io.ReadCloser, w io.WriteCloser) (*WeaveletConn, error) {
 	return wc, nil
 }
 
-// Serve accepts RPC requests from the envelope. Requests are handled serially
-// in the order they are received.
-func (w *WeaveletConn) Serve(ctx context.Context, h WeaveletHandler) error {
+// Serve handles RPC responses from the envelope.
+func (w *WeaveletConn) Serve(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		w.conn.cleanup(ctx.Err())
 	}()
 
 	msg := &protos.EnvelopeMsg{}
-	for ctx.Err() == nil {
-		if err := w.conn.recv(msg); err != nil {
-			return err
-		}
-		if err := w.handleMessage(h, msg); err != nil {
-			return err
-		}
+	if err := w.conn.recv(msg); err != nil {
+		return err
 	}
-	return ctx.Err()
+	// We do not support any requests initiated by the envelope.
+	err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
+	w.conn.cleanup(err)
+	return err
 }
 
 // EnvelopeInfo returns the EnvelopeInfo received from the envelope.
@@ -130,31 +117,6 @@ func (w *WeaveletConn) WeaveletInfo() *protos.WeaveletInfo {
 // Listener returns the internal network listener for the weavelet.
 func (w *WeaveletConn) Listener() net.Listener {
 	return w.lis
-}
-
-// handleMessage handles all RPC requests initiated by the envelope. Note that
-// this method doesn't handle RPC replies from the envelope.
-func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.EnvelopeMsg) error {
-	errstring := func(err error) string {
-		if err == nil {
-			return ""
-		}
-		return err.Error()
-	}
-
-	switch {
-	case msg.GetLoadRequest != nil:
-		reply, err := handler.GetLoad(msg.GetLoadRequest)
-		return w.conn.send(&protos.WeaveletMsg{
-			Id:           -msg.Id,
-			Error:        errstring(err),
-			GetLoadReply: reply,
-		})
-	default:
-		err := fmt.Errorf("weavelet_conn: unexpected message %+v", msg)
-		w.conn.cleanup(err)
-		return err
-	}
 }
 
 // ActivateComponentRPC ensures that the provided component is running

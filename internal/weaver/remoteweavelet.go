@@ -217,9 +217,9 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		return nil
 	})
 
-	// Serve deployer API requests on the weavelet conn.
+	// Handle the weavelet side of the connection with the envelope.
 	servers.Go(func() error {
-		if err := w.conn.Serve(ctx, w); err != nil {
+		if err := w.conn.Serve(ctx); err != nil {
 			w.syslogger.Error("weavelet conn failed", "err", err)
 			return err
 		}
@@ -450,8 +450,8 @@ func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, re
 	return call.NewStub(fullName, reg, conn, w.tracer, w.opts.InjectRetries), nil
 }
 
-// GetLoad implements the conn.WeaveletHandler interface.
-func (w *RemoteWeavelet) GetLoad(*protos.GetLoadRequest) (*protos.GetLoadReply, error) {
+// GetLoad implements controller interface.
+func (w *RemoteWeavelet) GetLoad(context.Context, *protos.GetLoadRequest) (*protos.GetLoadReply, error) {
 	report := &protos.LoadReport{
 		Loads: map[string]*protos.LoadReport_ComponentLoad{},
 	}
