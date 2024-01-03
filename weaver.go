@@ -234,6 +234,8 @@ func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.
 type Implements[T any] struct {
 	// Component logger.
 	logger *slog.Logger
+	// Component logger level.
+	logLevel *slog.LevelVar
 
 	// Given a component implementation type, there is currently no nice way,
 	// using reflection, to get the corresponding component interface type [1].
@@ -265,8 +267,14 @@ func (i Implements[T]) Logger(ctx context.Context) *slog.Logger {
 	return logger
 }
 
-func (i *Implements[T]) setLogger(logger *slog.Logger) {
+// SetLogLevel changes the current log level of the component to given level.
+func (i *Implements[T]) SetLogLevel(level slog.Level) {
+	i.logLevel.Set(level)
+}
+
+func (i *Implements[T]) setLogger(logger *slog.Logger, level *slog.LevelVar) {
 	i.logger = logger
+	i.logLevel = level
 }
 
 // implements is a method that can only be implemented inside the weaver

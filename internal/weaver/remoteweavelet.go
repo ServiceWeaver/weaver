@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/BurntSushi/toml"
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
@@ -160,7 +161,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	}
 
 	// Set up logging.
-	w.syslogger = w.logger("weavelet", "serviceweaver/system", "")
+	w.syslogger, _ = w.logger("weavelet", "serviceweaver/system", "")
 
 	// Set up tracing.
 	exporter := traceio.NewWriter(w.conn.SendTraceSpans)
@@ -355,7 +356,7 @@ func (w *RemoteWeavelet) GetImpl(t reflect.Type) (any, error) {
 			w.syslogger.Debug("Constructed", "component", name)
 		}
 
-		logger := w.logger(c.reg.Name)
+		logger, _ := w.logger(c.reg.Name)
 		c.serverStub = c.reg.ServerStubFn(c.impl, func(key uint64, v float64) {
 			if c.reg.Routed {
 				if err := c.load.add(key, v); err != nil {
@@ -388,7 +389,8 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 	}
 
 	// Set logger.
-	if err := SetLogger(obj, w.logger(reg.Name)); err != nil {
+	logger, level := w.logger(reg.Name)
+	if err := SetLogger(obj, logger, level); err != nil {
 		return nil, err
 	}
 
@@ -693,17 +695,20 @@ func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogE
 
 // logger returns a logger for the component with the provided name. The
 // returned logger includes the provided attributes.
-func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
-	return slog.New(&logging.LogHandler{
+func (w *RemoteWeavelet) logger(name string, attrs ...string) (*slog.Logger, *slog.LevelVar) {
+	level := NewLogLevel(w.getAppLogLevel())
+	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:        w.Info().App,
 			Deployment: w.Info().DeploymentId,
 			Component:  name,
 			Weavelet:   w.Info().Id,
 			Attrs:      attrs,
+			LogLevel:   level,
 		},
 		Write: w.logDst.log,
 	})
+	return logger, level
 }
 
 // listener returns the listener with the provided name.
@@ -792,6 +797,35 @@ func (w *RemoteWeavelet) verifyServerCertificate(certChain [][]byte, targetCompo
 		TargetComponent: targetComponent,
 	}
 	return w.conn.VerifyServerCertificateRPC(request)
+}
+
+// getAppLogLevel looks up the application log level in
+// the config sections
+func (w *RemoteWeavelet) getAppLogLevel() string {
+	const appKey = "github.com/ServiceWeaver/weaver"
+	const shortAppKey = "serviceweaver"
+	type logLevel struct {
+		Level string `toml:"log_level"`
+	}
+	var (
+		section string
+		ok      bool
+	)
+
+	sections := w.Info().Sections
+	if section, ok = sections[appKey]; !ok {
+		if section, ok = sections[shortAppKey]; !ok {
+			return ""
+		}
+	}
+
+	v := &logLevel{}
+	_, err := toml.Decode(section, v)
+	if err != nil {
+		return ""
+	}
+
+	return v.Level
 }
 
 // server serves RPC traffic from other RemoteWeavelets.

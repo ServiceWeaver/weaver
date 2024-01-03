@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -83,4 +84,15 @@ func (rl *remoteLogger) run(ctx context.Context, dst func(context.Context, *prot
 			batch.Entries = batch.Entries[:0]
 		}
 	}
+}
+
+// NewLogLevel returns a pointer to a slog.LevelVar value derived from given
+// string. If the string is not parsable or empty, the underlying value is set
+// to a default value(slog.LevelDebug).
+func NewLogLevel(s string) *slog.LevelVar {
+	level := new(slog.LevelVar)
+	if err := level.UnmarshalText([]byte(s)); err != nil {
+		level.Set(slog.LevelDebug)
+	}
+	return level
 }
