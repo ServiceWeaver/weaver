@@ -21,7 +21,6 @@ import (
 	"net"
 
 	"github.com/ServiceWeaver/weaver/runtime"
-	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/version"
 )
@@ -40,11 +39,10 @@ type WeaveletHandler interface {
 // an envelope. For more information, refer to runtime/protos/runtime.proto and
 // https://serviceweaver.dev/blog/deployers.html.
 type WeaveletConn struct {
-	conn    conn
-	einfo   *protos.EnvelopeInfo
-	winfo   *protos.WeaveletInfo
-	lis     net.Listener // internal network listener for the weavelet
-	metrics metrics.Exporter
+	conn  conn
+	einfo *protos.EnvelopeInfo
+	winfo *protos.WeaveletInfo
+	lis   net.Listener // internal network listener for the weavelet
 }
 
 // NewWeaveletConn returns a connection to an envelope. The connection sends
@@ -145,21 +143,6 @@ func (w *WeaveletConn) handleMessage(handler WeaveletHandler, msg *protos.Envelo
 	}
 
 	switch {
-	case msg.GetMetricsRequest != nil:
-		// Inject Service Weaver specific labels.
-		update := w.metrics.Export()
-		for _, def := range update.Defs {
-			if def.Labels == nil {
-				def.Labels = map[string]string{}
-			}
-			def.Labels["serviceweaver_app"] = w.einfo.App
-			def.Labels["serviceweaver_version"] = w.einfo.DeploymentId
-			def.Labels["serviceweaver_node"] = w.einfo.Id
-		}
-		return w.conn.send(&protos.WeaveletMsg{
-			Id:              -msg.Id,
-			GetMetricsReply: &protos.GetMetricsReply{Update: update},
-		})
 	case msg.GetLoadRequest != nil:
 		reply, err := handler.GetLoad(msg.GetLoadRequest)
 		return w.conn.send(&protos.WeaveletMsg{

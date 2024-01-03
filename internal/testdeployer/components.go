@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/metrics"
 )
 
 //go:generate ../../cmd/weaver/weaver generate .
@@ -64,7 +65,10 @@ func (b *bimpl) B(ctx context.Context, x int) (int, error) {
 	return b.c.Get().C(ctx, x)
 }
 
+var c_calls = metrics.NewCounter("c_calls", "Number of calls to c.C")
+
 func (c *cimpl) C(ctx context.Context, x int) (int, error) {
 	c.Logger(ctx).Debug("C")
+	c_calls.Inc()
 	return x, nil
 }

@@ -312,7 +312,6 @@ github.com/ServiceWeaver/weaver/internal/envelope/conn
     fmt
     github.com/ServiceWeaver/weaver/internal/queue
     github.com/ServiceWeaver/weaver/runtime
-    github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/version
@@ -472,6 +471,7 @@ github.com/ServiceWeaver/weaver/internal/testdeployer
     context
     errors
     github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace

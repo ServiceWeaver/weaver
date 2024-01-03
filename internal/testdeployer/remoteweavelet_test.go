@@ -848,3 +848,57 @@ func TestProfile(t *testing.T) {
 		})
 	}
 }
+
+func TestMetrics(t *testing.T) {
+	// Ensure a component is started.
+	ctx := context.Background()
+	const group = "1"
+	placement := map[string][]string{group: {componentc}}
+	d := deploy(t, ctx, placement)
+	defer d.shutdown()
+	target := d.weavelets[group]
+
+	// Helper that calls a component method.
+	call := func() {
+		t.Helper()
+		comp, err := target.wlet.GetIntf(reflection.Type[c]())
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = 42
+		got, err := comp.(c).C(d.ctx, want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Fatalf("A(%d): got %d, want %d", want, got, want)
+		}
+	}
+
+	// Helper for maintaining fetched metrics.
+	names := map[uint64]string{}    // map from metric id to name
+	metrics := map[string]float64{} // map from metric name to value
+	readMetrics := func() {
+		t.Helper()
+		m, err := target.wlet.GetMetrics(d.ctx, &protos.GetMetricsRequest{})
+		if err != nil {
+			t.Fatal("GetMetrics failed", err)
+		}
+		for _, def := range m.Update.Defs {
+			names[def.Id] = def.Name
+		}
+		for _, val := range m.Update.Values {
+			metrics[names[val.Id]] = val.Value
+		}
+	}
+	readMetrics()
+	start := int(metrics["c_calls"])
+
+	for i := 0; i < 5; i++ {
+		readMetrics()
+		if m := int(metrics["c_calls"]); m != start+i {
+			t.Fatalf("c_calls = %d, expecting %d", m, start+i)
+		}
+		call()
+	}
+}

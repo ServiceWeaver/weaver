@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/queue"
-	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/version"
 	"golang.org/x/sync/errgroup"
@@ -46,7 +45,6 @@ type EnvelopeConn struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	conn      conn
-	metrics   metrics.Importer
 	weavelet  *protos.WeaveletInfo
 	running   errgroup.Group
 	msgs      queue.Queue[*protos.WeaveletMsg]
@@ -101,7 +99,7 @@ func NewEnvelopeConn(ctx context.Context, r io.ReadCloser, w io.WriteCloser, inf
 	// before envelope's Serve() method has been called:
 	//
 	//     e, err := NewEnvelopeConn(ctx, r, w, wlet)
-	//     ms, err := e.GetMetricsRPC() // should complete
+	//     ms, err := e.SomeRPC() // should complete
 	//     e.Serve()
 	//
 	// The second reason is to avoid deadlocking. Assume for contradiction that
@@ -249,20 +247,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 		e.conn.cleanup(err)
 		return err
 	}
-}
-
-// GetMetricsRPC gets a weavelet's metrics. There can only be one outstanding
-// GetMetricsRPC at a time.
-func (e *EnvelopeConn) GetMetricsRPC() ([]*metrics.MetricSnapshot, error) {
-	req := &protos.EnvelopeMsg{GetMetricsRequest: &protos.GetMetricsRequest{}}
-	reply, err := e.rpc(req)
-	if err != nil {
-		return nil, err
-	}
-	if reply.GetMetricsReply == nil {
-		return nil, fmt.Errorf("nil GetMetricsReply received from weavelet")
-	}
-	return e.metrics.Import(reply.GetMetricsReply.Update)
 }
 
 // GetLoadRPC gets a load report from the weavelet.

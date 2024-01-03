@@ -26,7 +26,6 @@ import (
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
-	"github.com/ServiceWeaver/weaver/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -35,55 +34,6 @@ import (
 )
 
 // We test the combination of conn, EnvelopeConn, WeaveletConn here.
-var (
-	c = metrics.NewCounter("TestMetricPropagation.counter", "")
-	g = metrics.NewGauge("TestMetricPropagation.gauge", "")
-	h = metrics.NewHistogram("TestMetricPropagation.hist", "", []float64{1, 2})
-)
-
-func TestMetricPropagation(t *testing.T) {
-	envelope, _ := makeConnections(t, &handlerForTest{})
-
-	// Add metrics on the weavelet side and check that we can observe them in the envelope.
-	var metrics map[string]float64
-	readMetrics := func() {
-		t.Helper()
-		list, err := envelope.GetMetricsRPC()
-		if err != nil {
-			t.Fatalf("metrics fetch: %v", err)
-		}
-		metrics = map[string]float64{}
-		for _, m := range list {
-			metrics[m.Name] = m.Value
-		}
-	}
-
-	checkValue := func(name string, want float64) {
-		got, ok := metrics[name]
-		if !ok {
-			t.Errorf("metric %s not found", name)
-		} else if got != want {
-			t.Errorf("metric %s: got %v, expecting %v", name, got, want)
-		}
-	}
-
-	// Update a single metric.
-	c.Add(100)
-	g.Set(200)
-	readMetrics()
-	checkValue("TestMetricPropagation.counter", 100)
-	checkValue("TestMetricPropagation.gauge", 200)
-	checkValue("TestMetricPropagation.hist", 0)
-
-	// Update everything.
-	c.Add(200)
-	g.Set(500)
-	h.Put(1000)
-	readMetrics()
-	checkValue("TestMetricPropagation.counter", 300)
-	checkValue("TestMetricPropagation.gauge", 500)
-	checkValue("TestMetricPropagation.hist", 1000)
-}
 
 func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.EnvelopeConn, *conn.WeaveletConn) {
 	t.Helper()
