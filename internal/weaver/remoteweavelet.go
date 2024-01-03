@@ -37,6 +37,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
+	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"go.opentelemetry.io/otel/trace"
@@ -67,6 +68,7 @@ type RemoteWeavelet struct {
 	logDst    *remoteLogger         // for writing log entries
 	syslogger *slog.Logger          // system logger
 	tracer    trace.Tracer          // tracer used by all components
+	metrics   metrics.Exporter      // helper for sending metrics to envelope
 
 	componentsByName map[string]*component       // component name -> component
 	componentsByIntf map[reflect.Type]*component // component interface type -> component
@@ -574,6 +576,27 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.Upda
 // GetHealth implements controller.GetHealth.
 func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
 	return &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}, nil
+}
+
+// GetMetrics implements controller.GetMetrics.
+func (w *RemoteWeavelet) GetMetrics(ctx context.Context, req *protos.GetMetricsRequest) (*protos.GetMetricsReply, error) {
+	// TODO(sanjay): The protocol is currently brittle; if we ever lose a set of
+	// updates, they will be lost forever. Fix by versioning the "last" map in
+	// metrics.Exporter. The reader echoes back the version of the last set of
+	// updates it read. If the echoed version does not match, send everything.
+	updates := w.metrics.Export()
+
+	// Add weavelet labels to the metrics.
+	for _, def := range updates.Defs {
+		if def.Labels == nil {
+			def.Labels = map[string]string{}
+		}
+		def.Labels["serviceweaver_app"] = w.Info().App
+		def.Labels["serviceweaver_version"] = w.Info().DeploymentId
+		def.Labels["serviceweaver_node"] = w.Info().Id
+	}
+
+	return &protos.GetMetricsReply{Update: updates}, nil
 }
 
 // GetProfile implements controller.GetProfile.

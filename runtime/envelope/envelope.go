@@ -117,6 +117,10 @@ type Envelope struct {
 	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
 	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
 	controller control.Controller // Stub that talks to the weavelet controller
+
+	// State needed to process metric updates.
+	metricsMu sync.Mutex
+	metrics   metrics.Importer
 }
 
 // Options contains optional arguments for the envelope.
@@ -329,7 +333,15 @@ func (e *Envelope) GetProfile(req *protos.GetProfileRequest) ([]byte, error) {
 
 // GetMetrics returns a weavelet's metrics.
 func (e *Envelope) GetMetrics() ([]*metrics.MetricSnapshot, error) {
-	return e.conn.GetMetricsRPC()
+	req := &protos.GetMetricsRequest{}
+	reply, err := e.controller.GetMetrics(context.TODO(), req)
+	if err != nil {
+		return nil, err
+	}
+
+	e.metricsMu.Lock()
+	defer e.metricsMu.Unlock()
+	return e.metrics.Import(reply.Update)
 }
 
 // GetLoad gets a load report from the weavelet.

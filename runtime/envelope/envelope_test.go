@@ -421,49 +421,6 @@ func TestTraces(t *testing.T) {
 	}
 }
 
-func TestRPCBeforeServe(t *testing.T) {
-	// Test plan: Start a weavelet and issue an RPC to it before calling
-	// envelope.Serve(). Make sure that the RPC completes. Additionally,
-	// make sure that the belated call to envelope.Serve() receives all of the
-	// weavelet-initiated messages.
-	ctx, cancel := context.WithCancel(context.Background())
-	wlet, config := wlet(executable, "writetraces")
-	e, err := NewEnvelope(ctx, wlet, config, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.GetMetrics(); err != nil {
-		t.Fatalf("expected metrics, got %v", err)
-	}
-	h := &handlerForTest{logSaver: testSaver(t)}
-
-	done := make(chan error)
-	go func() {
-		err := e.Serve(h)
-		done <- err
-	}()
-
-	// Wait for traces.
-	expect := []string{"span1", "span2", "span3", "span4"}
-	var actual []string
-	for r := retry.Begin(); r.Continue(ctx); {
-		if actual = h.getTraceSpanNames(); len(actual) >= 4 {
-			break
-		}
-	}
-	if err := ctx.Err(); err != nil { // didn't receive all traces
-		t.Fatal(err)
-	}
-
-	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("weavelet failed: %v", err)
-	}
-	if diff := cmp.Diff(expect, actual); diff != "" {
-		t.Errorf("traces diff: (-want,+got):\n%s", diff)
-	}
-}
-
 type A interface{}
 
 type aimpl struct {

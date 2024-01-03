@@ -50,6 +50,11 @@ func (*noopController) GetHealth(context.Context, *protos.GetHealthRequest) (*pr
 	return nil, fmt.Errorf("controller.GetHealth not implemented")
 }
 
+// GetMetrics implements controller nterface.
+func (*noopController) GetMetrics(context.Context, *protos.GetMetricsRequest) (*protos.GetMetricsReply, error) {
+	return nil, fmt.Errorf("controller.GetMetrics not implemented")
+}
+
 // GetProfile implements controller nterface.
 func (*noopController) GetProfile(context.Context, *protos.GetProfileRequest) (*protos.GetProfileReply, error) {
 	return nil, fmt.Errorf("controller.GetProfile not implemented")
