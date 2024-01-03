@@ -100,26 +100,5 @@ func run(ctx context.Context, binary string) error {
 		return err
 	}
 	fmt.Println(prototext.Format(&reply))
-
-	// Step 4. Send a GetLoad RPC to the weavelet.
-	req := &protos.EnvelopeMsg{
-		Id:             42,
-		GetLoadRequest: &protos.GetLoadRequest{},
-	}
-	if err := protomsg.Write(envelopeWriter, req); err != nil {
-		return err
-	}
-
-	// Step 5. Receive a reply to the GetLoad RPC, ignoring other messages.
-	for {
-		var reply protos.WeaveletMsg
-		if err := protomsg.Read(envelopeReader, &reply); err != nil {
-			return err
-		}
-		if reply.Id == -42 {
-			fmt.Println(prototext.Format(&reply))
-			break
-		}
-	}
 	return nil
 }

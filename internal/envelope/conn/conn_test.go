@@ -73,7 +73,7 @@ func makeConnections(t *testing.T, handler conn.EnvelopeHandler) (*conn.Envelope
 			panic(err)
 		}
 		created <- struct{}{}
-		err = w.Serve(ctx, nil)
+		err = w.Serve(ctx)
 		weaveletDone <- err
 	}()
 

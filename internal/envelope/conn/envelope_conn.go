@@ -249,36 +249,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 	}
 }
 
-// GetLoadRPC gets a load report from the weavelet.
-func (e *EnvelopeConn) GetLoadRPC() (*protos.LoadReport, error) {
-	req := &protos.EnvelopeMsg{GetLoadRequest: &protos.GetLoadRequest{}}
-	reply, err := e.rpc(req)
-	if err != nil {
-		return nil, err
-	}
-	if reply.GetLoadReply == nil {
-		return nil, fmt.Errorf("nil GetLoadReply received from weavelet")
-	}
-	return reply.GetLoadReply.Load, nil
-}
-
-func (e *EnvelopeConn) rpc(request *protos.EnvelopeMsg) (*protos.WeaveletMsg, error) {
-	response, err := e.conn.doBlockingRPC(request)
-	if err != nil {
-		err := fmt.Errorf("connection to weavelet broken: %w", err)
-		e.conn.cleanup(err)
-		return nil, err
-	}
-	msg, ok := response.(*protos.WeaveletMsg)
-	if !ok {
-		return nil, fmt.Errorf("weavelet response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return nil, fmt.Errorf(msg.Error)
-	}
-	return msg, nil
-}
-
 // verifyWeaveletInfo verifies the information sent by the weavelet.
 func verifyWeaveletInfo(wlet *protos.WeaveletInfo) error {
 	if wlet == nil {

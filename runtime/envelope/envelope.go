@@ -346,7 +346,12 @@ func (e *Envelope) GetMetrics() ([]*metrics.MetricSnapshot, error) {
 
 // GetLoad gets a load report from the weavelet.
 func (e *Envelope) GetLoad() (*protos.LoadReport, error) {
-	return e.conn.GetLoadRPC()
+	req := &protos.GetLoadRequest{}
+	reply, err := e.controller.GetLoad(context.TODO(), req)
+	if err != nil {
+		return nil, err
+	}
+	return reply.Load, nil
 }
 
 // UpdateComponents updates the weavelet with the latest set of components it
