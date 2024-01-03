@@ -450,7 +450,7 @@ func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, re
 	return call.NewStub(fullName, reg, conn, w.tracer, w.opts.InjectRetries), nil
 }
 
-// GetLoad implements controller nterface.
+// GetLoad implements controller interface.
 func (w *RemoteWeavelet) GetLoad(context.Context, *protos.GetLoadRequest) (*protos.GetLoadReply, error) {
 	report := &protos.LoadReport{
 		Loads: map[string]*protos.LoadReport_ComponentLoad{},
