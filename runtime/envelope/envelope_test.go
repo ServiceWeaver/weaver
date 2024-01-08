@@ -161,6 +161,10 @@ func (h *handlerForTest) getTraceSpanNames() []string {
 	return h.traces
 }
 
+func (*handlerForTest) LogBatch(context.Context, *protos.LogEntryBatch) error {
+	return nil
+}
+
 func (h *handlerForTest) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	h.logSaver(entry)
 	return nil

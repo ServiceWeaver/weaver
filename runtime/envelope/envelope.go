@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -88,7 +89,9 @@ type EnvelopeHandler interface {
 	// by passing it an EnvelopeInfo with mtls=true.
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 
-	// HandleLogEntry handles a log entry.
+	// LogBatches handles a batch of log entries.
+	LogBatch(context.Context, *protos.LogEntryBatch) error
+
 	HandleLogEntry(context.Context, *protos.LogEntry) error
 
 	// HandleTraceSpans handles a set of trace spans.
@@ -101,6 +104,9 @@ var (
 	_ conn.EnvelopeHandler = EnvelopeHandler(nil)
 )
 
+// Ensure that EnvelopeHandler implements all the DeployerControl methods.
+var _ control.DeployerControl = EnvelopeHandler(nil)
+
 // Envelope starts and manages a weavelet in a subprocess.
 //
 // For more information, refer to runtime/protos/runtime.proto and
@@ -109,7 +115,9 @@ type Envelope struct {
 	// Fields below are constant after construction.
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
+	logger     *slog.Logger
 	tmpDir     string
+	myUds      string
 	weavelet   *protos.EnvelopeInfo
 	config     *protos.AppConfig
 	conn       *conn.EnvelopeConn      // conn to weavelet
@@ -161,8 +169,18 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		}
 	}()
 
+	myUds := deployers.NewUnixSocketPath(tmpDir)
+
 	wlet = protomsg.Clone(wlet)
 	wlet.ControlSocket = deployers.NewUnixSocketPath(tmpDir)
+	wlet.Redirects = []*protos.EnvelopeInfo_Redirect{
+		// Point weavelet at my control.DeployerControl component
+		{
+			Component: control.DeployerPath,
+			Target:    control.DeployerPath,
+			Address:   "unix://" + myUds,
+		},
+	}
 	controller, err := getWeaveletControlStub(ctx, wlet.ControlSocket, options)
 	if err != nil {
 		return nil, err
@@ -170,7 +188,9 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	e := &Envelope{
 		ctx:        ctx,
 		ctxCancel:  cancel,
+		logger:     options.Logger,
 		tmpDir:     tmpDir,
+		myUds:      myUds,
 		weavelet:   wlet,
 		config:     config,
 		controller: controller,
@@ -208,6 +228,7 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	}
 
 	// Create the connection, now that the weavelet is running.
+	fmt.Fprintf(os.Stderr, "E1 %+v\n", e.weavelet)
 	conn, err := conn.NewEnvelopeConn(e.ctx, pipePair.ParentReader, pipePair.ParentWriter, e.weavelet)
 	if err != nil {
 		err := fmt.Errorf("NewEnvelope: connect to weavelet: %w", err)
@@ -253,6 +274,11 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 	// Cleanup when we are done with the envelope.
 	defer os.RemoveAll(e.tmpDir)
 
+	uds, err := net.Listen("unix", e.myUds)
+	if err != nil {
+		return err
+	}
+
 	var running errgroup.Group
 
 	var stopErr error
@@ -291,12 +317,21 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 		return err
 	})
 
+	// Start the goroutine to handle deployer control calls.
+	running.Go(func() error {
+		err := deployers.ServeComponents(e.ctx, uds, e.logger, map[string]any{
+			control.DeployerPath: h,
+		})
+		stop(err)
+		return err
+	})
+
 	running.Wait()
 
 	// Wait for the weavelet command to finish. This needs to be done after
 	// we're done reading from stdout/stderr pipes, per comments on
 	// exec.Cmd.StdoutPipe and exec.Cmd.StderrPipe.
-	err := e.cmd.Wait()
+	err = e.cmd.Wait()
 	stop(err)
 	e.cmd.Cleanup()
 
@@ -412,10 +447,9 @@ func dropNewline(line []byte) []byte {
 // getWeaveletControlStub returns a control.WeaveletControl that forwards calls to the controller
 // component in the weavelet at the specified socket.
 func getWeaveletControlStub(ctx context.Context, socket string, options Options) (control.WeaveletControl, error) {
-	const controllerName = "github.com/ServiceWeaver/weaver/weaveletControl"
-	controllerReg, ok := codegen.Find(controllerName)
+	controllerReg, ok := codegen.Find(control.WeaveletPath)
 	if !ok {
-		return nil, fmt.Errorf("controller component (%s) not found", controllerName)
+		return nil, fmt.Errorf("controller component (%s) not found", control.WeaveletPath)
 	}
 	controlEndpoint := call.Unix(socket)
 	resolver := call.NewConstantResolver(controlEndpoint)
@@ -425,7 +459,7 @@ func getWeaveletControlStub(ctx context.Context, socket string, options Options)
 		return nil, err
 	}
 	// We skip waitUntilReady() and rely on automatic retries of methods
-	stub := call.NewStub(controllerName, controllerReg, conn, options.Tracer, 0)
+	stub := call.NewStub(control.WeaveletPath, controllerReg, conn, options.Tracer, 0)
 	obj := controllerReg.ClientStubFn(stub, "envelope")
 	return obj.(control.WeaveletControl), nil
 }

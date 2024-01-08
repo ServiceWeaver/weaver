@@ -119,20 +119,6 @@ func (w *WeaveletConn) Listener() net.Listener {
 	return w.lis
 }
 
-// ActivateComponentRPC ensures that the provided component is running
-// somewhere. A call to ActivateComponentRPC also implicitly signals that a
-// weavelet is interested in receiving routing info for the component.
-func (w *WeaveletConn) ActivateComponentRPC(req *protos.ActivateComponentRequest) error {
-	reply, err := w.rpc(&protos.WeaveletMsg{ActivateComponentRequest: req})
-	if err != nil {
-		return err
-	}
-	if reply.ActivateComponentReply == nil {
-		return fmt.Errorf("nil ActivateComponentReply received from envelope")
-	}
-	return nil
-}
-
 // GetListenerAddressRPC returns the address the weavelet should listen on for
 // a particular listener.
 func (w *WeaveletConn) GetListenerAddressRPC(req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {

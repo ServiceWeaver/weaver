@@ -102,7 +102,9 @@ func (d *deployer) spawn(component string) (*handler, error) {
 	go func() {
 		// Inform the weavelet of the component it should host.
 		envelope.UpdateComponents([]string{component})
+	}()
 
+	go func() {
 		// Handle messages from the weavelet.
 		envelope.Serve(h)
 	}()
@@ -143,6 +145,14 @@ func (h *handler) ExportListener(_ context.Context, req *protos.ExportListenerRe
 }
 
 // Responsibility 3: Telemetry.
+func (h *handler) LogBatch(_ context.Context, batch *protos.LogEntryBatch) error {
+	pp := logging.NewPrettyPrinter(colors.Enabled())
+	for _, entry := range batch.Entries {
+		fmt.Println(pp.Format(entry))
+	}
+	return nil
+}
+
 func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	pp := logging.NewPrettyPrinter(colors.Enabled())
 	fmt.Println(pp.Format(entry))

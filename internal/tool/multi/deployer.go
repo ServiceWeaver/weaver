@@ -29,7 +29,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/control"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
 	"github.com/ServiceWeaver/weaver/internal/routing"
@@ -38,7 +37,6 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
-	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/graph"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
@@ -55,16 +53,12 @@ import (
 // The default number of times a component is replicated.
 const defaultReplication = 2
 
-// Path name for the deployer control component we implement.
-const deployerControlPath = "github.com/ServiceWeaver/weaver/deployerControl"
-
 // A deployer manages an application deployment.
 type deployer struct {
 	ctx          context.Context
 	ctxCancel    context.CancelFunc
 	deploymentId string
 	tmpDir       string // Private directory for this weavelet/envelope
-	udsPath      string // Path to Unix domain socket
 	config       *MultiConfig
 	started      time.Time
 	logger       *slog.Logger
@@ -82,10 +76,7 @@ type deployer struct {
 	err     error                 // error that stopped the babysitter
 	groups  map[string]*group     // groups, by component name
 	proxies map[string]*proxyInfo // proxies, by listener name
-
 }
-
-var _ control.DeployerControl = &deployer{}
 
 // A group contains information about a co-location group.
 type group struct {
@@ -151,19 +142,11 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 		return nil, fmt.Errorf("cannot open Perfetto database: %w", err)
 	}
 
-	// Make Unix domain socket listener for serving hosted system components.
-	udsPath := deployers.NewUnixSocketPath(tmpDir)
-	uds, err := net.Listen("unix", udsPath)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
 		ctx:            ctx,
 		ctxCancel:      cancel,
 		tmpDir:         tmpDir,
-		udsPath:        udsPath,
 		logger:         logger,
 		caCert:         caCert,
 		caKey:          caKey,
@@ -193,15 +176,6 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 	d.running.Go(func() error {
 		<-d.ctx.Done()
 		err := d.ctx.Err()
-		d.stop(err)
-		return err
-	})
-
-	// Start a goroutine that serves calls to system components like deployerControl.
-	d.running.Go(func() error {
-		err := deployers.ServeComponents(d.ctx, uds, d.logger, map[string]any{
-			deployerControlPath: d,
-		})
 		d.stop(err)
 		return err
 	})
@@ -355,14 +329,6 @@ func (d *deployer) startColocationGroup(g *group) error {
 			RunMain:         g.started[runtime.Main],
 			Mtls:            d.config.Mtls,
 			InternalAddress: "localhost:0",
-			Redirects: []*protos.EnvelopeInfo_Redirect{
-				// Supply custom deployer control component
-				{
-					Component: deployerControlPath,
-					Target:    deployerControlPath,
-					Address:   "unix://" + d.udsPath,
-				},
-			},
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config.App, envelope.Options{
 			Logger: d.logger,
@@ -375,13 +341,14 @@ func (d *deployer) startColocationGroup(g *group) error {
 		// compiled binary.
 		wlet := e.WeaveletInfo()
 
+		h := &handler{
+			deployer:   d,
+			g:          g,
+			subscribed: map[string]bool{},
+			envelope:   e,
+		}
+
 		d.running.Go(func() error {
-			h := &handler{
-				deployer:   d,
-				g:          g,
-				subscribed: map[string]bool{},
-				envelope:   e,
-			}
 			err := e.Serve(h)
 			d.stop(err)
 			return err
@@ -403,7 +370,7 @@ func (d *deployer) startMain() error {
 	})
 }
 
-// ActivateComponent implements the envelope.EnvelopeHandler interface.
+// ActivateComponent implements the control.DeployerControl interface.
 func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	if err := h.subscribeTo(req); err != nil {
 		return nil, err

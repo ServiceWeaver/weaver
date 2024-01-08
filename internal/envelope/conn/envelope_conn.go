@@ -34,6 +34,7 @@ type EnvelopeHandler interface {
 	GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
 	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
+	LogBatch(context.Context, *protos.LogEntryBatch) error
 	HandleLogEntry(context.Context, *protos.LogEntry) error
 	HandleTraceSpans(context.Context, *protos.TraceSpans) error
 }
@@ -196,13 +197,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 	}
 
 	switch {
-	case msg.ActivateComponentRequest != nil:
-		reply, err := h.ActivateComponent(e.ctx, msg.ActivateComponentRequest)
-		return e.conn.send(&protos.EnvelopeMsg{
-			Id:                     -msg.Id,
-			Error:                  errstring(err),
-			ActivateComponentReply: reply,
-		})
 	case msg.GetListenerAddressRequest != nil:
 		reply, err := h.GetListenerAddress(e.ctx, msg.GetListenerAddressRequest)
 		return e.conn.send(&protos.EnvelopeMsg{

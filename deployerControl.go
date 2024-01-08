@@ -44,10 +44,15 @@ func (local *localDeployerControl) Init(ctx context.Context) error {
 	return nil
 }
 
-// LogBatch logs a list of entries.
+// LogBatch implements the control.DeployerControl interface.
 func (local *localDeployerControl) LogBatch(ctx context.Context, batch *protos.LogEntryBatch) error {
 	for _, entry := range batch.Entries {
 		fmt.Fprintln(os.Stderr, local.pp.Format(entry))
 	}
 	return nil
+}
+
+// ActivateComponent implements the control.DeployerControl interface.
+func (*localDeployerControl) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
+	return nil, fmt.Errorf("localDeployerControl.ActivateComponent not implemented")
 }
