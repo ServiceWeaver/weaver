@@ -20,12 +20,13 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
-// Controller is the interface for the weaver.controller component. It is present in
-// its own package so other packages do not need to copy the interface definition.
+// WeaveletControl is the interface for the weaver.weaveletControl component. It is
+// present in its own package so other packages do not need to copy the interface
+// definition.
 //
 // Arguments and results are protobufs to allow deployers to evolve independently of
 // application binaries.
-type Controller interface {
+type WeaveletControl interface {
 	// UpdateComponents updates the weavelet with the latest set of components it
 	// should be running.
 	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)
