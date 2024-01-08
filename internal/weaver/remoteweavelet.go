@@ -79,7 +79,7 @@ type RemoteWeavelet struct {
 	listeners map[string]*listener // listeners, by name
 }
 
-var _ control.Controller = (*RemoteWeavelet)(nil)
+var _ control.WeaveletControl = (*RemoteWeavelet)(nil)
 
 type redirect struct {
 	component *component
@@ -229,7 +229,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	// Serve the control component.
 	servers.Go(func() error {
 		return deployers.ServeComponents(ctx, controlSocket, w.syslogger, map[string]any{
-			"github.com/ServiceWeaver/weaver/controller": w,
+			"github.com/ServiceWeaver/weaver/weaveletControl": w,
 		})
 	})
 
@@ -661,9 +661,9 @@ func (w *RemoteWeavelet) repeatedly(ctx context.Context, errMsg string, f func()
 }
 
 func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogEntryBatch) error, error) {
-	// If an override is found for the logger component, use it.
-	const loggerPath = "github.com/ServiceWeaver/weaver/Logger"
-	r, ok := w.redirects[loggerPath]
+	// If an override is found for the deployer control component, use it.
+	const overridePath = "github.com/ServiceWeaver/weaver/deployerControl"
+	r, ok := w.redirects[overridePath]
 	if !ok {
 		// For now, fall back to sending over the pipe to the weavelet.
 		// TODO(sanjay): Make the default write to os.Stderr once all deployers

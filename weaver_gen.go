@@ -15,70 +15,70 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/Logger",
-		Iface: reflect.TypeOf((*Logger)(nil)).Elem(),
-		Impl:  reflect.TypeOf(stderrLogger{}),
+		Name:  "github.com/ServiceWeaver/weaver/deployerControl",
+		Iface: reflect.TypeOf((*deployerControl)(nil)).Elem(),
+		Impl:  reflect.TypeOf(localDeployerControl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return logger_local_stub{impl: impl.(Logger), tracer: tracer, logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/Logger", Method: "LogBatch", Remote: false})}
+			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return logger_client_stub{stub: stub, logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/Logger", Method: "LogBatch", Remote: true})}
+			return deployerControl_client_stub{stub: stub, logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return logger_server_stub{impl: impl.(Logger), addLoad: addLoad}
+			return deployerControl_server_stub{impl: impl.(deployerControl), addLoad: addLoad}
 		},
 		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
-			return logger_reflect_stub{caller: caller}
+			return deployerControl_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/controller",
-		Iface: reflect.TypeOf((*controller)(nil)).Elem(),
-		Impl:  reflect.TypeOf(noopController{}),
+		Name:  "github.com/ServiceWeaver/weaver/weaveletControl",
+		Iface: reflect.TypeOf((*weaveletControl)(nil)).Elem(),
+		Impl:  reflect.TypeOf(noopWeaveletControl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return controller_local_stub{impl: impl.(controller), tracer: tracer, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetHealth", Remote: false}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetLoad", Remote: false}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetMetrics", Remote: false}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetProfile", Remote: false}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: false})}
+			return weaveletControl_local_stub{impl: impl.(weaveletControl), tracer: tracer, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetHealth", Remote: false}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetLoad", Remote: false}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetMetrics", Remote: false}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetProfile", Remote: false}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateRoutingInfo", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return controller_client_stub{stub: stub, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetHealth", Remote: true}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetLoad", Remote: true}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetMetrics", Remote: true}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "GetProfile", Remote: true}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/controller", Method: "UpdateRoutingInfo", Remote: true})}
+			return weaveletControl_client_stub{stub: stub, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetHealth", Remote: true}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetLoad", Remote: true}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetMetrics", Remote: true}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetProfile", Remote: true}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateRoutingInfo", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
-			return controller_server_stub{impl: impl.(controller), addLoad: addLoad}
+			return weaveletControl_server_stub{impl: impl.(weaveletControl), addLoad: addLoad}
 		},
 		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
-			return controller_reflect_stub{caller: caller}
+			return weaveletControl_reflect_stub{caller: caller}
 		},
 		RefData: "",
 	})
 }
 
 // weaver.InstanceOf checks.
-var _ InstanceOf[Logger] = (*stderrLogger)(nil)
-var _ InstanceOf[controller] = (*noopController)(nil)
+var _ InstanceOf[deployerControl] = (*localDeployerControl)(nil)
+var _ InstanceOf[weaveletControl] = (*noopWeaveletControl)(nil)
 
 // weaver.Router checks.
-var _ Unrouted = (*stderrLogger)(nil)
-var _ Unrouted = (*noopController)(nil)
+var _ Unrouted = (*localDeployerControl)(nil)
+var _ Unrouted = (*noopWeaveletControl)(nil)
 
 // Local stub implementations.
 
-type logger_local_stub struct {
-	impl            Logger
+type deployerControl_local_stub struct {
+	impl            deployerControl
 	tracer          trace.Tracer
 	logBatchMetrics *codegen.MethodMetrics
 }
 
-// Check that logger_local_stub implements the Logger interface.
-var _ Logger = (*logger_local_stub)(nil)
+// Check that deployerControl_local_stub implements the deployerControl interface.
+var _ deployerControl = (*deployerControl_local_stub)(nil)
 
-func (s logger_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
+func (s deployerControl_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
 	begin := s.logBatchMetrics.Begin()
 	defer func() { s.logBatchMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.Logger.LogBatch", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.LogBatch", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -91,8 +91,8 @@ func (s logger_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatc
 	return s.impl.LogBatch(ctx, a0)
 }
 
-type controller_local_stub struct {
-	impl                     controller
+type weaveletControl_local_stub struct {
+	impl                     weaveletControl
 	tracer                   trace.Tracer
 	getHealthMetrics         *codegen.MethodMetrics
 	getLoadMetrics           *codegen.MethodMetrics
@@ -102,17 +102,17 @@ type controller_local_stub struct {
 	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
 
-// Check that controller_local_stub implements the controller interface.
-var _ controller = (*controller_local_stub)(nil)
+// Check that weaveletControl_local_stub implements the weaveletControl interface.
+var _ weaveletControl = (*weaveletControl_local_stub)(nil)
 
-func (s controller_local_stub) GetHealth(ctx context.Context, a0 *protos.GetHealthRequest) (r0 *protos.GetHealthReply, err error) {
+func (s weaveletControl_local_stub) GetHealth(ctx context.Context, a0 *protos.GetHealthRequest) (r0 *protos.GetHealthReply, err error) {
 	// Update metrics.
 	begin := s.getHealthMetrics.Begin()
 	defer func() { s.getHealthMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.controller.GetHealth", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.GetHealth", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -125,14 +125,14 @@ func (s controller_local_stub) GetHealth(ctx context.Context, a0 *protos.GetHeal
 	return s.impl.GetHealth(ctx, a0)
 }
 
-func (s controller_local_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRequest) (r0 *protos.GetLoadReply, err error) {
+func (s weaveletControl_local_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRequest) (r0 *protos.GetLoadReply, err error) {
 	// Update metrics.
 	begin := s.getLoadMetrics.Begin()
 	defer func() { s.getLoadMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.controller.GetLoad", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.GetLoad", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -145,14 +145,14 @@ func (s controller_local_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRe
 	return s.impl.GetLoad(ctx, a0)
 }
 
-func (s controller_local_stub) GetMetrics(ctx context.Context, a0 *protos.GetMetricsRequest) (r0 *protos.GetMetricsReply, err error) {
+func (s weaveletControl_local_stub) GetMetrics(ctx context.Context, a0 *protos.GetMetricsRequest) (r0 *protos.GetMetricsReply, err error) {
 	// Update metrics.
 	begin := s.getMetricsMetrics.Begin()
 	defer func() { s.getMetricsMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.controller.GetMetrics", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.GetMetrics", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -165,14 +165,14 @@ func (s controller_local_stub) GetMetrics(ctx context.Context, a0 *protos.GetMet
 	return s.impl.GetMetrics(ctx, a0)
 }
 
-func (s controller_local_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
+func (s weaveletControl_local_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
 	// Update metrics.
 	begin := s.getProfileMetrics.Begin()
 	defer func() { s.getProfileMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.controller.GetProfile", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.GetProfile", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -185,14 +185,14 @@ func (s controller_local_stub) GetProfile(ctx context.Context, a0 *protos.GetPro
 	return s.impl.GetProfile(ctx, a0)
 }
 
-func (s controller_local_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
+func (s weaveletControl_local_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	// Update metrics.
 	begin := s.updateComponentsMetrics.Begin()
 	defer func() { s.updateComponentsMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.controller.UpdateComponents", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.UpdateComponents", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -205,14 +205,14 @@ func (s controller_local_stub) UpdateComponents(ctx context.Context, a0 *protos.
 	return s.impl.UpdateComponents(ctx, a0)
 }
 
-func (s controller_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
+func (s weaveletControl_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
 	// Update metrics.
 	begin := s.updateRoutingInfoMetrics.Begin()
 	defer func() { s.updateRoutingInfoMetrics.End(begin, err != nil, 0, 0) }()
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.tracer.Start(ctx, "weaver.controller.UpdateRoutingInfo", trace.WithSpanKind(trace.SpanKindInternal))
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.UpdateRoutingInfo", trace.WithSpanKind(trace.SpanKindInternal))
 		defer func() {
 			if err != nil {
 				span.RecordError(err)
@@ -227,15 +227,15 @@ func (s controller_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos
 
 // Client stub implementations.
 
-type logger_client_stub struct {
+type deployerControl_client_stub struct {
 	stub            codegen.Stub
 	logBatchMetrics *codegen.MethodMetrics
 }
 
-// Check that logger_client_stub implements the Logger interface.
-var _ Logger = (*logger_client_stub)(nil)
+// Check that deployerControl_client_stub implements the deployerControl interface.
+var _ deployerControl = (*deployerControl_client_stub)(nil)
 
-func (s logger_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
+func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.logBatchMetrics.Begin()
@@ -244,7 +244,7 @@ func (s logger_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBat
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.Logger.LogBatch", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.LogBatch", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -285,7 +285,7 @@ func (s logger_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBat
 	return
 }
 
-type controller_client_stub struct {
+type weaveletControl_client_stub struct {
 	stub                     codegen.Stub
 	getHealthMetrics         *codegen.MethodMetrics
 	getLoadMetrics           *codegen.MethodMetrics
@@ -295,10 +295,10 @@ type controller_client_stub struct {
 	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
 
-// Check that controller_client_stub implements the controller interface.
-var _ controller = (*controller_client_stub)(nil)
+// Check that weaveletControl_client_stub implements the weaveletControl interface.
+var _ weaveletControl = (*weaveletControl_client_stub)(nil)
 
-func (s controller_client_stub) GetHealth(ctx context.Context, a0 *protos.GetHealthRequest) (r0 *protos.GetHealthReply, err error) {
+func (s weaveletControl_client_stub) GetHealth(ctx context.Context, a0 *protos.GetHealthRequest) (r0 *protos.GetHealthReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.getHealthMetrics.Begin()
@@ -307,7 +307,7 @@ func (s controller_client_stub) GetHealth(ctx context.Context, a0 *protos.GetHea
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.GetHealth", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.GetHealth", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -349,7 +349,7 @@ func (s controller_client_stub) GetHealth(ctx context.Context, a0 *protos.GetHea
 	return
 }
 
-func (s controller_client_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRequest) (r0 *protos.GetLoadReply, err error) {
+func (s weaveletControl_client_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRequest) (r0 *protos.GetLoadReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.getLoadMetrics.Begin()
@@ -358,7 +358,7 @@ func (s controller_client_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadR
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.GetLoad", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.GetLoad", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -400,7 +400,7 @@ func (s controller_client_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadR
 	return
 }
 
-func (s controller_client_stub) GetMetrics(ctx context.Context, a0 *protos.GetMetricsRequest) (r0 *protos.GetMetricsReply, err error) {
+func (s weaveletControl_client_stub) GetMetrics(ctx context.Context, a0 *protos.GetMetricsRequest) (r0 *protos.GetMetricsReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.getMetricsMetrics.Begin()
@@ -409,7 +409,7 @@ func (s controller_client_stub) GetMetrics(ctx context.Context, a0 *protos.GetMe
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.GetMetrics", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.GetMetrics", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -451,7 +451,7 @@ func (s controller_client_stub) GetMetrics(ctx context.Context, a0 *protos.GetMe
 	return
 }
 
-func (s controller_client_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
+func (s weaveletControl_client_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.getProfileMetrics.Begin()
@@ -460,7 +460,7 @@ func (s controller_client_stub) GetProfile(ctx context.Context, a0 *protos.GetPr
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.GetProfile", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.GetProfile", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -502,7 +502,7 @@ func (s controller_client_stub) GetProfile(ctx context.Context, a0 *protos.GetPr
 	return
 }
 
-func (s controller_client_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
+func (s weaveletControl_client_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.updateComponentsMetrics.Begin()
@@ -511,7 +511,7 @@ func (s controller_client_stub) UpdateComponents(ctx context.Context, a0 *protos
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.UpdateComponents", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.UpdateComponents", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -553,7 +553,7 @@ func (s controller_client_stub) UpdateComponents(ctx context.Context, a0 *protos
 	return
 }
 
-func (s controller_client_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
+func (s weaveletControl_client_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.updateRoutingInfoMetrics.Begin()
@@ -562,7 +562,7 @@ func (s controller_client_stub) UpdateRoutingInfo(ctx context.Context, a0 *proto
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		// Create a child span for this method.
-		ctx, span = s.stub.Tracer().Start(ctx, "weaver.controller.UpdateRoutingInfo", trace.WithSpanKind(trace.SpanKindClient))
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.UpdateRoutingInfo", trace.WithSpanKind(trace.SpanKindClient))
 	}
 
 	defer func() {
@@ -629,16 +629,16 @@ please file an issue at https://github.com/ServiceWeaver/weaver/issues.
 
 // Server stub implementations.
 
-type logger_server_stub struct {
-	impl    Logger
+type deployerControl_server_stub struct {
+	impl    deployerControl
 	addLoad func(key uint64, load float64)
 }
 
-// Check that logger_server_stub implements the codegen.Server interface.
-var _ codegen.Server = (*logger_server_stub)(nil)
+// Check that deployerControl_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*deployerControl_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
-func (s logger_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s deployerControl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "LogBatch":
 		return s.logBatch
@@ -647,7 +647,7 @@ func (s logger_server_stub) GetStubFn(method string) func(ctx context.Context, a
 	}
 }
 
-func (s logger_server_stub) logBatch(ctx context.Context, args []byte) (res []byte, err error) {
+func (s deployerControl_server_stub) logBatch(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -671,16 +671,16 @@ func (s logger_server_stub) logBatch(ctx context.Context, args []byte) (res []by
 	return enc.Data(), nil
 }
 
-type controller_server_stub struct {
-	impl    controller
+type weaveletControl_server_stub struct {
+	impl    weaveletControl
 	addLoad func(key uint64, load float64)
 }
 
-// Check that controller_server_stub implements the codegen.Server interface.
-var _ codegen.Server = (*controller_server_stub)(nil)
+// Check that weaveletControl_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*weaveletControl_server_stub)(nil)
 
 // GetStubFn implements the codegen.Server interface.
-func (s controller_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+func (s weaveletControl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
 	case "GetHealth":
 		return s.getHealth
@@ -699,7 +699,7 @@ func (s controller_server_stub) GetStubFn(method string) func(ctx context.Contex
 	}
 }
 
-func (s controller_server_stub) getHealth(ctx context.Context, args []byte) (res []byte, err error) {
+func (s weaveletControl_server_stub) getHealth(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -724,7 +724,7 @@ func (s controller_server_stub) getHealth(ctx context.Context, args []byte) (res
 	return enc.Data(), nil
 }
 
-func (s controller_server_stub) getLoad(ctx context.Context, args []byte) (res []byte, err error) {
+func (s weaveletControl_server_stub) getLoad(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -749,7 +749,7 @@ func (s controller_server_stub) getLoad(ctx context.Context, args []byte) (res [
 	return enc.Data(), nil
 }
 
-func (s controller_server_stub) getMetrics(ctx context.Context, args []byte) (res []byte, err error) {
+func (s weaveletControl_server_stub) getMetrics(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -774,7 +774,7 @@ func (s controller_server_stub) getMetrics(ctx context.Context, args []byte) (re
 	return enc.Data(), nil
 }
 
-func (s controller_server_stub) getProfile(ctx context.Context, args []byte) (res []byte, err error) {
+func (s weaveletControl_server_stub) getProfile(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -799,7 +799,7 @@ func (s controller_server_stub) getProfile(ctx context.Context, args []byte) (re
 	return enc.Data(), nil
 }
 
-func (s controller_server_stub) updateComponents(ctx context.Context, args []byte) (res []byte, err error) {
+func (s weaveletControl_server_stub) updateComponents(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -824,7 +824,7 @@ func (s controller_server_stub) updateComponents(ctx context.Context, args []byt
 	return enc.Data(), nil
 }
 
-func (s controller_server_stub) updateRoutingInfo(ctx context.Context, args []byte) (res []byte, err error) {
+func (s weaveletControl_server_stub) updateRoutingInfo(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
 		if err == nil {
@@ -851,51 +851,51 @@ func (s controller_server_stub) updateRoutingInfo(ctx context.Context, args []by
 
 // Reflect stub implementations.
 
-type logger_reflect_stub struct {
+type deployerControl_reflect_stub struct {
 	caller func(string, context.Context, []any, []any) error
 }
 
-// Check that logger_reflect_stub implements the Logger interface.
-var _ Logger = (*logger_reflect_stub)(nil)
+// Check that deployerControl_reflect_stub implements the deployerControl interface.
+var _ deployerControl = (*deployerControl_reflect_stub)(nil)
 
-func (s logger_reflect_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
+func (s deployerControl_reflect_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	err = s.caller("LogBatch", ctx, []any{a0}, []any{})
 	return
 }
 
-type controller_reflect_stub struct {
+type weaveletControl_reflect_stub struct {
 	caller func(string, context.Context, []any, []any) error
 }
 
-// Check that controller_reflect_stub implements the controller interface.
-var _ controller = (*controller_reflect_stub)(nil)
+// Check that weaveletControl_reflect_stub implements the weaveletControl interface.
+var _ weaveletControl = (*weaveletControl_reflect_stub)(nil)
 
-func (s controller_reflect_stub) GetHealth(ctx context.Context, a0 *protos.GetHealthRequest) (r0 *protos.GetHealthReply, err error) {
+func (s weaveletControl_reflect_stub) GetHealth(ctx context.Context, a0 *protos.GetHealthRequest) (r0 *protos.GetHealthReply, err error) {
 	err = s.caller("GetHealth", ctx, []any{a0}, []any{&r0})
 	return
 }
 
-func (s controller_reflect_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRequest) (r0 *protos.GetLoadReply, err error) {
+func (s weaveletControl_reflect_stub) GetLoad(ctx context.Context, a0 *protos.GetLoadRequest) (r0 *protos.GetLoadReply, err error) {
 	err = s.caller("GetLoad", ctx, []any{a0}, []any{&r0})
 	return
 }
 
-func (s controller_reflect_stub) GetMetrics(ctx context.Context, a0 *protos.GetMetricsRequest) (r0 *protos.GetMetricsReply, err error) {
+func (s weaveletControl_reflect_stub) GetMetrics(ctx context.Context, a0 *protos.GetMetricsRequest) (r0 *protos.GetMetricsReply, err error) {
 	err = s.caller("GetMetrics", ctx, []any{a0}, []any{&r0})
 	return
 }
 
-func (s controller_reflect_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
+func (s weaveletControl_reflect_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
 	err = s.caller("GetProfile", ctx, []any{a0}, []any{&r0})
 	return
 }
 
-func (s controller_reflect_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
+func (s weaveletControl_reflect_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	err = s.caller("UpdateComponents", ctx, []any{a0}, []any{&r0})
 	return
 }
 
-func (s controller_reflect_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
+func (s weaveletControl_reflect_stub) UpdateRoutingInfo(ctx context.Context, a0 *protos.UpdateRoutingInfoRequest) (r0 *protos.UpdateRoutingInfoReply, err error) {
 	err = s.caller("UpdateRoutingInfo", ctx, []any{a0}, []any{&r0})
 	return
 }

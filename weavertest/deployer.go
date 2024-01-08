@@ -74,18 +74,18 @@ type deployer struct {
 
 // A group contains information about a co-location group.
 type group struct {
-	name        string                          // group name
-	controllers []control.Controller            // weavelet controllers
-	components  map[string]bool                 // started components
-	addresses   map[string]bool                 // weavelet addresses
-	subscribers map[string][]control.Controller // routing info subscribers, by component
+	name        string                               // group name
+	controllers []control.WeaveletControl            // weavelet controllers
+	components  map[string]bool                      // started components
+	addresses   map[string]bool                      // weavelet addresses
+	subscribers map[string][]control.WeaveletControl // routing info subscribers, by component
 }
 
 // handler handles a connection to a weavelet.
 type handler struct {
 	*deployer
 	group      *group
-	controller control.Controller
+	controller control.WeaveletControl
 	subscribed map[string]bool // routing info subscriptions, by component
 }
 
@@ -400,11 +400,12 @@ func (d *deployer) startGroup(g *group) error {
 		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
 			return err
 		}
-		if _, err := e.Controller().UpdateComponents(d.ctx, update); err != nil {
+		wc := e.WeaveletControl()
+		if _, err := wc.UpdateComponents(d.ctx, update); err != nil {
 			return err
 		}
-		handler.controller = e.Controller()
-		g.controllers = append(g.controllers, e.Controller())
+		handler.controller = wc
+		g.controllers = append(g.controllers, wc)
 	}
 	return nil
 }
@@ -430,7 +431,7 @@ func (d *deployer) group(component string) *group {
 			name:        name,
 			components:  map[string]bool{},
 			addresses:   map[string]bool{},
-			subscribers: map[string][]control.Controller{},
+			subscribers: map[string][]control.WeaveletControl{},
 		}
 		d.groups[name] = g
 	}

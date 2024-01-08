@@ -23,20 +23,21 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"slices"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/internal/control"
 	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/proxy"
-	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/routing"
 	"github.com/ServiceWeaver/weaver/internal/status"
 	"github.com/ServiceWeaver/weaver/internal/tool/certs"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/bin"
+	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/graph"
@@ -54,21 +55,25 @@ import (
 // The default number of times a component is replicated.
 const defaultReplication = 2
 
+// Path name for the deployer control component we implement.
+const deployerControlPath = "github.com/ServiceWeaver/weaver/deployerControl"
+
 // A deployer manages an application deployment.
 type deployer struct {
-	ctx             context.Context
-	ctxCancel       context.CancelFunc
-	deploymentId    string
-	tmpDir          string // Private directory for this weavelet/envelope
-	udsPath         string // Path to Unix domain socket
-	config          *MultiConfig
-	started         time.Time
-	logger          *slog.Logger
-	caCert          *x509.Certificate
-	caKey           crypto.PrivateKey
-	running         errgroup.Group
-	loggerComponent *logger
-	traceDB         *traces.DB
+	ctx          context.Context
+	ctxCancel    context.CancelFunc
+	deploymentId string
+	tmpDir       string // Private directory for this weavelet/envelope
+	udsPath      string // Path to Unix domain socket
+	config       *MultiConfig
+	started      time.Time
+	logger       *slog.Logger
+	caCert       *x509.Certificate
+	caKey        crypto.PrivateKey
+	running      errgroup.Group
+	logsDB       *logging.FileStore
+	printer      *logging.PrettyPrinter
+	traceDB      *traces.DB
 
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
@@ -79,6 +84,8 @@ type deployer struct {
 	proxies map[string]*proxyInfo // proxies, by listener name
 
 }
+
+var _ control.DeployerControl = &deployer{}
 
 // A group contains information about a co-location group.
 type group struct {
@@ -119,7 +126,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 	if err != nil {
 		return nil, fmt.Errorf("cannot create log storage: %w", err)
 	}
-	loggerComponent := newLogger(logsDB)
+	printer := logging.NewPrettyPrinter(colors.Enabled())
 	logger := slog.New(&logging.LogHandler{
 		Opts: logging.Options{
 			App:       config.App.Name,
@@ -127,9 +134,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 			Weavelet:  uuid.NewString(),
 			Attrs:     []string{"serviceweaver/system", ""},
 		},
-		// Local log entries are relayed directly to loggerComponent
-		// without going through any stubs.
-		Write: loggerComponent.log,
+		Write: func(e *protos.LogEntry) { log(logsDB, printer, e) },
 	})
 	var caCert *x509.Certificate
 	var caKey crypto.PrivateKey
@@ -155,20 +160,21 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 
 	ctx, cancel := context.WithCancel(ctx)
 	d := &deployer{
-		ctx:             ctx,
-		ctxCancel:       cancel,
-		tmpDir:          tmpDir,
-		udsPath:         udsPath,
-		logger:          logger,
-		caCert:          caCert,
-		caKey:           caKey,
-		loggerComponent: loggerComponent,
-		traceDB:         traceDB,
-		statsProcessor:  imetrics.NewStatsProcessor(),
-		deploymentId:    deploymentId,
-		config:          config,
-		started:         time.Now(),
-		proxies:         map[string]*proxyInfo{},
+		ctx:            ctx,
+		ctxCancel:      cancel,
+		tmpDir:         tmpDir,
+		udsPath:        udsPath,
+		logger:         logger,
+		caCert:         caCert,
+		caKey:          caKey,
+		logsDB:         logsDB,
+		printer:        printer,
+		traceDB:        traceDB,
+		statsProcessor: imetrics.NewStatsProcessor(),
+		deploymentId:   deploymentId,
+		config:         config,
+		started:        time.Now(),
+		proxies:        map[string]*proxyInfo{},
 	}
 
 	// Form co-location groups.
@@ -191,10 +197,10 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 		return err
 	})
 
-	// Start a goroutine that serves calls to system components like multiLogger.
+	// Start a goroutine that serves calls to system components like deployerControl.
 	d.running.Go(func() error {
 		err := deployers.ServeComponents(d.ctx, uds, d.logger, map[string]any{
-			reflection.ComponentName[multiLogger](): loggerComponent,
+			deployerControlPath: d,
 		})
 		d.stop(err)
 		return err
@@ -350,10 +356,10 @@ func (d *deployer) startColocationGroup(g *group) error {
 			Mtls:            d.config.Mtls,
 			InternalAddress: "localhost:0",
 			Redirects: []*protos.EnvelopeInfo_Redirect{
-				// Override the builtin logger.
+				// Supply custom deployer control component
 				{
-					Component: reflection.ComponentName[weaver.Logger](),
-					Target:    reflection.ComponentName[multiLogger](),
+					Component: deployerControlPath,
+					Target:    deployerControlPath,
 					Address:   "unix://" + d.udsPath,
 				},
 			},
@@ -565,9 +571,17 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo, pid int)
 	return nil
 }
 
+// LogBatch implements the control.DeployerControl interface.
+func (d *deployer) LogBatch(ctx context.Context, batch *protos.LogEntryBatch) error {
+	for _, entry := range batch.Entries {
+		log(d.logsDB, d.printer, entry)
+	}
+	return nil
+}
+
 // HandleLogEntry implements the envelope.EnvelopeHandler interface.
 func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	d.loggerComponent.log(entry)
+	log(d.logsDB, d.printer, entry)
 	return nil
 }
 
@@ -768,4 +782,11 @@ func runProfiling(_ context.Context, req *protos.GetProfileRequest, processes ma
 	}
 	data, err := profiling.ProfileGroups(groups)
 	return &protos.GetProfileReply{Data: data}, err
+}
+
+func log(db *logging.FileStore, printer *logging.PrettyPrinter, e *protos.LogEntry) {
+	if !logging.IsSystemGenerated(e) {
+		fmt.Fprintln(os.Stderr, printer.Format(e))
+	}
+	db.Add(e)
 }

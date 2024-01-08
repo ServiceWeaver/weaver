@@ -550,11 +550,10 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     errors
     flag
     fmt
-    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proxy
-    github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/routing
     github.com/ServiceWeaver/weaver/internal/status
     github.com/ServiceWeaver/weaver/internal/tool
@@ -576,8 +575,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/traces
     github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
-    go.opentelemetry.io/otel/codes
-    go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
     golang.org/x/sync/errgroup
     google.golang.org/protobuf/reflect/protoreflect

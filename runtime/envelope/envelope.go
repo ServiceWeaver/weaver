@@ -112,11 +112,11 @@ type Envelope struct {
 	tmpDir     string
 	weavelet   *protos.EnvelopeInfo
 	config     *protos.AppConfig
-	conn       *conn.EnvelopeConn // conn to weavelet
-	cmd        *pipe.Cmd          // command that started the weavelet
-	stdoutPipe io.ReadCloser      // stdout pipe from the weavelet
-	stderrPipe io.ReadCloser      // stderr pipe from the weavelet
-	controller control.Controller // Stub that talks to the weavelet controller
+	conn       *conn.EnvelopeConn      // conn to weavelet
+	cmd        *pipe.Cmd               // command that started the weavelet
+	stdoutPipe io.ReadCloser           // stdout pipe from the weavelet
+	stderrPipe io.ReadCloser           // stderr pipe from the weavelet
+	controller control.WeaveletControl // Stub that talks to the weavelet controller
 
 	// State needed to process metric updates.
 	metricsMu sync.Mutex
@@ -163,7 +163,7 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 
 	wlet = protomsg.Clone(wlet)
 	wlet.ControlSocket = deployers.NewUnixSocketPath(tmpDir)
-	controller, err := getController(ctx, wlet.ControlSocket, options)
+	controller, err := getWeaveletControlStub(ctx, wlet.ControlSocket, options)
 	if err != nil {
 		return nil, err
 	}
@@ -241,8 +241,8 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	return e, nil
 }
 
-// Controller returns the controller component for the weavelet managed by this envelope.
-func (e *Envelope) Controller() control.Controller { return e.controller }
+// WeaveletControl returns the controller component for the weavelet managed by this envelope.
+func (e *Envelope) WeaveletControl() control.WeaveletControl { return e.controller }
 
 // Serve accepts incoming messages from the weavelet. RPC requests are handled
 // serially in the order they are received. Serve blocks until the connection
@@ -409,10 +409,10 @@ func dropNewline(line []byte) []byte {
 	return line
 }
 
-// getController returns a controller that forwards calls to the controller component
-// in the weavelet at the specified socket.
-func getController(ctx context.Context, socket string, options Options) (control.Controller, error) {
-	const controllerName = "github.com/ServiceWeaver/weaver/controller"
+// getWeaveletControlStub returns a control.WeaveletControl that forwards calls to the controller
+// component in the weavelet at the specified socket.
+func getWeaveletControlStub(ctx context.Context, socket string, options Options) (control.WeaveletControl, error) {
+	const controllerName = "github.com/ServiceWeaver/weaver/weaveletControl"
 	controllerReg, ok := codegen.Find(controllerName)
 	if !ok {
 		return nil, fmt.Errorf("controller component (%s) not found", controllerName)
@@ -427,5 +427,5 @@ func getController(ctx context.Context, socket string, options Options) (control
 	// We skip waitUntilReady() and rely on automatic retries of methods
 	stub := call.NewStub(controllerName, controllerReg, conn, options.Tracer, 0)
 	obj := controllerReg.ClientStubFn(stub, "envelope")
-	return obj.(control.Controller), nil
+	return obj.(control.WeaveletControl), nil
 }
