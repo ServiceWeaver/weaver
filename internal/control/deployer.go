@@ -38,4 +38,13 @@ type DeployerControl interface {
 	// somewhere. A call to ActivateComponent also implicitly signals that a
 	// weavelet is interested in receiving routing info for the component.
 	ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error)
+
+	// GetListenerAddress returns the address the weavelet should listen on for
+	// a particular listener.
+	GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error)
+
+	// ExportListener exports the provided listener. Exporting a listener
+	// typically, but not always, involves running a proxy that forwards
+	// traffic to the provided address.
+	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 }

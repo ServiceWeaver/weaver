@@ -197,20 +197,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 	}
 
 	switch {
-	case msg.GetListenerAddressRequest != nil:
-		reply, err := h.GetListenerAddress(e.ctx, msg.GetListenerAddressRequest)
-		return e.conn.send(&protos.EnvelopeMsg{
-			Id:                      -msg.Id,
-			Error:                   errstring(err),
-			GetListenerAddressReply: reply,
-		})
-	case msg.ExportListenerRequest != nil:
-		reply, err := h.ExportListener(e.ctx, msg.ExportListenerRequest)
-		return e.conn.send(&protos.EnvelopeMsg{
-			Id:                  -msg.Id,
-			Error:               errstring(err),
-			ExportListenerReply: reply,
-		})
 	case msg.GetSelfCertificateRequest != nil:
 		reply, err := h.GetSelfCertificate(e.ctx, msg.GetSelfCertificateRequest)
 		return e.conn.send(&protos.EnvelopeMsg{

@@ -56,3 +56,13 @@ func (local *localDeployerControl) LogBatch(ctx context.Context, batch *protos.L
 func (*localDeployerControl) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	return nil, fmt.Errorf("localDeployerControl.ActivateComponent not implemented")
 }
+
+// GetListenerAddress implements the control.DeployerControl interface.
+func (*localDeployerControl) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
+	return nil, fmt.Errorf("localDeployerControl.GetListenerAddress not implemented")
+}
+
+// ExportListener implements the control.DeployerControl interface.
+func (*localDeployerControl) ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
+	return nil, fmt.Errorf("localDeployerControl.ExportListener not implemented")
+}

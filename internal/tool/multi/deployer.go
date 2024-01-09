@@ -557,12 +557,12 @@ func (d *deployer) HandleTraceSpans(ctx context.Context, spans *protos.TraceSpan
 	return d.traceDB.Store(ctx, d.config.App.Name, d.deploymentId, spans)
 }
 
-// GetListenerAddress implements the envelope.EnvelopeHandler interface.
+// GetListenerAddress implements the control.DeployerControl interface.
 func (d *deployer) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
 	return &protos.GetListenerAddressReply{Address: "localhost:0"}, nil
 }
 
-// ExportListener implements the envelope.EnvelopeHandler interface.
+// ExportListener implements the control.DeployerControl interface.
 func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

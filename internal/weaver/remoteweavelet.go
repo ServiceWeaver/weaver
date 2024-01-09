@@ -409,7 +409,7 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 
 	// Fill listener fields.
 	if err := FillListeners(obj, func(name string) (net.Listener, string, error) {
-		lis, err := w.listener(name)
+		lis, err := w.listener(ctx, name)
 		if err != nil {
 			return nil, "", err
 		}
@@ -701,7 +701,7 @@ func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
 }
 
 // listener returns the listener with the provided name.
-func (w *RemoteWeavelet) listener(name string) (*listener, error) {
+func (w *RemoteWeavelet) listener(ctx context.Context, name string) (*listener, error) {
 	w.lismu.Lock()
 	defer w.lismu.Unlock()
 	if lis, ok := w.listeners[name]; ok {
@@ -714,7 +714,7 @@ func (w *RemoteWeavelet) listener(name string) (*listener, error) {
 	}
 
 	// Get the address to listen on.
-	addr, err := w.getListenerAddress(name)
+	addr, err := w.getListenerAddress(ctx, name)
 	if err != nil {
 		return nil, fmt.Errorf("listener(%q): %w", name, err)
 	}
@@ -728,13 +728,14 @@ func (w *RemoteWeavelet) listener(name string) (*listener, error) {
 	// Export the listener.
 	errMsg := fmt.Sprintf("listener(%q): error exporting listener %v", name, lis.Addr())
 	var reply *protos.ExportListenerReply
+	// XXX Do we need repeatedly() or can we rely on component method retries?
 	if err := w.repeatedly(w.ctx, errMsg, func() error {
 		var err error
 		request := &protos.ExportListenerRequest{
 			Listener: name,
 			Address:  lis.Addr().String(),
 		}
-		reply, err = w.conn.ExportListenerRPC(request)
+		reply, err = w.deployer.ExportListener(ctx, request)
 		return err
 	}); err != nil {
 		return nil, err
@@ -749,9 +750,9 @@ func (w *RemoteWeavelet) listener(name string) (*listener, error) {
 	return l, nil
 }
 
-func (w *RemoteWeavelet) getListenerAddress(name string) (string, error) {
+func (w *RemoteWeavelet) getListenerAddress(ctx context.Context, name string) (string, error) {
 	request := &protos.GetListenerAddressRequest{Name: name}
-	reply, err := w.conn.GetListenerAddressRPC(request)
+	reply, err := w.deployer.GetListenerAddress(ctx, request)
 	if err != nil {
 		return "", err
 	}
