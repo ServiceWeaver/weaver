@@ -552,7 +552,7 @@ func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) err
 	return nil
 }
 
-// HandleTraceSpans implements the envelope.EnvelopeHandler interface.
+// HandleTraceSpans implements the control.DeployerControl interface.
 func (d *deployer) HandleTraceSpans(ctx context.Context, spans *protos.TraceSpans) error {
 	return d.traceDB.Store(ctx, d.config.App.Name, d.deploymentId, spans)
 }

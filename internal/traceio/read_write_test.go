@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package conn_test
+package traceio_test
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/google/go-cmp/cmp"
@@ -31,66 +28,27 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-type pipeForTest struct {
-	envelopeConn *conn.EnvelopeConn
-	wletConn     *conn.WeaveletConn
+func writeAndRead(in *protos.Span) (*protos.Span, error) {
+	var waitForSpans sync.WaitGroup
+	var spans *protos.TraceSpans
 
-	waitToExportSpans sync.WaitGroup // wait for trace spans to be exported
-	spans             *protos.TraceSpans
-}
-
-var _ conn.EnvelopeHandler = &pipeForTest{}
-
-func (p *pipeForTest) HandleTraceSpans(_ context.Context, spans *protos.TraceSpans) error {
-	p.spans = spans
-	p.waitToExportSpans.Done()
-	return nil
-}
-
-func (*pipeForTest) LogBatch(context.Context, *protos.LogEntryBatch) error {
-	return nil
-}
-
-func (*pipeForTest) HandleLogEntry(context.Context, *protos.LogEntry) error {
-	return nil
-}
-
-func (*pipeForTest) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
-	return nil, nil
-}
-
-func (*pipeForTest) GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
-	return nil, nil
-}
-
-func (*pipeForTest) ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
-	return nil, nil
-}
-
-func (*pipeForTest) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
-	panic("unused")
-}
-
-func (*pipeForTest) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
-	panic("unused")
-}
-
-func (*pipeForTest) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
-	panic("unused")
-}
-
-func writeAndRead(in *protos.Span, pipe *pipeForTest) (*protos.Span, error) {
-	pipe.waitToExportSpans.Add(1)
-	writer := traceio.NewWriter(pipe.wletConn.SendTraceSpans)
+	waitForSpans.Add(1)
+	writer := traceio.NewWriter(
+		func(s *protos.TraceSpans) error {
+			spans = s
+			waitForSpans.Done()
+			return nil
+		},
+	)
 	if err := writer.ExportSpansProto(&protos.TraceSpans{Span: []*protos.Span{in}}); err != nil {
 		return nil, err
 	}
-	pipe.waitToExportSpans.Wait()
+	waitForSpans.Wait()
 
-	if len(pipe.spans.Span) != 1 {
-		panic(fmt.Sprintf("too many spans: want 1, got %d", len(pipe.spans.Span)))
+	if len(spans.Span) != 1 {
+		panic(fmt.Sprintf("too many spans: want 1, got %d", len(spans.Span)))
 	}
-	return pipe.spans.Span[0], nil
+	return spans.Span[0], nil
 }
 
 func testAttrs() []*protos.Span_Attribute {
@@ -281,9 +239,7 @@ func TestTracesReadWrite(t *testing.T) {
 		ChildSpanCount:        8,
 	}
 
-	pipe := &pipeForTest{}
-	pipe.envelopeConn, pipe.wletConn = makeConnections(t, pipe)
-	actual, err := writeAndRead(expect, pipe)
+	actual, err := writeAndRead(expect)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,15 +253,4 @@ func TestTracesReadWrite(t *testing.T) {
 	); diff != "" {
 		t.Fatalf("span: (-want,+got):\n%s\n", diff)
 	}
-}
-
-// Register a dummy component for test.
-func init() {
-	type A interface{}
-
-	type aimpl struct {
-		weaver.Implements[A]
-	}
-
-	register[A, aimpl]("conn_test/A")
 }

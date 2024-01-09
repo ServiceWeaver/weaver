@@ -192,8 +192,6 @@ func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler)
 	switch {
 	case msg.LogEntry != nil:
 		return h.HandleLogEntry(e.ctx, msg.LogEntry)
-	case msg.TraceSpans != nil:
-		return h.HandleTraceSpans(e.ctx, msg.TraceSpans)
 	default:
 		err := fmt.Errorf("envelope_conn: unexpected message %+v", msg)
 		e.conn.cleanup(err)

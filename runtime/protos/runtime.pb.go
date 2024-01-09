@@ -446,8 +446,7 @@ type WeaveletMsg struct {
 	// Handshake.
 	WeaveletInfo *WeaveletInfo `protobuf:"bytes,2,opt,name=weavelet_info,json=weaveletInfo,proto3" json:"weavelet_info,omitempty"`
 	// Weavelet initiated unacknowledged RPCs.
-	LogEntry   *LogEntry   `protobuf:"bytes,3,opt,name=log_entry,json=logEntry,proto3" json:"log_entry,omitempty"`
-	TraceSpans *TraceSpans `protobuf:"bytes,4,opt,name=trace_spans,json=traceSpans,proto3" json:"trace_spans,omitempty"`
+	LogEntry *LogEntry `protobuf:"bytes,3,opt,name=log_entry,json=logEntry,proto3" json:"log_entry,omitempty"`
 }
 
 func (x *WeaveletMsg) Reset() {
@@ -499,13 +498,6 @@ func (x *WeaveletMsg) GetWeaveletInfo() *WeaveletInfo {
 func (x *WeaveletMsg) GetLogEntry() *LogEntry {
 	if x != nil {
 		return x.LogEntry
-	}
-	return nil
-}
-
-func (x *WeaveletMsg) GetTraceSpans() *TraceSpans {
-	if x != nil {
-		return x.TraceSpans
 	}
 	return nil
 }
@@ -3895,7 +3887,7 @@ var file_runtime_protos_runtime_proto_rawDesc = []byte{
 	0x07, 0x4a, 0x04, 0x08, 0x07, 0x10, 0x08, 0x4a, 0x04, 0x08, 0x08, 0x10, 0x09, 0x4a, 0x04, 0x08,
 	0x0a, 0x10, 0x0b, 0x4a, 0x04, 0x08, 0x0b, 0x10, 0x0c, 0x4a, 0x04, 0x08, 0x0c, 0x10, 0x0d, 0x4a,
 	0x04, 0x08, 0x0d, 0x10, 0x0e, 0x4a, 0x04, 0x08, 0x0e, 0x10, 0x0f, 0x4a, 0x04, 0x08, 0x0f, 0x10,
-	0x10, 0x22, 0x87, 0x02, 0x0a, 0x0b, 0x57, 0x65, 0x61, 0x76, 0x65, 0x6c, 0x65, 0x74, 0x4d, 0x73,
+	0x10, 0x22, 0xd7, 0x01, 0x0a, 0x0b, 0x57, 0x65, 0x61, 0x76, 0x65, 0x6c, 0x65, 0x74, 0x4d, 0x73,
 	0x67, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x02, 0x69,
 	0x64, 0x12, 0x3a, 0x0a, 0x0d, 0x77, 0x65, 0x61, 0x76, 0x65, 0x6c, 0x65, 0x74, 0x5f, 0x69, 0x6e,
 	0x66, 0x6f, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x72, 0x75, 0x6e, 0x74, 0x69,
@@ -3903,11 +3895,8 @@ var file_runtime_protos_runtime_proto_rawDesc = []byte{
 	0x0c, 0x77, 0x65, 0x61, 0x76, 0x65, 0x6c, 0x65, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x2e, 0x0a,
 	0x09, 0x6c, 0x6f, 0x67, 0x5f, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b,
 	0x32, 0x11, 0x2e, 0x72, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x45, 0x6e,
-	0x74, 0x72, 0x79, 0x52, 0x08, 0x6c, 0x6f, 0x67, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x34, 0x0a,
-	0x0b, 0x74, 0x72, 0x61, 0x63, 0x65, 0x5f, 0x73, 0x70, 0x61, 0x6e, 0x73, 0x18, 0x04, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x13, 0x2e, 0x72, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x2e, 0x54, 0x72, 0x61,
-	0x63, 0x65, 0x53, 0x70, 0x61, 0x6e, 0x73, 0x52, 0x0a, 0x74, 0x72, 0x61, 0x63, 0x65, 0x53, 0x70,
-	0x61, 0x6e, 0x73, 0x4a, 0x04, 0x08, 0x06, 0x10, 0x07, 0x4a, 0x04, 0x08, 0x07, 0x10, 0x08, 0x4a,
+	0x74, 0x72, 0x79, 0x52, 0x08, 0x6c, 0x6f, 0x67, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x4a, 0x04, 0x08,
+	0x04, 0x10, 0x05, 0x4a, 0x04, 0x08, 0x06, 0x10, 0x07, 0x4a, 0x04, 0x08, 0x07, 0x10, 0x08, 0x4a,
 	0x04, 0x08, 0x08, 0x10, 0x09, 0x4a, 0x04, 0x08, 0x09, 0x10, 0x0a, 0x4a, 0x04, 0x08, 0x0a, 0x10,
 	0x0b, 0x4a, 0x04, 0x08, 0x0b, 0x10, 0x0c, 0x4a, 0x04, 0x08, 0x0c, 0x10, 0x0d, 0x4a, 0x04, 0x08,
 	0x0d, 0x10, 0x0e, 0x4a, 0x04, 0x08, 0x0e, 0x10, 0x0f, 0x4a, 0x04, 0x08, 0x0f, 0x10, 0x10, 0x4a,
@@ -4387,50 +4376,49 @@ var file_runtime_protos_runtime_proto_depIdxs = []int32{
 	8,  // 0: runtime.EnvelopeMsg.envelope_info:type_name -> runtime.EnvelopeInfo
 	9,  // 1: runtime.WeaveletMsg.weavelet_info:type_name -> runtime.WeaveletInfo
 	42, // 2: runtime.WeaveletMsg.log_entry:type_name -> runtime.LogEntry
-	44, // 3: runtime.WeaveletMsg.trace_spans:type_name -> runtime.TraceSpans
-	46, // 4: runtime.EnvelopeInfo.sections:type_name -> runtime.EnvelopeInfo.SectionsEntry
-	47, // 5: runtime.EnvelopeInfo.redirects:type_name -> runtime.EnvelopeInfo.Redirect
-	10, // 6: runtime.WeaveletInfo.version:type_name -> runtime.SemVer
-	0,  // 7: runtime.GetHealthReply.status:type_name -> runtime.HealthStatus
-	15, // 8: runtime.GetMetricsReply.update:type_name -> runtime.MetricUpdate
-	16, // 9: runtime.MetricUpdate.defs:type_name -> runtime.MetricDef
-	17, // 10: runtime.MetricUpdate.values:type_name -> runtime.MetricValue
-	1,  // 11: runtime.MetricDef.typ:type_name -> runtime.MetricType
-	48, // 12: runtime.MetricDef.labels:type_name -> runtime.MetricDef.LabelsEntry
-	1,  // 13: runtime.MetricSnapshot.typ:type_name -> runtime.MetricType
-	49, // 14: runtime.MetricSnapshot.labels:type_name -> runtime.MetricSnapshot.LabelsEntry
-	21, // 15: runtime.GetLoadReply.load:type_name -> runtime.LoadReport
-	50, // 16: runtime.LoadReport.loads:type_name -> runtime.LoadReport.LoadsEntry
-	2,  // 17: runtime.GetProfileRequest.profile_type:type_name -> runtime.ProfileType
-	26, // 18: runtime.UpdateRoutingInfoRequest.routing_info:type_name -> runtime.RoutingInfo
-	27, // 19: runtime.RoutingInfo.assignment:type_name -> runtime.Assignment
-	54, // 20: runtime.Assignment.slices:type_name -> runtime.Assignment.Slice
-	42, // 21: runtime.LogEntryBatch.entries:type_name -> runtime.LogEntry
-	45, // 22: runtime.TraceSpans.span:type_name -> runtime.Span
-	3,  // 23: runtime.Span.kind:type_name -> runtime.Span.Kind
-	55, // 24: runtime.Span.attributes:type_name -> runtime.Span.Attribute
-	56, // 25: runtime.Span.links:type_name -> runtime.Span.Link
-	57, // 26: runtime.Span.events:type_name -> runtime.Span.Event
-	58, // 27: runtime.Span.status:type_name -> runtime.Span.Status
-	59, // 28: runtime.Span.scope:type_name -> runtime.Span.Scope
-	60, // 29: runtime.Span.library:type_name -> runtime.Span.Library
-	61, // 30: runtime.Span.resource:type_name -> runtime.Span.Resource
-	51, // 31: runtime.LoadReport.LoadsEntry.value:type_name -> runtime.LoadReport.ComponentLoad
-	52, // 32: runtime.LoadReport.ComponentLoad.load:type_name -> runtime.LoadReport.SliceLoad
-	53, // 33: runtime.LoadReport.SliceLoad.splits:type_name -> runtime.LoadReport.SubsliceLoad
-	62, // 34: runtime.Span.Attribute.value:type_name -> runtime.Span.Attribute.Value
-	55, // 35: runtime.Span.Link.attributes:type_name -> runtime.Span.Attribute
-	55, // 36: runtime.Span.Event.attributes:type_name -> runtime.Span.Attribute
-	5,  // 37: runtime.Span.Status.code:type_name -> runtime.Span.Status.Code
-	55, // 38: runtime.Span.Resource.attributes:type_name -> runtime.Span.Attribute
-	4,  // 39: runtime.Span.Attribute.Value.type:type_name -> runtime.Span.Attribute.Value.Type
-	63, // 40: runtime.Span.Attribute.Value.nums:type_name -> runtime.Span.Attribute.Value.NumberList
-	64, // 41: runtime.Span.Attribute.Value.strs:type_name -> runtime.Span.Attribute.Value.StringList
-	42, // [42:42] is the sub-list for method output_type
-	42, // [42:42] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	46, // 3: runtime.EnvelopeInfo.sections:type_name -> runtime.EnvelopeInfo.SectionsEntry
+	47, // 4: runtime.EnvelopeInfo.redirects:type_name -> runtime.EnvelopeInfo.Redirect
+	10, // 5: runtime.WeaveletInfo.version:type_name -> runtime.SemVer
+	0,  // 6: runtime.GetHealthReply.status:type_name -> runtime.HealthStatus
+	15, // 7: runtime.GetMetricsReply.update:type_name -> runtime.MetricUpdate
+	16, // 8: runtime.MetricUpdate.defs:type_name -> runtime.MetricDef
+	17, // 9: runtime.MetricUpdate.values:type_name -> runtime.MetricValue
+	1,  // 10: runtime.MetricDef.typ:type_name -> runtime.MetricType
+	48, // 11: runtime.MetricDef.labels:type_name -> runtime.MetricDef.LabelsEntry
+	1,  // 12: runtime.MetricSnapshot.typ:type_name -> runtime.MetricType
+	49, // 13: runtime.MetricSnapshot.labels:type_name -> runtime.MetricSnapshot.LabelsEntry
+	21, // 14: runtime.GetLoadReply.load:type_name -> runtime.LoadReport
+	50, // 15: runtime.LoadReport.loads:type_name -> runtime.LoadReport.LoadsEntry
+	2,  // 16: runtime.GetProfileRequest.profile_type:type_name -> runtime.ProfileType
+	26, // 17: runtime.UpdateRoutingInfoRequest.routing_info:type_name -> runtime.RoutingInfo
+	27, // 18: runtime.RoutingInfo.assignment:type_name -> runtime.Assignment
+	54, // 19: runtime.Assignment.slices:type_name -> runtime.Assignment.Slice
+	42, // 20: runtime.LogEntryBatch.entries:type_name -> runtime.LogEntry
+	45, // 21: runtime.TraceSpans.span:type_name -> runtime.Span
+	3,  // 22: runtime.Span.kind:type_name -> runtime.Span.Kind
+	55, // 23: runtime.Span.attributes:type_name -> runtime.Span.Attribute
+	56, // 24: runtime.Span.links:type_name -> runtime.Span.Link
+	57, // 25: runtime.Span.events:type_name -> runtime.Span.Event
+	58, // 26: runtime.Span.status:type_name -> runtime.Span.Status
+	59, // 27: runtime.Span.scope:type_name -> runtime.Span.Scope
+	60, // 28: runtime.Span.library:type_name -> runtime.Span.Library
+	61, // 29: runtime.Span.resource:type_name -> runtime.Span.Resource
+	51, // 30: runtime.LoadReport.LoadsEntry.value:type_name -> runtime.LoadReport.ComponentLoad
+	52, // 31: runtime.LoadReport.ComponentLoad.load:type_name -> runtime.LoadReport.SliceLoad
+	53, // 32: runtime.LoadReport.SliceLoad.splits:type_name -> runtime.LoadReport.SubsliceLoad
+	62, // 33: runtime.Span.Attribute.value:type_name -> runtime.Span.Attribute.Value
+	55, // 34: runtime.Span.Link.attributes:type_name -> runtime.Span.Attribute
+	55, // 35: runtime.Span.Event.attributes:type_name -> runtime.Span.Attribute
+	5,  // 36: runtime.Span.Status.code:type_name -> runtime.Span.Status.Code
+	55, // 37: runtime.Span.Resource.attributes:type_name -> runtime.Span.Attribute
+	4,  // 38: runtime.Span.Attribute.Value.type:type_name -> runtime.Span.Attribute.Value.Type
+	63, // 39: runtime.Span.Attribute.Value.nums:type_name -> runtime.Span.Attribute.Value.NumberList
+	64, // 40: runtime.Span.Attribute.Value.strs:type_name -> runtime.Span.Attribute.Value.StringList
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_runtime_protos_runtime_proto_init() }

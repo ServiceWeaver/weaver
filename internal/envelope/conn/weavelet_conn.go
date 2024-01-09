@@ -123,9 +123,3 @@ func (w *WeaveletConn) Listener() net.Listener {
 func (w *WeaveletConn) SendLogEntry(entry *protos.LogEntry) error {
 	return w.conn.send(&protos.WeaveletMsg{LogEntry: entry})
 }
-
-// SendTraceSpans sends a set of trace spans to the envelope, without waiting
-// for a reply.
-func (w *WeaveletConn) SendTraceSpans(spans *protos.TraceSpans) error {
-	return w.conn.send(&protos.WeaveletMsg{TraceSpans: spans})
-}
