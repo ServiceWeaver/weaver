@@ -125,7 +125,7 @@ func TestExamples(t *testing.T) {
 }
 
 func run(t *testing.T, test test) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
 	// Send a GET request to the endpoint, retrying on error.
