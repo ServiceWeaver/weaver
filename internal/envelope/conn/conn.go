@@ -17,7 +17,6 @@
 package conn
 
 import (
-	"fmt"
 	"io"
 	sync "sync"
 
@@ -34,7 +33,6 @@ type conn struct {
 
 	mu      sync.Mutex
 	writer  io.WriteCloser
-	lastId  int64                   // Id used for last request/response pair
 	waiters map[int64]chan response // Response waiters
 	failure error                   // Non-nil when error has been encountered
 }
@@ -52,15 +50,6 @@ func getId(msg proto.Message) int64 {
 		return x.Id
 	default:
 		return 0
-	}
-}
-
-func setId(msg proto.Message, id int64) {
-	switch x := msg.(type) {
-	case *protos.WeaveletMsg:
-		x.Id = id
-	case *protos.EnvelopeMsg:
-		x.Id = id
 	}
 }
 
@@ -127,41 +116,4 @@ func (c *conn) send(msg proto.Message) error {
 		c.cleanupLocked(err)
 	}
 	return err
-}
-
-// doBlockingRPC performs an RPC request, and blocks until a response is received by
-// handleResponse, or cleanup is called with an error.
-func (c *conn) doBlockingRPC(request proto.Message) (proto.Message, error) {
-	ch := c.startRPC(request)
-	r, ok := <-ch
-	if !ok {
-		return nil, fmt.Errorf("%s: connection to peer broken", c.name)
-	}
-	return r.result, r.err
-}
-
-func (c *conn) startRPC(request proto.Message) chan response {
-	ch := make(chan response, 1)
-
-	// Assign request ID and register in set of waiters.
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.failure != nil {
-		ch <- response{nil, c.failure}
-		return ch
-	}
-	c.lastId++
-	id := c.lastId
-	if c.waiters == nil {
-		c.waiters = map[int64]chan response{}
-	}
-	c.waiters[id] = ch
-
-	setId(request, id)
-	if err := protomsg.Write(c.writer, request); err != nil {
-		delete(c.waiters, id)
-		c.cleanupLocked(err)
-		ch <- response{nil, err}
-	}
-	return ch
 }

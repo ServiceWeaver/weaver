@@ -119,23 +119,6 @@ func (w *WeaveletConn) Listener() net.Listener {
 	return w.lis
 }
 
-func (w *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, error) {
-	response, err := w.conn.doBlockingRPC(request)
-	if err != nil {
-		err := fmt.Errorf("connection to envelope broken: %w", err)
-		w.conn.cleanup(err)
-		return nil, err
-	}
-	msg, ok := response.(*protos.EnvelopeMsg)
-	if !ok {
-		return nil, fmt.Errorf("envelope response has wrong type %T", response)
-	}
-	if msg.Error != "" {
-		return nil, fmt.Errorf(msg.Error)
-	}
-	return msg, nil
-}
-
 // SendLogEntry sends a log entry to the envelope, without waiting for a reply.
 func (w *WeaveletConn) SendLogEntry(entry *protos.LogEntry) error {
 	return w.conn.send(&protos.WeaveletMsg{LogEntry: entry})
