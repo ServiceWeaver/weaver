@@ -171,6 +171,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 
 	// Initialize the component structs.
 	for _, reg := range regs {
+		reg := reg
 		c := &component{reg: reg}
 		w.componentsByName[reg.Name] = c
 		w.componentsByIntf[reg.Iface] = c
