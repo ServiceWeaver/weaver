@@ -288,7 +288,6 @@ func (w *RemoteWeavelet) getIntf(t reflect.Type, requester string) (any, error) 
 		// on component method call retries on unavailable errors.
 		c.activateErr = w.repeatedly(w.ctx, errMsg, func() error {
 			request := &protos.ActivateComponentRequest{
-				Requester: w.id,
 				Component: c.reg.Name,
 				Routed:    c.reg.Routed,
 			}
@@ -338,7 +337,7 @@ func (w *RemoteWeavelet) redirect(requester string, c *component, target, addres
 		}
 		resolver := call.NewConstantResolver(endpoint)
 		// TODO(sanjay): Pass retry info from the target component.
-		c.stub, c.stubErr = w.makeStub(target, c.reg, resolver, nil)
+		c.stub, c.stubErr = w.makeStub(target, c.reg, resolver, nil, false)
 	})
 	if c.stubErr != nil {
 		return nil, c.stubErr
@@ -431,13 +430,13 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 // getStub returns a component's client stub, initializing it if necessary.
 func (w *RemoteWeavelet) getStub(c *component) (codegen.Stub, error) {
 	c.stubInit.Do(func() {
-		c.stub, c.stubErr = w.makeStub(c.reg.Name, c.reg, c.resolver, c.balancer)
+		c.stub, c.stubErr = w.makeStub(c.reg.Name, c.reg, c.resolver, c.balancer, true)
 	})
 	return c.stub, c.stubErr
 }
 
 // makeStub makes a new stub with the provided resolver and balancer.
-func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer) (codegen.Stub, error) {
+func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer, wait bool) (codegen.Stub, error) {
 	// Create the client connection.
 	name := logging.ShortenComponent(fullName)
 	w.syslogger.Debug("Connecting to remote", "component", name)
@@ -450,12 +449,13 @@ func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, re
 		w.syslogger.Error("Failed to connect to remote", "component", name, "err", err)
 		return nil, err
 	}
-	if err := waitUntilReady(w.ctx, conn); err != nil {
-		w.syslogger.Error("Failed to wait for remote", "component", name, "err", err)
-		return nil, err
+	if wait {
+		if err := waitUntilReady(w.ctx, conn); err != nil {
+			w.syslogger.Error("Failed to wait for remote", "component", name, "err", err)
+			return nil, err
+		}
 	}
 	w.syslogger.Debug("Connected to remote", "component", name)
-
 	return call.NewStub(fullName, reg, conn, w.tracer, w.opts.InjectRetries), nil
 }
 

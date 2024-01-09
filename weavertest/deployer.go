@@ -205,25 +205,10 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 		wchan <- weaveletResult{weavelet, err} // Give weavelet to NewEnvelopeConn goroutine
 	}()
 
-	g := d.group("main")
-	handler := &handler{
-		deployer:   d,
-		group:      g,
-		subscribed: map[string]bool{},
-	}
-
 	// NOTE: NewEnvelopeConn initiates a blocking handshake with the weavelet
 	// and therefore we run the rest of the initialization in a goroutine which
 	// will wait for weaver.Run to create a weavelet.
 	go func() {
-		d.running.Go(func() error {
-			err := deployers.ServeComponents(d.ctx, uds, d.sysLogger, map[string]any{
-				control.DeployerPath: handler,
-			})
-			d.stop(err)
-			return err
-		})
-
 		e, err := conn.NewEnvelopeConn(d.ctx, fromWeaveletReader, toWeaveletWriter, wlet)
 		if err != nil {
 			d.stop(err)
@@ -238,8 +223,21 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 
 		d.mu.Lock()
 		defer d.mu.Unlock()
+		g := d.group("main")
 		g.controllers = append(g.controllers, w.weavelet)
-		handler.controller = w.weavelet
+		handler := &handler{
+			deployer:   d,
+			group:      g,
+			subscribed: map[string]bool{},
+			controller: w.weavelet,
+		}
+		d.running.Go(func() error {
+			err := deployers.ServeComponents(d.ctx, uds, d.sysLogger, map[string]any{
+				control.DeployerPath: handler,
+			})
+			d.stop(err)
+			return err
+		})
 		d.running.Go(func() error {
 			err := e.Serve(handler)
 			d.stop(err)

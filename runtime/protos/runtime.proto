@@ -434,7 +434,6 @@ message UpdateComponentsReply {}
 // implicitly signals that a weavelet is interested in receiving routing info
 // for the component via UpdateRoutingInfoRequest.
 message ActivateComponentRequest {
-  string requester = 3;  // Unique weavelet id of requesting weavelet
   string component = 1;  // component name
   bool routed = 2;       // is the component routed?
 }
