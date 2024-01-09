@@ -61,14 +61,16 @@ type RemoteWeaveletOptions struct {
 //
 // RemoteWeavelet must implement the weaver.controller component interface.
 type RemoteWeavelet struct {
-	ctx       context.Context       // shuts down the weavelet when canceled
-	servers   *errgroup.Group       // background servers
-	opts      RemoteWeaveletOptions // options
-	conn      *conn.WeaveletConn    // connection to envelope
-	logDst    *remoteLogger         // for writing log entries
-	syslogger *slog.Logger          // system logger
-	tracer    trace.Tracer          // tracer used by all components
-	metrics   metrics.Exporter      // helper for sending metrics to envelope
+	ctx       context.Context         // shuts down the weavelet when canceled
+	servers   *errgroup.Group         // background servers
+	opts      RemoteWeaveletOptions   // options
+	id        string                  // unique id for this weavelet
+	conn      *conn.WeaveletConn      // connection to envelope
+	deployer  control.DeployerControl // component to control deployer
+	logDst    *remoteLogger           // for writing log entries
+	syslogger *slog.Logger            // system logger
+	tracer    trace.Tracer            // tracer used by all components
+	metrics   metrics.Exporter        // helper for sending metrics to envelope
 
 	componentsByName map[string]*component       // component name -> component
 	componentsByIntf map[reflect.Type]*component // component interface type -> component
@@ -158,6 +160,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	if err != nil {
 		return nil, err
 	}
+	w.id = info.Id
 
 	// Set up logging.
 	w.syslogger = w.logger("weavelet", "serviceweaver/system", "")
@@ -207,13 +210,15 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		w.redirects[r.Component] = redirect{c, r.Target, r.Address}
 	}
 
-	// Wire-up log writing.
-	logFn, err := w.getLoggerFunction()
+	// Get a handle to the deployer control component.
+	w.deployer, err = w.getDeployerControl()
 	if err != nil {
 		return nil, err
 	}
+
+	// Wire-up log writing.
 	servers.Go(func() error {
-		w.logDst.run(ctx, logFn)
+		w.logDst.run(ctx, w.deployer.LogBatch)
 		return nil
 	})
 
@@ -229,7 +234,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	// Serve the control component.
 	servers.Go(func() error {
 		return deployers.ServeComponents(ctx, controlSocket, w.syslogger, map[string]any{
-			"github.com/ServiceWeaver/weaver/weaveletControl": w,
+			control.WeaveletPath: w,
 		})
 	})
 
@@ -279,12 +284,15 @@ func (w *RemoteWeavelet) getIntf(t reflect.Type, requester string) (any, error) 
 		name := logging.ShortenComponent(c.reg.Name)
 		w.syslogger.Debug("Activating", "component", name)
 		errMsg := fmt.Sprintf("cannot activate component %q", c.reg.Name)
+		// XXX Do we need w.repeatedly() here, or is it okay to just rely
+		// on component method call retries on unavailable errors.
 		c.activateErr = w.repeatedly(w.ctx, errMsg, func() error {
 			request := &protos.ActivateComponentRequest{
 				Component: c.reg.Name,
 				Routed:    c.reg.Routed,
 			}
-			return w.conn.ActivateComponentRPC(request)
+			_, err := w.deployer.ActivateComponent(w.ctx, request)
+			return err
 		})
 		if c.activateErr != nil {
 			w.syslogger.Error("Failed to activate", "component", name, "err", c.activateErr)
@@ -329,7 +337,7 @@ func (w *RemoteWeavelet) redirect(requester string, c *component, target, addres
 		}
 		resolver := call.NewConstantResolver(endpoint)
 		// TODO(sanjay): Pass retry info from the target component.
-		c.stub, c.stubErr = w.makeStub(target, c.reg, resolver, nil)
+		c.stub, c.stubErr = w.makeStub(target, c.reg, resolver, nil, false)
 	})
 	if c.stubErr != nil {
 		return nil, c.stubErr
@@ -422,13 +430,13 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 // getStub returns a component's client stub, initializing it if necessary.
 func (w *RemoteWeavelet) getStub(c *component) (codegen.Stub, error) {
 	c.stubInit.Do(func() {
-		c.stub, c.stubErr = w.makeStub(c.reg.Name, c.reg, c.resolver, c.balancer)
+		c.stub, c.stubErr = w.makeStub(c.reg.Name, c.reg, c.resolver, c.balancer, true)
 	})
 	return c.stub, c.stubErr
 }
 
 // makeStub makes a new stub with the provided resolver and balancer.
-func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer) (codegen.Stub, error) {
+func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, resolver call.Resolver, balancer call.Balancer, wait bool) (codegen.Stub, error) {
 	// Create the client connection.
 	name := logging.ShortenComponent(fullName)
 	w.syslogger.Debug("Connecting to remote", "component", name)
@@ -441,12 +449,13 @@ func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, re
 		w.syslogger.Error("Failed to connect to remote", "component", name, "err", err)
 		return nil, err
 	}
-	if err := waitUntilReady(w.ctx, conn); err != nil {
-		w.syslogger.Error("Failed to wait for remote", "component", name, "err", err)
-		return nil, err
+	if wait {
+		if err := waitUntilReady(w.ctx, conn); err != nil {
+			w.syslogger.Error("Failed to wait for remote", "component", name, "err", err)
+			return nil, err
+		}
 	}
 	w.syslogger.Debug("Connected to remote", "component", name)
-
 	return call.NewStub(fullName, reg, conn, w.tracer, w.opts.InjectRetries), nil
 }
 
@@ -660,35 +669,20 @@ func (w *RemoteWeavelet) repeatedly(ctx context.Context, errMsg string, f func()
 	return fmt.Errorf("%s: %w", errMsg, ctx.Err())
 }
 
-func (w *RemoteWeavelet) getLoggerFunction() (func(context.Context, *protos.LogEntryBatch) error, error) {
-	// If an override is found for the deployer control component, use it.
-	const overridePath = "github.com/ServiceWeaver/weaver/deployerControl"
-	r, ok := w.redirects[overridePath]
+func (w *RemoteWeavelet) getDeployerControl() (control.DeployerControl, error) {
+	r, ok := w.redirects[control.DeployerPath]
 	if !ok {
-		// For now, fall back to sending over the pipe to the weavelet.
-		// TODO(sanjay): Make the default write to os.Stderr once all deployers
-		// provide a logging component.
-		return func(ctx context.Context, batch *protos.LogEntryBatch) error {
-			for _, e := range batch.Entries {
-				if err := w.conn.SendLogEntry(e); err != nil {
-					return err
-				}
-			}
-			return nil
-		}, nil
+		return nil, fmt.Errorf("deployer control component not found (make sure the deployer has been updated to provide a deployerControl component override)")
 	}
-
 	comp, err := w.getIntf(r.component.reg.Iface, r.target)
 	if err != nil {
 		return nil, err
 	}
-	loggerComponent, ok := comp.(interface {
-		LogBatch(context.Context, *protos.LogEntryBatch) error
-	})
+	deployer, ok := comp.(control.DeployerControl)
 	if !ok {
-		return nil, fmt.Errorf("redirected component of type %T is not a weaver.Logger", comp)
+		return nil, fmt.Errorf("redirected component of type %T is not a control.DeployerComponent", comp)
 	}
-	return loggerComponent.LogBatch, nil
+	return deployer, nil
 }
 
 // logger returns a logger for the component with the provided name. The

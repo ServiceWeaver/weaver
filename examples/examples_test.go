@@ -37,6 +37,7 @@ func TestExamples(t *testing.T) {
 	// Build the weaver binary.
 	cmd := exec.Command("go", "build")
 	cmd.Dir = "../cmd/weaver"
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"reflect"
 	"sync"
@@ -59,6 +60,7 @@ type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
 	tmpDir     string
+	udsPath    string
 	runner     Runner                 // holds runner-specific info like config
 	wlet       *protos.EnvelopeInfo   // info for subprocesses
 	config     *protos.AppConfig      // application config
@@ -66,6 +68,7 @@ type deployer struct {
 	running    errgroup.Group         // collects errors from goroutines
 	local      map[string]bool        // Components that should run locally
 	log        func(*protos.LogEntry) // logs the passed in string
+	sysLogger  *slog.Logger           // system message logger
 
 	mu     sync.Mutex        // guards fields below
 	groups map[string]*group // groups, by group name
@@ -106,6 +109,7 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		ctx:        ctx,
 		ctxCancel:  cancel,
 		tmpDir:     tmpDir,
+		udsPath:    deployers.NewUnixSocketPath(tmpDir),
 		runner:     runner,
 		wlet:       wlet,
 		config:     config,
@@ -114,6 +118,14 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		local:      map[string]bool{},
 		log:        logWriter,
 	}
+	d.sysLogger = slog.New(&logging.LogHandler{
+		Opts: logging.Options{
+			App:       d.wlet.App,
+			Component: "deployer",
+			Attrs:     []string{"serviceweaver/system", ""},
+		},
+		Write: d.log,
+	})
 
 	for _, local := range locals {
 		name := fmt.Sprintf("%s/%s", local.PkgPath(), local.Name())
@@ -153,6 +165,14 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 		Id:              uuid.New().String(),
 		Sections:        d.wlet.Sections,
 		InternalAddress: "localhost:0",
+		Redirects: []*protos.EnvelopeInfo_Redirect{
+			// Supply custom deployer control component
+			{
+				Component: control.DeployerPath,
+				Target:    control.DeployerPath,
+				Address:   "unix://" + d.udsPath,
+			},
+		},
 
 		// Create ControlSocket ourselves since we are not using envelope.NewEnvelope().
 		ControlSocket: deployers.NewUnixSocketPath(d.tmpDir),
@@ -164,6 +184,13 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 	}
 	origCtx := d.ctx
 	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
+
+	// Handle control.DeployControl method calls directly since we the main component
+	// does not use NewEnvelope.
+	uds, err := net.Listen("unix", d.udsPath)
+	if err != nil {
+		return nil, err
+	}
 
 	// We concurrently start the creation of the weavelet and the creation of the envelope
 	// connection to the weavelet since they both talk to each other.
@@ -205,6 +232,13 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 			controller: w.weavelet,
 		}
 		d.running.Go(func() error {
+			err := deployers.ServeComponents(d.ctx, uds, d.sysLogger, map[string]any{
+				control.DeployerPath: handler,
+			})
+			d.stop(err)
+			return err
+		})
+		d.running.Go(func() error {
 			err := e.Serve(handler)
 			d.stop(err)
 			return err
@@ -242,6 +276,14 @@ func (d *deployer) cleanup() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.err
+}
+
+// LogBatch implements the control.DeployerControl interface.
+func (d *deployer) LogBatch(ctx context.Context, batch *protos.LogEntryBatch) error {
+	for _, entry := range batch.Entries {
+		d.log(entry)
+	}
+	return nil
 }
 
 // HandleLogEntry implements the envelope.EnvelopeHandler interface.
@@ -307,7 +349,7 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 	return nil
 }
 
-// ActivateComponent implements the envelope.EnvelopeHandler interface.
+// ActivateComponent implements the control.DeployerControl interface.
 func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

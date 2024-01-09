@@ -98,14 +98,13 @@ message EnvelopeMsg {
 
   // Weavelet initiated RPC replies.
   string error = 9;  // non-nil on error
-  ActivateComponentReply activate_component_reply = 10;
   GetListenerAddressReply get_listener_address_reply = 11;
   ExportListenerReply export_listener_reply = 12;
   GetSelfCertificateReply get_self_certificate_reply = 15;
   VerifyClientCertificateReply verify_client_certificate_reply = 13;
   VerifyServerCertificateReply verify_server_certificate_reply = 14;
 
-  reserved 3, 4, 5, 6, 7, 8;
+  reserved 3, 4, 5, 6, 7, 8, 10;
 }
 
 // WeaveletMsg is a message sent by a weavelet to an envelope.
@@ -124,14 +123,13 @@ message WeaveletMsg {
   TraceSpans trace_spans = 4;
 
   // Weavelet initiated RPC requests.
-  ActivateComponentRequest activate_component_request = 12;
   GetListenerAddressRequest get_listener_address_request = 13;
   ExportListenerRequest export_listener_request = 14;
   GetSelfCertificateRequest get_self_certificate_request = 17;
   VerifyClientCertificateRequest verify_client_certificate_request = 15;
   VerifyServerCertificateRequest verify_server_certificate_request = 16;
 
-  reserved 6, 7, 8, 9, 10, 11;
+  reserved 6, 7, 8, 9, 10, 11, 12;
 }
 
 // EnvelopeInfo is the information provided by an envelope to a weavelet during

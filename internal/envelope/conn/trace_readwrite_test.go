@@ -47,6 +47,10 @@ func (p *pipeForTest) HandleTraceSpans(_ context.Context, spans *protos.TraceSpa
 	return nil
 }
 
+func (*pipeForTest) LogBatch(context.Context, *protos.LogEntryBatch) error {
+	return nil
+}
+
 func (*pipeForTest) HandleLogEntry(context.Context, *protos.LogEntry) error {
 	return nil
 }

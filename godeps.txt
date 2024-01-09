@@ -550,7 +550,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     errors
     flag
     fmt
-    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/must
     github.com/ServiceWeaver/weaver/internal/proxy
@@ -563,7 +562,6 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/bin
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
-    github.com/ServiceWeaver/weaver/runtime/deployers
     github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/graph
     github.com/ServiceWeaver/weaver/runtime/logging
@@ -840,6 +838,7 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     golang.org/x/sync/errgroup
     io
     log/slog
+    net
     os
     strconv
     sync
@@ -1005,6 +1004,7 @@ github.com/ServiceWeaver/weaver/weavertest
     golang.org/x/exp/maps
     golang.org/x/sync/errgroup
     log/slog
+    net
     os
     reflect
     regexp

@@ -113,6 +113,10 @@ func (*handlerForTest) HandleTraceSpans(context.Context, *protos.TraceSpans) err
 	return nil
 }
 
+func (*handlerForTest) LogBatch(context.Context, *protos.LogEntryBatch) error {
+	return nil
+}
+
 func (*handlerForTest) HandleLogEntry(context.Context, *protos.LogEntry) error {
 	return nil
 }

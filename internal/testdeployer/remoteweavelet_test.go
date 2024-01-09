@@ -17,12 +17,14 @@ package testdeployer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
@@ -139,6 +141,7 @@ type deployer struct {
 	ctx       context.Context      // context used to spawn weavelets
 	cancel    context.CancelFunc   // shuts down the deployer and all weavelets
 	logger    *logging.TestLogger  // logger
+	threads   *errgroup.Group      // background threads
 	placement map[string][]string  // weavelet -> components
 	placedAt  map[string][]string  // component -> weavelets
 	weavelets map[string]*weavelet // weavelets
@@ -189,6 +192,11 @@ func deploy(t *testing.T, ctx context.Context, placement map[string][]string) *d
 // argument.
 func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]string, info *protos.EnvelopeInfo) *deployer {
 	t.Helper()
+	udsPath := deployers.NewUnixSocketPath(t.TempDir())
+	uds, err := net.Listen("unix", udsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Invert placement.
 	placedAt := map[string][]string{}
@@ -200,21 +208,39 @@ func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]st
 
 	// Create the deployer.
 	ctx, cancel := context.WithCancel(ctx)
+	threads, ctx := errgroup.WithContext(ctx)
 	d := &deployer{
 		t:         t,
 		ctx:       ctx,
 		cancel:    cancel,
 		logger:    logging.NewTestLogger(t, testing.Verbose()),
+		threads:   threads,
 		placement: placement,
 		placedAt:  placedAt,
 		weavelets: map[string]*weavelet{},
 	}
+
+	// Handle calls from weavelets.
+	logger := slog.New(&logging.LogHandler{Write: d.logger.Log})
+	threads.Go(func() error {
+		return deployers.ServeComponents(ctx, uds, logger, map[string]any{
+			control.DeployerPath: d,
+		})
+	})
 
 	// Spawn the weavelets.
 	for name := range placement {
 		info := protomsg.Clone(info)
 		info.Id = uuid.New().String()
 		info.ControlSocket = deployers.NewUnixSocketPath(t.TempDir())
+		info.Redirects = []*protos.EnvelopeInfo_Redirect{
+			// Supply custom deployer control component
+			{
+				Component: control.DeployerPath,
+				Target:    control.DeployerPath,
+				Address:   "unix://" + udsPath,
+			},
+		}
 		weavelet, err := spawn(ctx, info, d)
 		if err != nil {
 			t.Fatal(err)
@@ -232,6 +258,14 @@ func (d *deployer) shutdown() {
 			d.t.Fatal(err)
 		}
 	}
+}
+
+// LogBatch implements the control.DeployerControl interface.
+func (d *deployer) LogBatch(ctx context.Context, batch *protos.LogEntryBatch) error {
+	for _, entry := range batch.Entries {
+		d.logger.Log(entry)
+	}
+	return nil
 }
 
 // ActivateComponent implements the EnvelopeHandler interface.

@@ -19,10 +19,10 @@ func init() {
 		Iface: reflect.TypeOf((*deployerControl)(nil)).Elem(),
 		Impl:  reflect.TypeOf(localDeployerControl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false})}
+			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: false}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return deployerControl_client_stub{stub: stub, logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true})}
+			return deployerControl_client_stub{stub: stub, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: true}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return deployerControl_server_stub{impl: impl.(deployerControl), addLoad: addLoad}
@@ -63,13 +63,34 @@ var _ Unrouted = (*noopWeaveletControl)(nil)
 // Local stub implementations.
 
 type deployerControl_local_stub struct {
-	impl            deployerControl
-	tracer          trace.Tracer
-	logBatchMetrics *codegen.MethodMetrics
+	impl                     deployerControl
+	tracer                   trace.Tracer
+	activateComponentMetrics *codegen.MethodMetrics
+	logBatchMetrics          *codegen.MethodMetrics
 }
 
 // Check that deployerControl_local_stub implements the deployerControl interface.
 var _ deployerControl = (*deployerControl_local_stub)(nil)
+
+func (s deployerControl_local_stub) ActivateComponent(ctx context.Context, a0 *protos.ActivateComponentRequest) (r0 *protos.ActivateComponentReply, err error) {
+	// Update metrics.
+	begin := s.activateComponentMetrics.Begin()
+	defer func() { s.activateComponentMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.ActivateComponent", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.ActivateComponent(ctx, a0)
+}
 
 func (s deployerControl_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
@@ -228,12 +249,64 @@ func (s weaveletControl_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *p
 // Client stub implementations.
 
 type deployerControl_client_stub struct {
-	stub            codegen.Stub
-	logBatchMetrics *codegen.MethodMetrics
+	stub                     codegen.Stub
+	activateComponentMetrics *codegen.MethodMetrics
+	logBatchMetrics          *codegen.MethodMetrics
 }
 
 // Check that deployerControl_client_stub implements the deployerControl interface.
 var _ deployerControl = (*deployerControl_client_stub)(nil)
+
+func (s deployerControl_client_stub) ActivateComponent(ctx context.Context, a0 *protos.ActivateComponentRequest) (r0 *protos.ActivateComponentReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.activateComponentMetrics.Begin()
+	defer func() { s.activateComponentMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.ActivateComponent", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_ActivateComponentRequest_73adf343(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_ActivateComponentReply_5e57d605(dec)
+	err = dec.Error()
+	return
+}
 
 func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
@@ -272,7 +345,7 @@ func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.Lo
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 0, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -640,11 +713,38 @@ var _ codegen.Server = (*deployerControl_server_stub)(nil)
 // GetStubFn implements the codegen.Server interface.
 func (s deployerControl_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
 	switch method {
+	case "ActivateComponent":
+		return s.activateComponent
 	case "LogBatch":
 		return s.logBatch
 	default:
 		return nil
 	}
+}
+
+func (s deployerControl_server_stub) activateComponent(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.ActivateComponentRequest
+	a0 = serviceweaver_dec_ptr_ActivateComponentRequest_73adf343(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.ActivateComponent(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_ActivateComponentReply_5e57d605(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
 }
 
 func (s deployerControl_server_stub) logBatch(ctx context.Context, args []byte) (res []byte, err error) {
@@ -858,6 +958,11 @@ type deployerControl_reflect_stub struct {
 // Check that deployerControl_reflect_stub implements the deployerControl interface.
 var _ deployerControl = (*deployerControl_reflect_stub)(nil)
 
+func (s deployerControl_reflect_stub) ActivateComponent(ctx context.Context, a0 *protos.ActivateComponentRequest) (r0 *protos.ActivateComponentReply, err error) {
+	err = s.caller("ActivateComponent", ctx, []any{a0}, []any{&r0})
+	return
+}
+
 func (s deployerControl_reflect_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	err = s.caller("LogBatch", ctx, []any{a0}, []any{})
 	return
@@ -901,6 +1006,42 @@ func (s weaveletControl_reflect_stub) UpdateRoutingInfo(ctx context.Context, a0 
 }
 
 // Encoding/decoding implementations.
+
+func serviceweaver_enc_ptr_ActivateComponentRequest_73adf343(enc *codegen.Encoder, arg *protos.ActivateComponentRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_ActivateComponentRequest_73adf343(dec *codegen.Decoder) *protos.ActivateComponentRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.ActivateComponentRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_ActivateComponentReply_5e57d605(enc *codegen.Encoder, arg *protos.ActivateComponentReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_ActivateComponentReply_5e57d605(dec *codegen.Decoder) *protos.ActivateComponentReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.ActivateComponentReply
+	dec.DecodeProto(&res)
+	return &res
+}
 
 func serviceweaver_enc_ptr_LogEntryBatch_fec9a5d4(enc *codegen.Encoder, arg *protos.LogEntryBatch) {
 	if arg == nil {

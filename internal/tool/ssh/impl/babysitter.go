@@ -315,6 +315,22 @@ func (b *babysitter) watchComponents() {
 	}
 }
 
+// LogBatch implements the protos.EnvelopeHandler interface.
+func (b *babysitter) LogBatch(_ context.Context, req *protos.LogEntryBatch) error {
+	// TODO: Support batched log delivery
+	for _, entry := range req.Entries {
+		if err := protomsg.Call(b.ctx, protomsg.CallArgs{
+			Client:  http.DefaultClient,
+			Addr:    b.info.ManagerAddr,
+			URLPath: recvLogEntryURL,
+			Request: entry,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // HandleLogEntry implements the protos.EnvelopeHandler interface.
 func (b *babysitter) HandleLogEntry(_ context.Context, req *protos.LogEntry) error {
 	return protomsg.Call(b.ctx, protomsg.CallArgs{

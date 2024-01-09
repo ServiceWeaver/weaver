@@ -99,6 +99,14 @@ func (d *deployer) ExportListener(_ context.Context, req *protos.ExportListenerR
 }
 
 // Responsibility 3: Telemetry.
+func (d *deployer) LogBatch(_ context.Context, batch *protos.LogEntryBatch) error {
+	pp := logging.NewPrettyPrinter(colors.Enabled())
+	for _, entry := range batch.Entries {
+		fmt.Println(pp.Format(entry))
+	}
+	return nil
+}
+
 func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
 	pp := logging.NewPrettyPrinter(colors.Enabled())
 	fmt.Println(pp.Format(entry))
