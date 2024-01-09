@@ -762,7 +762,7 @@ func (w *RemoteWeavelet) getListenerAddress(ctx context.Context, name string) (s
 
 func (w *RemoteWeavelet) getSelfCertificate() (*tls.Certificate, error) {
 	request := &protos.GetSelfCertificateRequest{}
-	reply, err := w.conn.GetSelfCertificateRPC(request)
+	reply, err := w.deployer.GetSelfCertificate(context.TODO(), request)
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +775,7 @@ func (w *RemoteWeavelet) getSelfCertificate() (*tls.Certificate, error) {
 
 func (w *RemoteWeavelet) verifyClientCertificate(certChain [][]byte) ([]string, error) {
 	request := &protos.VerifyClientCertificateRequest{CertChain: certChain}
-	reply, err := w.conn.VerifyClientCertificateRPC(request)
+	reply, err := w.deployer.VerifyClientCertificate(context.TODO(), request)
 	if err != nil {
 		return nil, err
 	}
@@ -787,7 +787,8 @@ func (w *RemoteWeavelet) verifyServerCertificate(certChain [][]byte, targetCompo
 		CertChain:       certChain,
 		TargetComponent: targetComponent,
 	}
-	return w.conn.VerifyServerCertificateRPC(request)
+	_, err := w.deployer.VerifyServerCertificate(context.TODO(), request)
+	return err
 }
 
 // server serves RPC traffic from other RemoteWeavelets.

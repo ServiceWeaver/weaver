@@ -66,3 +66,18 @@ func (*localDeployerControl) GetListenerAddress(context.Context, *protos.GetList
 func (*localDeployerControl) ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
 	return nil, fmt.Errorf("localDeployerControl.ExportListener not implemented")
 }
+
+// GetSelfCertificate implements the control.DeployerControl interface.
+func (*localDeployerControl) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
+	return nil, fmt.Errorf("localDeployerControl.GetSelfCertificate not implemented")
+}
+
+// VerifyClientCertificate implements the control.DeployerControl interface.
+func (*localDeployerControl) VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
+	return nil, fmt.Errorf("localDeployerControl.VerifyClientCertificate not implemented")
+}
+
+// VerifyServerCertificate implements the control.DeployerControl interface.
+func (*localDeployerControl) VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
+	return nil, fmt.Errorf("localDeployerControl.VerifyServerCertificate not implemented")
+}

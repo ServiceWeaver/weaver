@@ -119,45 +119,6 @@ func (w *WeaveletConn) Listener() net.Listener {
 	return w.lis
 }
 
-// GetSelfCertificateRPC returns the certificate and the private key the
-// weavelet should use for network connection establishment.
-func (w *WeaveletConn) GetSelfCertificateRPC(req *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
-	reply, err := w.rpc(&protos.WeaveletMsg{GetSelfCertificateRequest: req})
-	if err != nil {
-		return nil, err
-	}
-	if reply.GetSelfCertificateReply == nil {
-		return nil, fmt.Errorf("nil GetSelfCertificateReply received from envelope")
-	}
-	return reply.GetSelfCertificateReply, nil
-}
-
-// VerifyClientCertificateRPC verifies the identity of a client that is
-// attempting to connect to the weavelet.
-func (w *WeaveletConn) VerifyClientCertificateRPC(req *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
-	reply, err := w.rpc(&protos.WeaveletMsg{VerifyClientCertificateRequest: req})
-	if err != nil {
-		return nil, err
-	}
-	if reply.VerifyClientCertificateReply == nil {
-		return nil, fmt.Errorf("nil VerifyClientCertificateReply received from envelope")
-	}
-	return reply.VerifyClientCertificateReply, nil
-}
-
-// VerifyServerCertificateRPC verifies the identity of the server the weavelet
-// is attempting to connect to.
-func (w *WeaveletConn) VerifyServerCertificateRPC(req *protos.VerifyServerCertificateRequest) error {
-	reply, err := w.rpc(&protos.WeaveletMsg{VerifyServerCertificateRequest: req})
-	if err != nil {
-		return err
-	}
-	if reply.VerifyServerCertificateReply == nil {
-		return fmt.Errorf("nil VerifyServerCertificateReply received from envelope")
-	}
-	return nil
-}
-
 func (w *WeaveletConn) rpc(request *protos.WeaveletMsg) (*protos.EnvelopeMsg, error) {
 	response, err := w.conn.doBlockingRPC(request)
 	if err != nil {
