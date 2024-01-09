@@ -47,4 +47,31 @@ type DeployerControl interface {
 	// typically, but not always, involves running a proxy that forwards
 	// traffic to the provided address.
 	ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
+
+	// GetSelfCertificate returns the certificate and the private key the
+	// weavelet should use for network connection establishment. The weavelet
+	// will issue this request each time it establishes a connection with
+	// another weavelet.
+	// NOTE: This method is only called if mTLS was enabled for the weavelet,
+	// by passing it an EnvelopeInfo with mtls=true.
+	GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
+
+	// VerifyClientCertificate verifies the certificate chain presented by
+	// a network client attempting to connect to the weavelet. It returns an
+	// error if the network connection should not be established with the
+	// client. Otherwise, it returns the list of weavelet components that the
+	// client is authorized to invoke methods on.
+	//
+	// NOTE: This method is only called if mTLS was enabled for the weavelet,
+	// by passing it an EnvelopeInfo with mtls=true.
+	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
+
+	// VerifyServerCertificate verifies the certificate chain presented by
+	// the server the weavelet is attempting to connect to. It returns an
+	// error iff the server identity doesn't match the identity of the specified
+	// component.
+	//
+	// NOTE: This method is only called if mTLS was enabled for the weavelet,
+	// by passing it an EnvelopeInfo with mtls=true.
+	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 }

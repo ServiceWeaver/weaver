@@ -189,35 +189,7 @@ func (e *EnvelopeConn) WeaveletInfo() *protos.WeaveletInfo {
 // handleMessage handles all messages initiated by the weavelet. Note that this
 // method doesn't handle RPC replies from weavelet.
 func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler) error {
-	errstring := func(err error) string {
-		if err == nil {
-			return ""
-		}
-		return err.Error()
-	}
-
 	switch {
-	case msg.GetSelfCertificateRequest != nil:
-		reply, err := h.GetSelfCertificate(e.ctx, msg.GetSelfCertificateRequest)
-		return e.conn.send(&protos.EnvelopeMsg{
-			Id:                      -msg.Id,
-			Error:                   errstring(err),
-			GetSelfCertificateReply: reply,
-		})
-	case msg.VerifyClientCertificateRequest != nil:
-		reply, err := h.VerifyClientCertificate(e.ctx, msg.VerifyClientCertificateRequest)
-		return e.conn.send(&protos.EnvelopeMsg{
-			Id:                           -msg.Id,
-			Error:                        errstring(err),
-			VerifyClientCertificateReply: reply,
-		})
-	case msg.VerifyServerCertificateRequest != nil:
-		reply, err := h.VerifyServerCertificate(e.ctx, msg.VerifyServerCertificateRequest)
-		return e.conn.send(&protos.EnvelopeMsg{
-			Id:                           -msg.Id,
-			Error:                        errstring(err),
-			VerifyServerCertificateReply: reply,
-		})
 	case msg.LogEntry != nil:
 		return h.HandleLogEntry(e.ctx, msg.LogEntry)
 	case msg.TraceSpans != nil:

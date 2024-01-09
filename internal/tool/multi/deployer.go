@@ -403,7 +403,7 @@ func (h *handler) subscribeTo(req *protos.ActivateComponentRequest) error {
 	return h.envelope.UpdateRoutingInfo(target.routing(req.Component))
 }
 
-// GetSelfCertificate implements the envelope.EnvelopeHandler interface.
+// GetSelfCertificate implements the control.DeployerControl interface.
 func (h *handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {
 	return &protos.GetSelfCertificateReply{
 		Cert: h.g.certPEM,
@@ -411,7 +411,7 @@ func (h *handler) GetSelfCertificate(context.Context, *protos.GetSelfCertificate
 	}, nil
 }
 
-// VerifyClientCertificate implements the envelope.EnvelopeHandler interface.
+// VerifyClientCertificate implements the control.DeployerControl interface.
 func (h *handler) VerifyClientCertificate(_ context.Context, req *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error) {
 	groupName, err := h.verifyCertificate(req.CertChain)
 	if err != nil {
@@ -426,7 +426,7 @@ func (h *handler) VerifyClientCertificate(_ context.Context, req *protos.VerifyC
 	return &protos.VerifyClientCertificateReply{Components: g.callable}, nil
 }
 
-// VerifyServerCertificate implements the envelope.EnvelopeHandler interface.
+// VerifyServerCertificate implements the control.DeployerControl interface.
 func (h *handler) VerifyServerCertificate(_ context.Context, req *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error) {
 	actual, err := h.verifyCertificate(req.CertChain)
 	if err != nil {

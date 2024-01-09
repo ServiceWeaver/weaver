@@ -19,10 +19,10 @@ func init() {
 		Iface: reflect.TypeOf((*deployerControl)(nil)).Elem(),
 		Impl:  reflect.TypeOf(localDeployerControl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: false}), exportListenerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ExportListener", Remote: false}), getListenerAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetListenerAddress", Remote: false}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false})}
+			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: false}), exportListenerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ExportListener", Remote: false}), getListenerAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetListenerAddress", Remote: false}), getSelfCertificateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetSelfCertificate", Remote: false}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false}), verifyClientCertificateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "VerifyClientCertificate", Remote: false}), verifyServerCertificateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "VerifyServerCertificate", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return deployerControl_client_stub{stub: stub, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: true}), exportListenerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ExportListener", Remote: true}), getListenerAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetListenerAddress", Remote: true}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true})}
+			return deployerControl_client_stub{stub: stub, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: true}), exportListenerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ExportListener", Remote: true}), getListenerAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetListenerAddress", Remote: true}), getSelfCertificateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetSelfCertificate", Remote: true}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true}), verifyClientCertificateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "VerifyClientCertificate", Remote: true}), verifyServerCertificateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "VerifyServerCertificate", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return deployerControl_server_stub{impl: impl.(deployerControl), addLoad: addLoad}
@@ -63,12 +63,15 @@ var _ Unrouted = (*noopWeaveletControl)(nil)
 // Local stub implementations.
 
 type deployerControl_local_stub struct {
-	impl                      deployerControl
-	tracer                    trace.Tracer
-	activateComponentMetrics  *codegen.MethodMetrics
-	exportListenerMetrics     *codegen.MethodMetrics
-	getListenerAddressMetrics *codegen.MethodMetrics
-	logBatchMetrics           *codegen.MethodMetrics
+	impl                           deployerControl
+	tracer                         trace.Tracer
+	activateComponentMetrics       *codegen.MethodMetrics
+	exportListenerMetrics          *codegen.MethodMetrics
+	getListenerAddressMetrics      *codegen.MethodMetrics
+	getSelfCertificateMetrics      *codegen.MethodMetrics
+	logBatchMetrics                *codegen.MethodMetrics
+	verifyClientCertificateMetrics *codegen.MethodMetrics
+	verifyServerCertificateMetrics *codegen.MethodMetrics
 }
 
 // Check that deployerControl_local_stub implements the deployerControl interface.
@@ -134,6 +137,26 @@ func (s deployerControl_local_stub) GetListenerAddress(ctx context.Context, a0 *
 	return s.impl.GetListenerAddress(ctx, a0)
 }
 
+func (s deployerControl_local_stub) GetSelfCertificate(ctx context.Context, a0 *protos.GetSelfCertificateRequest) (r0 *protos.GetSelfCertificateReply, err error) {
+	// Update metrics.
+	begin := s.getSelfCertificateMetrics.Begin()
+	defer func() { s.getSelfCertificateMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.GetSelfCertificate", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.GetSelfCertificate(ctx, a0)
+}
+
 func (s deployerControl_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
 	begin := s.logBatchMetrics.Begin()
@@ -152,6 +175,46 @@ func (s deployerControl_local_stub) LogBatch(ctx context.Context, a0 *protos.Log
 	}
 
 	return s.impl.LogBatch(ctx, a0)
+}
+
+func (s deployerControl_local_stub) VerifyClientCertificate(ctx context.Context, a0 *protos.VerifyClientCertificateRequest) (r0 *protos.VerifyClientCertificateReply, err error) {
+	// Update metrics.
+	begin := s.verifyClientCertificateMetrics.Begin()
+	defer func() { s.verifyClientCertificateMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.VerifyClientCertificate", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.VerifyClientCertificate(ctx, a0)
+}
+
+func (s deployerControl_local_stub) VerifyServerCertificate(ctx context.Context, a0 *protos.VerifyServerCertificateRequest) (r0 *protos.VerifyServerCertificateReply, err error) {
+	// Update metrics.
+	begin := s.verifyServerCertificateMetrics.Begin()
+	defer func() { s.verifyServerCertificateMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.VerifyServerCertificate", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.VerifyServerCertificate(ctx, a0)
 }
 
 type weaveletControl_local_stub struct {
@@ -291,11 +354,14 @@ func (s weaveletControl_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *p
 // Client stub implementations.
 
 type deployerControl_client_stub struct {
-	stub                      codegen.Stub
-	activateComponentMetrics  *codegen.MethodMetrics
-	exportListenerMetrics     *codegen.MethodMetrics
-	getListenerAddressMetrics *codegen.MethodMetrics
-	logBatchMetrics           *codegen.MethodMetrics
+	stub                           codegen.Stub
+	activateComponentMetrics       *codegen.MethodMetrics
+	exportListenerMetrics          *codegen.MethodMetrics
+	getListenerAddressMetrics      *codegen.MethodMetrics
+	getSelfCertificateMetrics      *codegen.MethodMetrics
+	logBatchMetrics                *codegen.MethodMetrics
+	verifyClientCertificateMetrics *codegen.MethodMetrics
+	verifyServerCertificateMetrics *codegen.MethodMetrics
 }
 
 // Check that deployerControl_client_stub implements the deployerControl interface.
@@ -454,6 +520,57 @@ func (s deployerControl_client_stub) GetListenerAddress(ctx context.Context, a0 
 	return
 }
 
+func (s deployerControl_client_stub) GetSelfCertificate(ctx context.Context, a0 *protos.GetSelfCertificateRequest) (r0 *protos.GetSelfCertificateReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.getSelfCertificateMetrics.Begin()
+	defer func() { s.getSelfCertificateMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.GetSelfCertificate", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_GetSelfCertificateRequest_0de4e3b4(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 3, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_GetSelfCertificateReply_12277ec8(dec)
+	err = dec.Error()
+	return
+}
+
 func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
@@ -491,7 +608,7 @@ func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.Lo
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 3, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 4, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -500,6 +617,108 @@ func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.Lo
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
+	err = dec.Error()
+	return
+}
+
+func (s deployerControl_client_stub) VerifyClientCertificate(ctx context.Context, a0 *protos.VerifyClientCertificateRequest) (r0 *protos.VerifyClientCertificateReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.verifyClientCertificateMetrics.Begin()
+	defer func() { s.verifyClientCertificateMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.VerifyClientCertificate", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_VerifyClientCertificateRequest_f8d21781(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 5, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_VerifyClientCertificateReply_c76e39ec(dec)
+	err = dec.Error()
+	return
+}
+
+func (s deployerControl_client_stub) VerifyServerCertificate(ctx context.Context, a0 *protos.VerifyServerCertificateRequest) (r0 *protos.VerifyServerCertificateReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.verifyServerCertificateMetrics.Begin()
+	defer func() { s.verifyServerCertificateMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.VerifyServerCertificate", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_VerifyServerCertificateRequest_9c56ee67(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 6, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_VerifyServerCertificateReply_c0d4bd3b(dec)
 	err = dec.Error()
 	return
 }
@@ -865,8 +1084,14 @@ func (s deployerControl_server_stub) GetStubFn(method string) func(ctx context.C
 		return s.exportListener
 	case "GetListenerAddress":
 		return s.getListenerAddress
+	case "GetSelfCertificate":
+		return s.getSelfCertificate
 	case "LogBatch":
 		return s.logBatch
+	case "VerifyClientCertificate":
+		return s.verifyClientCertificate
+	case "VerifyServerCertificate":
+		return s.verifyServerCertificate
 	default:
 		return nil
 	}
@@ -947,6 +1172,31 @@ func (s deployerControl_server_stub) getListenerAddress(ctx context.Context, arg
 	return enc.Data(), nil
 }
 
+func (s deployerControl_server_stub) getSelfCertificate(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.GetSelfCertificateRequest
+	a0 = serviceweaver_dec_ptr_GetSelfCertificateRequest_0de4e3b4(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.GetSelfCertificate(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_GetSelfCertificateReply_12277ec8(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
 func (s deployerControl_server_stub) logBatch(ctx context.Context, args []byte) (res []byte, err error) {
 	// Catch and return any panics detected during encoding/decoding/rpc.
 	defer func() {
@@ -967,6 +1217,56 @@ func (s deployerControl_server_stub) logBatch(ctx context.Context, args []byte) 
 
 	// Encode the results.
 	enc := codegen.NewEncoder()
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s deployerControl_server_stub) verifyClientCertificate(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.VerifyClientCertificateRequest
+	a0 = serviceweaver_dec_ptr_VerifyClientCertificateRequest_f8d21781(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.VerifyClientCertificate(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_VerifyClientCertificateReply_c76e39ec(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s deployerControl_server_stub) verifyServerCertificate(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.VerifyServerCertificateRequest
+	a0 = serviceweaver_dec_ptr_VerifyServerCertificateRequest_9c56ee67(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.VerifyServerCertificate(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_VerifyServerCertificateReply_c0d4bd3b(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
@@ -1173,8 +1473,23 @@ func (s deployerControl_reflect_stub) GetListenerAddress(ctx context.Context, a0
 	return
 }
 
+func (s deployerControl_reflect_stub) GetSelfCertificate(ctx context.Context, a0 *protos.GetSelfCertificateRequest) (r0 *protos.GetSelfCertificateReply, err error) {
+	err = s.caller("GetSelfCertificate", ctx, []any{a0}, []any{&r0})
+	return
+}
+
 func (s deployerControl_reflect_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	err = s.caller("LogBatch", ctx, []any{a0}, []any{})
+	return
+}
+
+func (s deployerControl_reflect_stub) VerifyClientCertificate(ctx context.Context, a0 *protos.VerifyClientCertificateRequest) (r0 *protos.VerifyClientCertificateReply, err error) {
+	err = s.caller("VerifyClientCertificate", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+func (s deployerControl_reflect_stub) VerifyServerCertificate(ctx context.Context, a0 *protos.VerifyServerCertificateRequest) (r0 *protos.VerifyServerCertificateReply, err error) {
+	err = s.caller("VerifyServerCertificate", ctx, []any{a0}, []any{&r0})
 	return
 }
 
@@ -1325,6 +1640,42 @@ func serviceweaver_dec_ptr_GetListenerAddressReply_8bfe2caa(dec *codegen.Decoder
 	return &res
 }
 
+func serviceweaver_enc_ptr_GetSelfCertificateRequest_0de4e3b4(enc *codegen.Encoder, arg *protos.GetSelfCertificateRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_GetSelfCertificateRequest_0de4e3b4(dec *codegen.Decoder) *protos.GetSelfCertificateRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.GetSelfCertificateRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_GetSelfCertificateReply_12277ec8(enc *codegen.Encoder, arg *protos.GetSelfCertificateReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_GetSelfCertificateReply_12277ec8(dec *codegen.Decoder) *protos.GetSelfCertificateReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.GetSelfCertificateReply
+	dec.DecodeProto(&res)
+	return &res
+}
+
 func serviceweaver_enc_ptr_LogEntryBatch_fec9a5d4(enc *codegen.Encoder, arg *protos.LogEntryBatch) {
 	if arg == nil {
 		enc.Bool(false)
@@ -1339,6 +1690,78 @@ func serviceweaver_dec_ptr_LogEntryBatch_fec9a5d4(dec *codegen.Decoder) *protos.
 		return nil
 	}
 	var res protos.LogEntryBatch
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_VerifyClientCertificateRequest_f8d21781(enc *codegen.Encoder, arg *protos.VerifyClientCertificateRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_VerifyClientCertificateRequest_f8d21781(dec *codegen.Decoder) *protos.VerifyClientCertificateRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.VerifyClientCertificateRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_VerifyClientCertificateReply_c76e39ec(enc *codegen.Encoder, arg *protos.VerifyClientCertificateReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_VerifyClientCertificateReply_c76e39ec(dec *codegen.Decoder) *protos.VerifyClientCertificateReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.VerifyClientCertificateReply
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_VerifyServerCertificateRequest_9c56ee67(enc *codegen.Encoder, arg *protos.VerifyServerCertificateRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_VerifyServerCertificateRequest_9c56ee67(dec *codegen.Decoder) *protos.VerifyServerCertificateRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.VerifyServerCertificateRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_VerifyServerCertificateReply_c0d4bd3b(enc *codegen.Encoder, arg *protos.VerifyServerCertificateReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_VerifyServerCertificateReply_c0d4bd3b(dec *codegen.Decoder) *protos.VerifyServerCertificateReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.VerifyServerCertificateReply
 	dec.DecodeProto(&res)
 	return &res
 }
