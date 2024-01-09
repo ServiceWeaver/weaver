@@ -114,6 +114,9 @@ func TestExamples(t *testing.T) {
 
 			// "weaver multi deploy" the application with MTLS.
 			t.Run("weaver-multi-mtls", func(t *testing.T) {
+				if os.Getenv("GITHUB_RUN_ID") != "" {
+					t.Skip("test takes too long (over 30s) on github")
+				}
 				cmd := startCmd(ctx, t, nil, "../../cmd/weaver/weaver", "multi", "deploy", "weaver_mtls.toml")
 				t.Cleanup(terminateCmdAndWait(t, cmd))
 				run(t, test)
@@ -125,7 +128,7 @@ func TestExamples(t *testing.T) {
 }
 
 func run(t *testing.T, test test) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
 	// Send a GET request to the endpoint, retrying on error.
