@@ -70,10 +70,9 @@ type deployer struct {
 	log        func(*protos.LogEntry) // logs the passed in string
 	sysLogger  *slog.Logger           // system message logger
 
-	mu       sync.Mutex          // guards fields below
-	groups   map[string]*group   // groups, by group name
-	handlers map[string]*handler // handlers, by weavelet id
-	err      error               // error the test was terminated with, if any.
+	mu     sync.Mutex        // guards fields below
+	groups map[string]*group // groups, by group name
+	err    error             // error the test was terminated with, if any.
 }
 
 // A group contains information about a co-location group.
@@ -116,17 +115,14 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		config:     config,
 		colocation: colocation,
 		groups:     map[string]*group{},
-		handlers:   map[string]*handler{},
 		local:      map[string]bool{},
 		log:        logWriter,
 	}
 	d.sysLogger = slog.New(&logging.LogHandler{
 		Opts: logging.Options{
-			App: d.wlet.App,
-			// Deployment: XXX,
+			App:       d.wlet.App,
 			Component: "deployer",
-			//Weavelet:   XXX,
-			Attrs: []string{"serviceweaver/system", ""},
+			Attrs:     []string{"serviceweaver/system", ""},
 		},
 		Write: d.log,
 	})
@@ -195,12 +191,6 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 	if err != nil {
 		return nil, err
 	}
-	go func() {
-		err := deployers.ServeComponents(d.ctx, uds, d.sysLogger, map[string]any{
-			control.DeployerPath: d,
-		})
-		d.stop(err)
-	}()
 
 	// We concurrently start the creation of the weavelet and the creation of the envelope
 	// connection to the weavelet since they both talk to each other.
@@ -215,10 +205,25 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 		wchan <- weaveletResult{weavelet, err} // Give weavelet to NewEnvelopeConn goroutine
 	}()
 
+	g := d.group("main")
+	handler := &handler{
+		deployer:   d,
+		group:      g,
+		subscribed: map[string]bool{},
+	}
+
 	// NOTE: NewEnvelopeConn initiates a blocking handshake with the weavelet
 	// and therefore we run the rest of the initialization in a goroutine which
 	// will wait for weaver.Run to create a weavelet.
 	go func() {
+		d.running.Go(func() error {
+			err := deployers.ServeComponents(d.ctx, uds, d.sysLogger, map[string]any{
+				control.DeployerPath: handler,
+			})
+			d.stop(err)
+			return err
+		})
+
 		e, err := conn.NewEnvelopeConn(d.ctx, fromWeaveletReader, toWeaveletWriter, wlet)
 		if err != nil {
 			d.stop(err)
@@ -233,15 +238,8 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 
 		d.mu.Lock()
 		defer d.mu.Unlock()
-		g := d.group("main")
 		g.controllers = append(g.controllers, w.weavelet)
-		handler := &handler{
-			deployer:   d,
-			group:      g,
-			subscribed: map[string]bool{},
-			controller: w.weavelet,
-		}
-		d.handlers[wlet.Id] = handler
+		handler.controller = w.weavelet
 		d.running.Go(func() error {
 			err := e.Serve(handler)
 			d.stop(err)
@@ -354,14 +352,7 @@ func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
 }
 
 // ActivateComponent implements the control.DeployerControl interface.
-func (d *deployer) ActivateComponent(ctx context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
-	d.mu.Lock()
-	h, ok := d.handlers[req.Requester]
-	d.mu.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("unknown weavelet %q", req.Requester)
-	}
-
+func (h *handler) ActivateComponent(ctx context.Context, req *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -435,7 +426,6 @@ func (d *deployer) startGroup(g *group) error {
 			group:      g,
 			subscribed: map[string]bool{},
 		}
-		d.handlers[wlet.Id] = handler
 		logger := slog.New(&logging.LogHandler{
 			Opts:  logging.Options{Component: "envelope", Weavelet: wlet.Id},
 			Write: d.log,

@@ -228,7 +228,6 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	}
 
 	// Create the connection, now that the weavelet is running.
-	fmt.Fprintf(os.Stderr, "E1 %+v\n", e.weavelet)
 	conn, err := conn.NewEnvelopeConn(e.ctx, pipePair.ParentReader, pipePair.ParentWriter, e.weavelet)
 	if err != nil {
 		err := fmt.Errorf("NewEnvelope: connect to weavelet: %w", err)
