@@ -119,31 +119,6 @@ func (w *WeaveletConn) Listener() net.Listener {
 	return w.lis
 }
 
-// GetListenerAddressRPC returns the address the weavelet should listen on for
-// a particular listener.
-func (w *WeaveletConn) GetListenerAddressRPC(req *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error) {
-	reply, err := w.rpc(&protos.WeaveletMsg{GetListenerAddressRequest: req})
-	if err != nil {
-		return nil, err
-	}
-	if reply.GetListenerAddressReply == nil {
-		return nil, fmt.Errorf("nil GetListenerAddressReply received from envelope")
-	}
-	return reply.GetListenerAddressReply, nil
-}
-
-// ExportListenerRPC exports the provided listener.
-func (w *WeaveletConn) ExportListenerRPC(req *protos.ExportListenerRequest) (*protos.ExportListenerReply, error) {
-	reply, err := w.rpc(&protos.WeaveletMsg{ExportListenerRequest: req})
-	if err != nil {
-		return nil, err
-	}
-	if reply.ExportListenerReply == nil {
-		return nil, fmt.Errorf("nil ExportListenerReply received from envelope")
-	}
-	return reply.ExportListenerReply, nil
-}
-
 // GetSelfCertificateRPC returns the certificate and the private key the
 // weavelet should use for network connection establishment.
 func (w *WeaveletConn) GetSelfCertificateRPC(req *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error) {

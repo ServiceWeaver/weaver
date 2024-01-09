@@ -19,10 +19,10 @@ func init() {
 		Iface: reflect.TypeOf((*deployerControl)(nil)).Elem(),
 		Impl:  reflect.TypeOf(localDeployerControl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: false}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false})}
+			return deployerControl_local_stub{impl: impl.(deployerControl), tracer: tracer, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: false}), exportListenerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ExportListener", Remote: false}), getListenerAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetListenerAddress", Remote: false}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return deployerControl_client_stub{stub: stub, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: true}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true})}
+			return deployerControl_client_stub{stub: stub, activateComponentMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ActivateComponent", Remote: true}), exportListenerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "ExportListener", Remote: true}), getListenerAddressMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "GetListenerAddress", Remote: true}), logBatchMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/deployerControl", Method: "LogBatch", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return deployerControl_server_stub{impl: impl.(deployerControl), addLoad: addLoad}
@@ -63,10 +63,12 @@ var _ Unrouted = (*noopWeaveletControl)(nil)
 // Local stub implementations.
 
 type deployerControl_local_stub struct {
-	impl                     deployerControl
-	tracer                   trace.Tracer
-	activateComponentMetrics *codegen.MethodMetrics
-	logBatchMetrics          *codegen.MethodMetrics
+	impl                      deployerControl
+	tracer                    trace.Tracer
+	activateComponentMetrics  *codegen.MethodMetrics
+	exportListenerMetrics     *codegen.MethodMetrics
+	getListenerAddressMetrics *codegen.MethodMetrics
+	logBatchMetrics           *codegen.MethodMetrics
 }
 
 // Check that deployerControl_local_stub implements the deployerControl interface.
@@ -90,6 +92,46 @@ func (s deployerControl_local_stub) ActivateComponent(ctx context.Context, a0 *p
 	}
 
 	return s.impl.ActivateComponent(ctx, a0)
+}
+
+func (s deployerControl_local_stub) ExportListener(ctx context.Context, a0 *protos.ExportListenerRequest) (r0 *protos.ExportListenerReply, err error) {
+	// Update metrics.
+	begin := s.exportListenerMetrics.Begin()
+	defer func() { s.exportListenerMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.ExportListener", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.ExportListener(ctx, a0)
+}
+
+func (s deployerControl_local_stub) GetListenerAddress(ctx context.Context, a0 *protos.GetListenerAddressRequest) (r0 *protos.GetListenerAddressReply, err error) {
+	// Update metrics.
+	begin := s.getListenerAddressMetrics.Begin()
+	defer func() { s.getListenerAddressMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.deployerControl.GetListenerAddress", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.GetListenerAddress(ctx, a0)
 }
 
 func (s deployerControl_local_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
@@ -249,9 +291,11 @@ func (s weaveletControl_local_stub) UpdateRoutingInfo(ctx context.Context, a0 *p
 // Client stub implementations.
 
 type deployerControl_client_stub struct {
-	stub                     codegen.Stub
-	activateComponentMetrics *codegen.MethodMetrics
-	logBatchMetrics          *codegen.MethodMetrics
+	stub                      codegen.Stub
+	activateComponentMetrics  *codegen.MethodMetrics
+	exportListenerMetrics     *codegen.MethodMetrics
+	getListenerAddressMetrics *codegen.MethodMetrics
+	logBatchMetrics           *codegen.MethodMetrics
 }
 
 // Check that deployerControl_client_stub implements the deployerControl interface.
@@ -308,6 +352,108 @@ func (s deployerControl_client_stub) ActivateComponent(ctx context.Context, a0 *
 	return
 }
 
+func (s deployerControl_client_stub) ExportListener(ctx context.Context, a0 *protos.ExportListenerRequest) (r0 *protos.ExportListenerReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.exportListenerMetrics.Begin()
+	defer func() { s.exportListenerMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.ExportListener", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_ExportListenerRequest_b494514e(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_ExportListenerReply_b0fc34d0(dec)
+	err = dec.Error()
+	return
+}
+
+func (s deployerControl_client_stub) GetListenerAddress(ctx context.Context, a0 *protos.GetListenerAddressRequest) (r0 *protos.GetListenerAddressReply, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.getListenerAddressMetrics.Begin()
+	defer func() { s.getListenerAddressMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.deployerControl.GetListenerAddress", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_GetListenerAddressRequest_5a58feb0(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 2, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_GetListenerAddressReply_8bfe2caa(dec)
+	err = dec.Error()
+	return
+}
+
 func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
@@ -345,7 +491,7 @@ func (s deployerControl_client_stub) LogBatch(ctx context.Context, a0 *protos.Lo
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 1, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 3, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -715,6 +861,10 @@ func (s deployerControl_server_stub) GetStubFn(method string) func(ctx context.C
 	switch method {
 	case "ActivateComponent":
 		return s.activateComponent
+	case "ExportListener":
+		return s.exportListener
+	case "GetListenerAddress":
+		return s.getListenerAddress
 	case "LogBatch":
 		return s.logBatch
 	default:
@@ -743,6 +893,56 @@ func (s deployerControl_server_stub) activateComponent(ctx context.Context, args
 	// Encode the results.
 	enc := codegen.NewEncoder()
 	serviceweaver_enc_ptr_ActivateComponentReply_5e57d605(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s deployerControl_server_stub) exportListener(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.ExportListenerRequest
+	a0 = serviceweaver_dec_ptr_ExportListenerRequest_b494514e(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.ExportListener(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_ExportListenerReply_b0fc34d0(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s deployerControl_server_stub) getListenerAddress(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.GetListenerAddressRequest
+	a0 = serviceweaver_dec_ptr_GetListenerAddressRequest_5a58feb0(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.GetListenerAddress(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_GetListenerAddressReply_8bfe2caa(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
@@ -963,6 +1163,16 @@ func (s deployerControl_reflect_stub) ActivateComponent(ctx context.Context, a0 
 	return
 }
 
+func (s deployerControl_reflect_stub) ExportListener(ctx context.Context, a0 *protos.ExportListenerRequest) (r0 *protos.ExportListenerReply, err error) {
+	err = s.caller("ExportListener", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+func (s deployerControl_reflect_stub) GetListenerAddress(ctx context.Context, a0 *protos.GetListenerAddressRequest) (r0 *protos.GetListenerAddressReply, err error) {
+	err = s.caller("GetListenerAddress", ctx, []any{a0}, []any{&r0})
+	return
+}
+
 func (s deployerControl_reflect_stub) LogBatch(ctx context.Context, a0 *protos.LogEntryBatch) (err error) {
 	err = s.caller("LogBatch", ctx, []any{a0}, []any{})
 	return
@@ -1039,6 +1249,78 @@ func serviceweaver_dec_ptr_ActivateComponentReply_5e57d605(dec *codegen.Decoder)
 		return nil
 	}
 	var res protos.ActivateComponentReply
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_ExportListenerRequest_b494514e(enc *codegen.Encoder, arg *protos.ExportListenerRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_ExportListenerRequest_b494514e(dec *codegen.Decoder) *protos.ExportListenerRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.ExportListenerRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_ExportListenerReply_b0fc34d0(enc *codegen.Encoder, arg *protos.ExportListenerReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_ExportListenerReply_b0fc34d0(dec *codegen.Decoder) *protos.ExportListenerReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.ExportListenerReply
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_GetListenerAddressRequest_5a58feb0(enc *codegen.Encoder, arg *protos.GetListenerAddressRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_GetListenerAddressRequest_5a58feb0(dec *codegen.Decoder) *protos.GetListenerAddressRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.GetListenerAddressRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_GetListenerAddressReply_8bfe2caa(enc *codegen.Encoder, arg *protos.GetListenerAddressReply) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_GetListenerAddressReply_8bfe2caa(dec *codegen.Decoder) *protos.GetListenerAddressReply {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.GetListenerAddressReply
 	dec.DecodeProto(&res)
 	return &res
 }
