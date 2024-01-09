@@ -1,0 +1,7 @@
+[serviceweaver]
+binary = "./collatz"
+rollout = "5m"
+
+[multi]
+listeners.collatz = {address = "localhost:9000"}
+mtls = true  # For extra testing of MTLS handling

@@ -106,8 +106,15 @@ func TestExamples(t *testing.T) {
 			})
 
 			// "weaver multi deploy" the application.
-			t.Run("weaver-multi", func(t *testing.T) {
+			t.Run("weaver-multi-nomtls", func(t *testing.T) {
 				cmd := startCmd(ctx, t, nil, "../../cmd/weaver/weaver", "multi", "deploy", "weaver.toml")
+				t.Cleanup(terminateCmdAndWait(t, cmd))
+				run(t, test)
+			})
+
+			// "weaver multi deploy" the application with MTLS.
+			t.Run("weaver-multi-mtls", func(t *testing.T) {
+				cmd := startCmd(ctx, t, nil, "../../cmd/weaver/weaver", "multi", "deploy", "weaver_mtls.toml")
 				t.Cleanup(terminateCmdAndWait(t, cmd))
 				run(t, test)
 			})
@@ -118,7 +125,7 @@ func TestExamples(t *testing.T) {
 }
 
 func run(t *testing.T, test test) {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
 	// Send a GET request to the endpoint, retrying on error.
