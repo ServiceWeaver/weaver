@@ -330,12 +330,6 @@ func (d *deployer) ExportListener(ctx context.Context, req *protos.ExportListene
 	return &protos.ExportListenerReply{}, nil
 }
 
-// HandleLogEntry implements the EnvelopeHandler interface.
-func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	d.logger.Log(entry)
-	return nil
-}
-
 // HandleTraceSpans implements the EnvelopeHandler interface.
 func (d *deployer) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	return nil

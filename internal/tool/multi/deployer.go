@@ -546,12 +546,6 @@ func (d *deployer) LogBatch(ctx context.Context, batch *protos.LogEntryBatch) er
 	return nil
 }
 
-// HandleLogEntry implements the envelope.EnvelopeHandler interface.
-func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	log(d.logsDB, d.printer, entry)
-	return nil
-}
-
 // HandleTraceSpans implements the control.DeployerControl interface.
 func (d *deployer) HandleTraceSpans(ctx context.Context, spans *protos.TraceSpans) error {
 	return d.traceDB.Store(ctx, d.config.App.Name, d.deploymentId, spans)

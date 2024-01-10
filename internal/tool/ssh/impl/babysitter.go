@@ -331,16 +331,6 @@ func (b *babysitter) LogBatch(_ context.Context, req *protos.LogEntryBatch) erro
 	return nil
 }
 
-// HandleLogEntry implements the protos.EnvelopeHandler interface.
-func (b *babysitter) HandleLogEntry(_ context.Context, req *protos.LogEntry) error {
-	return protomsg.Call(b.ctx, protomsg.CallArgs{
-		Client:  http.DefaultClient,
-		Addr:    b.info.ManagerAddr,
-		URLPath: recvLogEntryURL,
-		Request: req,
-	})
-}
-
 // HandleTraceSpans implements the protos.EnvelopeHandler interface.
 func (b *babysitter) HandleTraceSpans(_ context.Context, spans *protos.TraceSpans) error {
 	return b.exportTraces(spans)
