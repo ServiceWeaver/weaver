@@ -110,6 +110,16 @@ func TestExamples(t *testing.T) {
 				cmd := startCmd(ctx, t, nil, "../../cmd/weaver/weaver", "multi", "deploy", "weaver.toml")
 				t.Cleanup(terminateCmdAndWait(t, cmd))
 				run(t, test)
+
+				// TODO(sanjay): Run a bunch of requests and check that some
+				// spans were sampled and saved.
+				if false && name == "collatz" {
+					for i := 0; i < 100; i++ {
+						run(t, test)
+						time.Sleep(time.Millisecond * 100)
+					}
+					// TODO(sanjay): Check trace db
+				}
 			})
 
 			// "weaver multi deploy" the application with MTLS.

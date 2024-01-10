@@ -72,6 +72,9 @@ type RemoteWeavelet struct {
 	tracer    trace.Tracer            // tracer used by all components
 	metrics   metrics.Exporter        // helper for sending metrics to envelope
 
+	// channel that is closed when deployer is ready.
+	deployerReady chan struct{}
+
 	componentsByName map[string]*component       // component name -> component
 	componentsByIntf map[reflect.Type]*component // component interface type -> component
 	componentsByImpl map[reflect.Type]*component // component impl type -> component
@@ -138,6 +141,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		servers:          servers,
 		opts:             opts,
 		logDst:           newRemoteLogger(os.Stderr),
+		deployerReady:    make(chan struct{}),
 		componentsByName: map[string]*component{},
 		componentsByIntf: map[reflect.Type]*component{},
 		componentsByImpl: map[reflect.Type]*component{},
@@ -166,7 +170,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	w.syslogger = w.logger("weavelet", "serviceweaver/system", "")
 
 	// Set up tracing.
-	exporter := traceio.NewWriter(w.conn.SendTraceSpans)
+	exporter := traceio.NewWriter(w.sendTraceSpans)
 	w.tracer = tracer(exporter, info.App, info.DeploymentId, info.Id)
 
 	// Initialize the component structs.
@@ -216,6 +220,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	if err != nil {
 		return nil, err
 	}
+	close(w.deployerReady)
 
 	// Wire-up log writing.
 	servers.Go(func() error {
@@ -699,6 +704,15 @@ func (w *RemoteWeavelet) logger(name string, attrs ...string) *slog.Logger {
 		},
 		Write: w.logDst.log,
 	})
+}
+
+func (w *RemoteWeavelet) sendTraceSpans(spans *protos.TraceSpans) error {
+	select {
+	case <-w.deployerReady:
+		return w.deployer.HandleTraceSpans(context.TODO(), spans)
+	default:
+		return fmt.Errorf("dropping trace spans since deployer is not available yet")
+	}
 }
 
 // listener returns the listener with the provided name.

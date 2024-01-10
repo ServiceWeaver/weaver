@@ -52,6 +52,11 @@ func (local *localDeployerControl) LogBatch(ctx context.Context, batch *protos.L
 	return nil
 }
 
+// HandleTraceSpans implements the control.DeployerControl interface.
+func (local *localDeployerControl) HandleTraceSpans(ctx context.Context, spans *protos.TraceSpans) error {
+	return fmt.Errorf("localDeployerControl.HandleTraceSpans not implemented")
+}
+
 // ActivateComponent implements the control.DeployerControl interface.
 func (*localDeployerControl) ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {
 	return nil, fmt.Errorf("localDeployerControl.ActivateComponent not implemented")

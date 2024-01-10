@@ -33,14 +33,12 @@ import (
 	"github.com/ServiceWeaver/weaver"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
-	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/colors"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -85,8 +83,7 @@ func TestMain(m *testing.M) {
 				os.Exit(1)
 				return nil
 			},
-			"writetraces": func() error { return writeTraces(conn) },
-			"serve_conn":  func() error { return conn.Serve(context.Background()) },
+			"serve_conn": func() error { return conn.Serve(context.Background()) },
 		}
 		fn, ok := cmds[cmd]
 		if !ok {
@@ -153,12 +150,6 @@ func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans *protos.Trace
 		h.traces = append(h.traces, span.Name)
 	}
 	return nil
-}
-
-func (h *handlerForTest) getTraceSpanNames() []string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.traces
 }
 
 func (*handlerForTest) LogBatch(context.Context, *protos.LogEntryBatch) error {
@@ -356,73 +347,6 @@ func createWeaveletConn() (*conn.WeaveletConn, error) {
 		return nil, fmt.Errorf("unable make weavelet<->envelope pipes: %w", err)
 	}
 	return conn.NewWeaveletConn(toWeavelet, toEnvelope)
-}
-
-func writeTraces(conn *conn.WeaveletConn) error {
-	w := traceio.NewWriter(conn.SendTraceSpans)
-	defer w.Shutdown(context.Background())
-
-	span := func(name string) *protos.Span {
-		rnd := uuid.New()
-		return &protos.Span{
-			Name:         name,
-			TraceId:      rnd[:16],
-			SpanId:       rnd[:8],
-			ParentSpanId: rnd[:8],
-		}
-	}
-	if err := w.ExportSpansProto(&protos.TraceSpans{Span: []*protos.Span{
-		span("span1"),
-		span("span2"),
-	}}); err != nil {
-		return err
-	}
-	if err := w.ExportSpansProto(&protos.TraceSpans{Span: []*protos.Span{
-		span("span3"),
-		span("span4"),
-	}}); err != nil {
-		return err
-	}
-	return nil
-}
-
-func TestTraces(t *testing.T) {
-	wlet, config := wlet(executable, "writetraces")
-	ctx, cancel := context.WithCancel(context.Background())
-	e, err := NewEnvelope(ctx, wlet, config, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	h := &handlerForTest{logSaver: testSaver(t)}
-
-	done := make(chan error)
-	go func() {
-		err := e.Serve(h)
-		done <- err
-	}()
-
-	// Wait for traces.
-	expect := []string{"span1", "span2", "span3", "span4"}
-	var actual []string
-	for r := retry.Begin(); r.Continue(ctx); {
-		if actual = h.getTraceSpanNames(); len(actual) >= 4 {
-			break
-		}
-	}
-	if err := ctx.Err(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Give the weavelet a chance to fail, and verify that it didn't.
-	time.Sleep(100 * time.Millisecond)
-	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) {
-		t.Fatalf("weavelet failed: %v", err)
-	}
-
-	if diff := cmp.Diff(expect, actual); diff != "" {
-		t.Errorf("traces diff: (-want,+got):\n%s", diff)
-	}
 }
 
 type A interface{}

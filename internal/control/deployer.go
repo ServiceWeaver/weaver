@@ -34,6 +34,9 @@ type DeployerControl interface {
 	// LogBatch logs the supplied batch of log entries.
 	LogBatch(context.Context, *protos.LogEntryBatch) error
 
+	// HandleTraceSpans saves the supplied trace spans.
+	HandleTraceSpans(context.Context, *protos.TraceSpans) error
+
 	// ActivateComponent ensures that the provided component is running
 	// somewhere. A call to ActivateComponent also implicitly signals that a
 	// weavelet is interested in receiving routing info for the component.
