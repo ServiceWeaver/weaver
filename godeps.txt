@@ -390,6 +390,21 @@ github.com/ServiceWeaver/weaver/internal/routing
     slices
     sort
     strings
+github.com/ServiceWeaver/weaver/internal/run
+    context
+    fmt
+    github.com/ServiceWeaver/weaver/internal/net/call
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/envelope
+    github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/google/uuid
+    golang.org/x/sync/errgroup
+    os
+    slices
+    sync
 github.com/ServiceWeaver/weaver/internal/sim
     context
     crypto/sha256
