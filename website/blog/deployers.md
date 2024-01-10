@@ -109,7 +109,7 @@ type EnvelopeHandler interface {
     ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
 
     // Telemetry.
-    HandleLogEntry(context.Context, *protos.LogEntry) error
+    LogBatch(context.Context, *protos.LogEntryBatch) error
     HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
 
     // Security.
@@ -328,16 +328,18 @@ func (h *handler) ExportListener(_ context.Context, req *protos.ExportListenerRe
 ### Telemetry
 
 Next, we implement the telemetry methods. All logs produced by a weavelet are
-received by the `HandleLogEntry` method. Our deployer uses a pretty printer from
+received by the `LogBatch` method. Our deployer uses a pretty printer from
 Service Weaver's `logging` library to print the logs to stdout. Similarly, all
 traces produced by a weavelet are received by the `HandleTraceSpans` function.
 For simplicity, our deployer ignores traces.
 
 ```golang
 // Responsibility 3: Telemetry.
-func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
+func (h *handler) LogBatch(_ context.Context, batch *protos.LogEntryBatch) error {
     pp := logging.NewPrettyPrinter(colors.Enabled())
-    fmt.Println(pp.Format(entry))
+    for _, entry := range batch.Entries {
+        fmt.Println(pp.Format(entry))
+    }
     return nil
 }
 

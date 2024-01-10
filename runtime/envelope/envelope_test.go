@@ -152,12 +152,10 @@ func (h *handlerForTest) HandleTraceSpans(_ context.Context, spans *protos.Trace
 	return nil
 }
 
-func (*handlerForTest) LogBatch(context.Context, *protos.LogEntryBatch) error {
-	return nil
-}
-
-func (h *handlerForTest) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	h.logSaver(entry)
+func (h *handlerForTest) LogBatch(_ context.Context, batch *protos.LogEntryBatch) error {
+	for _, entry := range batch.Entries {
+		h.logSaver(entry)
+	}
 	return nil
 }
 

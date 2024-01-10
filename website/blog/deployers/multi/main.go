@@ -153,12 +153,6 @@ func (h *handler) LogBatch(_ context.Context, batch *protos.LogEntryBatch) error
 	return nil
 }
 
-func (h *handler) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	pp := logging.NewPrettyPrinter(colors.Enabled())
-	fmt.Println(pp.Format(entry))
-	return nil
-}
-
 func (h *handler) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	// This simplified deployer drops traces on the floor.
 	return nil

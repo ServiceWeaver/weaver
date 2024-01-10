@@ -118,8 +118,3 @@ func (w *WeaveletConn) WeaveletInfo() *protos.WeaveletInfo {
 func (w *WeaveletConn) Listener() net.Listener {
 	return w.lis
 }
-
-// SendLogEntry sends a log entry to the envelope, without waiting for a reply.
-func (w *WeaveletConn) SendLogEntry(entry *protos.LogEntry) error {
-	return w.conn.send(&protos.WeaveletMsg{LogEntry: entry})
-}

@@ -35,7 +35,6 @@ type EnvelopeHandler interface {
 	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 	LogBatch(context.Context, *protos.LogEntryBatch) error
-	HandleLogEntry(context.Context, *protos.LogEntry) error
 	HandleTraceSpans(context.Context, *protos.TraceSpans) error
 }
 
@@ -189,14 +188,9 @@ func (e *EnvelopeConn) WeaveletInfo() *protos.WeaveletInfo {
 // handleMessage handles all messages initiated by the weavelet. Note that this
 // method doesn't handle RPC replies from weavelet.
 func (e *EnvelopeConn) handleMessage(msg *protos.WeaveletMsg, h EnvelopeHandler) error {
-	switch {
-	case msg.LogEntry != nil:
-		return h.HandleLogEntry(e.ctx, msg.LogEntry)
-	default:
-		err := fmt.Errorf("envelope_conn: unexpected message %+v", msg)
-		e.conn.cleanup(err)
-		return err
-	}
+	err := fmt.Errorf("envelope_conn: unexpected message %+v", msg)
+	e.conn.cleanup(err)
+	return err
 }
 
 // verifyWeaveletInfo verifies the information sent by the weavelet.

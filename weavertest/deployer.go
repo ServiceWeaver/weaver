@@ -286,16 +286,6 @@ func (d *deployer) LogBatch(ctx context.Context, batch *protos.LogEntryBatch) er
 	return nil
 }
 
-// HandleLogEntry implements the envelope.EnvelopeHandler interface.
-func (d *deployer) HandleLogEntry(_ context.Context, entry *protos.LogEntry) error {
-	// NOTE(mwhittaker): We intentionally create a new pretty printer for
-	// every log entry. If we used a single pretty printer, it would
-	// perform dimming, but when the dimmed output is interspersed with
-	// various other test logs, it is confusing.
-	d.log(entry)
-	return nil
-}
-
 // HandleTraceSpans implements the envelope.EnvelopeHandler interface.
 func (d *deployer) HandleTraceSpans(context.Context, *protos.TraceSpans) error {
 	// Ignore traces.

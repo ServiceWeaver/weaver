@@ -92,8 +92,6 @@ type EnvelopeHandler interface {
 	// LogBatches handles a batch of log entries.
 	LogBatch(context.Context, *protos.LogEntryBatch) error
 
-	HandleLogEntry(context.Context, *protos.LogEntry) error
-
 	// HandleTraceSpans handles a set of trace spans.
 	HandleTraceSpans(context.Context, *protos.TraceSpans) error
 }
@@ -419,14 +417,17 @@ func (e *Envelope) logLines(component string, src io.Reader, h EnvelopeHandler) 
 		File:      "",
 		Line:      -1,
 	}
+	batch := &protos.LogEntryBatch{}
+	batch.Entries = append(batch.Entries, entry)
+
 	rdr := bufio.NewReader(src)
 	for {
 		line, err := rdr.ReadBytes('\n')
 		// Note: both line and err may be present.
 		if len(line) > 0 {
 			entry.Msg = string(dropNewline(line))
-			entry.TimeMicros = 0 // In case previous logSaver() call set it
-			if err := h.HandleLogEntry(e.ctx, entry); err != nil {
+			entry.TimeMicros = 0 // In case previous LogBatch mutated it
+			if err := h.LogBatch(e.ctx, batch); err != nil {
 				return err
 			}
 		}
