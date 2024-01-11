@@ -35,6 +35,11 @@ type noopWeaveletControl struct {
 
 var _ weaveletControl = &noopWeaveletControl{}
 
+// InitWeavelet implements weaveletControl interface.
+func (*noopWeaveletControl) InitWeavelet(context.Context, *protos.InitWeaveletRequest) (*protos.WeaveletInfo, error) {
+	return nil, fmt.Errorf("weaveletControl.InitWeavelet not implemented")
+}
+
 // UpdateComponents implements weaveletControl interface.
 func (*noopWeaveletControl) UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	return nil, fmt.Errorf("weaveletControl.UpdateComponents not implemented")

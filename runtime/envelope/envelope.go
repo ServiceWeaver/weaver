@@ -19,7 +19,6 @@ package envelope
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -28,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/control"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
@@ -94,12 +92,6 @@ type EnvelopeHandler interface {
 	HandleTraceSpans(context.Context, *protos.TraceSpans) error
 }
 
-// Ensure that EnvelopeHandler remains in-sync with conn.EnvelopeHandler.
-var (
-	_ EnvelopeHandler      = conn.EnvelopeHandler(nil)
-	_ conn.EnvelopeHandler = EnvelopeHandler(nil)
-)
-
 // Ensure that EnvelopeHandler implements all the DeployerControl methods.
 var _ control.DeployerControl = EnvelopeHandler(nil)
 
@@ -116,8 +108,8 @@ type Envelope struct {
 	tmpDirOwned bool // Did Envelope create tmpDir?
 	myUds       string
 	weavelet    *protos.EnvelopeInfo
+	winfo       *protos.WeaveletInfo
 	config      *protos.AppConfig
-	conn        *conn.EnvelopeConn      // conn to weavelet
 	child       Child                   // weavelet process handle
 	controller  control.WeaveletControl // Stub that talks to the weavelet controller
 
@@ -209,39 +201,18 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	if child == nil {
 		child = &ProcessChild{}
 	}
-	if err := child.Start(ctx, e.config); err != nil {
+	// TODO(sanjay): Rename EnvelopeInfo to WeaveletArgs and move bulky fields
+	// to InitWeaveletRequest.
+	if err := child.Start(ctx, e.config, e.weavelet); err != nil {
 		return nil, fmt.Errorf("NewEnvelope: %w", err)
 	}
 
-	// Create the connection, now that the weavelet is running.
-	conn, err := conn.NewEnvelopeConn(e.ctx, child.Reader(), child.Writer(), e.weavelet)
+	e.winfo, err = controller.InitWeavelet(e.ctx, &protos.InitWeaveletRequest{})
 	if err != nil {
-		err := fmt.Errorf("NewEnvelope: connect to weavelet: %w", err)
-
-		// Kill the subprocess, if it's not already dead.
-		cancel()
-
-		// Include stdout and stderr in the returned error.
-		if stdout := child.Stdout(); stdout != nil {
-			if bytes, stdoutErr := io.ReadAll(stdout); stdoutErr == nil && len(bytes) > 0 {
-				err = errors.Join(err, fmt.Errorf("-----BEGIN STDOUT-----\n%s-----END STDOUT-----", string(bytes)))
-			}
-		}
-		if stderr := child.Stderr(); stderr != nil {
-			if bytes, stderrErr := io.ReadAll(stderr); stderrErr == nil && len(bytes) > 0 {
-				err = errors.Join(err, fmt.Errorf("-----BEGIN STDERR-----\n%s\n-----END STDERR-----", string(bytes)))
-			}
-		}
-
-		// Wait for the subprocess to terminate.
-		if waitErr := child.Wait(); waitErr != nil {
-			err = errors.Join(err, waitErr)
-		}
 		return nil, err
 	}
 
 	e.child = child
-	e.conn = conn
 
 	removeDir = false  // Serve() is now responsible for deletion
 	cancel = func() {} // Delay real context cancellation
@@ -302,13 +273,6 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 		return err
 	})
 
-	// Start the goroutine to receive incoming messages.
-	running.Go(func() error {
-		err := e.conn.Serve(h)
-		stop(err)
-		return err
-	})
-
 	// Start the goroutine to handle deployer control calls.
 	running.Go(func() error {
 		err := deployers.ServeComponents(e.ctx, uds, e.logger, map[string]any{
@@ -335,7 +299,7 @@ func (e *Envelope) Pid() (int, bool) {
 
 // WeaveletInfo returns information about the started weavelet.
 func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
-	return e.conn.WeaveletInfo()
+	return e.winfo
 }
 
 // GetHealth returns the health status of the weavelet.

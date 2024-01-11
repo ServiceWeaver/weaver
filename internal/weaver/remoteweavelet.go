@@ -29,7 +29,6 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/control"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
 	"github.com/ServiceWeaver/weaver/internal/register"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
@@ -40,6 +39,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
@@ -64,8 +64,9 @@ type RemoteWeavelet struct {
 	ctx       context.Context         // shuts down the weavelet when canceled
 	servers   *errgroup.Group         // background servers
 	opts      RemoteWeaveletOptions   // options
+	envInfo   *protos.EnvelopeInfo    // info about my envelope
+	info      *protos.WeaveletInfo    // info about this weavelet sent to the envelope
 	id        string                  // unique id for this weavelet
-	conn      *conn.WeaveletConn      // connection to envelope
 	deployer  control.DeployerControl // component to control deployer
 	logDst    *remoteLogger           // for writing log entries
 	syslogger *slog.Logger            // system logger
@@ -135,11 +136,49 @@ type listener struct {
 // specified in the provided registrations. bootstrap is used to establish a
 // connection with an envelope.
 func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootstrap runtime.Bootstrap, opts RemoteWeaveletOptions) (*RemoteWeavelet, error) {
+	args := bootstrap.Args
+	if args == nil {
+		err := fmt.Errorf("missing EnvelopeInfo")
+		return nil, err
+	}
+	if err := runtime.CheckEnvelopeInfo(args); err != nil {
+		return nil, err
+	}
+
+	// Make internal listener.
+	lis, err := net.Listen("tcp", args.InternalAddress)
+	if err != nil {
+		return nil, err
+	}
+	// Conditionally cleanup listener on error
+	cleanupListener := true
+	defer func() {
+		if cleanupListener {
+			lis.Close()
+		}
+	}()
+
+	// Pre-construct reply for InitWeavelet call.
+	dialAddr := fmt.Sprintf("tcp://%s", lis.Addr().String())
+	if args.Mtls {
+		dialAddr = fmt.Sprintf("mtls://%s", dialAddr)
+	}
+	winfo := &protos.WeaveletInfo{
+		DialAddr: dialAddr,
+		Version: &protos.SemVer{
+			Major: version.DeployerMajor,
+			Minor: version.DeployerMinor,
+			Patch: 0,
+		},
+	}
+
 	servers, ctx := errgroup.WithContext(ctx)
 	w := &RemoteWeavelet{
 		ctx:              ctx,
 		servers:          servers,
 		opts:             opts,
+		envInfo:          args,
+		info:             winfo,
 		logDst:           newRemoteLogger(os.Stderr),
 		deployerReady:    make(chan struct{}),
 		componentsByName: map[string]*component{},
@@ -149,17 +188,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		listeners:        map[string]*listener{},
 	}
 
-	// Establish a connection with the envelope.
-	toWeavelet, toEnvelope, err := bootstrap.MakePipes()
-	if err != nil {
-		return nil, err
-	}
-
-	w.conn, err = conn.NewWeaveletConn(toWeavelet, toEnvelope)
-	if err != nil {
-		return nil, fmt.Errorf("new weavelet conn: %w", err)
-	}
-	info := w.conn.EnvelopeInfo()
+	info := bootstrap.Args
 	controlSocket, err := net.Listen("unix", info.ControlSocket)
 	if err != nil {
 		return nil, err
@@ -185,7 +214,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		if reg.Routed {
 			// TODO(rgrandl): In the future, we may want to collect load for
 			// all components.
-			c.load = newLoadCollector(reg.Name, w.conn.WeaveletInfo().DialAddr)
+			c.load = newLoadCollector(reg.Name, dialAddr)
 		}
 
 		// Initialize the client side of the mTLS protocol.
@@ -228,15 +257,6 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		return nil
 	})
 
-	// Handle the weavelet side of the connection with the envelope.
-	servers.Go(func() error {
-		if err := w.conn.Serve(ctx); err != nil {
-			w.syslogger.Error("weavelet conn failed", "err", err)
-			return err
-		}
-		return nil
-	})
-
 	// Serve the control component.
 	servers.Go(func() error {
 		return deployers.ServeComponents(ctx, controlSocket, w.syslogger, map[string]any{
@@ -245,8 +265,9 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	})
 
 	// Serve RPC requests from other weavelets.
+	cleanupListener = false // handing listener to server
 	servers.Go(func() error {
-		server := &server{Listener: w.conn.Listener(), wlet: w}
+		server := &server{Listener: lis, wlet: w}
 		opts := call.ServerOptions{
 			Logger: w.syslogger,
 			Tracer: w.tracer,
@@ -258,8 +279,13 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		return nil
 	})
 
-	w.syslogger.Debug("🧶 weavelet started", "addr", w.conn.WeaveletInfo().DialAddr)
+	w.syslogger.Debug("🧶 weavelet started", "addr", dialAddr)
 	return w, nil
+}
+
+// InitWeavelet implements weaver.controller and conn.WeaverHandler interfaces.
+func (w *RemoteWeavelet) InitWeavelet(ctx context.Context, req *protos.InitWeaveletRequest) (*protos.WeaveletInfo, error) {
+	return w.info, nil
 }
 
 // Wait waits for the RemoteWeavelet to fully shut down after its context has
@@ -625,7 +651,7 @@ func (w *RemoteWeavelet) GetProfile(ctx context.Context, req *protos.GetProfileR
 
 // Info returns the EnvelopeInfo received from the envelope.
 func (w *RemoteWeavelet) Info() *protos.EnvelopeInfo {
-	return w.conn.EnvelopeInfo()
+	return w.envInfo
 }
 
 // getComponent returns the component with the given name.

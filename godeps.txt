@@ -307,19 +307,6 @@ github.com/ServiceWeaver/weaver/internal/control
 github.com/ServiceWeaver/weaver/internal/env
     fmt
     strings
-github.com/ServiceWeaver/weaver/internal/envelope/conn
-    context
-    fmt
-    github.com/ServiceWeaver/weaver/internal/queue
-    github.com/ServiceWeaver/weaver/runtime
-    github.com/ServiceWeaver/weaver/runtime/protomsg
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/ServiceWeaver/weaver/runtime/version
-    golang.org/x/sync/errgroup
-    google.golang.org/protobuf/proto
-    io
-    net
-    sync
 github.com/ServiceWeaver/weaver/internal/files
     fmt
     os
@@ -700,7 +687,6 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/internal/config
     github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/env
-    github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/register
@@ -716,6 +702,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/retry
     github.com/ServiceWeaver/weaver/runtime/traces
+    github.com/ServiceWeaver/weaver/runtime/version
     github.com/google/uuid
     github.com/lightstep/varopt
     go.opentelemetry.io/otel
@@ -751,12 +738,11 @@ github.com/ServiceWeaver/weaver/runtime
     fmt
     github.com/BurntSushi/toml
     github.com/ServiceWeaver/weaver/internal/env
+    github.com/ServiceWeaver/weaver/internal/proto
     github.com/ServiceWeaver/weaver/runtime/protos
-    io
     os
     os/signal
     path/filepath
-    strconv
     strings
     sync
     syscall
@@ -821,13 +807,12 @@ github.com/ServiceWeaver/weaver/runtime/deployers
 github.com/ServiceWeaver/weaver/runtime/envelope
     bufio
     context
-    errors
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/control
-    github.com/ServiceWeaver/weaver/internal/envelope/conn
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/pipe
+    github.com/ServiceWeaver/weaver/internal/proto
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/deployers
@@ -840,7 +825,6 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     log/slog
     net
     os
-    strconv
     sync
 github.com/ServiceWeaver/weaver/runtime/graph
     fmt
@@ -1087,18 +1071,6 @@ github.com/ServiceWeaver/weaver/website/blog/deployers/multi
     github.com/google/uuid
     os
     sync
-github.com/ServiceWeaver/weaver/website/blog/deployers/pipes
-    context
-    flag
-    fmt
-    github.com/ServiceWeaver/weaver/runtime
-    github.com/ServiceWeaver/weaver/runtime/deployers
-    github.com/ServiceWeaver/weaver/runtime/protomsg
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/google/uuid
-    google.golang.org/protobuf/encoding/prototext
-    os
-    os/exec
 github.com/ServiceWeaver/weaver/website/blog/deployers/single
     context
     flag

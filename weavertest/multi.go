@@ -48,7 +48,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 	if err != nil {
 		return nil, nil, err
 	}
-	if bootstrap.HasPipes() {
+	if bootstrap.Exists() {
 		// This is a child process, so just start the application and wait.
 		defer func() {
 			if r := recover(); r != nil {

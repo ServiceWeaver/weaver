@@ -53,33 +53,20 @@ var (
 
 // A weavelet is a connection to a RemoteWeavelet running in this process.
 type weavelet struct {
-	cancel           context.CancelFunc     // shuts down the weavelet
-	toWeaveletReader *os.File               // reader end of pipe to weavelet
-	toWeaveletWriter *os.File               // writer end of pipe to weavelet
-	toEnvelopeReader *os.File               // reader end of pipe to envelope
-	toEnvelopeWriter *os.File               // writer end of pipe to envelope
-	env              *envelope.Envelope     // envelope
-	wlet             *weaver.RemoteWeavelet // weavelet
-	threads          *errgroup.Group        // background threads
+	cancel  context.CancelFunc     // shuts down the weavelet
+	env     *envelope.Envelope     // envelope
+	wlet    *weaver.RemoteWeavelet // weavelet
+	threads *errgroup.Group        // background threads
 }
 
 // spawn spawns a weavelet with the provided info and handler.
 func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.EnvelopeHandler, log *slog.Logger, tmpDir string) (*weavelet, error) {
-	// Create pipes to the weavelet.
-	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
-	if err != nil {
-		return nil, fmt.Errorf("spawn: %w", err)
-	}
-	toEnvelopeReader, toEnvelopeWriter, err := os.Pipe()
-	if err != nil {
-		return nil, fmt.Errorf("spawn: %w", err)
-	}
-
 	// envelope.NewEnvelope blocks performing a handshake with the weavelet, so
 	// we have to run it in a separate goroutine.
 	ctx, cancel := context.WithCancel(ctx)
 	threads, ctx := errgroup.WithContext(ctx)
 	errs := make(chan error)
+	child := envelope.NewInProcessChild()
 	var env *envelope.Envelope
 	go func() {
 		var err error
@@ -87,7 +74,7 @@ func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.Enve
 			envelope.Options{
 				TmpDir: tmpDir,
 				Logger: log,
-				Child:  envelope.NewInProcessChild(toEnvelopeReader, toWeaveletWriter),
+				Child:  child,
 			})
 		errs <- err
 	}()
@@ -96,7 +83,9 @@ func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.Enve
 	wlet, err := weaver.NewRemoteWeavelet(
 		ctx,
 		codegen.Registered(),
-		runtime.Bootstrap{ToWeaveletFile: toWeaveletReader, ToEnvelopeFile: toEnvelopeWriter},
+		runtime.Bootstrap{
+			Args: child.Args(),
+		},
 		weaver.RemoteWeaveletOptions{},
 	)
 	if err != nil {
@@ -126,14 +115,10 @@ func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.Enve
 	})
 
 	return &weavelet{
-		cancel:           cancel,
-		toWeaveletReader: toWeaveletReader,
-		toWeaveletWriter: toWeaveletWriter,
-		toEnvelopeReader: toEnvelopeReader,
-		toEnvelopeWriter: toEnvelopeWriter,
-		env:              env,
-		wlet:             wlet,
-		threads:          threads,
+		cancel:  cancel,
+		env:     env,
+		wlet:    wlet,
+		threads: threads,
 	}, nil
 }
 
@@ -354,76 +339,6 @@ func testComponents(d *deployer) {
 		if got != want {
 			d.t.Fatalf("A(%d): got %d, want %d", want, got, want)
 		}
-	}
-}
-
-func TestInvalidPipes(t *testing.T) {
-	// Create an already closed pipe.
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	w.Close()
-	r.Close()
-
-	// Construct a remote weavelet, which should fail.
-	if _, err := weaver.NewRemoteWeavelet(
-		context.Background(),
-		codegen.Registered(),
-		runtime.Bootstrap{ToWeaveletFile: r, ToEnvelopeFile: w},
-		weaver.RemoteWeaveletOptions{},
-	); err == nil {
-		t.Fatal("unexpected success")
-	}
-}
-
-func TestInvalidHandshake(t *testing.T) {
-	// Create pipes to the weavelet.
-	r1, w1, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r1.Close()
-	defer w1.Close()
-
-	r2, w2, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r2.Close()
-	defer w2.Close()
-
-	// When the weavelet is created, it performs a handshake with the envelope
-	// and expects to receive an EnvelopeInfo, but instead, we send it garbage.
-	var garbage [1000]byte
-	if _, err := w1.Write(garbage[:]); err != nil {
-		t.Fatal(err)
-	}
-
-	// Construct a remote weavelet, which should fail.
-	if _, err := weaver.NewRemoteWeavelet(
-		context.Background(),
-		codegen.Registered(),
-		runtime.Bootstrap{ToWeaveletFile: r1, ToEnvelopeFile: w2},
-		weaver.RemoteWeaveletOptions{},
-	); err == nil {
-		t.Fatal("unexpected success")
-	}
-}
-
-func TestClosePipes(t *testing.T) {
-	// Note that d.shutdown will fail because we close the pipes below, so we
-	// instead call d.cancel() and d.weavelets["1"].threads.Wait() directly.
-	d := deploy(t, context.Background(), colocated)
-	defer d.cancel()
-	defer d.weavelets["1"].threads.Wait()
-	testComponents(d)
-
-	// Close the pipes to the weavelet. The weavelet should error out.
-	d.weavelets["1"].toWeaveletWriter.Close()
-	d.weavelets["1"].toEnvelopeReader.Close()
-	if err := d.weavelets["1"].wlet.Wait(); err == nil {
-		t.Fatal("unexpected success")
 	}
 }
 

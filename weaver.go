@@ -139,7 +139,7 @@ func Run[T any, P PointerToMain[T]](ctx context.Context, app func(context.Contex
 	if err != nil {
 		return err
 	}
-	if !bootstrap.HasPipes() {
+	if !bootstrap.Exists() {
 		return runLocal[T, P](ctx, app)
 	}
 	return runRemote[T, P](ctx, app, bootstrap)

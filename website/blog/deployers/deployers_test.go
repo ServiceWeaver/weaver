@@ -40,16 +40,6 @@ func build(t *testing.T, dirs ...string) {
 	}
 }
 
-// TestPipesDeployer tests the ./pipes deployer.
-func TestPipesDeployer(t *testing.T) {
-	build(t, "./pipes", "../../../examples/collatz")
-	cmd := exec.Command("./pipes/pipes", "../../../examples/collatz/collatz")
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // TestSingleDeployer tests the ./single deployer.
 func TestSingleDeployer(t *testing.T) {
 	build(t, "./single", "../../../examples/collatz")

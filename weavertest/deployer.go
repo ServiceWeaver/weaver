@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"reflect"
 	"sync"
 
@@ -137,22 +136,6 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 }
 
 func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeavelet, error) {
-	// Set up the pipes between the envelope and the main weavelet. The
-	// pipes will be closed by the envelope and weavelet conns.
-	//
-	//         envelope                      weavelet
-	//         ────────        ┌────┐        ────────
-	//   fromWeaveletReader <──│ OS │<── fromWeaveletWriter
-	//     toWeaveletWriter ──>│    │──> toWeaveletReader
-	//                         └────┘
-	fromWeaveletReader, fromWeaveletWriter, err := os.Pipe()
-	if err != nil {
-		return nil, fmt.Errorf("cannot create fromWeavelet pipe: %v", err)
-	}
-	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
-	if err != nil {
-		return nil, fmt.Errorf("cannot create toWeavelet pipe: %v", err)
-	}
 	// Run an envelope connection to the main co-location group.
 	wlet := &protos.EnvelopeInfo{
 		App:             d.wlet.App,
@@ -162,12 +145,7 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 		InternalAddress: "localhost:0",
 	}
 
-	bootstrap := runtime.Bootstrap{
-		ToWeaveletFile: toWeaveletReader,
-		ToEnvelopeFile: fromWeaveletWriter,
-	}
-	origCtx := d.ctx
-	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
+	child := envelope.NewInProcessChild()
 
 	// We concurrently start the creation of the weavelet and the creation of the envelope
 	// connection to the weavelet since they both talk to each other.
@@ -177,7 +155,10 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 	}
 	wchan := make(chan weaveletResult)
 	go func() {
-		weavelet, err := weaver.NewRemoteWeavelet(origCtx, codegen.Registered(), bootstrap, opts)
+		bootstrap := runtime.Bootstrap{
+			Args: child.Args(), // Will block
+		}
+		weavelet, err := weaver.NewRemoteWeavelet(d.ctx, codegen.Registered(), bootstrap, opts)
 		wchan <- weaveletResult{weavelet, err} // Give weavelet to caller
 		wchan <- weaveletResult{weavelet, err} // Give weavelet to NewEnvelope goroutine
 	}()
@@ -189,9 +170,7 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config, envelope.Options{
 			TmpDir: d.tmpDir,
 			Logger: d.sysLogger,
-
-			// Host weavelet in-process.
-			Child: envelope.NewInProcessChild(fromWeaveletReader, toWeaveletWriter),
+			Child:  child,
 		})
 		if err != nil {
 			d.stop(err)
