@@ -353,7 +353,11 @@ func (d *deployer) startColocationGroup(g *group) error {
 			d.stop(err)
 			return err
 		})
-		if err := d.registerReplica(g, wlet, e.Pid()); err != nil {
+		pid, ok := e.Pid()
+		if !ok {
+			panic("multi deployer child must be a real process")
+		}
+		if err := d.registerReplica(g, wlet, pid); err != nil {
 			return err
 		}
 		if err := e.UpdateComponents(components); err != nil {

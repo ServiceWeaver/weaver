@@ -25,13 +25,11 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/net/call"
-	"github.com/ServiceWeaver/weaver/internal/pipe"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/deployers"
@@ -111,18 +109,17 @@ var _ control.DeployerControl = EnvelopeHandler(nil)
 // https://serviceweaver.dev/blog/deployers.html.
 type Envelope struct {
 	// Fields below are constant after construction.
-	ctx        context.Context
-	ctxCancel  context.CancelFunc
-	logger     *slog.Logger
-	tmpDir     string
-	myUds      string
-	weavelet   *protos.EnvelopeInfo
-	config     *protos.AppConfig
-	conn       *conn.EnvelopeConn      // conn to weavelet
-	cmd        *pipe.Cmd               // command that started the weavelet
-	stdoutPipe io.ReadCloser           // stdout pipe from the weavelet
-	stderrPipe io.ReadCloser           // stderr pipe from the weavelet
-	controller control.WeaveletControl // Stub that talks to the weavelet controller
+	ctx         context.Context
+	ctxCancel   context.CancelFunc
+	logger      *slog.Logger
+	tmpDir      string
+	tmpDirOwned bool // Did Envelope create tmpDir?
+	myUds       string
+	weavelet    *protos.EnvelopeInfo
+	config      *protos.AppConfig
+	conn        *conn.EnvelopeConn      // conn to weavelet
+	child       Child                   // weavelet process handle
+	controller  control.WeaveletControl // Stub that talks to the weavelet controller
 
 	// State needed to process metric updates.
 	metricsMu sync.Mutex
@@ -131,14 +128,20 @@ type Envelope struct {
 
 // Options contains optional arguments for the envelope.
 type Options struct {
+	// Override for temporary directory.
+	TmpDir string
+
 	// Logger is used for logging internal messages. If nil, a default logger is used.
 	Logger *slog.Logger
 
 	// Tracer is used for tracing internal calls. If nil, internal calls are not traced.
 	Tracer trace.Tracer
+
+	// Child is used to run the weavelet. If nil, a sub-process is created.
+	Child Child
 }
 
-// NewEnvelope creates a new envelope, starting a weavelet subprocess and
+// NewEnvelope creates a new envelope, starting a weavelet subprocess (via child.Start) and
 // establishing a bidirectional connection with it. The weavelet process can be
 // stopped at any time by canceling the passed-in context.
 //
@@ -153,19 +156,26 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	}
 
 	// Make a temporary directory for unix domain sockets.
-	tmpDir, err := runtime.NewTempDir()
-	if err != nil {
-		return nil, err
-	}
-	runtime.OnExitSignal(func() { os.RemoveAll(tmpDir) }) // Cleanup when process exits
-
-	// Arrange to delete tmpDir if this function returns an error.
-	removeDir := true // Cleared on a successful return
-	defer func() {
-		if removeDir {
-			os.RemoveAll(tmpDir)
+	var removeDir bool
+	tmpDir := options.TmpDir
+	tmpDirOwned := false
+	if options.TmpDir == "" {
+		var err error
+		tmpDir, err = runtime.NewTempDir()
+		if err != nil {
+			return nil, err
 		}
-	}()
+		tmpDirOwned = true
+		runtime.OnExitSignal(func() { os.RemoveAll(tmpDir) }) // Cleanup when process exits
+
+		// Arrange to delete tmpDir if this function returns an error.
+		removeDir = true // Cleared on a successful return
+		defer func() {
+			if removeDir {
+				os.RemoveAll(tmpDir)
+			}
+		}()
+	}
 
 	myUds := deployers.NewUnixSocketPath(tmpDir)
 
@@ -184,49 +194,27 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		return nil, err
 	}
 	e := &Envelope{
-		ctx:        ctx,
-		ctxCancel:  cancel,
-		logger:     options.Logger,
-		tmpDir:     tmpDir,
-		myUds:      myUds,
-		weavelet:   wlet,
-		config:     config,
-		controller: controller,
+		ctx:         ctx,
+		ctxCancel:   cancel,
+		logger:      options.Logger,
+		tmpDir:      tmpDir,
+		tmpDirOwned: tmpDirOwned,
+		myUds:       myUds,
+		weavelet:    wlet,
+		config:      config,
+		controller:  controller,
 	}
 
-	// Form the weavelet command.
-	cmd := pipe.CommandContext(e.ctx, e.config.Binary, e.config.Args...)
-
-	// Create the request/response pipes first, so we can fill cmd.Env and detect any errors early.
-	pipePair, err := cmd.MakePipePair()
-	if err != nil {
-		return nil, fmt.Errorf("NewEnvelope: create weavelet request/response pipes: %w", err)
+	child := options.Child
+	if child == nil {
+		child = &ProcessChild{}
 	}
-
-	// Create pipes that capture child outputs.
-	outpipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("NewEnvelope: create stdout pipe: %w", err)
-	}
-	errpipe, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("NewEnvelope: create stderr pipe: %w", err)
-	}
-
-	// Create pair of pipes to use for component method calls from weavelet to envelope.
-
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.FormatUint(uint64(pipePair.ChildReader), 10)))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.FormatUint(uint64(pipePair.ChildWriter), 10)))
-	cmd.Env = append(cmd.Env, e.config.Env...)
-
-	// Start the command.
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("NewEnvelope: start subprocess: %w", err)
+	if err := child.Start(ctx, e.config); err != nil {
+		return nil, fmt.Errorf("NewEnvelope: %w", err)
 	}
 
 	// Create the connection, now that the weavelet is running.
-	conn, err := conn.NewEnvelopeConn(e.ctx, pipePair.ParentReader, pipePair.ParentWriter, e.weavelet)
+	conn, err := conn.NewEnvelopeConn(e.ctx, child.Reader(), child.Writer(), e.weavelet)
 	if err != nil {
 		err := fmt.Errorf("NewEnvelope: connect to weavelet: %w", err)
 
@@ -234,25 +222,26 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		cancel()
 
 		// Include stdout and stderr in the returned error.
-		if bytes, stdoutErr := io.ReadAll(outpipe); stdoutErr == nil && len(bytes) > 0 {
-			err = errors.Join(err, fmt.Errorf("-----BEGIN STDOUT-----\n%s-----END STDOUT-----", string(bytes)))
+		if stdout := child.Stdout(); stdout != nil {
+			if bytes, stdoutErr := io.ReadAll(stdout); stdoutErr == nil && len(bytes) > 0 {
+				err = errors.Join(err, fmt.Errorf("-----BEGIN STDOUT-----\n%s-----END STDOUT-----", string(bytes)))
+			}
 		}
-		if bytes, stderrErr := io.ReadAll(errpipe); stderrErr == nil && len(bytes) > 0 {
-			err = errors.Join(err, fmt.Errorf("-----BEGIN STDERR-----\n%s\n-----END STDERR-----", string(bytes)))
+		if stderr := child.Stderr(); stderr != nil {
+			if bytes, stderrErr := io.ReadAll(stderr); stderrErr == nil && len(bytes) > 0 {
+				err = errors.Join(err, fmt.Errorf("-----BEGIN STDERR-----\n%s\n-----END STDERR-----", string(bytes)))
+			}
 		}
 
 		// Wait for the subprocess to terminate.
-		if waitErr := cmd.Wait(); waitErr != nil {
+		if waitErr := child.Wait(); waitErr != nil {
 			err = errors.Join(err, waitErr)
 		}
-		cmd.Cleanup()
 		return nil, err
 	}
 
-	e.cmd = cmd
+	e.child = child
 	e.conn = conn
-	e.stdoutPipe = outpipe
-	e.stderrPipe = errpipe
 
 	removeDir = false  // Serve() is now responsible for deletion
 	cancel = func() {} // Delay real context cancellation
@@ -269,7 +258,9 @@ func (e *Envelope) WeaveletControl() control.WeaveletControl { return e.controll
 // method never returns a non-nil error.
 func (e *Envelope) Serve(h EnvelopeHandler) error {
 	// Cleanup when we are done with the envelope.
-	defer os.RemoveAll(e.tmpDir)
+	if e.tmpDirOwned {
+		defer os.RemoveAll(e.tmpDir)
+	}
 
 	uds, err := net.Listen("unix", e.myUds)
 	if err != nil {
@@ -288,16 +279,20 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 	}
 
 	// Capture stdout and stderr from the weavelet.
-	running.Go(func() error {
-		err := e.logLines("stdout", e.stdoutPipe, h)
-		stop(err)
-		return err
-	})
-	running.Go(func() error {
-		err := e.logLines("stderr", e.stderrPipe, h)
-		stop(err)
-		return err
-	})
+	if stdout := e.child.Stdout(); stdout != nil {
+		running.Go(func() error {
+			err := e.logLines("stdout", stdout, h)
+			stop(err)
+			return err
+		})
+	}
+	if stderr := e.child.Stderr(); stderr != nil {
+		running.Go(func() error {
+			err := e.logLines("stderr", stderr, h)
+			stop(err)
+			return err
+		})
+	}
 
 	// Start the goroutine watching the context for cancelation.
 	running.Go(func() error {
@@ -328,16 +323,14 @@ func (e *Envelope) Serve(h EnvelopeHandler) error {
 	// Wait for the weavelet command to finish. This needs to be done after
 	// we're done reading from stdout/stderr pipes, per comments on
 	// exec.Cmd.StdoutPipe and exec.Cmd.StderrPipe.
-	err = e.cmd.Wait()
-	stop(err)
-	e.cmd.Cleanup()
+	stop(e.child.Wait())
 
 	return stopErr
 }
 
-// Pid returns the process id of the subprocess.
-func (e *Envelope) Pid() int {
-	return e.cmd.Process.Pid
+// Pid returns the process id of the weavelet, if it is running in a separate process.
+func (e *Envelope) Pid() (int, bool) {
+	return e.child.Pid()
 }
 
 // WeaveletInfo returns information about the started weavelet.

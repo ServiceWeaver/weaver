@@ -109,7 +109,11 @@ func RunBabysitter(ctx context.Context) error {
 	// compiled binary.
 	winfo := e.WeaveletInfo()
 
-	if err := b.registerReplica(winfo, e.Pid()); err != nil {
+	pid, ok := e.Pid()
+	if !ok {
+		panic("ssh deployer child must be a real process")
+	}
+	if err := b.registerReplica(winfo, pid); err != nil {
 		return err
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
