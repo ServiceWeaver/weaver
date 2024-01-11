@@ -109,8 +109,10 @@ func RunBabysitter(ctx context.Context) error {
 	// compiled binary.
 	winfo := e.WeaveletInfo()
 
-	if err := b.registerReplica(winfo, e.Pid()); err != nil {
-		return err
+	if pid, ok := e.Pid(); ok {
+		if err := b.registerReplica(winfo, pid); err != nil {
+			return err
+		}
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
 	go c.run(ctx)

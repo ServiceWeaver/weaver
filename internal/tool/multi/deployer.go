@@ -353,8 +353,10 @@ func (d *deployer) startColocationGroup(g *group) error {
 			d.stop(err)
 			return err
 		})
-		if err := d.registerReplica(g, wlet, e.Pid()); err != nil {
-			return err
+		if pid, ok := e.Pid(); ok {
+			if err := d.registerReplica(g, wlet, pid); err != nil {
+				return err
+			}
 		}
 		if err := e.UpdateComponents(components); err != nil {
 			return err

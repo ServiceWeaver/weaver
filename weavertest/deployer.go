@@ -19,17 +19,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"reflect"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/control"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
-	"github.com/ServiceWeaver/weaver/runtime/deployers"
 	"github.com/ServiceWeaver/weaver/runtime/envelope"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
@@ -60,7 +57,6 @@ type deployer struct {
 	ctx        context.Context
 	ctxCancel  context.CancelFunc
 	tmpDir     string
-	udsPath    string
 	runner     Runner                 // holds runner-specific info like config
 	wlet       *protos.EnvelopeInfo   // info for subprocesses
 	config     *protos.AppConfig      // application config
@@ -109,7 +105,6 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		ctx:        ctx,
 		ctxCancel:  cancel,
 		tmpDir:     tmpDir,
-		udsPath:    deployers.NewUnixSocketPath(tmpDir),
 		runner:     runner,
 		wlet:       wlet,
 		config:     config,
@@ -165,17 +160,6 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 		Id:              uuid.New().String(),
 		Sections:        d.wlet.Sections,
 		InternalAddress: "localhost:0",
-		Redirects: []*protos.EnvelopeInfo_Redirect{
-			// Supply custom deployer control component
-			{
-				Component: control.DeployerPath,
-				Target:    control.DeployerPath,
-				Address:   "unix://" + d.udsPath,
-			},
-		},
-
-		// Create ControlSocket ourselves since we are not using envelope.NewEnvelope().
-		ControlSocket: deployers.NewUnixSocketPath(d.tmpDir),
 	}
 
 	bootstrap := runtime.Bootstrap{
@@ -184,13 +168,6 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 	}
 	origCtx := d.ctx
 	d.ctx = context.WithValue(d.ctx, runtime.BootstrapKey{}, bootstrap)
-
-	// Handle control.DeployControl method calls directly since we the main component
-	// does not use NewEnvelope.
-	uds, err := net.Listen("unix", d.udsPath)
-	if err != nil {
-		return nil, err
-	}
 
 	// We concurrently start the creation of the weavelet and the creation of the envelope
 	// connection to the weavelet since they both talk to each other.
@@ -202,19 +179,26 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 	go func() {
 		weavelet, err := weaver.NewRemoteWeavelet(origCtx, codegen.Registered(), bootstrap, opts)
 		wchan <- weaveletResult{weavelet, err} // Give weavelet to caller
-		wchan <- weaveletResult{weavelet, err} // Give weavelet to NewEnvelopeConn goroutine
+		wchan <- weaveletResult{weavelet, err} // Give weavelet to NewEnvelope goroutine
 	}()
 
-	// NOTE: NewEnvelopeConn initiates a blocking handshake with the weavelet
+	// NOTE: NewEnvelope initiates a blocking handshake with the weavelet
 	// and therefore we run the rest of the initialization in a goroutine which
 	// will wait for weaver.Run to create a weavelet.
 	go func() {
-		e, err := conn.NewEnvelopeConn(d.ctx, fromWeaveletReader, toWeaveletWriter, wlet)
+		e, err := envelope.NewEnvelope(d.ctx, wlet, d.config, envelope.Options{
+			TmpDir: d.tmpDir,
+			Logger: d.sysLogger,
+
+			// Host weavelet in-process.
+			Child: envelope.NewInProcessChild(fromWeaveletReader, toWeaveletWriter),
+		})
 		if err != nil {
 			d.stop(err)
 			return
 		}
 
+		// Get weavelet info when it is ready.
 		w := <-wchan
 		if w.err != nil {
 			d.stop(err)
@@ -231,13 +215,6 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 			subscribed: map[string]bool{},
 			controller: w.weavelet,
 		}
-		d.running.Go(func() error {
-			err := deployers.ServeComponents(d.ctx, uds, d.sysLogger, map[string]any{
-				control.DeployerPath: handler,
-			})
-			d.stop(err)
-			return err
-		})
 		d.running.Go(func() error {
 			err := e.Serve(handler)
 			d.stop(err)

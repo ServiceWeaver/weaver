@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ServiceWeaver/weaver/internal/control"
-	"github.com/ServiceWeaver/weaver/internal/envelope/conn"
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/internal/weaver"
 	"github.com/ServiceWeaver/weaver/runtime"
@@ -60,13 +58,13 @@ type weavelet struct {
 	toWeaveletWriter *os.File               // writer end of pipe to weavelet
 	toEnvelopeReader *os.File               // reader end of pipe to envelope
 	toEnvelopeWriter *os.File               // writer end of pipe to envelope
-	env              *conn.EnvelopeConn     // envelope
+	env              *envelope.Envelope     // envelope
 	wlet             *weaver.RemoteWeavelet // weavelet
 	threads          *errgroup.Group        // background threads
 }
 
 // spawn spawns a weavelet with the provided info and handler.
-func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.EnvelopeHandler) (*weavelet, error) {
+func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.EnvelopeHandler, log *slog.Logger, tmpDir string) (*weavelet, error) {
 	// Create pipes to the weavelet.
 	toWeaveletReader, toWeaveletWriter, err := os.Pipe()
 	if err != nil {
@@ -77,15 +75,20 @@ func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.Enve
 		return nil, fmt.Errorf("spawn: %w", err)
 	}
 
-	// conn.NewEnvelopeConn blocks performing a handshake with the weavelet, so
+	// envelope.NewEnvelope blocks performing a handshake with the weavelet, so
 	// we have to run it in a separate goroutine.
 	ctx, cancel := context.WithCancel(ctx)
 	threads, ctx := errgroup.WithContext(ctx)
 	errs := make(chan error)
-	var env *conn.EnvelopeConn
+	var env *envelope.Envelope
 	go func() {
 		var err error
-		env, err = conn.NewEnvelopeConn(ctx, toEnvelopeReader, toWeaveletWriter, info)
+		env, err = envelope.NewEnvelope(ctx, info, &protos.AppConfig{},
+			envelope.Options{
+				TmpDir: tmpDir,
+				Logger: log,
+				Child:  envelope.NewInProcessChild(toEnvelopeReader, toWeaveletWriter),
+			})
 		errs <- err
 	}()
 
@@ -192,11 +195,6 @@ func deploy(t *testing.T, ctx context.Context, placement map[string][]string) *d
 // argument.
 func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]string, info *protos.EnvelopeInfo) *deployer {
 	t.Helper()
-	udsPath := deployers.NewUnixSocketPath(t.TempDir())
-	uds, err := net.Listen("unix", udsPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Invert placement.
 	placedAt := map[string][]string{}
@@ -222,26 +220,13 @@ func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]st
 
 	// Handle calls from weavelets.
 	logger := slog.New(&logging.LogHandler{Write: d.logger.Log})
-	threads.Go(func() error {
-		return deployers.ServeComponents(ctx, uds, logger, map[string]any{
-			control.DeployerPath: d,
-		})
-	})
 
 	// Spawn the weavelets.
+	tmpDir := t.TempDir()
 	for name := range placement {
 		info := protomsg.Clone(info)
 		info.Id = uuid.New().String()
-		info.ControlSocket = deployers.NewUnixSocketPath(t.TempDir())
-		info.Redirects = []*protos.EnvelopeInfo_Redirect{
-			// Supply custom deployer control component
-			{
-				Component: control.DeployerPath,
-				Target:    control.DeployerPath,
-				Address:   "unix://" + udsPath,
-			},
-		}
-		weavelet, err := spawn(ctx, info, d)
+		weavelet, err := spawn(ctx, info, d, logger, tmpDir)
 		if err != nil {
 			t.Fatal(err)
 		}
