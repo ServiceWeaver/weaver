@@ -40,7 +40,7 @@ type Child interface {
 
 	// Different IO streams connecting us to the child
 	Reader() io.ReadCloser  // Can be used to receive messages from the Child
-	Writer() io.WriteCloser // Can be used to receive messages from the Child
+	Writer() io.WriteCloser // Can be used to send messages to the Child
 	Stdout() io.ReadCloser  // Delivers Child stdout
 	Stderr() io.ReadCloser  // Delivers Child stderr
 

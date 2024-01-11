@@ -109,16 +109,17 @@ var _ control.DeployerControl = EnvelopeHandler(nil)
 // https://serviceweaver.dev/blog/deployers.html.
 type Envelope struct {
 	// Fields below are constant after construction.
-	ctx        context.Context
-	ctxCancel  context.CancelFunc
-	logger     *slog.Logger
-	tmpDir     string
-	myUds      string
-	weavelet   *protos.EnvelopeInfo
-	config     *protos.AppConfig
-	conn       *conn.EnvelopeConn      // conn to weavelet
-	child      Child                   // weavelet process handle
-	controller control.WeaveletControl // Stub that talks to the weavelet controller
+	ctx         context.Context
+	ctxCancel   context.CancelFunc
+	logger      *slog.Logger
+	tmpDir      string
+	tmpDirOwned bool // Did Envelope create tmpDir?
+	myUds       string
+	weavelet    *protos.EnvelopeInfo
+	config      *protos.AppConfig
+	conn        *conn.EnvelopeConn      // conn to weavelet
+	child       Child                   // weavelet process handle
+	controller  control.WeaveletControl // Stub that talks to the weavelet controller
 
 	// State needed to process metric updates.
 	metricsMu sync.Mutex
@@ -157,12 +158,14 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	// Make a temporary directory for unix domain sockets.
 	var removeDir bool
 	tmpDir := options.TmpDir
+	tmpDirOwned := false
 	if options.TmpDir == "" {
 		var err error
 		tmpDir, err = runtime.NewTempDir()
 		if err != nil {
 			return nil, err
 		}
+		tmpDirOwned = true
 		runtime.OnExitSignal(func() { os.RemoveAll(tmpDir) }) // Cleanup when process exits
 
 		// Arrange to delete tmpDir if this function returns an error.
@@ -191,14 +194,15 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		return nil, err
 	}
 	e := &Envelope{
-		ctx:        ctx,
-		ctxCancel:  cancel,
-		logger:     options.Logger,
-		tmpDir:     tmpDir,
-		myUds:      myUds,
-		weavelet:   wlet,
-		config:     config,
-		controller: controller,
+		ctx:         ctx,
+		ctxCancel:   cancel,
+		logger:      options.Logger,
+		tmpDir:      tmpDir,
+		tmpDirOwned: tmpDirOwned,
+		myUds:       myUds,
+		weavelet:    wlet,
+		config:      config,
+		controller:  controller,
 	}
 
 	child := options.Child
@@ -254,7 +258,9 @@ func (e *Envelope) WeaveletControl() control.WeaveletControl { return e.controll
 // method never returns a non-nil error.
 func (e *Envelope) Serve(h EnvelopeHandler) error {
 	// Cleanup when we are done with the envelope.
-	defer os.RemoveAll(e.tmpDir)
+	if e.tmpDirOwned {
+		defer os.RemoveAll(e.tmpDir)
+	}
 
 	uds, err := net.Listen("unix", e.myUds)
 	if err != nil {
