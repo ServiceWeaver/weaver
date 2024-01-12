@@ -17,13 +17,12 @@ option go_package = "github.com/ServiceWeaver/weaver/runtime/protos";
 
 package runtime;
 
-// EnvelopeInfo is the information provided by an envelope to a weavelet when
+// WeaveletArgs is the information provided by an envelope to a weavelet when
 // the weavelet is created.
-message EnvelopeInfo {
+message WeaveletArgs {
   string app = 1;                    // app name
   string deployment_id = 2;          // globally unique deployment id
   string id = 3;                     // globally unique weavelet id
-  map<string, string> sections = 4;  // See AppConfig.Sections.
   bool run_main = 7;                 // run the main function?
 
   // Should weavelets establish mTLS connections with each other?
@@ -51,6 +50,13 @@ message EnvelopeInfo {
     string address = 3;
   }
   repeated Redirect redirects = 12;
+
+  reserved 4;
+}
+
+// InitWeaveletRequest holds the initialization info passed to the weavelet by the envelope.
+message InitWeaveletRequest {
+  map<string, string> sections = 1;  // See AppConfig.Sections.
 }
 
 // InitWeaveletReply is the information provided by a weavelet to an envelope during
@@ -62,11 +68,6 @@ message InitWeaveletReply {
 
   // The deployer API version of the weavelet.
   SemVer version = 3;
-}
-
-// InitWeaveletRequest holds the initialization info passed to the weavelet by the envelope.
-// TODO(sanjay): Migrate bulky fields from EnvelopeInfo here.
-message InitWeaveletRequest {
 }
 
 // SemVer represents a [semantic version][1] of the form

@@ -64,7 +64,7 @@ type RemoteWeavelet struct {
 	ctx       context.Context         // shuts down the weavelet when canceled
 	servers   *errgroup.Group         // background servers
 	opts      RemoteWeaveletOptions   // options
-	envInfo   *protos.EnvelopeInfo    // info about my envelope
+	args      *protos.WeaveletArgs    // info from envelope
 	dialAddr  string                  // Address dialed by other components
 	id        string                  // unique id for this weavelet
 	deployer  control.DeployerControl // component to control deployer
@@ -72,6 +72,14 @@ type RemoteWeavelet struct {
 	syslogger *slog.Logger            // system logger
 	tracer    trace.Tracer            // tracer used by all components
 	metrics   metrics.Exporter        // helper for sending metrics to envelope
+
+	// state to synchronize with envelope initiated initialization handshake.
+	initMu     sync.Mutex
+	initCalled bool
+	initDone   chan struct{}
+
+	// Ready to use by the time initDone is closed.
+	sectionConfig map[string]string
 
 	// channel that is closed when deployer is ready.
 	deployerReady chan struct{}
@@ -138,10 +146,10 @@ type listener struct {
 func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootstrap runtime.Bootstrap, opts RemoteWeaveletOptions) (*RemoteWeavelet, error) {
 	args := bootstrap.Args
 	if args == nil {
-		err := fmt.Errorf("missing EnvelopeInfo")
+		err := fmt.Errorf("missing WeaveletArgs")
 		return nil, err
 	}
-	if err := runtime.CheckEnvelopeInfo(args); err != nil {
+	if err := runtime.CheckWeaveletArgs(args); err != nil {
 		return nil, err
 	}
 
@@ -169,9 +177,10 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		ctx:              ctx,
 		servers:          servers,
 		opts:             opts,
-		envInfo:          args,
+		args:             args,
 		dialAddr:         dialAddr,
 		logDst:           newRemoteLogger(os.Stderr),
+		initDone:         make(chan struct{}),
 		deployerReady:    make(chan struct{}),
 		componentsByName: map[string]*component{},
 		componentsByIntf: map[reflect.Type]*component{},
@@ -256,6 +265,14 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		})
 	})
 
+	// Wait for initialization handshake to complete so we have full config info.
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err() // Cancelled
+	case <-w.initDone:
+		// Ready to serve
+	}
+
 	// Serve RPC requests from other weavelets.
 	cleanupListener = false // handing listener to server
 	servers.Go(func() error {
@@ -277,6 +294,14 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 
 // InitWeavelet implements weaver.controller and conn.WeaverHandler interfaces.
 func (w *RemoteWeavelet) InitWeavelet(ctx context.Context, req *protos.InitWeaveletRequest) (*protos.InitWeaveletReply, error) {
+	w.initMu.Lock()
+	defer w.initMu.Unlock()
+	if !w.initCalled {
+		w.sectionConfig = req.Sections
+		w.initCalled = true
+		close(w.initDone)
+	}
+
 	return &protos.InitWeaveletReply{
 		DialAddr: w.dialAddr,
 		Version: &protos.SemVer{
@@ -421,7 +446,7 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 
 	// Fill config if necessary.
 	if cfg := config.Config(v); cfg != nil {
-		if err := runtime.ParseConfigSection(reg.Name, "", w.Info().Sections, cfg); err != nil {
+		if err := runtime.ParseConfigSection(reg.Name, "", w.sectionConfig, cfg); err != nil {
 			return nil, err
 		}
 	}
@@ -648,9 +673,9 @@ func (w *RemoteWeavelet) GetProfile(ctx context.Context, req *protos.GetProfileR
 	return &protos.GetProfileReply{Data: data}, nil
 }
 
-// Info returns the EnvelopeInfo received from the envelope.
-func (w *RemoteWeavelet) Info() *protos.EnvelopeInfo {
-	return w.envInfo
+// Info returns the WeaveletArgs received from the envelope.
+func (w *RemoteWeavelet) Info() *protos.WeaveletArgs {
+	return w.args
 }
 
 // getComponent returns the component with the given name.

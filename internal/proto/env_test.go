@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	msg_1 = &protos.EnvelopeInfo{
+	msg_1 = &protos.WeaveletArgs{
 		App:          "foo",
 		DeploymentId: "5678",
 		Id:           "id",

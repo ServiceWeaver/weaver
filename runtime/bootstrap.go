@@ -27,14 +27,14 @@ import (
 
 const (
 	// WeaveletArgsKey is the environment variable that holds the base64 encoded
-	// protos.EnvelopeInfo message for a weavelet started by an envelope. For internal
+	// protos.WeaveletArgs message for a weavelet started by an envelope. For internal
 	// use by Service Weaver infrastructure.
 	WeaveletArgsKey = "WEAVELET_ARGS"
 )
 
 // Bootstrap holds configuration information used to start a process execution.
 type Bootstrap struct {
-	Args *protos.EnvelopeInfo
+	Args *protos.WeaveletArgs
 }
 
 // GetBootstrap returns information needed to configure process
@@ -45,7 +45,7 @@ func GetBootstrap(ctx context.Context) (Bootstrap, error) {
 	if argsEnv == "" {
 		return Bootstrap{}, nil
 	}
-	args := &protos.EnvelopeInfo{}
+	args := &protos.WeaveletArgs{}
 	if err := proto.FromEnv(argsEnv, args); err != nil {
 		return Bootstrap{}, fmt.Errorf("decoding weavelet args: %w", err)
 	}

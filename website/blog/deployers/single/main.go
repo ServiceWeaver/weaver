@@ -50,7 +50,7 @@ func main() {
 // deploy deploys the provided application and blocks until it exits.
 func deploy(binary string) error {
 	// Spawn the weavelet.
-	info := &protos.EnvelopeInfo{
+	info := &protos.WeaveletArgs{
 		App:             "app",               // the application name
 		DeploymentId:    uuid.New().String(), // the deployment id
 		Id:              uuid.New().String(), // the weavelet id

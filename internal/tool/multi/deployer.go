@@ -321,11 +321,10 @@ func (d *deployer) startColocationGroup(g *group) error {
 	components := maps.Keys(g.started)
 	for r := 0; r < defaultReplication; r++ {
 		// Start the weavelet and capture its logs, traces, and metrics.
-		info := &protos.EnvelopeInfo{
+		info := &protos.WeaveletArgs{
 			App:             d.config.App.Name,
 			DeploymentId:    d.deploymentId,
 			Id:              uuid.New().String(),
-			Sections:        d.config.App.Sections,
 			RunMain:         g.started[runtime.Main],
 			Mtls:            d.config.Mtls,
 			InternalAddress: "localhost:0",

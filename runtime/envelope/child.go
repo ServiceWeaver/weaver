@@ -32,7 +32,7 @@ import (
 type Child interface {
 	// Start starts the child.
 	// REQUIRES: Start, Wait have not been called.
-	Start(context.Context, *protos.AppConfig, *protos.EnvelopeInfo) error
+	Start(context.Context, *protos.AppConfig, *protos.WeaveletArgs) error
 
 	// Wait for the child to exit.
 	// REQUIRES: Start has been called.
@@ -60,7 +60,7 @@ func (p *ProcessChild) Stdout() io.ReadCloser { return p.stdout }
 func (p *ProcessChild) Stderr() io.ReadCloser { return p.stderr }
 func (p *ProcessChild) Pid() (int, bool)      { return p.cmd.Process.Pid, true }
 
-func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig, args *protos.EnvelopeInfo) error {
+func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig, args *protos.WeaveletArgs) error {
 	argsEnv, err := proto.ToEnv(args)
 	if err != nil {
 		return fmt.Errorf("encoding weavelet start message: %w", err)
@@ -102,7 +102,7 @@ func (p *ProcessChild) Wait() error {
 // InProcessChild is a fake envelope.Child that represents the in-process weavelet.
 type InProcessChild struct {
 	ctx     context.Context
-	args    *protos.EnvelopeInfo
+	args    *protos.WeaveletArgs
 	started chan struct{}
 }
 
@@ -118,7 +118,7 @@ func (p *InProcessChild) Stdout() io.ReadCloser { return nil }
 func (p *InProcessChild) Stderr() io.ReadCloser { return nil }
 func (p *InProcessChild) Pid() (int, bool)      { return 0, false }
 
-func (p *InProcessChild) Start(ctx context.Context, config *protos.AppConfig, args *protos.EnvelopeInfo) error {
+func (p *InProcessChild) Start(ctx context.Context, config *protos.AppConfig, args *protos.WeaveletArgs) error {
 	p.ctx = ctx
 	p.args = protomsg.Clone(args)
 	close(p.started)
@@ -130,7 +130,7 @@ func (p *InProcessChild) Wait() error {
 	return nil
 }
 
-func (p *InProcessChild) Args() *protos.EnvelopeInfo {
+func (p *InProcessChild) Args() *protos.WeaveletArgs {
 	<-p.started
 	return p.args
 }

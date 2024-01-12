@@ -23,22 +23,22 @@ import (
 // Main is the name of the main component.
 const Main = "github.com/ServiceWeaver/weaver/Main"
 
-// CheckEnvelopeInfo checks that EnvelopeInfo is well-formed.
-func CheckEnvelopeInfo(w *protos.EnvelopeInfo) error {
+// CheckWeaveletArgs checks that WeaveletArgs is well-formed.
+func CheckWeaveletArgs(w *protos.WeaveletArgs) error {
 	if w == nil {
-		return fmt.Errorf("EnvelopeInfo: nil")
+		return fmt.Errorf("WeaveletArgs: nil")
 	}
 	if w.App == "" {
-		return fmt.Errorf("EnvelopeInfo: missing app name")
+		return fmt.Errorf("WeaveletArgs: missing app name")
 	}
 	if w.DeploymentId == "" {
-		return fmt.Errorf("EnvelopeInfo: missing deployment id")
+		return fmt.Errorf("WeaveletArgs: missing deployment id")
 	}
 	if w.Id == "" {
-		return fmt.Errorf("EnvelopeInfo: missing weavelet id")
+		return fmt.Errorf("WeaveletArgs: missing weavelet id")
 	}
 	if w.ControlSocket == "" {
-		return fmt.Errorf("EnvelopeInfo: missing control socket")
+		return fmt.Errorf("WeaveletArgs: missing control socket")
 	}
 	return nil
 }

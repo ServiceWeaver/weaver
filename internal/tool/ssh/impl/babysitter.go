@@ -90,11 +90,10 @@ func RunBabysitter(ctx context.Context) error {
 	}
 
 	// Start the envelope.
-	wlet := &protos.EnvelopeInfo{
+	wlet := &protos.WeaveletArgs{
 		App:          info.App.Name,
 		DeploymentId: info.DepId,
 		Id:           id,
-		Sections:     info.App.Sections,
 		RunMain:      info.RunMain,
 	}
 	e, err := envelope.NewEnvelope(ctx, wlet, info.App, envelope.Options{

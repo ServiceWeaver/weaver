@@ -57,7 +57,7 @@ type deployer struct {
 	ctxCancel  context.CancelFunc
 	tmpDir     string
 	runner     Runner                 // holds runner-specific info like config
-	wlet       *protos.EnvelopeInfo   // info for subprocesses
+	wlet       *protos.WeaveletArgs   // info for subprocesses
 	config     *protos.AppConfig      // application config
 	colocation map[string]string      // maps component to group
 	running    errgroup.Group         // collects errors from goroutines
@@ -92,7 +92,7 @@ var _ envelope.EnvelopeHandler = &handler{}
 // newDeployer returns a new weavertest multiprocess deployer. locals contains
 // components that should be co-located with the main component and not
 // replicated.
-func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, runner Runner, locals []reflect.Type, logWriter func(*protos.LogEntry), tmpDir string) *deployer {
+func newDeployer(ctx context.Context, wlet *protos.WeaveletArgs, config *protos.AppConfig, runner Runner, locals []reflect.Type, logWriter func(*protos.LogEntry), tmpDir string) *deployer {
 	colocation := map[string]string{}
 	for _, group := range config.Colocate {
 		for _, c := range group.Components {
@@ -137,11 +137,10 @@ func newDeployer(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 
 func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeavelet, error) {
 	// Run an envelope connection to the main co-location group.
-	wlet := &protos.EnvelopeInfo{
+	wlet := &protos.WeaveletArgs{
 		App:             d.wlet.App,
 		DeploymentId:    d.wlet.DeploymentId,
 		Id:              uuid.New().String(),
-		Sections:        d.wlet.Sections,
 		InternalAddress: "localhost:0",
 	}
 
@@ -358,11 +357,10 @@ func (d *deployer) startGroup(g *group) error {
 	update := &protos.UpdateComponentsRequest{Components: maps.Keys(g.components)}
 	for r := 0; r < DefaultReplication; r++ {
 		// Start the weavelet.
-		wlet := &protos.EnvelopeInfo{
+		wlet := &protos.WeaveletArgs{
 			App:             d.wlet.App,
 			DeploymentId:    d.wlet.DeploymentId,
 			Id:              uuid.New().String(),
-			Sections:        d.wlet.Sections,
 			InternalAddress: "localhost:0",
 		}
 		handler := &handler{
