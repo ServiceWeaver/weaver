@@ -41,7 +41,7 @@ type Bootstrap struct {
 // execution. For normal execution, this comes from the environment. For
 // weavertest, it comes from a context value.
 func GetBootstrap(ctx context.Context) (Bootstrap, error) {
-	argsEnv := os.Getenv("WEAVELET_ARGS") //WeaveletArgsKey)
+	argsEnv := os.Getenv(WeaveletArgsKey)
 	if argsEnv == "" {
 		return Bootstrap{}, nil
 	}
