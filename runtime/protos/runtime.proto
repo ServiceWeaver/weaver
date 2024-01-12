@@ -17,107 +17,8 @@ option go_package = "github.com/ServiceWeaver/weaver/runtime/protos";
 
 package runtime;
 
-// See https://serviceweaver.dev/blog/deployers.html for an overview of the
-// deployer API.
-//
-// A deployer and a weavelet communicate with each other over a pair of Unix
-// pipes. One pipe runs from the deployer to the weavelet, and the other runs in
-// the opposite direction from the weavelet to the deployer. The deployer and
-// weavelet send EnvelopeMsg and WeaveletMsg protocol buffers over these pipes,
-// respectively. We call the part of a deployer that communicates with a
-// weavelet an envelope, hence the name EnvelopeMsg.
-//
-//                 ┌──────────┐   ________   ┌──────────┐
-//                 │          │<─O________)──│          │
-//                 │ ENVELOPE │   ________   │ WEAVELET │
-//                 │          │──O________)─>│          │
-//                 └──────────┘              └──────────┘
-//
-// When an envelope and weavelet first establish their connection, they perform
-// a *handshake*. The envelope sends an EnvelopeInfo, and the weavelet responds
-// with a WeaveletInfo.
-//
-//                   ENVELOPE                  WEAVELET
-//                   ───┬────                  ───┬────
-//                      │ ──────────────────────> │ EnvelopeInfo
-//                      │ <────────────────────── │ WeaveletInfo
-//                      :                         :
-//
-// After the handshake, the envelope and weavelet communicate freely. There are
-// three communication patterns.
-//
-//     1. The envelope can initiate an RPC against the weavelet.
-//     2. The weavelet can initiate an RPC against the envelope.
-//     3. The weavelet can send an unacknowledged RPC to the envelope.
-//
-// Unacknowledged RPCs do not elicit responses. Here is an example of these
-// three types of communication.
-//
-//                   ENVELOPE                  WEAVELET
-//                   ───┬────                  ───┬────
-//                   1. │ ──────────────────────> │ UpdateComponentsRequest
-//                      │ <────────────────────── │ UpdateComponentsReply
-//                      │                         │
-//                   2. │ <────────────────────── │ GetListenerAddressRequest
-//                      │ ──────────────────────> │ GetListenerAddressReply
-//                      │                         │
-//                   3. │ <────────────────────── │ LogEntry
-//                      │ <────────────────────── │ TraceSpans
-//                      :                         :
-//
-// Note that these three types of communication can intersperse.
-//
-//                   ENVELOPE                  WEAVELET
-//                   ───┬────                  ───┬────
-//                      │ <────────────────────── │ ActivateComponentRequest
-//                      │ ──────────────────────> │ UpdateComponentsRequest
-//                      │ <────────────────────── │ UpdateComponentsReply
-//                      │ <────────────────────── │ LogEntry
-//                      │ ──────────────────────> │ UpdateRoutingInfoRequest
-//                      │ <────────────────────── │ UpdateRoutingInfoReply
-//                      │ ──────────────────────> │ ActivateComponentReply
-//                      :                         :
-//
-// To avoid deadlocks, a weavelet is guaranteed to process an RPC without
-// blocking and without touching the pipe.
-
-// EnvelopeMsg is a message sent by an envelope to a weavelet.
-message EnvelopeMsg {
-  // TODO(mwhittaker): Don't make UpdateRoutingInfoRequest and
-  // UpdateComponentsRequest RPCs? They can be one-directional messages like
-  // logs and traces.
-
-  // A unique id for RPCs. An RPC request with positive id x expects a reply
-  // with negative id -x. An unacknowledged RPC request has an id of 0.
-  int64 id = 1;
-
-  // Exactly one of the following should be set.
-
-  // Handshake.
-  EnvelopeInfo envelope_info = 2;
-
-  // Weavelet initiated RPC replies.
-  string error = 9;  // non-nil on error
-
-  reserved 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15;
-}
-
-// WeaveletMsg is a message sent by a weavelet to an envelope.
-message WeaveletMsg {
-  // A unique id for RPCs. An RPC request with positive id x expects a reply
-  // with negative id -x. An unacknowledged RPC request has an id of 0.
-  int64 id = 1;
-
-  // Exactly one of the following should be set.
-
-  // Handshake.
-  WeaveletInfo weavelet_info = 2;
-
-  reserved 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17;
-}
-
-// EnvelopeInfo is the information provided by an envelope to a weavelet during
-// the initial envelope-weavelet handshake.
+// EnvelopeInfo is the information provided by an envelope to a weavelet when
+// the weavelet is created.
 message EnvelopeInfo {
   string app = 1;                    // app name
   string deployment_id = 2;          // globally unique deployment id
@@ -154,6 +55,7 @@ message EnvelopeInfo {
 
 // WeaveletInfo is the information provided by a weavelet to an envelope during
 // the initial envelope-weavelet handshake.
+// TODO(sanjay): Rename to InitWeaveletReply.
 message WeaveletInfo {
   // Internal TCP address of the weavelet. This address will be passed to other
   // weavelets as part of their RoutingInfo.
@@ -161,6 +63,11 @@ message WeaveletInfo {
 
   // The deployer API version of the weavelet.
   SemVer version = 3;
+}
+
+// InitWeaveletRequest holds the initialization info passed to the weavelet by the envelope.
+// TODO(sanjay): Migrate bulky fields from EnvelopeInfo here.
+message InitWeaveletRequest {
 }
 
 // SemVer represents a [semantic version][1] of the form

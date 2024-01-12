@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/ServiceWeaver/weaver/internal/pipe"
+	"github.com/ServiceWeaver/weaver/internal/proto"
 	"github.com/ServiceWeaver/weaver/runtime"
+	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 )
 
@@ -31,7 +32,7 @@ import (
 type Child interface {
 	// Start starts the child.
 	// REQUIRES: Start, Wait have not been called.
-	Start(context.Context, *protos.AppConfig) error
+	Start(context.Context, *protos.AppConfig, *protos.EnvelopeInfo) error
 
 	// Wait for the child to exit.
 	// REQUIRES: Start has been called.
@@ -39,10 +40,8 @@ type Child interface {
 	Wait() error
 
 	// Different IO streams connecting us to the child
-	Reader() io.ReadCloser  // Can be used to receive messages from the Child
-	Writer() io.WriteCloser // Can be used to send messages to the Child
-	Stdout() io.ReadCloser  // Delivers Child stdout
-	Stderr() io.ReadCloser  // Delivers Child stderr
+	Stdout() io.ReadCloser // Delivers Child stdout
+	Stderr() io.ReadCloser // Delivers Child stderr
 
 	// Identifier for child process, if available.
 	Pid() (int, bool)
@@ -51,29 +50,23 @@ type Child interface {
 // ProcessChild is a Child implemented as a process.
 type ProcessChild struct {
 	cmd    *pipe.Cmd // command that started the weavelet
-	reader io.ReadCloser
-	writer io.WriteCloser
 	stdout io.ReadCloser
 	stderr io.ReadCloser
 }
 
 var _ Child = &ProcessChild{}
 
-func (p *ProcessChild) Reader() io.ReadCloser  { return p.reader }
-func (p *ProcessChild) Writer() io.WriteCloser { return p.writer }
-func (p *ProcessChild) Stdout() io.ReadCloser  { return p.stdout }
-func (p *ProcessChild) Stderr() io.ReadCloser  { return p.stderr }
-func (p *ProcessChild) Pid() (int, bool)       { return p.cmd.Process.Pid, true }
+func (p *ProcessChild) Stdout() io.ReadCloser { return p.stdout }
+func (p *ProcessChild) Stderr() io.ReadCloser { return p.stderr }
+func (p *ProcessChild) Pid() (int, bool)      { return p.cmd.Process.Pid, true }
 
-func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig) error {
-	cmd := pipe.CommandContext(ctx, config.Binary, config.Args...)
-
-	// Create the request/response pipes first, so we can fill cmd.Env and detect
-	// any errors early.
-	pipePair, err := cmd.MakePipePair()
+func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig, args *protos.EnvelopeInfo) error {
+	argsEnv, err := proto.ToEnv(args)
 	if err != nil {
-		return fmt.Errorf("create request/response pipes: %w", err)
+		return fmt.Errorf("encoding weavelet start message: %w", err)
 	}
+
+	cmd := pipe.CommandContext(ctx, config.Binary, config.Args...)
 
 	// Create pipes that capture child outputs.
 	outpipe, err := cmd.StdoutPipe()
@@ -87,8 +80,7 @@ func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig) erro
 
 	// Setup environment for child process.
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToWeaveletKey, strconv.FormatUint(uint64(pipePair.ChildReader), 10)))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.ToEnvelopeKey, strconv.FormatUint(uint64(pipePair.ChildWriter), 10)))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", runtime.WeaveletArgsKey, argsEnv))
 	cmd.Env = append(cmd.Env, config.Env...)
 
 	if err := cmd.Start(); err != nil {
@@ -96,8 +88,6 @@ func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig) erro
 	}
 
 	p.cmd = cmd
-	p.reader = pipePair.ParentReader
-	p.writer = pipePair.ParentWriter
 	p.stdout = outpipe
 	p.stderr = errpipe
 	return nil
@@ -109,34 +99,38 @@ func (p *ProcessChild) Wait() error {
 	return err
 }
 
-// inProcessChild is a fake envelope.Child that represents the in-process weavelet.
-type inProcessChild struct {
-	ctx    context.Context
-	reader io.ReadCloser
-	writer io.WriteCloser
+// InProcessChild is a fake envelope.Child that represents the in-process weavelet.
+type InProcessChild struct {
+	ctx     context.Context
+	args    *protos.EnvelopeInfo
+	started chan struct{}
 }
 
-var _ Child = &inProcessChild{}
+var _ Child = &InProcessChild{}
 
-func NewInProcessChild(reader io.ReadCloser, writer io.WriteCloser) Child {
-	return &inProcessChild{
-		reader: reader,
-		writer: writer,
+func NewInProcessChild() *InProcessChild {
+	return &InProcessChild{
+		started: make(chan struct{}),
 	}
 }
 
-func (p *inProcessChild) Reader() io.ReadCloser  { return p.reader }
-func (p *inProcessChild) Writer() io.WriteCloser { return p.writer }
-func (p *inProcessChild) Stdout() io.ReadCloser  { return nil }
-func (p *inProcessChild) Stderr() io.ReadCloser  { return nil }
-func (p *inProcessChild) Pid() (int, bool)       { return 0, false }
+func (p *InProcessChild) Stdout() io.ReadCloser { return nil }
+func (p *InProcessChild) Stderr() io.ReadCloser { return nil }
+func (p *InProcessChild) Pid() (int, bool)      { return 0, false }
 
-func (p *inProcessChild) Start(ctx context.Context, config *protos.AppConfig) error {
+func (p *InProcessChild) Start(ctx context.Context, config *protos.AppConfig, args *protos.EnvelopeInfo) error {
 	p.ctx = ctx
+	p.args = protomsg.Clone(args)
+	close(p.started)
 	return nil
 }
 
-func (p *inProcessChild) Wait() error {
+func (p *InProcessChild) Wait() error {
 	<-p.ctx.Done()
 	return nil
+}
+
+func (p *InProcessChild) Args() *protos.EnvelopeInfo {
+	<-p.started
+	return p.args
 }

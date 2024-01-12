@@ -31,6 +31,9 @@ const WeaveletPath = "github.com/ServiceWeaver/weaver/weaveletControl"
 // Arguments and results are protobufs to allow deployers to evolve independently of
 // application binaries.
 type WeaveletControl interface {
+	// InitWeavelet initializes the weavelet.
+	InitWeavelet(context.Context, *protos.InitWeaveletRequest) (*protos.WeaveletInfo, error)
+
 	// UpdateComponents updates the weavelet with the latest set of components it
 	// should be running.
 	UpdateComponents(context.Context, *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error)

@@ -37,10 +37,10 @@ func init() {
 		Iface: reflect.TypeOf((*weaveletControl)(nil)).Elem(),
 		Impl:  reflect.TypeOf(noopWeaveletControl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return weaveletControl_local_stub{impl: impl.(weaveletControl), tracer: tracer, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetHealth", Remote: false}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetLoad", Remote: false}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetMetrics", Remote: false}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetProfile", Remote: false}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateRoutingInfo", Remote: false})}
+			return weaveletControl_local_stub{impl: impl.(weaveletControl), tracer: tracer, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetHealth", Remote: false}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetLoad", Remote: false}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetMetrics", Remote: false}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetProfile", Remote: false}), initWeaveletMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "InitWeavelet", Remote: false}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateComponents", Remote: false}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateRoutingInfo", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return weaveletControl_client_stub{stub: stub, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetHealth", Remote: true}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetLoad", Remote: true}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetMetrics", Remote: true}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetProfile", Remote: true}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateRoutingInfo", Remote: true})}
+			return weaveletControl_client_stub{stub: stub, getHealthMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetHealth", Remote: true}), getLoadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetLoad", Remote: true}), getMetricsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetMetrics", Remote: true}), getProfileMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "GetProfile", Remote: true}), initWeaveletMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "InitWeavelet", Remote: true}), updateComponentsMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateComponents", Remote: true}), updateRoutingInfoMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weaveletControl", Method: "UpdateRoutingInfo", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return weaveletControl_server_stub{impl: impl.(weaveletControl), addLoad: addLoad}
@@ -245,6 +245,7 @@ type weaveletControl_local_stub struct {
 	getLoadMetrics           *codegen.MethodMetrics
 	getMetricsMetrics        *codegen.MethodMetrics
 	getProfileMetrics        *codegen.MethodMetrics
+	initWeaveletMetrics      *codegen.MethodMetrics
 	updateComponentsMetrics  *codegen.MethodMetrics
 	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
@@ -330,6 +331,26 @@ func (s weaveletControl_local_stub) GetProfile(ctx context.Context, a0 *protos.G
 	}
 
 	return s.impl.GetProfile(ctx, a0)
+}
+
+func (s weaveletControl_local_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.WeaveletInfo, err error) {
+	// Update metrics.
+	begin := s.initWeaveletMetrics.Begin()
+	defer func() { s.initWeaveletMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "weaver.weaveletControl.InitWeavelet", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.InitWeavelet(ctx, a0)
 }
 
 func (s weaveletControl_local_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
@@ -801,6 +822,7 @@ type weaveletControl_client_stub struct {
 	getLoadMetrics           *codegen.MethodMetrics
 	getMetricsMetrics        *codegen.MethodMetrics
 	getProfileMetrics        *codegen.MethodMetrics
+	initWeaveletMetrics      *codegen.MethodMetrics
 	updateComponentsMetrics  *codegen.MethodMetrics
 	updateRoutingInfoMetrics *codegen.MethodMetrics
 }
@@ -1012,6 +1034,57 @@ func (s weaveletControl_client_stub) GetProfile(ctx context.Context, a0 *protos.
 	return
 }
 
+func (s weaveletControl_client_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.WeaveletInfo, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.initWeaveletMetrics.Begin()
+	defer func() { s.initWeaveletMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "weaver.weaveletControl.InitWeavelet", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	// Encode arguments.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_InitWeaveletRequest_d1f5204c(enc, a0)
+	var shardKey uint64
+
+	// Call the remote method.
+	requestBytes = len(enc.Data())
+	var results []byte
+	results, err = s.stub.Run(ctx, 4, enc.Data(), shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = serviceweaver_dec_ptr_WeaveletInfo_246f9434(dec)
+	err = dec.Error()
+	return
+}
+
 func (s weaveletControl_client_stub) UpdateComponents(ctx context.Context, a0 *protos.UpdateComponentsRequest) (r0 *protos.UpdateComponentsReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
@@ -1049,7 +1122,7 @@ func (s weaveletControl_client_stub) UpdateComponents(ctx context.Context, a0 *p
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 4, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 5, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -1100,7 +1173,7 @@ func (s weaveletControl_client_stub) UpdateRoutingInfo(ctx context.Context, a0 *
 	// Call the remote method.
 	requestBytes = len(enc.Data())
 	var results []byte
-	results, err = s.stub.Run(ctx, 5, enc.Data(), shardKey)
+	results, err = s.stub.Run(ctx, 6, enc.Data(), shardKey)
 	replyBytes = len(results)
 	if err != nil {
 		err = errors.Join(RemoteCallError, err)
@@ -1388,6 +1461,8 @@ func (s weaveletControl_server_stub) GetStubFn(method string) func(ctx context.C
 		return s.getMetrics
 	case "GetProfile":
 		return s.getProfile
+	case "InitWeavelet":
+		return s.initWeavelet
 	case "UpdateComponents":
 		return s.updateComponents
 	case "UpdateRoutingInfo":
@@ -1493,6 +1568,31 @@ func (s weaveletControl_server_stub) getProfile(ctx context.Context, args []byte
 	// Encode the results.
 	enc := codegen.NewEncoder()
 	serviceweaver_enc_ptr_GetProfileReply_10a79dcc(enc, r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
+func (s weaveletControl_server_stub) initWeavelet(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// Decode arguments.
+	dec := codegen.NewDecoder(args)
+	var a0 *protos.InitWeaveletRequest
+	a0 = serviceweaver_dec_ptr_InitWeaveletRequest_d1f5204c(dec)
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.InitWeavelet(ctx, a0)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	serviceweaver_enc_ptr_WeaveletInfo_246f9434(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
@@ -1620,6 +1720,11 @@ func (s weaveletControl_reflect_stub) GetMetrics(ctx context.Context, a0 *protos
 
 func (s weaveletControl_reflect_stub) GetProfile(ctx context.Context, a0 *protos.GetProfileRequest) (r0 *protos.GetProfileReply, err error) {
 	err = s.caller("GetProfile", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+func (s weaveletControl_reflect_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.WeaveletInfo, err error) {
+	err = s.caller("InitWeavelet", ctx, []any{a0}, []any{&r0})
 	return
 }
 
@@ -2027,6 +2132,42 @@ func serviceweaver_dec_ptr_GetProfileReply_10a79dcc(dec *codegen.Decoder) *proto
 		return nil
 	}
 	var res protos.GetProfileReply
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_InitWeaveletRequest_d1f5204c(enc *codegen.Encoder, arg *protos.InitWeaveletRequest) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_InitWeaveletRequest_d1f5204c(dec *codegen.Decoder) *protos.InitWeaveletRequest {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.InitWeaveletRequest
+	dec.DecodeProto(&res)
+	return &res
+}
+
+func serviceweaver_enc_ptr_WeaveletInfo_246f9434(enc *codegen.Encoder, arg *protos.WeaveletInfo) {
+	if arg == nil {
+		enc.Bool(false)
+	} else {
+		enc.Bool(true)
+		enc.EncodeProto(arg)
+	}
+}
+
+func serviceweaver_dec_ptr_WeaveletInfo_246f9434(dec *codegen.Decoder) *protos.WeaveletInfo {
+	if !dec.Bool() {
+		return nil
+	}
+	var res protos.WeaveletInfo
 	dec.DecodeProto(&res)
 	return &res
 }
