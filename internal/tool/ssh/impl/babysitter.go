@@ -105,15 +105,11 @@ func RunBabysitter(ctx context.Context) error {
 	}
 	b.envelope = e
 
-	// Make sure the version of the deployer matches the version of the
-	// compiled binary.
-	winfo := e.WeaveletInfo()
-
 	pid, ok := e.Pid()
 	if !ok {
 		panic("ssh deployer child must be a real process")
 	}
-	if err := b.registerReplica(winfo, pid); err != nil {
+	if err := b.registerReplica(e.WeaveletAddress(), pid); err != nil {
 		return err
 	}
 	c := metricsCollector{logger: b.logger, envelope: e, info: info}
@@ -185,14 +181,14 @@ func (b *babysitter) ActivateComponent(_ context.Context, req *protos.ActivateCo
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-func (b *babysitter) registerReplica(info *protos.WeaveletInfo, pid int) error {
+func (b *babysitter) registerReplica(replicaAddr string, pid int) error {
 	if err := protomsg.Call(b.ctx, protomsg.CallArgs{
 		Client:  http.DefaultClient,
 		Addr:    b.info.ManagerAddr,
 		URLPath: registerReplicaURL,
 		Request: &ReplicaToRegister{
 			Group:   b.info.Group,
-			Address: info.DialAddr,
+			Address: replicaAddr,
 			Pid:     int64(pid),
 		},
 	}); err != nil {

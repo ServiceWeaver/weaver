@@ -333,7 +333,7 @@ func (s weaveletControl_local_stub) GetProfile(ctx context.Context, a0 *protos.G
 	return s.impl.GetProfile(ctx, a0)
 }
 
-func (s weaveletControl_local_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.WeaveletInfo, err error) {
+func (s weaveletControl_local_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.InitWeaveletReply, err error) {
 	// Update metrics.
 	begin := s.initWeaveletMetrics.Begin()
 	defer func() { s.initWeaveletMetrics.End(begin, err != nil, 0, 0) }()
@@ -1034,7 +1034,7 @@ func (s weaveletControl_client_stub) GetProfile(ctx context.Context, a0 *protos.
 	return
 }
 
-func (s weaveletControl_client_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.WeaveletInfo, err error) {
+func (s weaveletControl_client_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.InitWeaveletReply, err error) {
 	// Update metrics.
 	var requestBytes, replyBytes int
 	begin := s.initWeaveletMetrics.Begin()
@@ -1080,7 +1080,7 @@ func (s weaveletControl_client_stub) InitWeavelet(ctx context.Context, a0 *proto
 
 	// Decode the results.
 	dec := codegen.NewDecoder(results)
-	r0 = serviceweaver_dec_ptr_WeaveletInfo_246f9434(dec)
+	r0 = serviceweaver_dec_ptr_InitWeaveletReply_565d8c96(dec)
 	err = dec.Error()
 	return
 }
@@ -1592,7 +1592,7 @@ func (s weaveletControl_server_stub) initWeavelet(ctx context.Context, args []by
 
 	// Encode the results.
 	enc := codegen.NewEncoder()
-	serviceweaver_enc_ptr_WeaveletInfo_246f9434(enc, r0)
+	serviceweaver_enc_ptr_InitWeaveletReply_565d8c96(enc, r0)
 	enc.Error(appErr)
 	return enc.Data(), nil
 }
@@ -1723,7 +1723,7 @@ func (s weaveletControl_reflect_stub) GetProfile(ctx context.Context, a0 *protos
 	return
 }
 
-func (s weaveletControl_reflect_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.WeaveletInfo, err error) {
+func (s weaveletControl_reflect_stub) InitWeavelet(ctx context.Context, a0 *protos.InitWeaveletRequest) (r0 *protos.InitWeaveletReply, err error) {
 	err = s.caller("InitWeavelet", ctx, []any{a0}, []any{&r0})
 	return
 }
@@ -2154,7 +2154,7 @@ func serviceweaver_dec_ptr_InitWeaveletRequest_d1f5204c(dec *codegen.Decoder) *p
 	return &res
 }
 
-func serviceweaver_enc_ptr_WeaveletInfo_246f9434(enc *codegen.Encoder, arg *protos.WeaveletInfo) {
+func serviceweaver_enc_ptr_InitWeaveletReply_565d8c96(enc *codegen.Encoder, arg *protos.InitWeaveletReply) {
 	if arg == nil {
 		enc.Bool(false)
 	} else {
@@ -2163,11 +2163,11 @@ func serviceweaver_enc_ptr_WeaveletInfo_246f9434(enc *codegen.Encoder, arg *prot
 	}
 }
 
-func serviceweaver_dec_ptr_WeaveletInfo_246f9434(dec *codegen.Decoder) *protos.WeaveletInfo {
+func serviceweaver_dec_ptr_InitWeaveletReply_565d8c96(dec *codegen.Decoder) *protos.InitWeaveletReply {
 	if !dec.Bool() {
 		return nil
 	}
-	var res protos.WeaveletInfo
+	var res protos.InitWeaveletReply
 	dec.DecodeProto(&res)
 	return &res
 }

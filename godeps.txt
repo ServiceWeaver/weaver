@@ -819,6 +819,7 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/ServiceWeaver/weaver/runtime/version
     go.opentelemetry.io/otel/trace
     golang.org/x/sync/errgroup
     io

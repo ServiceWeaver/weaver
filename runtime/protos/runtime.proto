@@ -53,10 +53,9 @@ message EnvelopeInfo {
   repeated Redirect redirects = 12;
 }
 
-// WeaveletInfo is the information provided by a weavelet to an envelope during
+// InitWeaveletReply is the information provided by a weavelet to an envelope during
 // the initial envelope-weavelet handshake.
-// TODO(sanjay): Rename to InitWeaveletReply.
-message WeaveletInfo {
+message InitWeaveletReply {
   // Internal TCP address of the weavelet. This address will be passed to other
   // weavelets as part of their RoutingInfo.
   string dial_addr = 1;

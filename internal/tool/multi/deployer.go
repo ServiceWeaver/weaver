@@ -337,10 +337,6 @@ func (d *deployer) startColocationGroup(g *group) error {
 			return err
 		}
 
-		// Make sure the version of the deployer matches the version of the
-		// compiled binary.
-		wlet := e.WeaveletInfo()
-
 		h := &handler{
 			deployer:   d,
 			g:          g,
@@ -357,7 +353,7 @@ func (d *deployer) startColocationGroup(g *group) error {
 		if !ok {
 			panic("multi deployer child must be a real process")
 		}
-		if err := d.registerReplica(g, wlet, pid); err != nil {
+		if err := d.registerReplica(g, e.WeaveletAddress(), pid); err != nil {
 			return err
 		}
 		if err := e.UpdateComponents(components); err != nil {
@@ -512,13 +508,13 @@ func (d *deployer) activateComponent(req *protos.ActivateComponentRequest) error
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo, pid int) error {
+func (d *deployer) registerReplica(g *group, replicaAddr string, pid int) error {
 	// Update addresses and pids.
-	if g.addresses[info.DialAddr] {
+	if g.addresses[replicaAddr] {
 		// Replica already registered.
 		return nil
 	}
-	g.addresses[info.DialAddr] = true
+	g.addresses[replicaAddr] = true
 	g.pids = append(g.pids, int64(pid))
 
 	// Update all assignments.

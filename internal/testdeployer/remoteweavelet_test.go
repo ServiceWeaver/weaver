@@ -254,7 +254,7 @@ func (d *deployer) ActivateComponent(ctx context.Context, req *protos.ActivateCo
 		if _, err := weavelet.wlet.UpdateComponents(ctx, components); err != nil {
 			return nil, err
 		}
-		replicas = append(replicas, weavelet.env.WeaveletInfo().DialAddr)
+		replicas = append(replicas, weavelet.env.WeaveletAddress())
 	}
 
 	// For simplicity, route locally if there is a single weavelet, and route
@@ -351,7 +351,7 @@ func TestLocalhostWeaveletAddress(t *testing.T) {
 		InternalAddress: "localhost:12345",
 	})
 	defer d.shutdown()
-	got := d.weavelets["1"].env.WeaveletInfo().DialAddr
+	got := d.weavelets["1"].env.WeaveletAddress()
 	const want = "tcp://127.0.0.1:12345"
 	if got != want {
 		t.Fatalf("DialAddr: got %q, want %q", got, want)
@@ -379,7 +379,7 @@ func TestHostnameWeaveletAddress(t *testing.T) {
 		InternalAddress: net.JoinHostPort(ips[0].String(), "12345"),
 	})
 	defer d.shutdown()
-	got := d.weavelets["1"].env.WeaveletInfo().DialAddr
+	got := d.weavelets["1"].env.WeaveletAddress()
 	want := fmt.Sprintf("tcp://%s", net.JoinHostPort(ips[0].String(), "12345"))
 	if got != want {
 		t.Fatalf("DialAddr: got %q, want %q", got, want)
@@ -659,7 +659,7 @@ func TestFailReplica(t *testing.T) {
 			routing := &protos.UpdateRoutingInfoRequest{
 				RoutingInfo: &protos.RoutingInfo{
 					Component: component,
-					Replicas:  []string{d.weavelets["2"].env.WeaveletInfo().DialAddr},
+					Replicas:  []string{d.weavelets["2"].env.WeaveletAddress()},
 				},
 			}
 			if _, err := d.weavelets[wlet].wlet.UpdateRoutingInfo(ctx, routing); err != nil {
@@ -713,7 +713,7 @@ func TestUpdateBadRoutingInfo(t *testing.T) {
 		}
 
 		// Update to the correct routing info after a short delay.
-		routing.RoutingInfo.Replicas = []string{weavelet.env.WeaveletInfo().DialAddr}
+		routing.RoutingInfo.Replicas = []string{weavelet.env.WeaveletAddress()}
 		go func() {
 			time.Sleep(100 * time.Millisecond)
 			for _, weavelet := range d.weavelets {

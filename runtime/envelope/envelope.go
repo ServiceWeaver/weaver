@@ -34,6 +34,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/ServiceWeaver/weaver/runtime/version"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
@@ -101,17 +102,17 @@ var _ control.DeployerControl = EnvelopeHandler(nil)
 // https://serviceweaver.dev/blog/deployers.html.
 type Envelope struct {
 	// Fields below are constant after construction.
-	ctx         context.Context
-	ctxCancel   context.CancelFunc
-	logger      *slog.Logger
-	tmpDir      string
-	tmpDirOwned bool // Did Envelope create tmpDir?
-	myUds       string
-	weavelet    *protos.EnvelopeInfo
-	winfo       *protos.WeaveletInfo
-	config      *protos.AppConfig
-	child       Child                   // weavelet process handle
-	controller  control.WeaveletControl // Stub that talks to the weavelet controller
+	ctx          context.Context
+	ctxCancel    context.CancelFunc
+	logger       *slog.Logger
+	tmpDir       string
+	tmpDirOwned  bool // Did Envelope create tmpDir?
+	myUds        string
+	weavelet     *protos.EnvelopeInfo
+	weaveletAddr string
+	config       *protos.AppConfig
+	child        Child                   // weavelet process handle
+	controller   control.WeaveletControl // Stub that talks to the weavelet controller
 
 	// State needed to process metric updates.
 	metricsMu sync.Mutex
@@ -207,10 +208,14 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 		return nil, fmt.Errorf("NewEnvelope: %w", err)
 	}
 
-	e.winfo, err = controller.InitWeavelet(e.ctx, &protos.InitWeaveletRequest{})
+	reply, err := controller.InitWeavelet(e.ctx, &protos.InitWeaveletRequest{})
 	if err != nil {
 		return nil, err
 	}
+	if err := verifyWeaveletInfo(reply); err != nil {
+		return nil, err
+	}
+	e.weaveletAddr = reply.DialAddr
 
 	e.child = child
 
@@ -297,9 +302,10 @@ func (e *Envelope) Pid() (int, bool) {
 	return e.child.Pid()
 }
 
-// WeaveletInfo returns information about the started weavelet.
-func (e *Envelope) WeaveletInfo() *protos.WeaveletInfo {
-	return e.winfo
+// WeaveletAddress returns the address that other components should dial to communicate with the
+// weavelet.
+func (e *Envelope) WeaveletAddress() string {
+	return e.weaveletAddr
 }
 
 // GetHealth returns the health status of the weavelet.
@@ -419,4 +425,33 @@ func getWeaveletControlStub(ctx context.Context, socket string, options Options)
 	stub := call.NewStub(control.WeaveletPath, controllerReg, conn, options.Tracer, 0)
 	obj := controllerReg.ClientStubFn(stub, "envelope")
 	return obj.(control.WeaveletControl), nil
+}
+
+// verifyWeaveletInfo verifies the information sent by the weavelet.
+func verifyWeaveletInfo(wlet *protos.InitWeaveletReply) error {
+	if wlet == nil {
+		return fmt.Errorf(
+			"the first message from the weavelet must contain weavelet info")
+	}
+	if wlet.DialAddr == "" {
+		return fmt.Errorf("empty dial address for the weavelet")
+	}
+	if err := checkVersion(wlet.Version); err != nil {
+		return err
+	}
+	return nil
+}
+
+// checkVersion checks that the deployer API version the deployer was built
+// with is compatible with the deployer API version the app was built with,
+// erroring out if they are not compatible.
+func checkVersion(v *protos.SemVer) error {
+	if v == nil {
+		return fmt.Errorf("version mismatch: nil app version")
+	}
+	got := version.SemVer{Major: int(v.Major), Minor: int(v.Minor), Patch: int(v.Patch)}
+	if got != version.DeployerVersion {
+		return fmt.Errorf("version mismatch: deployer's deployer API version %s is incompatible with app' deployer API version %s", version.DeployerVersion, got)
+	}
+	return nil
 }
