@@ -54,7 +54,7 @@ func GetBootstrap(ctx context.Context) (Bootstrap, error) {
 	}, nil
 }
 
-// Exists returns true if bootstream information has been supplied. This
+// Exists returns true if bootstrap information has been supplied. This
 // is true except in the case of singleprocess.
 func (b Bootstrap) Exists() bool {
 	return b.Args != nil
