@@ -67,7 +67,7 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 		return nil, nil, wlet.Wait()
 	}
 
-	// Construct AppConfig and EnvelopeInfo.
+	// Construct AppConfig and WeaveletArgs.
 	appConfig := &protos.AppConfig{}
 	if runner.Config != "" {
 		var err error
@@ -90,10 +90,9 @@ func initMultiProcess(ctx context.Context, t testing.TB, isBench bool, runner Ru
 		appConfig.Args = []string{"-test.run", nameRE}
 	}
 
-	wlet := &protos.EnvelopeInfo{
+	wlet := &protos.WeaveletArgs{
 		App:             appConfig.Name,
 		DeploymentId:    uuid.New().String(),
-		Sections:        appConfig.Sections,
 		InternalAddress: "localhost:0",
 	}
 

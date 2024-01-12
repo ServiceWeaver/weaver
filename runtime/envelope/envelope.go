@@ -64,7 +64,7 @@ type EnvelopeHandler interface {
 	// will issue this request each time it establishes a connection with
 	// another weavelet.
 	// NOTE: This method is only called if mTLS was enabled for the weavelet,
-	// by passing it an EnvelopeInfo with mtls=true.
+	// by passing it a WeaveletArgs with mtls=true.
 	GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
 
 	// VerifyClientCertificate verifies the certificate chain presented by
@@ -74,7 +74,7 @@ type EnvelopeHandler interface {
 	// client is authorized to invoke methods on.
 	//
 	// NOTE: This method is only called if mTLS was enabled for the weavelet,
-	// by passing it an EnvelopeInfo with mtls=true.
+	// by passing it a WeaveletArgs with mtls=true.
 	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
 
 	// VerifyServerCertificate verifies the certificate chain presented by
@@ -83,7 +83,7 @@ type EnvelopeHandler interface {
 	// component.
 	//
 	// NOTE: This method is only called if mTLS was enabled for the weavelet,
-	// by passing it an EnvelopeInfo with mtls=true.
+	// by passing it a WeaveletArgs with mtls=true.
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 
 	// LogBatches handles a batch of log entries.
@@ -108,7 +108,7 @@ type Envelope struct {
 	tmpDir       string
 	tmpDirOwned  bool // Did Envelope create tmpDir?
 	myUds        string
-	weavelet     *protos.EnvelopeInfo
+	weavelet     *protos.WeaveletArgs
 	weaveletAddr string
 	config       *protos.AppConfig
 	child        Child                   // weavelet process handle
@@ -140,7 +140,7 @@ type Options struct {
 //
 // You can issue RPCs *to* the weavelet using the returned Envelope. To start
 // receiving messages *from* the weavelet, call [Serve].
-func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.AppConfig, options Options) (*Envelope, error) {
+func NewEnvelope(ctx context.Context, wlet *protos.WeaveletArgs, config *protos.AppConfig, options Options) (*Envelope, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() { cancel() }() // cancel may be changed below if we want to delay it
 
@@ -174,7 +174,7 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 
 	wlet = protomsg.Clone(wlet)
 	wlet.ControlSocket = deployers.NewUnixSocketPath(tmpDir)
-	wlet.Redirects = []*protos.EnvelopeInfo_Redirect{
+	wlet.Redirects = []*protos.WeaveletArgs_Redirect{
 		// Point weavelet at my control.DeployerControl component
 		{
 			Component: control.DeployerPath,
@@ -202,13 +202,13 @@ func NewEnvelope(ctx context.Context, wlet *protos.EnvelopeInfo, config *protos.
 	if child == nil {
 		child = &ProcessChild{}
 	}
-	// TODO(sanjay): Rename EnvelopeInfo to WeaveletArgs and move bulky fields
-	// to InitWeaveletRequest.
 	if err := child.Start(ctx, e.config, e.weavelet); err != nil {
 		return nil, fmt.Errorf("NewEnvelope: %w", err)
 	}
 
-	reply, err := controller.InitWeavelet(e.ctx, &protos.InitWeaveletRequest{})
+	reply, err := controller.InitWeavelet(e.ctx, &protos.InitWeaveletRequest{
+		Sections: config.Sections,
+	})
 	if err != nil {
 		return nil, err
 	}

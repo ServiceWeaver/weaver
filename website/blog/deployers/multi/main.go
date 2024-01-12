@@ -77,7 +77,7 @@ func (d *deployer) spawn(component string) (*handler, error) {
 	}
 
 	// Spawn a weavelet in a subprocess to host the component.
-	info := &protos.EnvelopeInfo{
+	info := &protos.WeaveletArgs{
 		App:             "app",                     // the application name
 		DeploymentId:    deploymentId,              // the deployment id
 		Id:              uuid.New().String(),       // the weavelet id

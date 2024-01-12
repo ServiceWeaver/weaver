@@ -60,7 +60,7 @@ type weavelet struct {
 }
 
 // spawn spawns a weavelet with the provided info and handler.
-func spawn(ctx context.Context, info *protos.EnvelopeInfo, handler envelope.EnvelopeHandler, log *slog.Logger, tmpDir string) (*weavelet, error) {
+func spawn(ctx context.Context, info *protos.WeaveletArgs, handler envelope.EnvelopeHandler, log *slog.Logger, tmpDir string) (*weavelet, error) {
 	// envelope.NewEnvelope blocks performing a handshake with the weavelet, so
 	// we have to run it in a separate goroutine.
 	ctx, cancel := context.WithCancel(ctx)
@@ -169,16 +169,16 @@ type deployer struct {
 //	    "2": {componenta, componentb, componentc},
 //	}
 func deploy(t *testing.T, ctx context.Context, placement map[string][]string) *deployer {
-	return deployWithInfo(t, ctx, placement, &protos.EnvelopeInfo{
+	return deployWithInfo(t, ctx, placement, &protos.WeaveletArgs{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
 		InternalAddress: "localhost:0",
 	})
 }
 
-// deployWithInfo is identical to deploy but with an additional EnvelopeInfo
+// deployWithInfo is identical to deploy but with an additional WeaveletArgs
 // argument.
-func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]string, info *protos.EnvelopeInfo) *deployer {
+func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]string, info *protos.WeaveletArgs) *deployer {
 	t.Helper()
 
 	// Invert placement.
@@ -344,7 +344,7 @@ func testComponents(d *deployer) {
 
 func TestLocalhostWeaveletAddress(t *testing.T) {
 	// Start the weavelet with internal address "localhost:12345".
-	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
+	d := deployWithInfo(t, context.Background(), colocated, &protos.WeaveletArgs{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
 		ControlSocket:   deployers.NewUnixSocketPath(t.TempDir()),
@@ -372,7 +372,7 @@ func TestHostnameWeaveletAddress(t *testing.T) {
 		t.Fatalf("net.LookupIP(%q): no IPs", hostname)
 	}
 
-	d := deployWithInfo(t, context.Background(), colocated, &protos.EnvelopeInfo{
+	d := deployWithInfo(t, context.Background(), colocated, &protos.WeaveletArgs{
 		App:             "remoteweavelet_test.go",
 		DeploymentId:    fmt.Sprint(os.Getpid()),
 		ControlSocket:   deployers.NewUnixSocketPath(t.TempDir()),

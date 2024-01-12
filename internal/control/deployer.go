@@ -56,7 +56,7 @@ type DeployerControl interface {
 	// will issue this request each time it establishes a connection with
 	// another weavelet.
 	// NOTE: This method is only called if mTLS was enabled for the weavelet,
-	// by passing it an EnvelopeInfo with mtls=true.
+	// by passing it a WeaveletArgs with mtls=true.
 	GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
 
 	// VerifyClientCertificate verifies the certificate chain presented by
@@ -66,7 +66,7 @@ type DeployerControl interface {
 	// client is authorized to invoke methods on.
 	//
 	// NOTE: This method is only called if mTLS was enabled for the weavelet,
-	// by passing it an EnvelopeInfo with mtls=true.
+	// by passing it a WeaveletArgs with mtls=true.
 	VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
 
 	// VerifyServerCertificate verifies the certificate chain presented by
@@ -75,6 +75,6 @@ type DeployerControl interface {
 	// component.
 	//
 	// NOTE: This method is only called if mTLS was enabled for the weavelet,
-	// by passing it an EnvelopeInfo with mtls=true.
+	// by passing it a WeaveletArgs with mtls=true.
 	VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
 }

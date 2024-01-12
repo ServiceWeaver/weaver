@@ -172,7 +172,7 @@ Next, we implement a `spawn` method that spawns a weavelet to host a component.
 
 1. To spawn the weavelet and get an `Envelope` to communicate with it, we call
    the [`envelope.NewEnvelope`][NewEnvelope] function. This function takes in an
-   [`EnvelopeInfo`][EnvelopeInfo] that's passed to the weavelet and an
+   [`WeaveletArgs`][WeaveletArgs] that's passed to the weavelet and an
    [`AppConfig`][AppConfig] that describes the application. `NewEnvelope` runs
    the provided Service Weaver binary&mdash;`flag.Arg(0)` in this case&mdash;in
    a subprocess. It then returns an `Envelope` which communicates with the
@@ -199,7 +199,7 @@ func (d *deployer) spawn(component string) (*handler, error) {
     }
 
     // Spawn a weavelet in a subprocess to host the component.
-    info := &protos.EnvelopeInfo{
+    info := &protos.WeaveletArgs{
         App:             "app",                     // the application name
         DeploymentId:    deploymentId,              // the deployment id
         Id:              uuid.New().String(),       // the weavelet id
@@ -426,7 +426,7 @@ and [`weaver gke`][weaver_gke_github] deployers for reference.
   the components in their application and to configure the deployer that deploys
   their application. A deployer should parse this config file using
   [`runtime.ParseConfig`][ParseConfig] and pass the relevant sections to the
-  weavelets via an [`EnvelopeInfo`][EnvelopeInfo].
+  weavelets via an [`WeaveletArgs`][WeaveletArgs].
 
 - **Routing**. A deployer should support [routed components][routing] by
   monitoring the load on routed components and generating [routing
@@ -465,7 +465,7 @@ weavelet exchange [EnvelopeMsg][] and [WeaveletMsg][] protocol buffers over
 these pipes.
 
 When an envelope and weavelet first establish their connection, they perform a
-*handshake*. The envelope sends an [`EnvelopeInfo`][EnvelopeInfo], and the
+*handshake*. The envelope sends an [`WeaveletArgs`][WeaveletArgs], and the
 weavelet responds with a [`WeaveletInfo`][WeaveletInfo]. After the handshake,
 the envelope and weavelet communicate freely. There are three communication
 patterns.
@@ -542,9 +542,9 @@ func run(ctx context.Context, binary string) error {
 }
 ```
 
-Second, the envelope sends an `EnvelopeMsg` containing an `EnvelopeInfo` to the
+Second, the envelope sends an `EnvelopeMsg` containing an `WeaveletArgs` to the
 weavelet. This is the first message a weavelet expects to receive. An
-`EnvelopeInfo` provides the weavelet with a basic set of metadata including the
+`WeaveletArgs` provides the weavelet with a basic set of metadata including the
 name of the app, the unique id of the deployment, the unique id of the weavelet,
 and so on.
 
@@ -552,9 +552,9 @@ and so on.
 func run(ctx context.Context, binary string) error {
     // Step 1...
 
-    // Step 2. Send an EnvelopeInfo to the weavelet.
+    // Step 2. Send an WeaveletArgs to the weavelet.
     info := &protos.EnvelopeMsg{
-        EnvelopeInfo: &protos.EnvelopeInfo{
+        WeaveletArgs: &protos.WeaveletArgs{
             App:           "app",               // the application name
             DeploymentId:  uuid.New().String(), // the deployment id
             Id:            uuid.New().String(), // the weavelet id
@@ -666,7 +666,7 @@ sending protobufs over a pair of pipes. For even more details, refer to
 [Assignment]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#Assignment
 [ConfigMap]: https://kubernetes.io/docs/concepts/configuration/configmap/
 [EnvelopeHandler]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#EnvelopeHandler
-[EnvelopeInfo]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#EnvelopeInfo
+[WeaveletArgs]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletArgs
 [EnvelopeMsg]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#EnvelopeMsg
 [Envelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope
 [GetHealth]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetHealth
