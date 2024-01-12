@@ -65,7 +65,7 @@ type RemoteWeavelet struct {
 	servers   *errgroup.Group         // background servers
 	opts      RemoteWeaveletOptions   // options
 	envInfo   *protos.EnvelopeInfo    // info about my envelope
-	info      *protos.WeaveletInfo    // info about this weavelet sent to the envelope
+	dialAddr  string                  // Address dialed by other components
 	id        string                  // unique id for this weavelet
 	deployer  control.DeployerControl // component to control deployer
 	logDst    *remoteLogger           // for writing log entries
@@ -163,14 +163,6 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 	if args.Mtls {
 		dialAddr = fmt.Sprintf("mtls://%s", dialAddr)
 	}
-	winfo := &protos.WeaveletInfo{
-		DialAddr: dialAddr,
-		Version: &protos.SemVer{
-			Major: version.DeployerMajor,
-			Minor: version.DeployerMinor,
-			Patch: 0,
-		},
-	}
 
 	servers, ctx := errgroup.WithContext(ctx)
 	w := &RemoteWeavelet{
@@ -178,7 +170,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		servers:          servers,
 		opts:             opts,
 		envInfo:          args,
-		info:             winfo,
+		dialAddr:         dialAddr,
 		logDst:           newRemoteLogger(os.Stderr),
 		deployerReady:    make(chan struct{}),
 		componentsByName: map[string]*component{},
@@ -284,8 +276,15 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 }
 
 // InitWeavelet implements weaver.controller and conn.WeaverHandler interfaces.
-func (w *RemoteWeavelet) InitWeavelet(ctx context.Context, req *protos.InitWeaveletRequest) (*protos.WeaveletInfo, error) {
-	return w.info, nil
+func (w *RemoteWeavelet) InitWeavelet(ctx context.Context, req *protos.InitWeaveletRequest) (*protos.InitWeaveletReply, error) {
+	return &protos.InitWeaveletReply{
+		DialAddr: w.dialAddr,
+		Version: &protos.SemVer{
+			Major: version.DeployerMajor,
+			Minor: version.DeployerMinor,
+			Patch: 0,
+		},
+	}, nil
 }
 
 // Wait waits for the RemoteWeavelet to fully shut down after its context has

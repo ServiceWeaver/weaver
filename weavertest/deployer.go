@@ -199,7 +199,7 @@ func (d *deployer) start(opts weaver.RemoteWeaveletOptions) (*weaver.RemoteWeave
 			d.stop(err)
 			return err
 		})
-		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
+		if err := d.registerReplica(g, e.WeaveletAddress()); err != nil {
 			d.stopLocked(fmt.Errorf(`cannot register the replica for "main": %w`, err))
 		}
 	}()
@@ -275,13 +275,13 @@ func (*deployer) VerifyServerCertificate(context.Context, *protos.VerifyServerCe
 
 // registerReplica registers the information about a colocation group replica
 // (i.e., a weavelet).
-func (d *deployer) registerReplica(g *group, info *protos.WeaveletInfo) error {
+func (d *deployer) registerReplica(g *group, replicaAddr string) error {
 	// Update addresses.
-	if g.addresses[info.DialAddr] {
+	if g.addresses[replicaAddr] {
 		// Replica already registered.
 		return nil
 	}
-	g.addresses[info.DialAddr] = true
+	g.addresses[replicaAddr] = true
 
 	// Notify subscribers.
 	for component := range g.components {
@@ -385,7 +385,7 @@ func (d *deployer) startGroup(g *group) error {
 			d.stop(err)
 			return err
 		})
-		if err := d.registerReplica(g, e.WeaveletInfo()); err != nil {
+		if err := d.registerReplica(g, e.WeaveletAddress()); err != nil {
 			return err
 		}
 		wc := e.WeaveletControl()

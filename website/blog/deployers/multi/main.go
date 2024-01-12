@@ -96,7 +96,7 @@ func (d *deployer) spawn(component string) (*handler, error) {
 	h := &handler{
 		deployer: d,
 		envelope: envelope,
-		address:  envelope.WeaveletInfo().DialAddr,
+		address:  envelope.WeaveletAddress(),
 	}
 
 	go func() {

@@ -32,7 +32,7 @@ const WeaveletPath = "github.com/ServiceWeaver/weaver/weaveletControl"
 // application binaries.
 type WeaveletControl interface {
 	// InitWeavelet initializes the weavelet.
-	InitWeavelet(context.Context, *protos.InitWeaveletRequest) (*protos.WeaveletInfo, error)
+	InitWeavelet(context.Context, *protos.InitWeaveletRequest) (*protos.InitWeaveletReply, error)
 
 	// UpdateComponents updates the weavelet with the latest set of components it
 	// should be running.
