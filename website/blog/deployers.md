@@ -88,51 +88,18 @@ related to (1) components, (2) listeners, (3) telemetry, and (4) security.
    and validating certificates. To keeps things as simple as possible, we'll
    leave mTLS disabled for the remainder of this article.
 
-A deployer and a weavelet communicate by exchanging protocol buffers over a pair
-of Unix pipes.  We call the part of a deployer that communicates with a weavelet
-an **envelope**. In the appendix of this article, we describe the low-level
-details of the envelope-weavelet protocol, but for most deployers, it should
-suffice to use ServiceWeaver's [`Envelope`][Envelope] API.
+A deployer and a weavelet communicate by making remote procedure calls over Unix
+domain sockets to each other. We call the part of a deployer that communicates
+with a weavelet an **envelope**. New deployers can be built by using
+ServiceWeaver's [`Envelope`][Envelope] API.
 
 Communication between an envelope and a weavelet is either weavelet initiated or
 envelope initiated. Weavelet initiated communication shows up as a method call
 to an [`EnvelopeHandler`][EnvelopeHandler] interface supplied by the deployer
 implementation.
 
-```go
-type EnvelopeHandler interface {
-    // Components.
-    ActivateComponent(context.Context, *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error)
-
-    // Listeners.
-    GetListenerAddress(context.Context, *protos.GetListenerAddressRequest) (*protos.GetListenerAddressReply, error)
-    ExportListener(context.Context, *protos.ExportListenerRequest) (*protos.ExportListenerReply, error)
-
-    // Telemetry.
-    LogBatch(context.Context, *protos.LogEntryBatch) error
-    HandleTraceSpans(context.Context, []trace.ReadOnlySpan) error
-
-    // Security.
-    GetSelfCertificate(context.Context, *protos.GetSelfCertificateRequest) (*protos.GetSelfCertificateReply, error)
-    VerifyClientCertificate(context.Context, *protos.VerifyClientCertificateRequest) (*protos.VerifyClientCertificateReply, error)
-    VerifyServerCertificate(context.Context, *protos.VerifyServerCertificateRequest) (*protos.VerifyServerCertificateReply, error)
-}
-```
-
 Envelope initiated communication is performed by invoking a method on
-`Envelope`.
-
-```go
-// Components.
-func (e *Envelope) UpdateRoutingInfo(routing *protos.RoutingInfo) error
-func (e *Envelope) UpdateComponents(components []string) error
-
-// Telemetry.
-func (e *Envelope) GetHealth() protos.HealthStatus
-func (e *Envelope) GetMetrics() ([]*metrics.MetricSnapshot, error)
-func (e *Envelope) GetLoad() (*protos.LoadReport, error)
-func (e *Envelope) GetProfile(req *protos.GetProfileRequest) ([]byte, error)
-```
+[`Envelope`][Envelope].
 
 ## A Simple Multiprocess Deployer
 
@@ -141,7 +108,7 @@ deployer][multi_deployer]. We'll compile our deployer into an executable called
 `deploy`. We'll then be able to deploy Service Weaver binaries by running
 `./deploy <Service Weaver binary>`. To make things simple, our deployer won't
 co-locate or replicate any components. Every component will run by itself in a
-single weavelet. We begin by declaring types for the deployer and for weavelets.
+separate process. We begin by declaring types for the deployer and for weavelets.
 
 ```go
 package main
@@ -171,12 +138,12 @@ var _ envelope.EnvelopeHandler = &handler{}
 Next, we implement a `spawn` method that spawns a weavelet to host a component.
 
 1. To spawn the weavelet and get an `Envelope` to communicate with it, we call
-   the [`envelope.NewEnvelope`][NewEnvelope] function. This function takes in an
+   the [`envelope.NewEnvelope`][NewEnvelope] function. This function takes in a
    [`WeaveletArgs`][WeaveletArgs] that's passed to the weavelet and an
    [`AppConfig`][AppConfig] that describes the application. `NewEnvelope` runs
    the provided Service Weaver binary&mdash;`flag.Arg(0)` in this case&mdash;in
    a subprocess. It then returns an `Envelope` which communicates with the
-   weavelet via a pair of Unix pipes.
+   weavelet via remote procedure calls.
 2. We call the `UpdateComponents` method to tell the weavelet which component to
    run. A deployer should call `UpdateComponents` whenever there is a change to
    the set of components a weavelet should be running.
@@ -203,7 +170,6 @@ func (d *deployer) spawn(component string) (*handler, error) {
         App:             "app",                     // the application name
         DeploymentId:    deploymentId,              // the deployment id
         Id:              uuid.New().String(),       // the weavelet id
-        SingleProcess:   false,                     // is the app a single process?
         Mtls:            false,                     // don't enable mtls
         RunMain:         component == runtime.Main, // should the weavelet run main?
         InternalAddress: "localhost:0",             // internal address of the weavelet
@@ -212,20 +178,22 @@ func (d *deployer) spawn(component string) (*handler, error) {
         Name:   "app",       // the application name
         Binary: flag.Arg(0), // the application binary
     }
-    envelope, err := envelope.NewEnvelope(context.Background(), info, config)
+    envelope, err := envelope.NewEnvelope(context.Background(), info, config, envelope.Options{})
     if err != nil {
         return nil, err
     }
     h := &handler{
         deployer: d,
         envelope: envelope,
-        address:  envelope.WeaveletInfo().DialAddr,
+        address:  envelope.WeaveletAddress(),
     }
 
     go func() {
         // Inform the weavelet of the component it should host.
         envelope.UpdateComponents([]string{component})
+    }()
 
+    go func() {
         // Handle messages from the weavelet.
         envelope.Serve(h)
     }()
@@ -246,7 +214,7 @@ For each <code>EnvelopeHandler</code> method, we also summarize how <a href="htt
 ### Components
 
 First, we implement `ActivateComponent`. When some component `T` is needed, the
-weavelet calls the `ActivateComponent` method to activate
+weavelet calls the `EnvelopeHandler.ActivateComponent` method to activate
 `T`. `ActivateComponent` should start the component&mdash;potentially with
 multiple replicas&mdash;if it hasn't already been started.
 
@@ -295,7 +263,7 @@ func (h *handler) ActivateComponent(_ context.Context, req *protos.ActivateCompo
 ### Listeners
 
 Next, we implement the listener methods. When a component requests a network
-listener, the `GetListenerAddress` method is invoked. This method returns the
+listener, `Envelopehandler.GetListenerAddress` method is invoked. This method returns the
 address on which the component should listen. Our simple deployer always returns
 `"localhost:0"`.
 
@@ -447,254 +415,24 @@ and [`weaver gke`][weaver_gke_github] deployers for reference.
   `weaver multi logs`, for example, can be used to inspect applications deployed
   with `weaver multi deploy`.
 
-## Appendix: Envelope-Weavelet Protocol
-
-TODO(sanjay,mwhittaker): Drop this section and replace it with the component
-method call based protocol once we have fully transitioned to it.
-
-In this appendix, we describe the low-level communication protocol between an
-envelope and a weavelet. Most deployers should use the high-level
-[`Envelope`][Envelope] API described earlier, but understanding the low-level
-details is important if you want to implement a deployer completely from
-scratch, say in another programming language.
-
-An envelope and a weavelet communicate with each other over a pair of Unix
-pipes. One pipe runs from the envelope to the weavelet, and the other runs in
-the opposite direction from the weavelet to the envelope. The envelope and
-weavelet exchange [EnvelopeMsg][] and [WeaveletMsg][] protocol buffers over
-these pipes.
-
-When an envelope and weavelet first establish their connection, they perform a
-*handshake*. The envelope sends an [`WeaveletArgs`][WeaveletArgs], and the
-weavelet responds with a [`WeaveletInfo`][WeaveletInfo]. After the handshake,
-the envelope and weavelet communicate freely. There are three communication
-patterns.
-
-1. The envelope can initiate an RPC against the weavelet.
-2. The weavelet can initiate an RPC against the envelope.
-3. The weavelet can send an unacknowledged RPC to the envelope.
-
-These three forms of communication can interleave arbitrarily. For example,
-after an envelope sends an RPC request over the pipe, it may receive many
-unrelated messages over the pipe before receiving an RPC reply.
-
-To make this interaction concrete, we'll implement [the world's simplest
-deployer][pipes_deployer]. This trivial deployer launches a Service Weaver
-binary, exchanges a few messages with the weavelet over the pipes, and then
-terminates. We begin with a `main` function that receives a Service Weaver
-binary as its first and only argument and passes it to a `run` function.
-
-```go
-package main
-
-import ...
-
-func main() {
-    flag.Parse()
-    if err := run(context.Background(), flag.Arg(0)); err != nil {
-        fmt.Fprintln(os.Stderr, err)
-        os.Exit(1)
-    }
-}
-```
-
-To implement the `run` function, we first create the pair of pipes. The first
-pipe runs from `envelopeWriter` in the envelope to `weaveletReader` in the
-weavelet. The second runs in the opposite direction from `weaveletWriter` in the
-weavelet to `envelopeReader` in the envelope. We launch the binary in a
-subprocess. The `weaveletReader` and `weaveletWriter` ends of the pipes will be
-accessible in the subprocess as file descriptors 3 and 4 (see [the exec
-package][exec] for details). The weavelet running in the subprocess opens the
-file descriptors stored in the `ENVELOPE_TO_WEAVELET_FD` and
-`WEAVELET_TO_ENVELOPE_FD` environment variables to establish its connection to
-the envelope.
-
-```go
-func run(ctx context.Context, binary string) error {
-    // Step 1. Run the binary and establish the pipes between the envelope and
-    // the weavelet.
-    //
-    //              envelope               weavelet
-    //             ┌──────────────────┐   ┌───────────────────┐
-    //             │ envelopeWriter --│---│-> weaveletReader  │
-    //             │ envelopeReader <-│---│-- weaveletWriter  │
-    //             └──────────────────┘   └───────────────────┘
-    weaveletReader, envelopeWriter, err := os.Pipe()
-    if err != nil {
-        return err
-    }
-    envelopeReader, weaveletWriter, err := os.Pipe()
-    if err != nil {
-        return err
-    }
-
-    // ExtraFiles file descriptors begin at 3 because descriptors 0, 1, and 2
-    // are reserved for stdin, stdout, and stderr. See
-    // https://pkg.go.dev/os/exec#Cmd for details.
-    cmd := exec.Command(binary)
-    cmd.ExtraFiles = []*os.File{weaveletReader, weaveletWriter}
-    cmd.Env = []string{"ENVELOPE_TO_WEAVELET_FD=3", "WEAVELET_TO_ENVELOPE_FD=4"}
-    if err := cmd.Start(); err != nil {
-        return err
-    }
-
-    // ...
-}
-```
-
-Second, the envelope sends an `EnvelopeMsg` containing an `WeaveletArgs` to the
-weavelet. This is the first message a weavelet expects to receive. An
-`WeaveletArgs` provides the weavelet with a basic set of metadata including the
-name of the app, the unique id of the deployment, the unique id of the weavelet,
-and so on.
-
-```go
-func run(ctx context.Context, binary string) error {
-    // Step 1...
-
-    // Step 2. Send an WeaveletArgs to the weavelet.
-    info := &protos.EnvelopeMsg{
-        WeaveletArgs: &protos.WeaveletArgs{
-            App:           "app",               // the application name
-            DeploymentId:  uuid.New().String(), // the deployment id
-            Id:            uuid.New().String(), // the weavelet id
-            SingleProcess: false,               // is the app a single process?
-            SingleMachine: true,                // is the app on a single machine?
-            RunMain:       true,                // should the weavelet run main?
-        },
-    }
-    if err := protomsg.Write(envelopeWriter, info); err != nil {
-        return err
-    }
-
-    // ...
-}
-```
-
-Third, the deployer reads and prints a `WeaveletMsg` from the weavelet.
-
-```go
-func run(ctx context.Context, binary string) error {
-    // Step 1...
-    // Step 2...
-
-    // Step 3. Receive a WeaveletInfo from the weavelet.
-    var reply protos.WeaveletMsg
-    if err := protomsg.Read(envelopeReader, &reply); err != nil {
-        return err
-    }
-    fmt.Println(prototext.Format(&reply))
-
-    // ...
-}
-```
-
-This `WeaveletMsg` contains a `WeaveletInfo` which contains information about
-the weavelet, specifically it's address and PID:
-
-```txt
-weavelet_info: {
-    dial_addr: "tcp://127.0.0.1:41123"
-    pid: 2193420
-}
-```
-
-Fourth, the deployer initiates an RPC to receive the weavelet's health status.
-It selects a unique id, `42`, for the RPC.
-
-```go
-func run(ctx context.Context, binary string) error {
-    // Step 1...
-    // Step 2...
-    // Step 3...
-
-    // Step 4. Send a GetHealth RPC to the weavelet.
-    req := &protos.EnvelopeMsg{
-        Id:               42,
-        GetHealthRequest: &protos.GetHealthRequest{},
-    }
-    if err := protomsg.Write(envelopeWriter, req); err != nil {
-        return err
-    }
-
-    // ...
-}
-```
-
-Fifth, the deployer repeatedly reads `WeaveletMsg`s from the weavelet until it
-receives one with id `-42`. Every RPC with positive id `x` receives a reply with
-negative id `-x`. Note that the deployer may receive other messages from the
-weavelet before receiving the reply to its RPC. A real deployer would handle
-these messages, but our trivial deployer simply ignores them.
-
-```go
-func run(ctx context.Context, binary string) error {
-    // Step 1...
-    // Step 2...
-    // Step 3...
-    // Step 4...
-
-    // Step 5. Receive a reply to the GetHealth RPC, ignoring other messages.
-    for {
-        var reply protos.WeaveletMsg
-        if err := protomsg.Read(envelopeReader, &reply); err != nil {
-            return err
-        }
-        if reply.Id == -42 {
-            fmt.Println(prototext.Format(&reply))
-            break
-        }
-    }
-    return nil
-}
-```
-
-The reply looks like this:
-
-```txt
-id: -42
-get_health_reply: {
-    status: HEALTHY
-}
-```
-
-This trivial deployer demonstrates how a deployer and weavelet communicate by
-sending protobufs over a pair of pipes. For even more details, refer to
-[runtime.proto][].
-
 [AppConfig]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#AppConfig
 [Assignment]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#Assignment
-[ConfigMap]: https://kubernetes.io/docs/concepts/configuration/configmap/
+[Envelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope
 [EnvelopeHandler]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#EnvelopeHandler
 [WeaveletArgs]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletArgs
-[EnvelopeMsg]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#EnvelopeMsg
-[Envelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope
 [GetHealth]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetHealth
 [GetLoad]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#Envelope.GetLoad
-[ListenerOptions]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#ListenerOptions
-[Listener]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Listener
 [NewEnvelope]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/envelope#NewEnvelope
 [ParseConfig]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime#ParseConfig
-[ReplicaToRegister]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#ReplicaToRegister
 [Run]: https://pkg.go.dev/github.com/ServiceWeaver/weaver#Run
-[WeaveletInfo]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletInfo
-[WeaveletMsg]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletMsg
-[cloud_logging]: https://cloud.google.com/logging
-[cloud_trace]: https://cloud.google.com/trace
-[colocation]: ../docs.html#config-files
+[WeaveletArgs]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime/protos#WeaveletArgs
 [components]: ../docs.html#components
 [config]: ../docs.html#components-config
-[exec]: https://pkg.go.dev/os/exec
 [gke]: ../docs.html#gke
 [mtls]: https://www.cloudflare.com/learning/access-management/what-is-mutual-tls/
 [multi_deployer]: https://github.com/ServiceWeaver/weaver/blob/main/website/blog/deployers/multi/main.go
 [multiprocess]: ../docs.html#multiprocess
-[pipes_deployer]: https://github.com/ServiceWeaver/weaver/blob/main/website/blog/deployers/pipes/main.go
-[resource_versions]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 [routing]: ../docs.html#routing
-[runtime.proto]: https://github.com/ServiceWeaver/weaver/blob/main/runtime/protos/runtime.proto
-[runtime]: https://pkg.go.dev/github.com/ServiceWeaver/weaver/runtime
-[single_deployer]: https://github.com/ServiceWeaver/weaver/blob/main/website/blog/deployers/single/main.go
 [singleprocess]: ../docs.html#single-process
 [tutorial]: ../docs.html#step-by-step-tutorial
 [versioning]: ../docs.html#versioning
