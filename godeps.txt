@@ -972,6 +972,15 @@ github.com/ServiceWeaver/weaver/sim
     sync/atomic
     testing
     time
+github.com/ServiceWeaver/weaver/sim/internal/bank
+    context
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    reflect
 github.com/ServiceWeaver/weaver/weavertest
     context
     errors
