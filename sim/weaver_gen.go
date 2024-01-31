@@ -16,14 +16,14 @@ import (
 
 func init() {
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/blocker",
+		Name:  "github.com/ServiceWeaver/weaver/sim/blocker",
 		Iface: reflect.TypeOf((*blocker)(nil)).Elem(),
 		Impl:  reflect.TypeOf(blockerImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return blocker_local_stub{impl: impl.(blocker), tracer: tracer, blockMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/blocker", Method: "Block", Remote: false})}
+			return blocker_local_stub{impl: impl.(blocker), tracer: tracer, blockMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/blocker", Method: "Block", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return blocker_client_stub{stub: stub, blockMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/blocker", Method: "Block", Remote: true})}
+			return blocker_client_stub{stub: stub, blockMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/blocker", Method: "Block", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return blocker_server_stub{impl: impl.(blocker), addLoad: addLoad}
@@ -34,14 +34,14 @@ func init() {
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/div",
+		Name:  "github.com/ServiceWeaver/weaver/sim/div",
 		Iface: reflect.TypeOf((*div)(nil)).Elem(),
 		Impl:  reflect.TypeOf(divImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return div_local_stub{impl: impl.(div), tracer: tracer, divMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/div", Method: "Div", Remote: false})}
+			return div_local_stub{impl: impl.(div), tracer: tracer, divMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/div", Method: "Div", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return div_client_stub{stub: stub, divMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/div", Method: "Div", Remote: true})}
+			return div_client_stub{stub: stub, divMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/div", Method: "Div", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return div_server_stub{impl: impl.(div), addLoad: addLoad}
@@ -49,17 +49,17 @@ func init() {
 		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
 			return div_reflect_stub{caller: caller}
 		},
-		RefData: "⟦972edc6b:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/div→github.com/ServiceWeaver/weaver/internal/sim/identity⟧\n",
+		RefData: "⟦6ddebe91:wEaVeReDgE:github.com/ServiceWeaver/weaver/sim/div→github.com/ServiceWeaver/weaver/sim/identity⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/divMod",
+		Name:  "github.com/ServiceWeaver/weaver/sim/divMod",
 		Iface: reflect.TypeOf((*divMod)(nil)).Elem(),
 		Impl:  reflect.TypeOf(divModImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return divMod_local_stub{impl: impl.(divMod), tracer: tracer, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/divMod", Method: "DivMod", Remote: false})}
+			return divMod_local_stub{impl: impl.(divMod), tracer: tracer, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/divMod", Method: "DivMod", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return divMod_client_stub{stub: stub, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/divMod", Method: "DivMod", Remote: true})}
+			return divMod_client_stub{stub: stub, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/divMod", Method: "DivMod", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return divMod_server_stub{impl: impl.(divMod), addLoad: addLoad}
@@ -67,17 +67,17 @@ func init() {
 		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
 			return divMod_reflect_stub{caller: caller}
 		},
-		RefData: "⟦1fbf09ec:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/divMod→github.com/ServiceWeaver/weaver/internal/sim/div⟧\n⟦c2f088a8:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/divMod→github.com/ServiceWeaver/weaver/internal/sim/mod⟧\n",
+		RefData: "⟦df3a80a0:wEaVeReDgE:github.com/ServiceWeaver/weaver/sim/divMod→github.com/ServiceWeaver/weaver/sim/div⟧\n⟦b28314dd:wEaVeReDgE:github.com/ServiceWeaver/weaver/sim/divMod→github.com/ServiceWeaver/weaver/sim/mod⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/identity",
+		Name:  "github.com/ServiceWeaver/weaver/sim/identity",
 		Iface: reflect.TypeOf((*identity)(nil)).Elem(),
 		Impl:  reflect.TypeOf(identityImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return identity_local_stub{impl: impl.(identity), tracer: tracer, identityMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/identity", Method: "Identity", Remote: false})}
+			return identity_local_stub{impl: impl.(identity), tracer: tracer, identityMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/identity", Method: "Identity", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return identity_client_stub{stub: stub, identityMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/identity", Method: "Identity", Remote: true})}
+			return identity_client_stub{stub: stub, identityMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/identity", Method: "Identity", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return identity_server_stub{impl: impl.(identity), addLoad: addLoad}
@@ -88,14 +88,14 @@ func init() {
 		RefData: "",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/mod",
+		Name:  "github.com/ServiceWeaver/weaver/sim/mod",
 		Iface: reflect.TypeOf((*mod)(nil)).Elem(),
 		Impl:  reflect.TypeOf(modImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return mod_local_stub{impl: impl.(mod), tracer: tracer, modMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/mod", Method: "Mod", Remote: false})}
+			return mod_local_stub{impl: impl.(mod), tracer: tracer, modMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/mod", Method: "Mod", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return mod_client_stub{stub: stub, modMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/mod", Method: "Mod", Remote: true})}
+			return mod_client_stub{stub: stub, modMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/mod", Method: "Mod", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return mod_server_stub{impl: impl.(mod), addLoad: addLoad}
@@ -103,17 +103,17 @@ func init() {
 		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
 			return mod_reflect_stub{caller: caller}
 		},
-		RefData: "⟦1dff5ab5:wEaVeReDgE:github.com/ServiceWeaver/weaver/internal/sim/mod→github.com/ServiceWeaver/weaver/internal/sim/identity⟧\n",
+		RefData: "⟦5bf2dcf2:wEaVeReDgE:github.com/ServiceWeaver/weaver/sim/mod→github.com/ServiceWeaver/weaver/sim/identity⟧\n",
 	})
 	codegen.Register(codegen.Registration{
-		Name:  "github.com/ServiceWeaver/weaver/internal/sim/panicker",
+		Name:  "github.com/ServiceWeaver/weaver/sim/panicker",
 		Iface: reflect.TypeOf((*panicker)(nil)).Elem(),
 		Impl:  reflect.TypeOf(panickerImpl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return panicker_local_stub{impl: impl.(panicker), tracer: tracer, panicMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/panicker", Method: "Panic", Remote: false})}
+			return panicker_local_stub{impl: impl.(panicker), tracer: tracer, panicMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/panicker", Method: "Panic", Remote: false})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return panicker_client_stub{stub: stub, panicMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/sim/panicker", Method: "Panic", Remote: true})}
+			return panicker_client_stub{stub: stub, panicMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/panicker", Method: "Panic", Remote: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return panicker_server_stub{impl: impl.(panicker), addLoad: addLoad}

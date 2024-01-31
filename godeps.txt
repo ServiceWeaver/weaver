@@ -377,42 +377,6 @@ github.com/ServiceWeaver/weaver/internal/routing
     slices
     sort
     strings
-github.com/ServiceWeaver/weaver/internal/sim
-    context
-    crypto/sha256
-    encoding/json
-    errors
-    fmt
-    github.com/ServiceWeaver/weaver
-    github.com/ServiceWeaver/weaver/internal/reflection
-    github.com/ServiceWeaver/weaver/internal/weaver
-    github.com/ServiceWeaver/weaver/runtime
-    github.com/ServiceWeaver/weaver/runtime/codegen
-    github.com/ServiceWeaver/weaver/runtime/logging
-    github.com/ServiceWeaver/weaver/runtime/protos
-    github.com/google/uuid
-    go.opentelemetry.io/otel/codes
-    go.opentelemetry.io/otel/trace
-    golang.org/x/exp/maps
-    golang.org/x/sync/errgroup
-    golang.org/x/text/language
-    golang.org/x/text/message
-    log/slog
-    math
-    math/bits
-    math/rand
-    net
-    os
-    path/filepath
-    reflect
-    runtime
-    runtime/debug
-    sort
-    strings
-    sync
-    sync/atomic
-    testing
-    time
 github.com/ServiceWeaver/weaver/internal/status
     bytes
     context
@@ -972,6 +936,42 @@ github.com/ServiceWeaver/weaver/runtime/traces
     time
 github.com/ServiceWeaver/weaver/runtime/version
     fmt
+github.com/ServiceWeaver/weaver/sim
+    context
+    crypto/sha256
+    encoding/json
+    errors
+    fmt
+    github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/internal/reflection
+    github.com/ServiceWeaver/weaver/internal/weaver
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/logging
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/google/uuid
+    go.opentelemetry.io/otel/codes
+    go.opentelemetry.io/otel/trace
+    golang.org/x/exp/maps
+    golang.org/x/sync/errgroup
+    golang.org/x/text/language
+    golang.org/x/text/message
+    log/slog
+    math
+    math/bits
+    math/rand
+    net
+    os
+    path/filepath
+    reflect
+    runtime
+    runtime/debug
+    sort
+    strings
+    sync
+    sync/atomic
+    testing
+    time
 github.com/ServiceWeaver/weaver/weavertest
     context
     errors
