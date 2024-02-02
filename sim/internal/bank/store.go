@@ -26,9 +26,10 @@ type Store interface {
 	// Get gets the value of the provided key.
 	Get(ctx context.Context, key string) (int, error)
 
-	// Add atomically adds the provided delta to the provided key. Note that
-	// delta can be positive or negative. For example, Add(ctx, "foo", 10) adds
-	// 10 to "foo", while Add(ctx, "foo", -10) subtracts 10 from "foo".
+	// Add atomically adds the provided delta to the provided key and returns
+	// the resulting sum. Note that delta can be positive or negative. For
+	// example, Add(ctx, "foo", 10) adds 10 to "foo", while Add(ctx, "foo",
+	// -10) subtracts 10 from "foo".
 	Add(ctx context.Context, key string, delta int) (int, error)
 }
 

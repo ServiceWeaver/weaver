@@ -84,6 +84,9 @@ var files = []file{
 	staticFile("assets/images/faster_grpc.png"),
 	staticFile("assets/images/benchmark.png"),
 
+	{dst: "blog/testing.html", markdown: "blog/testing.md", template: "blog_entry.html", title: "Service Weaver and Kubernetes", license: true},
+	staticFile("blog/testing/bank_failure.svg"),
+
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
