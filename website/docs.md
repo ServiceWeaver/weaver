@@ -529,7 +529,7 @@ Cloud Tracing][cloud_trace], etc.
   demonstrate what Service Weaver has to offer.
 - Dive deeper into the various ways you can deploy a Service Weaver application,
   including [single process](#single-process), [multiprocess](#multiprocess),
-  [SSH](#ssh), [GKE](#gke) and [Kube](#kube) deployers.
+  [SSH](#ssh), [GKE](#gke), [Kube](#kube), and [Cloud Run](#cloud-run) deployers.
 - Check out [Service Weaver's source code on GitHub][weaver_github].
 - Chat with us on [Discord](https://discord.gg/FzbQ3SM8R5) or send us an
   [email](serviceweaver@google.com).
@@ -3091,6 +3091,45 @@ slowly shifts traffic from old versions of the application to the new version of
 the application. You can use `weaver gke-local status`, exactly like how you use
 `weaver gke status`, to monitor the rollouts of your applications.
 
+# Cloud Run
+
+[Cloud Run][cloud_run] is a Google Cloud managed compute platform that enables
+you to run stateless containers that are invocable via HTTP requests.
+
+We provide instructions on how to run a Service Weaver application in a single
+container on Cloud Run.
+
+## Build and upload a Docker Container
+
+First, you should create a [Docker][docker] container and upload it to [Google Artifact
+Registry][gar]:
+
+```console
+$ docker build -t REGION-docker.pkg.dev/PROJECT_ID/REPO_NAME/PATH:TAG .
+$ docker push REGION-docker.pkg.dev/PROJECT_ID/REPO_NAME/PATH:TAG
+```
+
+[These instructions][cloud_run_instr] contain more details on how to build a
+container to run on [Cloud Run][cloud_run].
+
+## Deploy to Cloud Run
+
+Next, deploy the container to [Cloud Run][cloud_run] using `gcloud run deploy`:
+
+```console
+$ gcloud run deploy NAME --image=REGION-docker.pkg.dev/PROJECT_ID/REPO_NAME/PATH:TAG --region=REGION --allow-unauthenticated
+```
+
+This command should print out a URL that you can use to access the service. Alternatively,
+you can curl the service from the command line:
+
+```console
+$ curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" URL
+```
+
+[This][cloud_run_repository] repository contains an example of a Service Weaver
+application that can run on [Cloud Run][cloud_run].
+
 # SSH [experimental]
 
 [SSH][ssh] is a deployer that allows you to run Service Weaver applications on
@@ -3496,6 +3535,9 @@ runtime benefits of microservices.
 [cloud_logging]: https://cloud.google.com/logging
 [cloud_metrics]: https://cloud.google.com/monitoring/api/metrics_gcp
 [cloud_trace]: https://cloud.google.com/trace
+[cloud_run]: https://cloud.google.com/run
+[cloud_run_instr]: https://cloud.google.com/run/docs/building/containers
+[cloud_run_repository]: https://github.com/mwhittaker/cloudrun
 [db_engines]: https://db-engines.com/en/ranking
 [docker]: https://docs.docker.com/engine/install/
 [emojis]: https://emojis.serviceweaver.dev/
@@ -3504,6 +3546,7 @@ runtime benefits of microservices.
 [gcloud_billing_projects]: https://console.cloud.google.com/billing/projects
 [gcloud_install]: https://cloud.google.com/sdk/docs/install
 [github_actions]: https://github.com/features/actions
+[gar]: https://cloud.google.com/artifact-registry
 [gke]: https://cloud.google.com/kubernetes-engine
 [gke_create_project]: https://cloud.google.com/resource-manager/docs/creating-managing-projects#gcloud
 [go_generate]: https://pkg.go.dev/cmd/go/internal/generate
