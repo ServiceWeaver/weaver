@@ -77,6 +77,13 @@ var files = []file{
 	{dst: "blog/kubernetes.html", markdown: "blog/kubernetes.md", template: "blog_entry.html", title: "Service Weaver and Kubernetes", license: true},
 	staticFile("blog/deployers/kube/kube_overview.png"),
 
+	{dst: "blog/improve_cloud_efficiency.html", markdown: "blog/improve_cloud_efficiency.md", template: "blog_entry.html", title: "Improve Cloud Efficiency with Service Weaver", license: true},
+	staticFile("assets/images/cognitive_load.png"),
+	staticFile("assets/images/testing_toil.png"),
+	staticFile("assets/images/integrated.png"),
+	staticFile("assets/images/faster_grpc.png"),
+	staticFile("assets/images/benchmark.png"),
+
 	staticFile("favicon.ico"),
 	staticFile("assets/css/blog.css"),
 	staticFile("assets/css/common.css"),
