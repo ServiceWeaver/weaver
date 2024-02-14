@@ -54,7 +54,7 @@ function cmd_vet() {
 
 function cmd_lint() {
   if ! exists staticcheck; then
-    printf "staticcheck not found; install via\ngo install honnef.co/go/tools/cmd/staticcheck@v0.4.3\n" >&2
+    printf "staticcheck not found; install via\ngo install honnef.co/go/tools/cmd/staticcheck@v0.4.6\n" >&2
     exit 1
   fi
 

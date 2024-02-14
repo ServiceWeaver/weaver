@@ -210,6 +210,21 @@ func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.
 	return <-errs
 }
 
+var (
+	// Equivalence checks with the struct in internal/weaver/types.go.
+	_ = WeaverInfo(weaver.WeaverInfo{})
+	_ = weaver.WeaverInfo(WeaverInfo{})
+)
+
+// WeaverInfo holds runtime information about a deployed application.
+type WeaverInfo struct {
+	// Unique identifier for the application deployment.
+	DeploymentID string
+
+	// TODO(spetrovic): Add other runtime fields here (e.g., application start
+	// time, name of the deployer).
+}
+
 // Implements[T] is a type that is be embedded inside a component
 // implementation struct to indicate that the struct implements a component of
 // type T. For example, consider a Cache component.
@@ -233,6 +248,8 @@ func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.
 type Implements[T any] struct {
 	// Component logger.
 	logger *slog.Logger
+
+	weaverInfo *weaver.WeaverInfo
 
 	// Given a component implementation type, there is currently no nice way,
 	// using reflection, to get the corresponding component interface type [1].
@@ -266,6 +283,15 @@ func (i Implements[T]) Logger(ctx context.Context) *slog.Logger {
 
 func (i *Implements[T]) setLogger(logger *slog.Logger) {
 	i.logger = logger
+}
+
+// Weaver returns runtime information about the deployed application.
+func (i Implements[T]) Weaver() WeaverInfo {
+	return WeaverInfo(*i.weaverInfo)
+}
+
+func (i *Implements[T]) setWeaverInfo(info *weaver.WeaverInfo) {
+	i.weaverInfo = info
 }
 
 // implements is a method that can only be implemented inside the weaver

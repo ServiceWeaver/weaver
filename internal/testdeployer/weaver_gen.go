@@ -69,17 +69,37 @@ func init() {
 		},
 		RefData: "",
 	})
+	codegen.Register(codegen.Registration{
+		Name:  "github.com/ServiceWeaver/weaver/internal/testdeployer/d",
+		Iface: reflect.TypeOf((*d)(nil)).Elem(),
+		Impl:  reflect.TypeOf(dimpl{}),
+		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
+			return d_local_stub{impl: impl.(d), tracer: tracer, dMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/testdeployer/d", Method: "D", Remote: false})}
+		},
+		ClientStubFn: func(stub codegen.Stub, caller string) any {
+			return d_client_stub{stub: stub, dMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/internal/testdeployer/d", Method: "D", Remote: true})}
+		},
+		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
+			return d_server_stub{impl: impl.(d), addLoad: addLoad}
+		},
+		ReflectStubFn: func(caller func(string, context.Context, []any, []any) error) any {
+			return d_reflect_stub{caller: caller}
+		},
+		RefData: "",
+	})
 }
 
 // weaver.InstanceOf checks.
 var _ weaver.InstanceOf[a] = (*aimpl)(nil)
 var _ weaver.InstanceOf[b] = (*bimpl)(nil)
 var _ weaver.InstanceOf[c] = (*cimpl)(nil)
+var _ weaver.InstanceOf[d] = (*dimpl)(nil)
 
 // weaver.Router checks.
 var _ weaver.Unrouted = (*aimpl)(nil)
 var _ weaver.Unrouted = (*bimpl)(nil)
 var _ weaver.Unrouted = (*cimpl)(nil)
+var _ weaver.Unrouted = (*dimpl)(nil)
 
 // Local stub implementations.
 
@@ -168,6 +188,35 @@ func (s c_local_stub) C(ctx context.Context, a0 int) (r0 int, err error) {
 	}
 
 	return s.impl.C(ctx, a0)
+}
+
+type d_local_stub struct {
+	impl     d
+	tracer   trace.Tracer
+	dMetrics *codegen.MethodMetrics
+}
+
+// Check that d_local_stub implements the d interface.
+var _ d = (*d_local_stub)(nil)
+
+func (s d_local_stub) D(ctx context.Context) (r0 string, err error) {
+	// Update metrics.
+	begin := s.dMetrics.Begin()
+	defer func() { s.dMetrics.End(begin, err != nil, 0, 0) }()
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.tracer.Start(ctx, "testdeployer.d.D", trace.WithSpanKind(trace.SpanKindInternal))
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+			}
+			span.End()
+		}()
+	}
+
+	return s.impl.D(ctx)
 }
 
 // Client stub implementations.
@@ -364,6 +413,61 @@ func (s c_client_stub) C(ctx context.Context, a0 int) (r0 int, err error) {
 	return
 }
 
+type d_client_stub struct {
+	stub     codegen.Stub
+	dMetrics *codegen.MethodMetrics
+}
+
+// Check that d_client_stub implements the d interface.
+var _ d = (*d_client_stub)(nil)
+
+func (s d_client_stub) D(ctx context.Context) (r0 string, err error) {
+	// Update metrics.
+	var requestBytes, replyBytes int
+	begin := s.dMetrics.Begin()
+	defer func() { s.dMetrics.End(begin, err != nil, requestBytes, replyBytes) }()
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		// Create a child span for this method.
+		ctx, span = s.stub.Tracer().Start(ctx, "testdeployer.d.D", trace.WithSpanKind(trace.SpanKindClient))
+	}
+
+	defer func() {
+		// Catch and return any panics detected during encoding/decoding/rpc.
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+			if err != nil {
+				err = errors.Join(weaver.RemoteCallError, err)
+			}
+		}
+
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		}
+		span.End()
+
+	}()
+
+	var shardKey uint64
+
+	// Call the remote method.
+	var results []byte
+	results, err = s.stub.Run(ctx, 0, nil, shardKey)
+	replyBytes = len(results)
+	if err != nil {
+		err = errors.Join(weaver.RemoteCallError, err)
+		return
+	}
+
+	// Decode the results.
+	dec := codegen.NewDecoder(results)
+	r0 = dec.String()
+	err = dec.Error()
+	return
+}
+
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
@@ -518,6 +622,44 @@ func (s c_server_stub) c(ctx context.Context, args []byte) (res []byte, err erro
 	return enc.Data(), nil
 }
 
+type d_server_stub struct {
+	impl    d
+	addLoad func(key uint64, load float64)
+}
+
+// Check that d_server_stub implements the codegen.Server interface.
+var _ codegen.Server = (*d_server_stub)(nil)
+
+// GetStubFn implements the codegen.Server interface.
+func (s d_server_stub) GetStubFn(method string) func(ctx context.Context, args []byte) ([]byte, error) {
+	switch method {
+	case "D":
+		return s.d
+	default:
+		return nil
+	}
+}
+
+func (s d_server_stub) d(ctx context.Context, args []byte) (res []byte, err error) {
+	// Catch and return any panics detected during encoding/decoding/rpc.
+	defer func() {
+		if err == nil {
+			err = codegen.CatchPanics(recover())
+		}
+	}()
+
+	// TODO(rgrandl): The deferred function above will recover from panics in the
+	// user code: fix this.
+	// Call the local method.
+	r0, appErr := s.impl.D(ctx)
+
+	// Encode the results.
+	enc := codegen.NewEncoder()
+	enc.String(r0)
+	enc.Error(appErr)
+	return enc.Data(), nil
+}
+
 // Reflect stub implementations.
 
 type a_reflect_stub struct {
@@ -553,5 +695,17 @@ var _ c = (*c_reflect_stub)(nil)
 
 func (s c_reflect_stub) C(ctx context.Context, a0 int) (r0 int, err error) {
 	err = s.caller("C", ctx, []any{a0}, []any{&r0})
+	return
+}
+
+type d_reflect_stub struct {
+	caller func(string, context.Context, []any, []any) error
+}
+
+// Check that d_reflect_stub implements the d interface.
+var _ d = (*d_reflect_stub)(nil)
+
+func (s d_reflect_stub) D(ctx context.Context) (r0 string, err error) {
+	err = s.caller("D", ctx, []any{}, []any{&r0})
 	return
 }

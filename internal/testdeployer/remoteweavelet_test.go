@@ -48,6 +48,7 @@ var (
 	componenta = "github.com/ServiceWeaver/weaver/internal/testdeployer/a"
 	componentb = "github.com/ServiceWeaver/weaver/internal/testdeployer/b"
 	componentc = "github.com/ServiceWeaver/weaver/internal/testdeployer/c"
+	componentd = "github.com/ServiceWeaver/weaver/internal/testdeployer/d"
 	colocated  = map[string][]string{"1": {componenta, componentb, componentc}}
 )
 
@@ -125,9 +126,10 @@ func spawn(ctx context.Context, info *protos.WeaveletArgs, handler envelope.Enve
 // deployer is a simple testing deployer that spawns all weavelets in the
 // current process.
 type deployer struct {
-	t         *testing.T           // underlying unit test
-	ctx       context.Context      // context used to spawn weavelets
-	cancel    context.CancelFunc   // shuts down the deployer and all weavelets
+	t         *testing.T         // underlying unit test
+	ctx       context.Context    // context used to spawn weavelets
+	cancel    context.CancelFunc // shuts down the deployer and all weavelets
+	info      *protos.WeaveletArgs
 	logger    *logging.TestLogger  // logger
 	threads   *errgroup.Group      // background threads
 	placement map[string][]string  // weavelet -> components
@@ -194,6 +196,7 @@ func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]st
 	threads, ctx := errgroup.WithContext(ctx)
 	d := &deployer{
 		t:         t,
+		info:      protomsg.Clone(info),
 		ctx:       ctx,
 		cancel:    cancel,
 		logger:    logging.NewTestLogger(t, testing.Verbose()),
@@ -209,7 +212,7 @@ func deployWithInfo(t *testing.T, ctx context.Context, placement map[string][]st
 	// Spawn the weavelets.
 	tmpDir := t.TempDir()
 	for name := range placement {
-		info := protomsg.Clone(info)
+		info := d.info
 		info.Id = uuid.New().String()
 		weavelet, err := spawn(ctx, info, d, logger, tmpDir)
 		if err != nil {
@@ -324,20 +327,34 @@ func (d *deployer) VerifyServerCertificate(context.Context, *protos.VerifyServer
 }
 
 // testComponents tests that the components spawned by d are working properly.
-func testComponents(d *deployer) {
-	d.t.Helper()
-	const want = 42
-	for _, name := range d.placedAt[componenta] {
-		x, err := d.weavelets[name].wlet.GetIntf(reflection.Type[a]())
+func testComponents(dep *deployer) {
+	dep.t.Helper()
+	for _, name := range dep.placedAt[componenta] {
+		x, err := dep.weavelets[name].wlet.GetIntf(reflection.Type[a]())
 		if err != nil {
-			d.t.Fatal(err)
+			dep.t.Fatal(err)
 		}
-		got, err := x.(a).A(d.ctx, want)
+		const want = 42
+		got, err := x.(a).A(dep.ctx, want)
 		if err != nil {
-			d.t.Fatal(err)
+			dep.t.Fatal(err)
 		}
 		if got != want {
-			d.t.Fatalf("A(%d): got %d, want %d", want, got, want)
+			dep.t.Fatalf("A(%d): got %d, want %d", want, got, want)
+		}
+	}
+	for _, name := range dep.placedAt[componentd] {
+		x, err := dep.weavelets[name].wlet.GetIntf(reflection.Type[d]())
+		if err != nil {
+			dep.t.Fatal(err)
+		}
+		got, err := x.(d).D(dep.ctx)
+		if err != nil {
+			dep.t.Fatal(err)
+		}
+		want := dep.info.DeploymentId
+		if got != want {
+			dep.t.Fatalf("D(): got %s, want %s", got, want)
 		}
 	}
 }
@@ -799,7 +816,7 @@ func TestMetrics(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got != want {
-			t.Fatalf("A(%d): got %d, want %d", want, got, want)
+			t.Fatalf("C(%d): got %d, want %d", want, got, want)
 		}
 	}
 

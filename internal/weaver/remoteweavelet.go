@@ -61,17 +61,18 @@ type RemoteWeaveletOptions struct {
 //
 // RemoteWeavelet must implement the weaver.controller component interface.
 type RemoteWeavelet struct {
-	ctx       context.Context         // shuts down the weavelet when canceled
-	servers   *errgroup.Group         // background servers
-	opts      RemoteWeaveletOptions   // options
-	args      *protos.WeaveletArgs    // info from envelope
-	dialAddr  string                  // Address dialed by other components
-	id        string                  // unique id for this weavelet
-	deployer  control.DeployerControl // component to control deployer
-	logDst    *remoteLogger           // for writing log entries
-	syslogger *slog.Logger            // system logger
-	tracer    trace.Tracer            // tracer used by all components
-	metrics   metrics.Exporter        // helper for sending metrics to envelope
+	ctx        context.Context         // shuts down the weavelet when canceled
+	servers    *errgroup.Group         // background servers
+	opts       RemoteWeaveletOptions   // options
+	args       *protos.WeaveletArgs    // info from envelope
+	dialAddr   string                  // Address dialed by other components
+	id         string                  // unique id for this weavelet
+	weaverInfo *WeaverInfo             // application runtime information
+	deployer   control.DeployerControl // component to control deployer
+	logDst     *remoteLogger           // for writing log entries
+	syslogger  *slog.Logger            // system logger
+	tracer     trace.Tracer            // tracer used by all components
+	metrics    metrics.Exporter        // helper for sending metrics to envelope
 
 	// state to synchronize with envelope initiated initialization handshake.
 	initMu     sync.Mutex
@@ -179,6 +180,7 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		opts:             opts,
 		args:             args,
 		dialAddr:         dialAddr,
+		weaverInfo:       &WeaverInfo{DeploymentID: args.DeploymentId},
 		logDst:           newRemoteLogger(os.Stderr),
 		initDone:         make(chan struct{}),
 		deployerReady:    make(chan struct{}),
@@ -453,6 +455,11 @@ func (w *RemoteWeavelet) createComponent(ctx context.Context, reg *codegen.Regis
 
 	// Set logger.
 	if err := SetLogger(obj, w.logger(reg.Name)); err != nil {
+		return nil, err
+	}
+
+	// Set application runtime information.
+	if err := SetWeaverInfo(obj, w.weaverInfo); err != nil {
 		return nil, err
 	}
 
