@@ -30,6 +30,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -286,6 +287,15 @@ func (e *executor) reset(workload Workload, fakes map[reflect.Type]any, ops []*o
 	e.nextTraceID = 1
 	e.nextSpanID = 1
 
+	// Pick a deterministic deployment ID.
+	depID, err := newUUID(e.rand)
+	if err != nil {
+		return err
+	}
+	weaverInfo := &weaver.WeaverInfo{
+		DeploymentID: depID.String(),
+	}
+
 	// Fill ref fields inside the workload struct.
 	if err := weaver.FillRefs(workload, func(t reflect.Type) (any, error) {
 		return e.getIntf(t, "op", 0)
@@ -323,6 +333,11 @@ func (e *executor) reset(workload Workload, fakes map[reflect.Type]any, ops []*o
 			//
 			// TODO(mwhittaker): Use custom logger.
 			if err := weaver.SetLogger(obj, slog.Default()); err != nil {
+				return err
+			}
+
+			// Set application runtime information.
+			if err := weaver.SetWeaverInfo(obj, weaverInfo); err != nil {
 				return err
 			}
 
@@ -740,4 +755,10 @@ func returnError(component reflect.Type, method string, err error) []reflect.Val
 	}
 	returns[n-1] = reflect.ValueOf(err)
 	return returns
+}
+
+func newUUID(r *rand.Rand) (uuid.UUID, error) {
+	var bytes [16]byte
+	r.Read(bytes[:])
+	return uuid.FromBytes(bytes[:])
 }

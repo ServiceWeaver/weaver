@@ -81,11 +81,11 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/go/bin/staticcheck
-          key: staticcheck-v0.4.3
+          key: staticcheck-v0.4.6
         if: ${{ matrix.command == 'lint' }}
 
       - name: Install linter
-        run: go install honnef.co/go/tools/cmd/staticcheck@v0.4.3
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.4.6
         if: ${{ matrix.command == 'lint' }}
 
       - name: Build the weaver binary

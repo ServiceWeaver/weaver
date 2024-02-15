@@ -40,6 +40,10 @@ type c interface {
 	C(context.Context, int) (int, error)
 }
 
+type d interface {
+	D(context.Context) (string, error)
+}
+
 type aimpl struct {
 	weaver.Implements[a]
 	lis weaver.Listener //lint:ignore U1000 used in remoteweavelet_test.go
@@ -53,6 +57,10 @@ type bimpl struct {
 
 type cimpl struct {
 	weaver.Implements[c]
+}
+
+type dimpl struct {
+	weaver.Implements[d]
 }
 
 func (a *aimpl) A(ctx context.Context, x int) (int, error) {
@@ -71,4 +79,8 @@ func (c *cimpl) C(ctx context.Context, x int) (int, error) {
 	c.Logger(ctx).Debug("C")
 	c_calls.Inc()
 	return x, nil
+}
+
+func (d *dimpl) D(ctx context.Context) (string, error) {
+	return d.Weaver().DeploymentID, nil
 }

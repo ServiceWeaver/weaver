@@ -71,6 +71,7 @@ type SingleWeavelet struct {
 	config       *single.SingleConfig  // "[single]" section of config file
 	deploymentId string                // globally unique deployment id
 	id           string                // globally unique weavelet id
+	weaverInfo   *WeaverInfo           // application's runtime information
 	createdAt    time.Time             // time at which the weavelet was created
 
 	// Logging, tracing, and metrics.
@@ -141,6 +142,7 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 		config:       config,
 		deploymentId: deploymentId,
 		id:           id,
+		weaverInfo:   &WeaverInfo{DeploymentID: id},
 		createdAt:    time.Now(),
 		pp:           logging.NewPrettyPrinter(colors.Enabled()),
 		tracer:       tracer,
@@ -266,6 +268,11 @@ func (w *SingleWeavelet) get(reg *codegen.Registration) (any, error) {
 
 	// Set logger.
 	if err := SetLogger(obj, w.logger(reg.Name)); err != nil {
+		return nil, err
+	}
+
+	// Set application runtime information.
+	if err := SetWeaverInfo(obj, w.weaverInfo); err != nil {
 		return nil, err
 	}
 

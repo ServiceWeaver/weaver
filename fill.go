@@ -27,6 +27,7 @@ import (
 func init() {
 	// See internal/weaver/types.go.
 	weaver.SetLogger = setLogger
+	weaver.SetWeaverInfo = setWeaverInfo
 	weaver.HasRefs = hasRefs
 	weaver.FillRefs = fillRefs
 	weaver.HasListeners = hasListeners
@@ -39,9 +40,19 @@ func init() {
 func setLogger(v any, logger *slog.Logger) error {
 	x, ok := v.(interface{ setLogger(*slog.Logger) })
 	if !ok {
-		return fmt.Errorf("FillLogger: %T does not implement weaver.Implements", v)
+		return fmt.Errorf("setLogger: %T does not implement weaver.Implements", v)
 	}
 	x.setLogger(logger)
+	return nil
+}
+
+// See internal/weaver/types.go.
+func setWeaverInfo(impl any, info *weaver.WeaverInfo) error {
+	x, ok := impl.(interface{ setWeaverInfo(*weaver.WeaverInfo) })
+	if !ok {
+		return fmt.Errorf("setWeaverInfo: %T does not implement weaver.Implements", impl)
+	}
+	x.setWeaverInfo(info)
 	return nil
 }
 

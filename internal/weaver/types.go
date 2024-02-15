@@ -28,6 +28,9 @@ var (
 	// should be a pointer to the implementation struct.
 	SetLogger func(impl any, logger *slog.Logger) error
 
+	// SetWeaverInfo sets the application's runtime information.
+	SetWeaverInfo func(impl any, info *WeaverInfo) error
+
 	// HasRefs returns whether the provided component implementation has
 	// weaver.Refs fields.
 	HasRefs func(impl any) bool
@@ -57,3 +60,9 @@ var (
 	// implementation, or returns nil if there is no config.
 	GetConfig func(impl any) any
 )
+
+// Copy of the same struct in the main weaver package.
+type WeaverInfo struct {
+	// Unique identifier for the application deployment.
+	DeploymentID string
+}
