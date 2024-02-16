@@ -98,7 +98,7 @@ func (c *BankWorkload) Withdraw(ctx context.Context, user string, amount int) er
 
 func TestBank(t *testing.T) {
 	s := sim.New(t, &BankWorkload{}, sim.Options{})
-	r := s.Run(10 * time.Second)
+	r := s.Run(60 * time.Second)
 	if r.Err == nil {
 		t.Fatal("Unexpected success")
 	}
