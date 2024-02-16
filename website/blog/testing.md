@@ -1,8 +1,22 @@
 # Lower Test Toil With Better Local Testing
 
-TODO(mwhittaker): Write an intro paragraph. Describe, briefly, the three kinds
-of testing we'll look at, and explain how they increase in complexity. Also
-maybe give a quick refresher on Service Weaver and components?
+[Service Weaver][tutorial] is a programming framework that makes it easy to
+write, test, and deploy distributed applications. In [previous blog
+posts][blog], we discussed how to write and deploy Service Weaver applications.
+In this blog post, we'll focus on testing. Specifically, we'll explore
+
+- how Service Weaver lets you **unit test** system components using regular Go
+  unit tests;
+- how Service Weaver makes it significantly easier to write **integration
+  tests** that would otherwise be slow and brittle; and
+- how Service Weaver implements an advanced form of **randomized testing**
+  called deterministic simulation that can find rare bugs that only emerge in
+  pathological cases.
+
+These three types of testing&mdash;unit testing, integration testing, and
+randomized testing&mdash;all fall on a spectrum trading off test complexity and
+test coverage. All three types of tests are valuable; they complement one
+another.
 
 ## 1. Unit Testing
 
@@ -54,8 +68,16 @@ func TestAdd(t *testing.T) {
 
 In the code above, `weavertest.Local` is a unit test runner that runs all
 components locally. The call to `runner.Test` executes the provided unit
-test, instantiating all the necessary components (i.e. `Adder`). You can run the
-unit test above by running `go test`.
+test, instantiating all the necessary components (i.e. `Adder`).
+
+Because unit tests written with the `weavertest` package are standard Go unit
+tests, you can run them (as you would any unit test) with `go test`:
+
+```console
+$ go test
+PASS
+ok      github.com/ServiceWeaver/adder 0.001s
+```
 
 ## 2. Integration Testing
 
@@ -65,13 +87,10 @@ Unfortunately, integration testing microservice based applications can be
 toilsome.
 
 To integration test an application with `n` microservices, a testing framework
-needs to build, run, and interconnect all `n` microservice binaries. To ensure
-hermetic testing and avoid unintended interactions between different tests in
-the same test suite, the testing framework may also have to redeploy the `n`
-binaries before every single test. Plus, the integration tests themselves then
-have to be written in yet another binary that interacts with the system over the
-network.  Overall, integration testing is historically slow, brittle, and
-tedious.
+needs to build, run, and interconnect all `n` microservice binaries. Plus, the
+integration tests themselves have to be written in yet another binary that
+interacts with the system over the network. Overall, integration testing is
+historically slow, brittle, and tedious.
 
 Consider [Online Boutique][onlineboutique], as an example. Online Boutique is an
 example microservice based application that implements [a simple e-commerce
@@ -174,8 +193,68 @@ In addition to using the `weavertest.Local` runner, which runs all components
 locally in a single process, we can also use
 
 - the `weavertest.RPC` runner, which forces components to interact via RPC, and
-- the `weavertest.Multi` runner, which runs every component is a separate
+- the `weavertest.Multi` runner, which runs every component in a separate
   OS process.
+
+Some components may be too slow or cumbersome to use in a test. In these cases,
+Service Weaver allows you to replace the component with a [**fake**][fakes]. For
+example, we can write a fake implementation of the product catalog service that
+uses a fixed in-memory set of products:
+
+```go
+type Product = productcatalogservice.Product
+
+type fakeCatalog struct {
+    products []Product
+}
+
+func (f *fakeCatalog) ListProducts(context.Context) ([]Product, error) {
+    return f.products, nil
+}
+
+func (f *fakeCatalog) GetProduct(ctx context.Context, id string) (Product, error) {
+    for _, p := range f.products {
+        if p.ID == id {
+            return p, nil
+        }
+    }
+    return Product{}, productcatalogservice.NotFoundError{}
+}
+
+func (f *fakeCatalog) SearchProducts(context.Context, string) ([]Product, error) {
+	panic("unimplemented")
+}
+```
+
+Then, we can update our integration test to use a `fakeCatalog` instead of the
+real product catalog service component.
+
+```go
+func TestPurchaseWithFakeCatalog(t *testing.T) {
+    catalog := &fakeCatalog{
+        products: []Product{
+            {
+                ID:          "0",
+                Name:        "Noogler Hat",
+                Description: "A colorful hat given to new Googlers.",
+                PriceUSD:    money.T{CurrencyCode: "USD", Units: 42},
+            },
+        },
+    }
+    fake := weavertest.Fake[productcatalogservice.ProductCatalogService](catalog)
+    runner := weavertest.Local
+    runner.Fakes = append(runner.Fakes, fake)
+    runner.Test(t, func(
+        t *testing.T,
+        catalog productcatalogservice.ProductCatalogService,
+        cart cartservice.CartService,
+        checkout checkoutservice.CheckoutService,
+    ) {
+        // Testing code goes here.
+        ...
+    })
+}
+```
 
 ## 3. Randomized Testing
 
@@ -216,11 +295,22 @@ property-based testing is especially valuable, as many failure inducing corner
 cases are extremely pathological and hard to think of. Even well studied and
 heavily scrutinized protocols [tend to have subtle bugs][protocol_bugs].
 
+Service Weaver implements a type of randomized testing called [**deterministic
+simulation**][deterministic_simulation], popularized by
+[FoundationDB][foundationdb]. Deterministic simulation has the ability to (1)
+find rare, buggy executions of a system and (2) deterministically replay these
+executions. This allows you to step through a buggy execution, understand the
+bug, write a bug fix, and verify that the fix eliminates the bug.
+
+To deterministically simulate a system *without* Service Weaver, you'll have to
+implement a simulator from scratch. There aren't any existing tools that make it
+easy to perform deterministic simulation. Service Weaver, on the other hand,
+ships with a full deterministic simulation implementation.
+
 ### Deterministic Simulation
 
-Service Weaver implements a type of randomized testing called [**deterministic
-simulation**][deterministic_simulation]. Deterministic simulation requires three
-things: a system to test, a workload, and a set of invariants.
+Deterministic simulation requires three things: a system to test, a workload,
+and a set of invariants.
 
 1. The **system to test** is self-explanatory. With Service Weaver, these are
    Service Weaver applications. As an example, consider a banking application
@@ -237,16 +327,15 @@ things: a system to test, a workload, and a set of invariants.
    define the invariant that a user should never have a negative bank account
    balance.
 
-Finally, given a system to test, a workload, and a set of invariants, a
-deterministic simulator will run millions of random operations&mdash;drawn from
-the workload&mdash;against the system, checking that the invariants always hold.
-While the simulator runs operations, it will also perform all sorts of nefarious
+Given a system to test, a workload, and a set of invariants, a deterministic
+simulator runs millions of random operations&mdash;drawn from the
+workload&mdash;against the system, checking that the invariants always hold.
+While the simulator runs operations, it also performs all sorts of nefarious
 actions like injecting network delays, re-ordering messages, and artificially
 failing services.
 
-While these executions might appear both chaotic and random, in actuality, a
-deterministic simulator is very careful to execute with precision and
-determinism. When a simulator discovers an invariant violation, it can report
+While these executions are randomized and have injected failures, they are also
+deterministic. When a simulator discovers an invariant violation, it can report
 the exact sequence of events that led to the violation and can replay the
 sequence on command. This allows you to debug what went wrong in your system,
 fix it, and then replay the failure inducing execution to ensure your fix is
@@ -260,9 +349,8 @@ ignoring the unrelated events that just happened to be thrown in the mix.
 ### Banking Example
 
 Now, let's look at how to, concretely, perform deterministic simulation with
-Service Weaver. We implement and test the banking example presented in the
-previous section. We begin with a `Store` component that persists a mapping from
-strings to integers:
+Service Weaver. We implement and test the banking example presented above. We
+begin with a `Store` component that persists a mapping from strings to integers:
 
 ```go
 // A Store is a persistent map from strings to integers, like a map[string]int.
@@ -476,10 +564,11 @@ exit status 1
 FAIL    github.com/ServiceWeaver/weaver/sim/internal/bank       1.015s
 ```
 
-The simulator writes the failing execution to a file,
-`testdata/sim/TestBank/62af1e314c4de114.json`, so that it can be replayed during
-future invocations of `go test`. The simulator also prints out a [Mermaid
-diagram][mermaid] of the failing execution:
+The simulator writes the failing execution to a file
+(`testdata/sim/TestBank/62af1e314c4de114.json` in this example). The next time
+you run `go test`, the simulator will automatically parse and replay the failing
+execution. The simulator also prints out a [Mermaid diagram][mermaid] of the
+failing execution (which you can view using [mermaid.live](https://mermaid.live/)):
 
 <figure>
   <img src="testing/bank_failure.svg" alt="A diagram showing an execution of a banking application that resulted in a negative bank account balance.">
@@ -497,9 +586,11 @@ This execution highlights a bug in our banking app. The `Withdraw` method checks
 a user's balance and *then* performs the withdrawal if safe, but these two steps
 need to be performed transactionally.
 
-[components]: https://serviceweaver.dev/docs.html#testing
+[blog]: ../blog/
+[components]: ../docs.html#components
 [deterministic_simulation]: https://asatarin.github.io/testing-distributed-systems/#deterministic-simulation
-[deterministic_simulation]: https://asatarin.github.io/testing-distributed-systems/#deterministic-simulation
+[fakes]: https://www.martinfowler.com/articles/mocksArentStubs.html
+[foundationdb]: https://www.foundationdb.org/files/fdb-paper.pdf
 [fuzzing]: https://go.dev/doc/tutorial/fuzz
 [go_testing]: https://go.dev/doc/tutorial/add-a-test
 [involutive]: https://en.wikipedia.org/wiki/Involution_(mathematics)
@@ -509,4 +600,5 @@ need to be performed transactionally.
 [onlineboutique_local]: https://github.com/GoogleCloudPlatform/microservices-demo/blob/main/docs/development-guide.md#option-2---local-cluster
 [protocol_bugs]: https://github.com/dranov/protocol-bugs-list
 [sw_onlineboutique]: https://github.com/ServiceWeaver/onlineboutique
-[unit_testing]: https://serviceweaver.dev/docs.html#testing
+[tutorial]: ../docs.html#step-by-step-tutorial
+[unit_testing]: ../docs.html#testing
