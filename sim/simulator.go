@@ -12,13 +12,147 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package sim...
+// Package sim implements deterministic simulation.
 //
-// TODO(mwhittaker): Write comprehensive package documentation with examples.
-// We also probably want to put some of this documentation on the website, and
-// we might also want to write a blog.
+// [Deterministic simulation][1] is a type of randomized testing in which
+// millions of random operations are run against a system (with randomly
+// injected failures) in an attempt to find bugs. See
+// serviceweaver.dev/blog/testing.html for an overview of determistic
+// simulation and its implementation in the sim package.
+//
+// # Generators
+//
+// A key component of deterministic simulation is the ability to
+// deterministically generate "random" values. We accomplish this with the
+// [Generator] interface:
+//
+//	type Generator[T any] interface {
+//	    Generate(*rand.Rand) T
+//	}
+//
+// A Generator[T] generates random values of type T. For example, the [Int]
+// function returns a Generator[int] that generates random integers.
+//
+// While random, a Generator is also deterministic. Given a random number
+// generator with a particular seed, a Generator will always produce the same
+// value:
+//
+//	// x and y are always equal.
+//	var gen Gen[int] = ...
+//	x := gen.Generate(rand.New(rand.NewSource(42)))
+//	y := gen.Generate(rand.New(rand.NewSource(42)))
+//
+// The sim package includes generators that generate booleans, ints,
+// floats, runes, strings, slices, and maps (e.g., [Flip], [Int], [Float64],
+// [Rune], [String], [Range], [Map]). It also contains generator combinators
+// that combine existing generators into new generators (e.g., [OneOf],
+// [Weight], [Filter]). You can also implement your own custom generators by
+// implementing the Generator interface.
+//
+// # Workloads
+//
+// Deterministic simulation verifies a system by running random operations
+// against the system, checking for invariant violations along the way. A
+// workload defines the set of operations to run and the set of invariants to
+// check.
+//
+// Concretely, a workload is a struct that implements the [Workload] interface.
+// When a simulator executes a workload, it will randomly call the exported
+// methods of the struct with randomly generated values. We call these methods
+// *operations*. If an operation ever encounters an invariant violation, it
+// returns a non-nil error and the simulation is aborted.
+//
+// Consider the following workload as an example.
+//
+//	func even(x int) bool {
+//		return x%2 == 0
+//	}
+//
+//	type EvenWorkload struct {
+//		x int
+//	}
+//
+//	func (e *EvenWorkload) Add(_ context.Context, y int) error {
+//		e.x = e.x + y
+//		if !even(e.x) {
+//			return fmt.Errorf("%d is not even", e.x)
+//		}
+//		return nil
+//	}
+//
+//	func (e *EvenWorkload) Multiply(_ context.Context, y int) error {
+//		e.x = e.x * y
+//		if !even(e.x) {
+//			return fmt.Errorf("%d is not even", e.x)
+//		}
+//		return nil
+//	}
+//
+// An EvenWorkload has an integer x as state and defines two operations: Add
+// and Multiply. Add adds a value to x, and Multiply multiplies x. Both
+// operations check the invariant that x is even. Of course, this invariant
+// does not hold if we add arbitrary values to x.
+//
+// However, we control the arguments on which which operations are called.
+// Specifically, we add an Init method that registers a set of generators. The
+// simulator will call the workload's operations on values produced by these
+// generators.
+//
+//	func (e *EvenWorkload) Init(r sim.Registrar) error {
+//		r.RegisterGenerators("Add", sim.Filter(sim.Int(), even))
+//		r.RegisterGenerators("Multiply", sim.Int())
+//		return nil
+//	}
+//
+// Note that we only call the Add operation on even integers. Finally, we can
+// construct a simulator and simulate the EvenWorkload.
+//
+//	func TestEvenWorkload(t *testing.T) {
+//		s := sim.New(t, &EvenWorkload{}, sim.Options{})
+//		r := s.Run(5 * time.Second)
+//		if r.Err != nil {
+//			t.Fatal(r.Err)
+//		}
+//	}
+//
+// In this trivial example, our workload did not use any Service Weaver
+// components, but most realistic workloads do. A workload can get a reference
+// to a component using weaver.Ref. See serviceweaver.dev/blog/testing.html for
+// a complete example.
+//
+// # Graveyard
+//
+// When the simulator runs a failed execution, it persists the failing inputs
+// to disk. The collection of saved failing inputs is called a *graveyard*, and
+// each individual entry is called a *graveyard entry*. When a simulator is
+// created, the first thing it does is load and re-simulate all graveyard
+// entries.
+//
+// We borrow the design of go's fuzzing library's corpus with only minor
+// changes [2]. When a simulator runs as part of a test named TestFoo, it
+// stores its graveyard entries in testdata/sim/TestFoo. Every graveyard entry
+// is a JSON file. Filenames are derived from the hash of the contents of the
+// graveyard entry. Here's an example testdata directory:
+//
+//	testdata/
+//	└── sim
+//	    ├── TestCancelledSimulation
+//	    │   └── a52f5ec5f94e674d.json
+//	    ├── TestSimulateGraveyardEntries
+//	    │   ├── 2bfe847328319dae.json
+//	    │   └── a52f5ec5f94e674d.json
+//	    └── TestUnsuccessfulSimulation
+//	        ├── 2bfe847328319dae.json
+//	        └── a52f5ec5f94e674d.json
+//
+// As with go's fuzzing library, graveyard entries are never garbage collected.
+// Users are responsible for manually deleting graveyard entries when
+// appropriate.
 //
 // TODO(mwhittaker): Move things to the weavertest package.
+//
+// [1]: https://asatarin.github.io/testing-distributed-systems/#deterministic-simulation
+// [2]: https://go.dev/security/fuzz
 package sim
 
 import (
