@@ -3,25 +3,30 @@
 [Service Weaver][tutorial] is a programming framework that makes it easy to
 write, test, and deploy distributed applications. In [previous blog
 posts][blog], we discussed how to write and deploy Service Weaver applications.
-In this blog post, we'll focus on testing. Specifically, we'll explore
+In this blog post, we'll focus on testing. Specifically, we'll explore unit
+tests, integration tests, and randomized tests.
 
-- how Service Weaver lets you **unit test** system components using regular Go
-  unit tests;
-- how Service Weaver makes it significantly easier to write **integration
-  tests** that would otherwise be slow and brittle; and
-- how Service Weaver implements an advanced form of **randomized testing**
-  called deterministic simulation that can find rare bugs that only emerge in
-  pathological cases.
+1. Service Weaver lets you **unit test** components of your system using
+   idiomatic Go unit tests.
+2. Service Weaver makes it significantly easier to write **integration tests**
+   that would otherwise be slow and brittle. Later in this blog post, we present
+   an example where Service Weaver speeds up an integration test by a factor of
+   10,000, decreasing the test time from 20 minutes to 0.02 seconds.
+3. Service Weaver implements an advanced form of **randomized testing** called
+   deterministic simulation that can find rare bugs that only emerge in
+   pathological cases. Without deterministic simulation, these bugs are
+   incredibly difficult to catch, and often arise in production with
+   catastrophic consequences.
 
 These three types of testing&mdash;unit testing, integration testing, and
 randomized testing&mdash;all fall on a spectrum trading off test complexity and
-test coverage. All three types of tests are valuable; they complement one
-another.
+test coverage. In the remainder of this blog post, we'll take a closer look at
+these three types of tests in the context of Service Weaver.
 
 ## 1. Unit Testing
 
 Service Weaver has a [`weavertest` package][unit_testing] that makes it easy to
-**unit test** [components][components]. For example, consider the following
+write both unit tests and integration tests. For example, consider the following
 `Adder` component:
 
 ```go
@@ -38,8 +43,8 @@ func (*adder) Add(_ context.Context, x, y int) (int, error) {
 }
 ```
 
-We can use the `weavertest` package to unit test the `Adder` component using
-[idiomatic Go unit tests][go_testing]:
+To unit test the `Adder` component using [idiomatic Go unit tests][go_testing],
+we can use the `weavertest` package to write a test as follows:
 
 ```go
 package main
@@ -53,17 +58,18 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-     runner := weavertest.Local
-     runner.Test(t, func(t *testing.T, adder Adder) {
-         got, err := adder.Add(context.Background(), 1, 2)
-         if err != nil {
-             t.Fatal(err)
-         }
-         if want := 3; got != want {
-             t.Fatalf("got %q, want %q", got, want)
-         }
-     })
-}
+    // Run the Adder component locally, and test that 1 + 2 = 3.
+    runner := weavertest.Local
+    runner.Test(t, func(t *testing.T, adder Adder) {
+        got, err := adder.Add(context.Background(), 1, 2)
+        if err != nil {
+            t.Fatal(err)
+        }
+        if want := 3; got != want {
+            t.Fatalf("got %q, want %q", got, want)
+        }
+    })
+
 ```
 
 In the code above, `weavertest.Local` is a unit test runner that runs all
@@ -98,9 +104,11 @@ app][onlineboutique_demo] where users browse items, add items to their cart,
 and check out. Online Boutique consists of eleven microservices written in five
 different programming languages. [Running the application
 locally][onlineboutique_local] requires 4 CPUs, 4.0 GiB of memory, 32 GB of disk
-space, a locally running Kubernetes cluster, can take upwards of 20 minutes, and
-is configured via over 8000 lines of YAML and Dockerfiles. And this is just to
-*run* the application. Integration testing it would require even more effort.
+space, a locally running Kubernetes cluster, and over 8000 lines of YAML and
+Dockerfiles. The [Online Boutique documentation][onlineboutique_local] explains
+that the application can take upwards of 20 minutes to start running the first
+time. And this is just to *run* the application. Integration testing it would
+require even more effort.
 
 In contrast to this, we [ported Online Boutique to Service
 Weaver][sw_onlineboutique] and are able to integration test the application with
@@ -222,7 +230,7 @@ func (f *fakeCatalog) GetProduct(ctx context.Context, id string) (Product, error
 }
 
 func (f *fakeCatalog) SearchProducts(context.Context, string) ([]Product, error) {
-	panic("unimplemented")
+    panic("unimplemented")
 }
 ```
 
@@ -258,6 +266,8 @@ func TestPurchaseWithFakeCatalog(t *testing.T) {
 
 ## 3. Randomized Testing
 
+### Why Randomized Testing Is Important
+
 When you write a unit test or integration test, you write some code and check
 that it executes in the way you expect. For example, to test a `Reversed([]byte)
 []byte` function, you might check that
@@ -287,13 +297,16 @@ func FuzzReversedIsInvolutive(f *testing.F) {
 }
 ```
 
-Service Weaver allows you to apply randomized property-based testing to entire
-applications by checking that properties of an application always hold, even
-when we run random operations on random inputs in the face of random failures
-and random interleavings. For distributed systems, this kind of randomized
-property-based testing is especially valuable, as many failure inducing corner
-cases are extremely pathological and hard to think of. Even well studied and
-heavily scrutinized protocols [tend to have subtle bugs][protocol_bugs].
+Service Weaver takes fuzz testing to the next level and allows you to apply
+randomized property-based testing to *entire applications* by checking that
+properties of an application always hold, even when we run random operations on
+random inputs in the face of random failures and random interleavings. For
+distributed systems, this kind of randomized property-based testing is
+especially valuable, as many failure inducing corner cases are extremely
+pathological and hard to think of. Even well studied and heavily scrutinized
+protocols [tend to have subtle bugs][protocol_bugs].
+
+### Deterministic Simulation
 
 Service Weaver implements a type of randomized testing called [**deterministic
 simulation**][deterministic_simulation], popularized by
@@ -307,7 +320,7 @@ implement a simulator from scratch. There aren't any existing tools that make it
 easy to perform deterministic simulation. Service Weaver, on the other hand,
 ships with a full deterministic simulation implementation.
 
-### Deterministic Simulation
+### Details
 
 Deterministic simulation requires three things: a system to test, a workload,
 and a set of invariants.
@@ -388,7 +401,7 @@ type Bank interface {
 }
 ```
 
-We implement the `Bank` using the `Store` component as follows:
+We implement the `Bank` component using the `Store` component as follows:
 
 ```go
 type bank struct {
@@ -422,7 +435,7 @@ Note that the `Withdraw` method is careful not to withdraw more money than a
 user has in their account. A user should never have a negative bank account
 balance.
 
-Next, we test our banking app using Service Weaver's [`sim` package](TODO). We
+Next, we test our banking app using Service Weaver's [`sim` package][sim]. We
 begin by writing a fake implementation of the `Store` component to simplify
 testing:
 
@@ -448,7 +461,7 @@ func (f *fakestore) Add(_ context.Context, key string, delta int) (int, error) {
 
 Next, we define a workload consisting of random deposits and withdrawals. With
 the `sim` package, a workload is implemented as a struct that implements the
-[`sim.Workload`](TODO) interface.
+[`sim.Workload`][Workload] interface.
 
 ```go
 // BankWorkload is a workload that performs random deposits and withdrawals.
@@ -584,8 +597,11 @@ $63 and leaving Alice with a negative balance of -$39, an invariant violation!
 
 This execution highlights a bug in our banking app. The `Withdraw` method checks
 a user's balance and *then* performs the withdrawal if safe, but these two steps
-need to be performed transactionally.
+need to be performed transactionally. This type of bug&mdash;the type that only arises on
+a very specific interleaving of a very specific set of requests&mdash;is hard to
+find and diagnose without deterministic simulation.
 
+[Workload]: https://pkg.go.dev/github.com/ServiceWeaver/weaver@v0.23.0-beta/sim#Workload
 [blog]: ../blog/
 [components]: ../docs.html#components
 [deterministic_simulation]: https://asatarin.github.io/testing-distributed-systems/#deterministic-simulation
@@ -599,6 +615,7 @@ need to be performed transactionally.
 [onlineboutique_demo]: https://cymbal-shops.retail.cymbal.dev/
 [onlineboutique_local]: https://github.com/GoogleCloudPlatform/microservices-demo/blob/main/docs/development-guide.md#option-2---local-cluster
 [protocol_bugs]: https://github.com/dranov/protocol-bugs-list
+[sim]: https://pkg.go.dev/github.com/ServiceWeaver/weaver@v0.23.0-beta/sim
 [sw_onlineboutique]: https://github.com/ServiceWeaver/onlineboutique
 [tutorial]: ../docs.html#step-by-step-tutorial
 [unit_testing]: ../docs.html#testing
