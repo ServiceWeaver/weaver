@@ -102,3 +102,11 @@ func TestStringsArePrintable(t *testing.T) {
 		}
 	}
 }
+
+func TestDeterminism(t *testing.T) {
+	x := Int().Generate(rand.New(rand.NewSource(42)))
+	y := Int().Generate(rand.New(rand.NewSource(42)))
+	if x != y {
+		t.Errorf("%d != %d", x, y)
+	}
+}
