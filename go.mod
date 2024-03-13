@@ -35,7 +35,7 @@ require (
 	golang.org/x/text v0.14.0
 	golang.org/x/tools v0.14.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230717213848-3f92550aa753
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 	gorm.io/driver/postgres v1.5.3
 	gorm.io/gorm v1.25.5
 	modernc.org/sqlite v1.24.0
