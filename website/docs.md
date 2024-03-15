@@ -2834,19 +2834,34 @@ You can configure `weaver gke` using the `[gke]` section of a
 
 ```toml
 [gke]
-project = "my-google-cloud-project"
-account = "my_account@gmail.com"
 regions = ["us-west1", "us-east1"]
 listeners.cat = {public_hostname = "cat.com"}
 listeners.hat = {public_hostname = "hat.gg"}
 ```
 
-| Field | Required? | Description |
-| --- | --- | --- |
-| project | optional | Name of the Google Cloud Project in which to deploy the Service Weaver application. If absent, the currently active project is used (i.e. `gcloud config get-value project`) |
-| account | required | Google Cloud account used to deploy the Service Weaver application. If absent, the currently active account is used (i.e. `gcloud config get-value account`). |
-| regions | optional | Regions in which the Service Weaver application should be deployed. Defaults to `["us-west1"]`. |
-| listeners | optional | The application's listener options, e.g., the listeners' public hostnames. |
+| Field | Required? | Description                                                                                                            |
+| --- |-----------|------------------------------------------------------------------------------------------------------------------------|
+| regions | yes        | Regions in which the Service Weaver application should be deployed. Note that at least one region should be specified. |
+| listeners | optional  | The application's listener options, e.g., the listeners' public hostnames.                                             |
+
+**Note** that by default, your Service Weaver application will be deployed in the
+currently active project using the currently active account; i.e., in the project
+returned by running the `gcloud config get-value project` command, and using the
+account returned by running the `gcloud config get-value account` command.
+
+If you want to deploy in a different project then you should pass the name of the
+new Google Cloud project as a flag when deploying your application:
+
+```console
+$ weaver gke deploy --project=new_project_name weaver.toml
+```
+
+If you want to deploy using a different account then you should pass the name of the
+new Google Cloud Account as a flag when deploying your application:
+
+```console
+$ weaver gke deploy --account=new_account_name weaver.toml
+```
 
 ## Local GKE
 
