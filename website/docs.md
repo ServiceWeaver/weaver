@@ -2839,10 +2839,12 @@ listeners.cat = {public_hostname = "cat.com"}
 listeners.hat = {public_hostname = "hat.gg"}
 ```
 
-| Field | Required? | Description                                                                                                            |
-| --- |-----------|------------------------------------------------------------------------------------------------------------------------|
-| regions | yes        | Regions in which the Service Weaver application should be deployed. Note that at least one region should be specified. |
-| listeners | optional  | The application's listener options, e.g., the listeners' public hostnames.                                             |
+| Field       | Required? | Description                                                                                                            |
+|-------------|-----------|------------------------------------------------------------------------------------------------------------------------|
+| regions     | yes       | Regions in which the Service Weaver application should be deployed. Note that at least one region should be specified. |
+| image       | optional      | Base image used to build the application container image. If not specified, `image = ubuntu:rolling`.              |
+| minreplicas | optional      | Minimum number of running pods for each component. If not specified, `minreplicas = 1`.                            |
+| listeners   | optional  | The application's listener options, e.g., the listeners' public hostnames.                                             |
 
 **Note** that by default, your Service Weaver application will be deployed in the
 currently active project using the currently active account; i.e., in the project
