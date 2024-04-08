@@ -2457,6 +2457,11 @@ internet. By default, all listeners are **private**, i.e., accessible only from
 the cloud project's internal network. In our example, we declare that the
 `hello` listener is public.
 
+**Note**: Per RFC1035 and RFC1123, listener names should respect the following
+pattern: `^(\*\.)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`.
+Listener names must consist of lower case alphanumeric characters or '-', and
+must start and end with an alphanumeric character. No other punctuation is allowed.
+
 All listeners deployed to GKE are configured to be health-checked by GKE
 load-balancers on the `/debug/weaver/healthz` URL path. ServiceWeaver
 automatically registers a health-check handler under this URL path in the
