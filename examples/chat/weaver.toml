@@ -14,4 +14,4 @@ listeners.chat = {address = "localhost:9000"}
 
 [gke]
 regions = ["us-west1", "us-east1"]
-listeners.chat = {public_hostname = "chat.example.com"}
+listeners.chat = {is_public = true, hostname="chat.example.com"}

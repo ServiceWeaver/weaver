@@ -2446,7 +2446,7 @@ binary = "./hello"
 
 [gke]
 regions = ["us-west1"]
-listeners.hello = {public_hostname = "hello.com"}
+listeners.hello = {is_public = true, hostname = "hello.com"}
 ```
 
 The `[serviceweaver]` section of the config file specifies the compiled Service
@@ -2840,8 +2840,8 @@ You can configure `weaver gke` using the `[gke]` section of a
 ```toml
 [gke]
 regions = ["us-west1", "us-east1"]
-listeners.cat = {public_hostname = "cat.com"}
-listeners.hat = {public_hostname = "hat.gg"}
+listeners.cat = {is_public = true, hostname = "cat.com"}
+listeners.hat = {is_public = true, hostname = "hat.gg"}
 ```
 
 | Field       | Required? | Description                                                                                                            |
@@ -2849,7 +2849,7 @@ listeners.hat = {public_hostname = "hat.gg"}
 | regions     | yes       | Regions in which the Service Weaver application should be deployed. Note that at least one region should be specified. |
 | image       | optional      | Base image used to build the application container image. If not specified, `image = ubuntu:rolling`.              |
 | minreplicas | optional      | Minimum number of running pods for each component. If not specified, `minreplicas = 1`.                            |
-| listeners   | optional  | The application's listener options, e.g., the listeners' public hostnames.                                             |
+| listeners   | optional  | The application's listener options, e.g., the listeners' hostnames.                                             |
 
 **Note** that by default, your Service Weaver application will be deployed in the
 currently active project using the currently active account; i.e., in the project
@@ -2905,7 +2905,7 @@ binary = "./hello"
 
 [gke]
 regions = ["us-west1"]
-listeners.hello = {public_hostname = "hello.com"}
+listeners.hello = {is_public = true, hostname = "hello.com"}
 
 $ weaver gke-local deploy weaver.toml
 Deploying the application... Done

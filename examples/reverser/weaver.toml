@@ -10,4 +10,4 @@ listeners.reverser = {address = "localhost:9000"}
 
 [gke]
 regions = ["us-west1"]
-listeners.reverser = {public_hostname = "reverser.example.com"}
+listeners.reverser = {is_public = true, hostname = "reverser.example.com"}

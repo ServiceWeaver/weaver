@@ -10,4 +10,4 @@ listeners.factors = {address = "localhost:9000"}
 
 [gke]
 regions = ["us-west1"]
-listeners.factors = {public_hostname = "factors.example.com"}
+listeners.factors = {is_public = true, hostname = "factors.example.com"}
