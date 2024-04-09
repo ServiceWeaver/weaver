@@ -43,7 +43,7 @@ type Adder interface {
     Add(context.Context, int, int) (int, error)
 }
 
-type adder struct{
+type adder struct {
     weaver.Implements[Adder]
 }
 
