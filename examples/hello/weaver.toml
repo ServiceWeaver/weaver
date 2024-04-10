@@ -9,4 +9,4 @@ listeners.hello = {address = "localhost:12345"}
 
 [gke]
 regions = ["us-west1"]
-listeners.hello = {public_hostname = "hello.example.com"}
+listeners.hello = {is_public = true, hostname = "hello.example.com"}

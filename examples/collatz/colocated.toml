@@ -15,4 +15,4 @@ locations = "./ssh_locations.txt"
 
 [gke]
 regions = ["us-west1"]
-listeners.collatz = {public_hostname = "collatz.example.com"}
+listeners.collatz = {is_public = true, hostname = "collatz.example.com"}
