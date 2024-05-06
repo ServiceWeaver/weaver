@@ -13,8 +13,8 @@
 // limitations under the License.
 
 // EXPECTED
-// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method", Remote: false})
-// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method", Remote: true})
+// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method", Remote: false, Generated: true})
+// codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "foo/foo", Method: "Method", Remote: true, Generated: true})
 // methodMetrics *codegen.MethodMetrics
 // begin := s.methodMetrics.Begin(
 // s.methodMetrics.End(begin

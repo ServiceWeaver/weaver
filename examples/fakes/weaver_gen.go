@@ -19,10 +19,10 @@ func init() {
 		Iface: reflect.TypeOf((*Clock)(nil)).Elem(),
 		Impl:  reflect.TypeOf(clock{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return clock_local_stub{impl: impl.(Clock), tracer: tracer, unixMicroMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/fakes/Clock", Method: "UnixMicro", Remote: false})}
+			return clock_local_stub{impl: impl.(Clock), tracer: tracer, unixMicroMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/fakes/Clock", Method: "UnixMicro", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return clock_client_stub{stub: stub, unixMicroMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/fakes/Clock", Method: "UnixMicro", Remote: true})}
+			return clock_client_stub{stub: stub, unixMicroMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/fakes/Clock", Method: "UnixMicro", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return clock_server_stub{impl: impl.(Clock), addLoad: addLoad}
@@ -131,10 +131,10 @@ func (s clock_client_stub) UnixMicro(ctx context.Context) (r0 int64, err error) 
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
-var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][24]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' (devel) (codegen
-version v0.20.0). The generated code is incompatible with the version of the
+version v0.24.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 

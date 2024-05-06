@@ -20,10 +20,10 @@ func init() {
 		Iface: reflect.TypeOf((*testApp)(nil)).Elem(),
 		Impl:  reflect.TypeOf(impl{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return testApp_local_stub{impl: impl.(testApp), tracer: tracer, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "DivMod", Remote: false}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: false}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: false})}
+			return testApp_local_stub{impl: impl.(testApp), tracer: tracer, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "DivMod", Remote: false, Generated: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: false, Generated: true}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return testApp_client_stub{stub: stub, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "DivMod", Remote: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: true}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: true})}
+			return testApp_client_stub{stub: stub, divModMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "DivMod", Remote: true, Generated: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "Get", Remote: true, Generated: true}), incPointerMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/generate/testApp", Method: "IncPointer", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return testApp_server_stub{impl: impl.(testApp), addLoad: addLoad}
@@ -302,10 +302,10 @@ func (s testApp_client_stub) IncPointer(ctx context.Context, a0 *int) (r0 *int, 
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
-var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][24]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' (devel) (codegen
-version v0.20.0). The generated code is incompatible with the version of the
+version v0.24.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 

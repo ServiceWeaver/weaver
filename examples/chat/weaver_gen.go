@@ -21,10 +21,10 @@ func init() {
 		Iface: reflect.TypeOf((*ImageScaler)(nil)).Elem(),
 		Impl:  reflect.TypeOf(scaler{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return imageScaler_local_stub{impl: impl.(ImageScaler), tracer: tracer, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale", Remote: false})}
+			return imageScaler_local_stub{impl: impl.(ImageScaler), tracer: tracer, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return imageScaler_client_stub{stub: stub, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale", Remote: true})}
+			return imageScaler_client_stub{stub: stub, scaleMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/ImageScaler", Method: "Scale", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return imageScaler_server_stub{impl: impl.(ImageScaler), addLoad: addLoad}
@@ -39,10 +39,10 @@ func init() {
 		Iface: reflect.TypeOf((*LocalCache)(nil)).Elem(),
 		Impl:  reflect.TypeOf(localCache{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return localCache_local_stub{impl: impl.(LocalCache), tracer: tracer, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get", Remote: false}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put", Remote: false})}
+			return localCache_local_stub{impl: impl.(LocalCache), tracer: tracer, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get", Remote: false, Generated: true}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return localCache_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get", Remote: true}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put", Remote: true})}
+			return localCache_client_stub{stub: stub, getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Get", Remote: true, Generated: true}), putMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/LocalCache", Method: "Put", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return localCache_server_stub{impl: impl.(LocalCache), addLoad: addLoad}
@@ -75,10 +75,10 @@ func init() {
 		Impl:    reflect.TypeOf(sqlStore{}),
 		NoRetry: []int{0, 1},
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: false}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: false}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: false}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: false})}
+			return sQLStore_local_stub{impl: impl.(SQLStore), tracer: tracer, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: false, Generated: true}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: false, Generated: true}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: false, Generated: true}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return sQLStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: true}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: true}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: true}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: true})}
+			return sQLStore_client_stub{stub: stub, createPostMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreatePost", Remote: true, Generated: true}), createThreadMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "CreateThread", Remote: true, Generated: true}), getFeedMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetFeed", Remote: true, Generated: true}), getImageMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/examples/chat/SQLStore", Method: "GetImage", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return sQLStore_server_stub{impl: impl.(SQLStore), addLoad: addLoad}
@@ -718,10 +718,10 @@ func (s sQLStore_client_stub) GetImage(ctx context.Context, a0 string, a1 ImageI
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
-var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][24]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' (devel) (codegen
-version v0.20.0). The generated code is incompatible with the version of the
+version v0.24.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 

@@ -19,10 +19,10 @@ func init() {
 		Iface: reflect.TypeOf((*A)(nil)).Elem(),
 		Impl:  reflect.TypeOf(a{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return a_local_stub{impl: impl.(A), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate", Remote: false})}
+			return a_local_stub{impl: impl.(A), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return a_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate", Remote: true})}
+			return a_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/A", Method: "Propagate", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return a_server_stub{impl: impl.(A), addLoad: addLoad}
@@ -37,10 +37,10 @@ func init() {
 		Iface: reflect.TypeOf((*B)(nil)).Elem(),
 		Impl:  reflect.TypeOf(b{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return b_local_stub{impl: impl.(B), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate", Remote: false})}
+			return b_local_stub{impl: impl.(B), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return b_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate", Remote: true})}
+			return b_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/B", Method: "Propagate", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return b_server_stub{impl: impl.(B), addLoad: addLoad}
@@ -55,10 +55,10 @@ func init() {
 		Iface: reflect.TypeOf((*C)(nil)).Elem(),
 		Impl:  reflect.TypeOf(c{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return c_local_stub{impl: impl.(C), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate", Remote: false})}
+			return c_local_stub{impl: impl.(C), tracer: tracer, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return c_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate", Remote: true})}
+			return c_client_stub{stub: stub, propagateMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/weavertest/internal/chain/C", Method: "Propagate", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return c_server_stub{impl: impl.(C), addLoad: addLoad}
@@ -363,10 +363,10 @@ func (s c_client_stub) Propagate(ctx context.Context, a0 int) (err error) {
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
-var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][24]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' (devel) (codegen
-version v0.20.0). The generated code is incompatible with the version of the
+version v0.24.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
