@@ -42,6 +42,9 @@ message WeaveletArgs {
   // method calls.
   string control_socket = 13;
 
+  // Address where the envelope should serve Control component method calls.
+  string deployer_socket = 14;
+
   // A redirect entry instructs the weavelet to direct calls made to component
   // to be instead sent to the component named target at the specified address.
   message Redirect {
