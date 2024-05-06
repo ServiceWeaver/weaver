@@ -50,9 +50,7 @@ func tracer(exporter sdktrace.SpanExporter, app, deploymentId, weaveletId string
 			traceio.DeploymentIdTraceKey.String(deploymentId),
 			traceio.WeaveletIdTraceKey.String(weaveletId),
 		)),
-		// TODO(spetrovic): Allow the user to create new TracerProviders where
-		// they can control trace sampling and other options.
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.AlwaysSample())))
+	)
 	tracer := tracerProvider.Tracer(instrumentationLibrary, trace.WithInstrumentationVersion(instrumentationVersion))
 
 	// Set global tracing defaults.
