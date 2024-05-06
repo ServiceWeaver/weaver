@@ -1176,7 +1176,7 @@ func (g *generator) generateRegisteredComponents(p printFn) {
 
 		// Emits initializer for a single method's MethodMetrics object.
 		emitMetricInitializer := func(m *types.Func, remote bool) {
-			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q, Remote: %v})",
+			fmt.Fprintf(&b, ", %sMetrics: %s(%s{Caller: caller, Component: %q, Method: %q, Remote: %v, Generated: true})",
 				notExported(m.Name()),
 				g.codegen().qualify("MethodMetricsFor"),
 				g.codegen().qualify("MethodLabels"),

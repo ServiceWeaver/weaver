@@ -19,10 +19,10 @@ func init() {
 		Iface: reflect.TypeOf((*Bank)(nil)).Elem(),
 		Impl:  reflect.TypeOf(bank{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return bank_local_stub{impl: impl.(Bank), tracer: tracer, depositMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Deposit", Remote: false}), withdrawMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Withdraw", Remote: false})}
+			return bank_local_stub{impl: impl.(Bank), tracer: tracer, depositMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Deposit", Remote: false, Generated: true}), withdrawMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Withdraw", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return bank_client_stub{stub: stub, depositMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Deposit", Remote: true}), withdrawMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Withdraw", Remote: true})}
+			return bank_client_stub{stub: stub, depositMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Deposit", Remote: true, Generated: true}), withdrawMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Bank", Method: "Withdraw", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return bank_server_stub{impl: impl.(Bank), addLoad: addLoad}
@@ -37,10 +37,10 @@ func init() {
 		Iface: reflect.TypeOf((*Store)(nil)).Elem(),
 		Impl:  reflect.TypeOf(store{}),
 		LocalStubFn: func(impl any, caller string, tracer trace.Tracer) any {
-			return store_local_stub{impl: impl.(Store), tracer: tracer, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Add", Remote: false}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Get", Remote: false})}
+			return store_local_stub{impl: impl.(Store), tracer: tracer, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Add", Remote: false, Generated: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Get", Remote: false, Generated: true})}
 		},
 		ClientStubFn: func(stub codegen.Stub, caller string) any {
-			return store_client_stub{stub: stub, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Add", Remote: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Get", Remote: true})}
+			return store_client_stub{stub: stub, addMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Add", Remote: true, Generated: true}), getMetrics: codegen.MethodMetricsFor(codegen.MethodLabels{Caller: caller, Component: "github.com/ServiceWeaver/weaver/sim/internal/bank/Store", Method: "Get", Remote: true, Generated: true})}
 		},
 		ServerStubFn: func(impl any, addLoad func(uint64, float64)) codegen.Server {
 			return store_server_stub{impl: impl.(Store), addLoad: addLoad}
@@ -415,10 +415,10 @@ func (s store_client_stub) Get(ctx context.Context, a0 string) (r0 int, err erro
 // Note that "weaver generate" will always generate the error message below.
 // Everything is okay. The error message is only relevant if you see it when
 // you run "go build" or "go run".
-var _ codegen.LatestVersion = codegen.Version[[0][20]struct{}](`
+var _ codegen.LatestVersion = codegen.Version[[0][24]struct{}](`
 
 ERROR: You generated this file with 'weaver generate' (devel) (codegen
-version v0.20.0). The generated code is incompatible with the version of the
+version v0.24.0). The generated code is incompatible with the version of the
 github.com/ServiceWeaver/weaver module that you're using. The weaver module
 version can be found in your go.mod file or by running the following command.
 
