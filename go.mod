@@ -15,7 +15,7 @@ require (
 	github.com/google/pprof v0.0.0-20230705174524-200ffdc848b8
 	github.com/google/uuid v1.3.1
 	github.com/hashicorp/golang-lru/v2 v2.0.1
-	github.com/lightstep/varopt v1.3.0
+	github.com/lightstep/varopt v1.4.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/testcontainers/testcontainers-go v0.24.1
