@@ -48,19 +48,12 @@ type HandlerMap struct {
 }
 
 // NewHandlerMap returns a handler map to which the server handlers can
-// be added. A "ready" handler is automatically registered in the new
-// returned map.
+// be added.
 func NewHandlerMap() *HandlerMap {
-	hm := &HandlerMap{
+	return &HandlerMap{
 		handlers: map[MethodKey]Handler{},
 		names:    map[MethodKey]string{},
 	}
-	// Add a dummy "ready" handler. Clients will repeatedly call this
-	// RPC until it responds successfully, ensuring the server is ready.
-	hm.Set("", "ready", func(context.Context, []byte) ([]byte, error) {
-		return nil, nil
-	})
-	return hm
 }
 
 // Set registers a handler for the specified method of component.

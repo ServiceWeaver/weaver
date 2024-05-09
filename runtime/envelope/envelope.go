@@ -309,12 +309,12 @@ func (e *Envelope) WeaveletAddress() string {
 }
 
 // GetHealth returns the health status of the weavelet.
-func (e *Envelope) GetHealth() protos.HealthStatus {
+func (e *Envelope) GetHealth() *protos.GetHealthReply {
 	reply, err := e.controller.GetHealth(context.TODO(), &protos.GetHealthRequest{})
 	if err != nil {
-		return protos.HealthStatus_UNKNOWN
+		return &protos.GetHealthReply{Status: protos.HealthStatus_UNKNOWN}
 	}
-	return reply.Status
+	return reply
 }
 
 // GetProfile gets a profile from the weavelet.

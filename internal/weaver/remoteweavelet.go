@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/control"
@@ -45,8 +46,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// readyMethodKey holds the key for a method used to check if a backend is ready.
-var readyMethodKey = call.MakeMethodKey("", "ready")
+// readyMethodName holds the name of the special component method used by the
+// clients to check if a component is ready.
+const readyMethodName = "ready"
 
 // RemoteWeaveletOptions configure a RemoteWeavelet.
 type RemoteWeaveletOptions struct {
@@ -113,16 +115,10 @@ type component struct {
 
 	implInit   sync.Once      // used to initialize impl, severStub
 	implErr    error          // non-nil if impl creation fails
+	implReady  atomic.Bool    // true only after impl creation succeeds
 	impl       any            // instance of component implementation
 	serverStub codegen.Server // handles remote calls from other processes
 
-	// TODO(mwhittaker): We have one client for every component. Every client
-	// independently maintains network connections to every weavelet hosting
-	// the component. Thus, there may be many redundant network connections to
-	// the same weavelet. Given n weavelets hosting m components, there's at
-	// worst n^2m connections rather than a more optimal n^2 (a single
-	// connection between every pair of weavelets). We should rewrite things to
-	// avoid the redundancy.
 	resolver *routingResolver // client resolver
 	balancer *routingBalancer // client balancer
 
@@ -419,6 +415,7 @@ func (w *RemoteWeavelet) GetImpl(t reflect.Type) (any, error) {
 			return
 		} else {
 			w.syslogger.Debug("Constructed", "component", name)
+			c.implReady.Store(true)
 		}
 
 		logger := w.logger(c.reg.Name)
@@ -513,7 +510,7 @@ func (w *RemoteWeavelet) makeStub(fullName string, reg *codegen.Registration, re
 		return nil, err
 	}
 	if wait {
-		if err := waitUntilReady(w.ctx, conn); err != nil {
+		if err := waitUntilReady(w.ctx, conn, fullName); err != nil {
 			w.syslogger.Error("Failed to wait for remote", "component", name, "err", err)
 			return nil, err
 		}
@@ -647,7 +644,16 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.Upda
 
 // GetHealth implements controller.GetHealth.
 func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
-	return &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}, nil
+	// Get the health status for all components. For now, we consider a component
+	// healthy iff it has been successfully initialized. In the future, we will
+	// maintain a real-time health for each component.
+	reply := &protos.GetHealthReply{Status: protos.HealthStatus_HEALTHY}
+	for cname, c := range w.componentsByName {
+		if c.implReady.Load() {
+			reply.HealthyComponents = append(reply.HealthyComponents, cname)
+		}
+	}
+	return reply, nil
 }
 
 // GetMetrics implements controller.GetMetrics.
@@ -718,6 +724,16 @@ func (w *RemoteWeavelet) addHandlers(handlers *call.HandlerMap, c *component) {
 		}
 		handlers.Set(c.reg.Name, mname, handler)
 	}
+
+	// Add the special "component is ready" method handler, which is used by
+	// the clients to wait for the component to be ready before receiving traffic
+	// (see waitUntilReady).
+	handlers.Set(c.reg.Name, readyMethodName, func(context.Context, []byte) ([]byte, error) {
+		if c.implReady.Load() {
+			return nil, nil
+		}
+		return nil, call.Unreachable
+	})
 }
 
 // repeatedly repeatedly executes f until it succeeds or until ctx is cancelled.
@@ -924,10 +940,10 @@ func (s *server) handlers(components []string) (*call.HandlerMap, error) {
 }
 
 // waitUntilReady blocks until a successful call to the "ready" method is made
-// on the provided client.
-func waitUntilReady(ctx context.Context, client call.Connection) error {
+// on the provided component.
+func waitUntilReady(ctx context.Context, client call.Connection, fullComponentName string) error {
 	for r := retry.Begin(); r.Continue(ctx); {
-		_, err := client.Call(ctx, readyMethodKey, nil, call.CallOptions{})
+		_, err := client.Call(ctx, call.MakeMethodKey(fullComponentName, readyMethodName), nil, call.CallOptions{})
 		if err == nil || !errors.Is(err, call.Unreachable) {
 			return err
 		}

@@ -693,6 +693,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     sort
     strings
     sync
+    sync/atomic
     syscall
     time
 github.com/ServiceWeaver/weaver/metrics
