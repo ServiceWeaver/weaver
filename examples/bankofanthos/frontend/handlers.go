@@ -124,15 +124,15 @@ func (s *server) homeHandler(w http.ResponseWriter, r *http.Request) {
 
 	balance, err := s.balanceReader.Get().GetBalance(r.Context(), accountID)
 	if err != nil {
-		logger.Error("Couldn't fetch balance", err)
+		logger.Error("Couldn't fetch balance", "err", err)
 	}
 	txnHistory, err := s.transactionHistory.Get().GetTransactions(r.Context(), accountID)
 	if err != nil {
-		logger.Error("Couldn't fetch transaction history", err)
+		logger.Error("Couldn't fetch transaction history", "err", err)
 	}
 	contacts, err := s.contacts.Get().GetContacts(r.Context(), username)
 	if err != nil {
-		logger.Error("Couldn't fetch contacts", err)
+		logger.Error("Couldn't fetch contacts", "err", err)
 	}
 	labeledHistory := populateContactLabels(accountID, txnHistory, contacts)
 
@@ -149,7 +149,7 @@ func (s *server) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"Message":     r.URL.Query().Get("msg"),
 		"BankName":    s.config.bankName,
 	}); err != nil {
-		logger.Error("couldn't generate home page", err)
+		logger.Error("couldn't generate home page", "err", err)
 	}
 }
 
@@ -194,7 +194,7 @@ func (s *server) paymentHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := r.Cookie(tokenCookieName)
 	if err != nil || !verifyToken(token.Value, s.config.publicKey) {
 		msg := "Error submitting payment: user is not authenticated"
-		logger.Error(msg, err)
+		logger.Error(msg, "err", err)
 		http.Error(w, msg, http.StatusUnauthorized)
 		return
 	}
@@ -257,7 +257,7 @@ func (s *server) depositHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := r.Cookie(tokenCookieName)
 	if err != nil || !verifyToken(token.Value, s.config.publicKey) {
 		msg := "Error submitting deposit: user is not authenticated"
-		logger.Error(msg, err)
+		logger.Error(msg, "err", err)
 		http.Error(w, msg, http.StatusUnauthorized)
 		return
 	}
@@ -415,7 +415,7 @@ func (s *server) loginGetHandler(w http.ResponseWriter, r *http.Request) {
 		"RedirectURI":     redirectURI,
 		"AppName":         appName,
 	}); err != nil {
-		logger.Error("couldn't generate login page", err)
+		logger.Error("couldn't generate login page", "err", err)
 	}
 }
 
@@ -426,7 +426,7 @@ func (s *server) loginPostHandler(w http.ResponseWriter, r *http.Request) {
 	logger := s.Logger(r.Context())
 	err := s.loginPostHelper(w, r)
 	if err != nil {
-		logger.Error("/login POST failed", err, "user", r.FormValue("username"))
+		logger.Error("/login POST failed", "err", err, "user", r.FormValue("username"))
 		http.Redirect(w, r, "/login?msg=Login+Failed", http.StatusFound)
 	}
 }
@@ -565,7 +565,7 @@ func (s *server) consentGetHandler(w http.ResponseWriter, r *http.Request) {
 			"RedirectURI": redirectURI,
 			"AppName":     appName,
 		}); err != nil {
-			logger.Error("couldn't generate consent.html", err)
+			logger.Error("couldn't generate consent.html", "err", err)
 		}
 		return
 	}
@@ -612,7 +612,7 @@ func (s *server) signupGetHandler(w http.ResponseWriter, r *http.Request) {
 		"PodZone":     s.config.podZone,
 		"BankName":    s.config.bankName,
 	}); err != nil {
-		logger.Error("couldn't generate consent.html", err)
+		logger.Error("couldn't generate consent.html", "err", err)
 	}
 }
 
@@ -637,7 +637,7 @@ func (s *server) signupPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.userService.Get().CreateUser(r.Context(), creq)
 	if err != nil {
-		logger.Debug("Error creating new user", "err", err)
+		logger.Error("Error creating new user", "err", err)
 		url := fmt.Sprintf("/login?msg=Account creation failed: %s", err)
 		http.Redirect(w, r, url, http.StatusSeeOther)
 		return

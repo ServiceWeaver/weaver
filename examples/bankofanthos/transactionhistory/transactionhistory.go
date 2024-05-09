@@ -69,7 +69,7 @@ func (i *impl) processTransactionForAcct(accountID string, transaction model.Tra
 	i.Logger(ctx).Debug("Processing transaction", "accountID", accountID, "transaction", transaction)
 	got, err := i.txnCache.c.Get(accountID)
 	if err != nil {
-		i.Logger(ctx).Error("processTransactionForAcct failed", err)
+		i.Logger(ctx).Error("processTransactionForAcct failed", "err", err)
 		return
 	}
 	txns := got.([]model.Transaction)

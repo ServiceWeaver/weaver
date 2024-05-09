@@ -104,7 +104,7 @@ func (reader *LedgerReader) pollTransactions(startingID int64) int64 {
 	latestID := startingID
 	transactionList, err := reader.dbRepo.FindLatest(startingID)
 	if err != nil {
-		reader.logger.Error("Error polling transactions", err)
+		reader.logger.Error("Error polling transactions", "err", err)
 		return latestID
 	}
 	reader.logger.Info("Polling new transactions")

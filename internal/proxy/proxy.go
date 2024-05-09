@@ -58,7 +58,7 @@ func (p *Proxy) director(r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.backends) == 0 {
-		p.logger.Error("director", errors.New("no backends"), "url", r.URL)
+		p.logger.Error("director", "err", errors.New("no backends"), "url", r.URL)
 		return
 	}
 	r.URL.Scheme = "http" // TODO(mwhittaker): Support HTTPS.
