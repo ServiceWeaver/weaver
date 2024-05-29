@@ -34,9 +34,15 @@ message Status {
 
 // Component describes a Service Weaver component.
 message Component {
-  string name = 1;              // component name (e.g., Cache)
-  repeated int64 pids = 3;      // PIDs of component replicas
-  repeated Method methods = 4;  // methods
+  string name = 1;                // component name (e.g., Cache)
+  repeated Replica replicas = 3;  // replica details
+  repeated Method methods = 4;    // methods
+}
+
+// Replica stores info related to replica
+message Replica {
+  int64 pid = 1;         // replica process id
+  string weaveletId = 2; // replica weavelet id
 }
 
 // Method describes a Component method.

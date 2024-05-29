@@ -111,7 +111,7 @@ func formatComponents(w io.Writer, statuses []*Status) {
 	title := []colors.Text{{{S: "COMPONENTS", Bold: true}}}
 	t := colors.NewTabularizer(w, title, colors.PrefixDim)
 	defer t.Flush()
-	t.Row("APP", "DEPLOYMENT", "COMPONENT", "REPLICA PIDS")
+	t.Row("APP", "DEPLOYMENT", "COMPONENT", "REPLICA PIDS", "WEAVELET IDS")
 	for _, status := range statuses {
 		sort.Slice(status.Components, func(i, j int) bool {
 			return status.Components[i].Name < status.Components[j].Name
@@ -119,14 +119,16 @@ func formatComponents(w io.Writer, statuses []*Status) {
 		for _, component := range status.Components {
 			prefix, _ := formatId(status.DeploymentId)
 			c := logging.ShortenComponent(component.Name)
-			sort.Slice(component.Pids, func(i, j int) bool {
-				return component.Pids[i] < component.Pids[j]
+			sort.Slice(component.Replicas, func(i, j int) bool {
+				return component.Replicas[i].Pid < component.Replicas[j].Pid
 			})
-			pids := make([]string, len(component.Pids))
-			for i, pid := range component.Pids {
-				pids[i] = fmt.Sprint(pid)
+			pids := make([]string, len(component.Replicas))
+			weaveletIds := make([]string, len(component.Replicas))
+			for i, replica := range component.Replicas {
+				pids[i] = fmt.Sprint(replica.Pid)
+				weaveletIds[i] = replica.WeaveletId[0:8]
 			}
-			t.Row(status.App, prefix, c, strings.Join(pids, ", "))
+			t.Row(status.App, prefix, c, strings.Join(pids, ", "), strings.Join(weaveletIds, ", "))
 		}
 	}
 }

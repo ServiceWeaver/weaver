@@ -426,15 +426,15 @@ func (w *SingleWeavelet) ServeStatus(ctx context.Context) error {
 func (w *SingleWeavelet) Status(context.Context) (*status.Status, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
 	pid := int64(os.Getpid())
 	stats := w.stats.GetStatsStatusz()
 	var components []*status.Component
 	for component := range w.components {
 		c := &status.Component{
-			Name: component,
-			Pids: []int64{pid},
+			Name:     component,
+			Replicas: []*status.Replica{},
 		}
+		c.Replicas = append(c.Replicas, &status.Replica{Pid: pid, WeaveletId: w.id})
 		components = append(components, c)
 
 		// TODO(mwhittaker): Unify with ui package and remove duplication.
