@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -131,7 +130,7 @@ type group struct {
 	started   bool                                                 // has this group been started?
 	addresses map[string]bool                                      // weavelet addresses
 	routings  map[string]*versioned.Versioned[*protos.RoutingInfo] // routing info, by component
-	pids      []int64                                              // weavelet pids
+	replicas  []*status.Replica                                    // stores replica info such as pid, weavelet id
 }
 
 type proxyInfo struct {
@@ -315,13 +314,10 @@ func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 		g.components.Lock()
 		cs := maps.Keys(g.components.Val)
 		g.components.Unlock()
-		g.mu.Lock()
-		pids := slices.Clone(g.pids)
-		g.mu.Unlock()
 		for _, component := range cs {
 			c := &status.Component{
-				Name: component,
-				Pids: pids,
+				Name:     component,
+				Replicas: g.replicas,
 			}
 			components = append(components, c)
 
@@ -411,6 +407,7 @@ func (m *manager) group(component string) *group {
 			addresses:  map[string]bool{},
 			components: versioned.Version(map[string]bool{}),
 			routings:   map[string]*versioned.Versioned[*protos.RoutingInfo]{},
+			replicas:   []*status.Replica{},
 		}
 		m.groups[name] = g
 	}
@@ -471,7 +468,7 @@ func (m *manager) registerReplica(_ context.Context, req *ReplicaToRegister) err
 			return true
 		}
 		g.addresses[req.Address] = true
-		g.pids = append(g.pids, req.Pid)
+		g.replicas = append(g.replicas, &status.Replica{Pid: req.Pid, WeaveletId: req.WeaveletId})
 		return false
 	}
 	if record() {

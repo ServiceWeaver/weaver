@@ -93,6 +93,7 @@ message BabysitterMetrics {
 // a given colocation group (i.e., a weavelet).
 message ReplicaToRegister {
   string group = 1;
-  string address = 2;  // Replica internal address.
-  int64 pid = 3;       // Replica pid.
+  string address = 2;    // Replica internal address.
+  int64 pid = 3;         // Replica pid.
+  string weaveletId = 4; // Replica weavelet id
 }
