@@ -314,8 +314,6 @@ func (m *manager) Status(ctx context.Context) (*status.Status, error) {
 		g.components.Lock()
 		cs := maps.Keys(g.components.Val)
 		g.components.Unlock()
-		g.mu.Lock()
-		g.mu.Unlock()
 		for _, component := range cs {
 			c := &status.Component{
 				Name:     component,
