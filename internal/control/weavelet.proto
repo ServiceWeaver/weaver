@@ -1,0 +1,39 @@
+syntax = "proto3";
+option go_package = "github.com/ServiceWeaver/weaver/internal/control";
+
+package control;
+
+// Generate Go proto code.
+// protoc --go_out=. --go_opt=paths=source_relative --proto_path=. --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/control/weavelet.proto
+
+import "runtime/protos/runtime.proto";
+
+// WeaveletControl is the interface for the weaver.weaveletControl component. It is
+// present in its own package so other packages do not need to copy the interface
+// definition.
+//
+// Arguments and results are protobufs to allow deployers to evolve independently of
+// application binaries.
+service WeaveletControlGrpc {
+  // InitWeavelet initializes the weavelet.
+  rpc InitWeavelet(runtime.InitWeaveletRequest) returns (runtime.InitWeaveletReply) {}
+
+  // UpdateComponents updates the weavelet with the latest set of components it
+  // should be running.
+  rpc UpdateComponents(runtime.UpdateComponentsRequest) returns (runtime.UpdateComponentsReply) {}
+
+  // UpdateRoutingInfo updates the weavelet with a component's most recent routing info.
+  rpc UpdateRoutingInfo(runtime.UpdateRoutingInfoRequest) returns (runtime.UpdateRoutingInfoReply) {}
+
+  // GetHealth fetches weavelet health information.
+  rpc GetHealth(runtime.GetHealthRequest) returns (runtime.GetHealthReply) {}
+
+  // GetLoad fetches weavelet load information.
+  rpc GetLoad(runtime.GetLoadRequest) returns (runtime.GetLoadReply) {}
+
+  // GetMetrics fetches metrics from the weavelet.
+  rpc GetMetrics(runtime.GetMetricsRequest) returns (runtime.GetMetricsReply) {}
+
+  // GetProfile gets a profile from the weavelet.
+  rpc GetProfile(runtime.GetProfileRequest) returns (runtime.GetProfileReply) {}
+}

@@ -1,0 +1,59 @@
+syntax = "proto3";
+option go_package = "github.com/ServiceWeaver/weaver/internal/control";
+
+package control;
+
+// Generate Go proto code.
+// protoc --go_out=. --go_opt=paths=source_relative --proto_path=. --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/control/deployer.proto
+
+import "runtime/protos/runtime.proto";
+import "google/protobuf/empty.proto";
+
+service DeployerControlGrpc {
+  // ActivateComponent ensures that the provided component is running
+  // somewhere. A call to ActivateComponent also implicitly signals that a
+  // weavelet is interested in receiving routing info for the component.
+  rpc ActivateComponent(runtime.ActivateComponentRequest) returns (runtime.ActivateComponentReply) {}
+
+  // GetListenerAddress returns the address the weavelet should listen on for
+  // a particular listener.
+  rpc GetListenerAddress(runtime.GetListenerAddressRequest) returns (runtime.GetListenerAddressReply) {}
+
+  // ExportListener exports the provided listener. Exporting a listener
+  // typically, but not always, involves running a proxy that forwards
+  // traffic to the provided address.
+  rpc ExportListener(runtime.ExportListenerRequest) returns (runtime.ExportListenerReply) {}
+
+  // GetSelfCertificate returns the certificate and the private key the
+  // weavelet should use for network connection establishment. The weavelet
+  // will issue this request each time it establishes a connection with
+  // another weavelet.
+  // NOTE: This method is only called if mTLS was enabled for the weavelet,
+  // by passing it a WeaveletArgs with mtls=true.
+  rpc GetSelfCertificate(runtime.GetSelfCertificateRequest) returns (runtime.GetSelfCertificateReply) {}
+
+  // VerifyClientCertificate verifies the certificate chain presented by
+  // a network client attempting to connect to the weavelet. It returns an
+  // error if the network connection should not be established with the
+  // client. Otherwise, it returns the list of weavelet components that the
+  // client is authorized to invoke methods on.
+  //
+  // NOTE: This method is only called if mTLS was enabled for the weavelet,
+  // by passing it a WeaveletArgs with mtls=true.
+  rpc VerifyClientCertificate(runtime.VerifyClientCertificateRequest) returns (runtime.VerifyClientCertificateReply) {}
+
+  // VerifyServerCertificate verifies the certificate chain presented by
+  // the server the weavelet is attempting to connect to. It returns an
+  // error iff the server identity doesn't match the identity of the specified
+  // component.
+  //
+  // NOTE: This method is only called if mTLS was enabled for the weavelet,
+  // by passing it a WeaveletArgs with mtls=true.
+  rpc VerifyServerCertificate(runtime.VerifyServerCertificateRequest) returns (runtime.VerifyServerCertificateReply) {}
+
+  // LogBatches handles a batch of log entries.
+  rpc LogBatch(runtime.LogEntryBatch) returns (google.protobuf.Empty) {}
+
+  // HandleTraceSpans handles a set of trace spans.
+  rpc HandleTraceSpans(runtime.TraceSpans) returns (google.protobuf.Empty) {}
+}

@@ -67,16 +67,18 @@ func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig, args
 	}
 
 	cmd := pipe.CommandContext(ctx, config.Binary, config.Args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	// Create pipes that capture child outputs.
-	outpipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("create stdout pipe: %w", err)
-	}
-	errpipe, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("create stderr pipe: %w", err)
-	}
+	//	outpipe, err := cmd.StdoutPipe()
+	//	if err != nil {
+	//		return fmt.Errorf("create stdout pipe: %w", err)
+	//	}
+	//	errpipe, err := cmd.StderrPipe()
+	//	if err != nil {
+	//		return fmt.Errorf("create stderr pipe: %w", err)
+	//	}
 
 	// Setup environment for child process.
 	cmd.Env = os.Environ()
@@ -88,8 +90,8 @@ func (p *ProcessChild) Start(ctx context.Context, config *protos.AppConfig, args
 	}
 
 	p.cmd = cmd
-	p.stdout = outpipe
-	p.stderr = errpipe
+	//	p.stdout = outpipe
+	//	p.stderr = errpipe
 	return nil
 }
 

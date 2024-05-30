@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/ServiceWeaver/weaver/examples/main";
+
+// Generate Go proto code.
+// protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative hellogrpc.proto
+
+
+message HelloRequest {
+  string request = 1;
+}
+
+message HelloResponse {
+  string response = 1;
+}
+
+service HelloFromSVL {
+  rpc Hello(HelloRequest) returns (HelloResponse) {}
+}
+
+service HelloFromMTV {
+  rpc Hello(HelloRequest) returns (HelloResponse) {}
+  rpc GetDate(google.protobuf.Empty) returns (google.protobuf.Timestamp);
+}

@@ -29,6 +29,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/tool/callgraph"
 	"github.com/ServiceWeaver/weaver/internal/tool/generate"
 	"github.com/ServiceWeaver/weaver/internal/tool/multi"
+	"github.com/ServiceWeaver/weaver/internal/tool/multigrpc"
 	"github.com/ServiceWeaver/weaver/internal/tool/single"
 	"github.com/ServiceWeaver/weaver/internal/tool/ssh"
 	"github.com/ServiceWeaver/weaver/runtime/tool"
@@ -40,6 +41,7 @@ const usage = `USAGE
   weaver version                  // show weaver version
   weaver single    <command> ...  // for single process deployments
   weaver multi     <command> ...  // for multiprocess deployments
+  weaver multigrpc <command> ...  // for multiprocess deployments with grpc
   weaver ssh       <command> ...  // for multimachine deployments
   weaver gke       <command> ...  // for GKE deployments
   weaver gke-local <command> ...  // for simulated GKE deployments
@@ -66,9 +68,10 @@ func main() {
 
 	// Handle the internal deployers.
 	internals := map[string]map[string]*tool.Command{
-		"single": single.Commands,
-		"multi":  multi.Commands,
-		"ssh":    ssh.Commands,
+		"single":    single.Commands,
+		"multi":     multi.Commands,
+		"multigrpc": multigrpc.Commands,
+		"ssh":       ssh.Commands,
 	}
 
 	switch flag.Arg(0) {
@@ -120,7 +123,7 @@ Description:
 		fmt.Println(s)
 		return
 
-	case "single", "multi", "ssh":
+	case "single", "multi", "multigrpc", "ssh":
 		os.Args = os.Args[1:]
 		tool.Run("weaver "+flag.Arg(0), internals[flag.Arg(0)])
 		return
