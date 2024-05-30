@@ -132,7 +132,7 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 		fmt.Fprint(os.Stderr, reg.Rolodex())
 	}
 
-	return &SingleWeavelet{
+	w := &SingleWeavelet{
 		ctx:          ctx,
 		regs:         regs,
 		regsByName:   regsByName,
@@ -149,7 +149,29 @@ func NewSingleWeavelet(ctx context.Context, regs []*codegen.Registration, opts S
 		stats:        imetrics.NewStatsProcessor(),
 		components:   map[string]any{},
 		listeners:    map[string]net.Listener{},
-	}, nil
+	}
+
+	// Start a signal handler to detect when the process is killed. This isn't
+	// perfect, as we can't catch a SIGKILL, but it's good in the common case.
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-done
+
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		for c, impl := range w.components {
+			// Call Shutdown method if available.
+			if i, ok := impl.(interface{ Shutdown(context.Context) error }); ok {
+				if err := i.Shutdown(ctx); err != nil {
+					fmt.Printf("Component %s failed to shutdown: %v\n", c, err)
+				}
+			}
+		}
+		os.Exit(1)
+	}()
+
+	return w, nil
 }
 
 // parseSingleConfig parses the "[single]" section of a config file.

@@ -23,10 +23,12 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
 	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 
 	"github.com/ServiceWeaver/weaver/internal/config"
 	"github.com/ServiceWeaver/weaver/internal/control"
@@ -286,6 +288,26 @@ func NewRemoteWeavelet(ctx context.Context, regs []*codegen.Registration, bootst
 		return nil
 	})
 
+	// Start a signal handler to detect when the process is killed. This isn't
+	// perfect, as we can't catch a SIGKILL, but it's good in the common case.
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-done
+		for _, c := range w.componentsByName {
+			if !c.implReady.Load() {
+				continue
+			}
+			// Call Shutdown method if available.
+			if i, ok := c.impl.(interface{ Shutdown(context.Context) error }); ok {
+				if err := i.Shutdown(ctx); err != nil {
+					w.syslogger.Error("Component shutdown failed", "component", c.reg.Name, "err", err)
+				}
+			}
+		}
+		os.Exit(1)
+	}()
+
 	w.syslogger.Debug("🧶 weavelet started", "addr", dialAddr)
 	return w, nil
 }
@@ -537,7 +559,7 @@ func (w *RemoteWeavelet) GetLoad(context.Context, *protos.GetLoadRequest) (*prot
 }
 
 // UpdateComponents implements weaver.controller and conn.WeaverHandler interfaces.
-func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
+func (w *RemoteWeavelet) UpdateComponents(_ context.Context, req *protos.UpdateComponentsRequest) (*protos.UpdateComponentsReply, error) {
 	var errs []error
 	var components []*component
 	var shortened []string
@@ -578,7 +600,7 @@ func (w *RemoteWeavelet) UpdateComponents(ctx context.Context, req *protos.Updat
 }
 
 // UpdateRoutingInfo implements controller.UpdateRoutingInfo.
-func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
+func (w *RemoteWeavelet) UpdateRoutingInfo(_ context.Context, req *protos.UpdateRoutingInfoRequest) (reply *protos.UpdateRoutingInfoReply, err error) {
 	if req.RoutingInfo == nil {
 		w.syslogger.Error("Failed to update nil routing info")
 		return nil, fmt.Errorf("nil RoutingInfo")
@@ -643,7 +665,7 @@ func (w *RemoteWeavelet) UpdateRoutingInfo(ctx context.Context, req *protos.Upda
 }
 
 // GetHealth implements controller.GetHealth.
-func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
+func (w *RemoteWeavelet) GetHealth(context.Context, *protos.GetHealthRequest) (*protos.GetHealthReply, error) {
 	// Get the health status for all components. For now, we consider a component
 	// healthy iff it has been successfully initialized. In the future, we will
 	// maintain a real-time health for each component.
@@ -657,7 +679,7 @@ func (w *RemoteWeavelet) GetHealth(ctx context.Context, req *protos.GetHealthReq
 }
 
 // GetMetrics implements controller.GetMetrics.
-func (w *RemoteWeavelet) GetMetrics(ctx context.Context, req *protos.GetMetricsRequest) (*protos.GetMetricsReply, error) {
+func (w *RemoteWeavelet) GetMetrics(context.Context, *protos.GetMetricsRequest) (*protos.GetMetricsReply, error) {
 	// TODO(sanjay): The protocol is currently brittle; if we ever lose a set of
 	// updates, they will be lost forever. Fix by versioning the "last" map in
 	// metrics.Exporter. The reader echoes back the version of the last set of

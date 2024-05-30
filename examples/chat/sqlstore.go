@@ -96,7 +96,7 @@ func (cfg *config) Validate() error {
 	return nil
 }
 
-func (s *sqlStore) Init(ctx context.Context) error {
+func (s *sqlStore) Init(context.Context) error {
 	cfg := s.Config()
 	if cfg.Driver == "" {
 		return fmt.Errorf("missing database driver in config")

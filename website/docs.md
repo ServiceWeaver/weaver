@@ -636,6 +636,20 @@ func (f *foo) Init(context.Context) error {
 }
 ```
 
+If a component implementation implements an `Shutdown(context.Context) error`
+method, it will be called when an instance of the component is destroyed.
+
+```go
+func (f *foo) Shutdown(context.Context) error {
+    // ...
+}
+```
+
+**Note**: There is no guarantee that the `Shutdown` method will always
+be called. `Shutdown` is called **iff** your application receives a
+`SIGINT` or a `SIGTERM` signal. However, if the machine where your application runs
+crashes unexpectedly or becomes unresponsive, the `Shutdown` method is never called.
+
 ## Semantics
 
 When implementing a component, there are a few semantic details to keep in mind:
