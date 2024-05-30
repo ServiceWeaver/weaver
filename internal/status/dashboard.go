@@ -54,12 +54,20 @@ var (
 	deploymentHTML     string
 	deploymentTemplate = template.Must(template.New("deployment").Funcs(template.FuncMap{
 		"shorten": logging.ShortenComponent,
-		"pidjoin": func(pids []int64) string {
-			s := make([]string, len(pids))
-			for i, x := range pids {
-				s[i] = fmt.Sprint(x)
+		"pidjoin": func(replicas []*Replica) string {
+			s := make([]string, len(replicas))
+			for i, x := range replicas {
+				s[i] = fmt.Sprint(x.Pid)
 			}
 			return strings.Join(s, ", ")
+		},
+		"widjoin": func(replicas []*Replica) string {
+			s := make([]string, len(replicas))
+			for i, x := range replicas {
+				s[i] = x.WeaveletId[0:8]
+			}
+			return strings.Join(s, ", ")
+
 		},
 		"age": func(t *timestamppb.Timestamp) string {
 			return time.Since(t.AsTime()).Truncate(time.Second).String()

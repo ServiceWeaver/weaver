@@ -152,14 +152,16 @@
               <th>Component</th>
               <th>Replication</th>
               <th>PIDs</th>
+              <th>Weavelet IDs</th>
             </tr>
           </thead>
           <tbody>
             {{range $c := .Components}}
             <tr>
               <td>{{shorten $c.Name}}</td>
-              <td>{{len $c.Pids}}</td>
-              <td>{{pidjoin $c.Pids}}</td>
+              <td>{{len $c.Replicas}}</td>
+              <td>{{pidjoin $c.Replicas}}</td>
+              <td>{{widjoin $c.Replicas}}</td>
             </tr>
             {{end}}
           </tbody>
