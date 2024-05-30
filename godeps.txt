@@ -620,7 +620,6 @@ github.com/ServiceWeaver/weaver/internal/tool/ssh/impl
     os/exec
     path/filepath
     reflect
-    slices
     sync
     syscall
     time
