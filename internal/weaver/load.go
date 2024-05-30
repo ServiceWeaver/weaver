@@ -66,7 +66,7 @@ type sliceSummary struct {
 	slice  slice                    // the slice
 	load   float64                  // total load
 	count  *hyperloglog.HyperLogLog // counts distinct elements
-	sample *varopt.Varopt           // reservoir sample of keys
+	sample *varopt.Varopt[uint64]   // reservoir sample of keys
 }
 
 // newLoadCollector returns a new load collector. Note that load is collected
@@ -224,7 +224,7 @@ func newSliceSummary(slice slice) (*sliceSummary, error) {
 	// TODO(mwhittaker): When we switch to range sharding, keys might be large
 	// and 1000 keys might be too big.
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	sample := varopt.New(1000, r)
+	sample := varopt.New[uint64](1000, r)
 
 	return &sliceSummary{slice: slice, count: count, sample: sample}, nil
 }
@@ -242,7 +242,7 @@ func (s *sliceSummary) splits(delta time.Duration) []*protos.LoadReport_Subslice
 	xs := make([]uint64, k)
 	for i := 0; i < k; i++ {
 		x, _ := s.sample.Get(i)
-		xs[i] = x.(uint64)
+		xs[i] = x
 	}
 	sort.Slice(xs, func(i, j int) bool { return xs[i] < xs[j] })
 
