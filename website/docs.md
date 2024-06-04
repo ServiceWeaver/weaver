@@ -2861,9 +2861,10 @@ listeners.hat = {is_public = true, hostname = "hat.gg"}
 | Field       | Required? | Description                                                                                                            |
 |-------------|-----------|------------------------------------------------------------------------------------------------------------------------|
 | regions     | yes       | Regions in which the Service Weaver application should be deployed. Note that at least one region should be specified. |
-| image       | optional      | Base image used to build the application container image. If not specified, `image = ubuntu:rolling`.              |
-| minreplicas | optional      | Minimum number of running pods for each component. If not specified, `minreplicas = 1`.                            |
-| listeners   | optional  | The application's listener options, e.g., the listeners' hostnames.                                             |
+| image       | optional      | Base image used to build the application container image. If not specified, `image = ubuntu:rolling`.                  |
+| minreplicas | optional      | Minimum number of running pods for each component. If not specified, `minreplicas = 1`.                                |
+| listeners   | optional  | The application's listener options, e.g., the listeners' hostnames.                                                    |
+| telemetry   | optional  | Various options how to export telemetry.                                                                               |
 
 **Note** that by default, your Service Weaver application will be deployed in the
 currently active project using the currently active account; i.e., in the project
@@ -2883,6 +2884,38 @@ new Google Cloud Account as a flag when deploying your application:
 ```console
 $ weaver gke deploy --account=new_account_name weaver.toml
 ```
+
+### Telemetry
+
+You can configure how to export the metrics; in particular, how often to export
+metrics to [Google Cloud Monitoring][cloud_metrics], and whether the framework should
+export the [auto-generated metrics](#metrics-auto-generated-metrics). For example,
+to export the metrics every `1 hour`, and also export the auto-generated metrics,
+you can add the following configuration:
+
+```toml
+[gke]
+regions = ["us-west1", "us-east1"]
+...
+telemetry.metrics = {export_interval = "1h", auto_generate_metrics = true}
+```
+
+By default, Service Weaver doesn't export the auto-generated metrics, and it exports
+the user defined metrics every `30 seconds`.
+
+You can also configure the minimum log level for a log entry to be exported to the
+[Google Cloud Logging][cloud_logging]. For example, to export only log entries that
+are `WARN` or `ERROR`, you can add the following configuration:
+
+```toml
+[gke]
+regions = ["us-west1", "us-east1"]
+...
+telemetry.logging = {min_export_level = "WARN"}
+```
+
+**Note** that `min_export_level` takes log level values defined by [slog][slog_levels].
+If not specified, Service Weaver exports all logs (`min_export_level = "DEBUG"`).
 
 ## Local GKE
 
@@ -3623,6 +3656,7 @@ runtime benefits of microservices.
 [prometheus_naming]: https://prometheus.io/docs/practices/naming/
 [sql_package]: https://pkg.go.dev/database/sql
 [ssh]: https://github.com/ServiceWeaver/weaver/tree/main/internal/tool/ssh
+[slog_levels]: https://pkg.go.dev/log/slog#Level
 [trace_service]: https://cloud.google.com/trace
 [update_failures_paper]: https://scholar.google.com/scholar?cluster=4116586908204898847
 [weak_consistency]: https://mwhittaker.github.io/consistency_in_distributed_systems/1_baseball.html
