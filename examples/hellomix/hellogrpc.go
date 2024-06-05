@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
-	"github.com/ServiceWeaver/weaver"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type HelloGrpcSVL struct {
 	HelloFromSVLServer
+	mtvHandle HelloFromMTVClient
 }
 
 type HelloGrpcMTV struct {
@@ -19,17 +20,13 @@ type HelloGrpcMTV struct {
 }
 
 func (h *HelloGrpcSVL) Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error) {
-	clientMTV, err := weaver.GetClient(ctx, (*HelloFromMTVClient)(nil))
-	if err != nil {
-		return nil, err
-	}
-	d, err := clientMTV.GetDate(ctx, &emptypb.Empty{})
+	d, err := h.mtvHandle.GetDate(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, err
 	}
 	t := time.Unix(d.GetSeconds(), int64(d.GetNanos())).Local()
 	return &HelloResponse{
-		Response: fmt.Sprintf("[SVL] Hello, %s at %v!", req.Request, t),
+		Response: fmt.Sprintf("[SVL][%d] Hello, %s at %v!", os.Getpid(), req.Request, t),
 	}, nil
 }
 
@@ -40,7 +37,7 @@ func (h *HelloGrpcMTV) Hello(ctx context.Context, req *HelloRequest) (*HelloResp
 	}
 	t := time.Unix(d.GetSeconds(), int64(d.GetNanos())).Local()
 	return &HelloResponse{
-		Response: fmt.Sprintf("[MTV] Hello, %s at %v!", req.Request, t),
+		Response: fmt.Sprintf("[MTV][%d] Hello, %s at %v!", os.Getpid(), req.Request, t),
 	}, nil
 }
 

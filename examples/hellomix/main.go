@@ -10,44 +10,43 @@ import (
 	"google.golang.org/grpc"
 )
 
-// This should have 3 groups: main, HelloGrpcSVL and HelloGrpcMTV.
 func main() {
-	registrations := []*weaver.Registration{
-		{
-			Name: "HelloGrpcSVL",
-			Clients: func(cc grpc.ClientConnInterface) []any {
-				return []any{NewHelloFromSVLClient(cc)}
-			},
-			Services: func(s grpc.ServiceRegistrar) {
-				RegisterHelloFromSVLServer(s, &HelloGrpcSVL{})
-			},
+	weaver.RegisterComponent(
+		NewHelloFromMTVClient,
+		func(s grpc.ServiceRegistrar) error {
+			RegisterHelloFromMTVServer(s, &HelloGrpcMTV{})
+			return nil
 		},
-		{
-			Name: "HelloGrpcMTV",
-			Clients: func(cc grpc.ClientConnInterface) []any {
-				return []any{NewHelloFromMTVClient(cc)}
-			},
-			Services: func(s grpc.ServiceRegistrar) {
-				RegisterHelloFromMTVServer(s, &HelloGrpcMTV{})
-			},
+	)
+	weaver.RegisterComponent(
+		NewHelloFromSVLClient,
+		func(s grpc.ServiceRegistrar) error {
+			h, err := weaver.GetClient[HelloFromMTVClient]()
+			if err != nil {
+				return err
+			}
+			RegisterHelloFromSVLServer(s, &HelloGrpcSVL{mtvHandle: h})
+			return nil
 		},
-	}
-	if err := weaver.RunGrpc(context.Background(), registrations, bodyToRun); err != nil {
+	)
+
+	if err := weaver.RunGrpc(context.Background(), run); err != nil {
 		panic(err)
 	}
 }
-func bodyToRun(ctx context.Context) error {
-	lis, err := net.Listen("tcp", ":60000")
+
+func run(context.Context) error {
+	lis, err := net.Listen("tcp", "127.0.0.1:60000")
 	if err != nil {
 		// This listener can eventually be a weaver listener.
 		return err
 	}
 
-	clientMTV, err := weaver.GetClient(ctx, (*HelloFromMTVClient)(nil))
+	clientMTV, err := weaver.GetClient[HelloFromMTVClient]()
 	if err != nil {
 		return err
 	}
-	clientSVL, err := weaver.GetClient(ctx, (*HelloFromSVLClient)(nil))
+	clientSVL, err := weaver.GetClient[HelloFromSVLClient]()
 	if err != nil {
 		return err
 	}
@@ -65,7 +64,7 @@ func bodyToRun(ctx context.Context) error {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		res := fmt.Sprintf("%s\n%s\n", r1.Response, r2.Response)
+		res := fmt.Sprintf("%s\n%s\n", r2.Response, r1.Response)
 		fmt.Fprintf(w, res)
 	})
 	return http.Serve(lis, nil)

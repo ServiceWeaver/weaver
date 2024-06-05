@@ -25,3 +25,7 @@ service HelloFromMTV {
   rpc Hello(HelloRequest) returns (HelloResponse) {}
   rpc GetDate(google.protobuf.Empty) returns (google.protobuf.Timestamp);
 }
+
+service HelloFromNYC {
+  rpc Hello(HelloRequest) returns (HelloResponse) {}
+}

@@ -3,11 +3,9 @@ package grpcregistry
 import (
 	"context"
 	"fmt"
-	"math/rand/v2"
 	"net"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -20,116 +18,112 @@ import (
 
 var globalRegistry registry
 
-// This is the same as the one in the weaver package that the user has to write.
-type Registration struct {
-	Name     string
-	Clients  func(cc grpc.ClientConnInterface) []any
-	Services func(s grpc.ServiceRegistrar)
-	// Robert: listeners?
-}
-
-func Register(reg *Registration) error {
-	return globalRegistry.register(reg)
-}
-
-// Registered returns all groups registered by the user.
-func Registered() []*Group {
-	return globalRegistry.Groups()
-}
-
-// GetGrpcClient returns the grpc client corresponding to a grpc server that has registered service t.
-func GetGrpcClient(ctx context.Context, t reflect.Type) (any, error) {
-	return globalRegistry.getGrpcClient(ctx, t)
-}
-
 type registry struct {
-	mu     sync.Mutex
-	groups map[string]*Group
+	mu         sync.Mutex
+	components map[string]*Component
 }
 
-type Group struct {
-	Name string
-
-	// Implementations of the registrations.
-	Accessor *Accessor // contains info about clients to connect to the grpc server
-	ImplFn   func(ctx context.Context, lis net.Listener) error
+// Registration this is the same as the one in the weaver package that the user has to write.
+type Registration struct {
+	ClientType reflect.Type
+	Client     func(grpc.ClientConnInterface) any
+	Server     func(s grpc.ServiceRegistrar) error
 }
 
-type Accessor struct {
-	Clients  map[reflect.Type]any
-	Conn     *grpc.ClientConn   // the underlying shared connection between clients.
-	Resolver *resolver.Resolver // responsible to update the endpoints
-}
-
-func (g *Group) Start(ctx context.Context, lis net.Listener) error {
-	return g.ImplFn(ctx, lis)
-}
-
-func (r *registry) Groups() []*Group {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return maps.Values(r.groups)
-}
-
-func (r *registry) register(reg *Registration) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, ok := r.groups[reg.Name]; ok {
-		return fmt.Errorf("group %s already registered", reg.Name)
+func Register(reg Registration) {
+	if err := globalRegistry.register(reg); err != nil {
+		panic(err)
 	}
-	if r.groups == nil {
-		r.groups = map[string]*Group{}
+}
+
+type Component struct {
+	Name   string
+	Handle *Handle // contains info about clients to connect to the grpc server
+	Impl   func(ctx context.Context, lis net.Listener) error
+}
+
+type Handle struct {
+	Client   any
+	Conn     *grpc.ClientConn   // the underlying grpc connection.
+	Resolver *resolver.Resolver // responsible to update the endpoints.
+}
+
+func (r *registry) register(reg Registration) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.components == nil {
+		r.components = map[string]*Component{}
+	}
+
+	// Build client implementation.
+	name, err := getServiceName(reg.ClientType.Name())
+	if err != nil {
+		return err
+	}
+	resolver := &resolver.Resolver{Name: strings.ToLower(name)}
+	conn, err := grpc.Dial(resolver.Scheme()+":///", grpc.WithResolvers(resolver), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	client := reg.Client(conn)
+	if _, found := r.components[name]; found {
+		return fmt.Errorf("component %s already registered", name)
 	}
 
 	// Build server implementation.
 	implFn := func(ctx context.Context, lis net.Listener) error {
-		fmt.Fprintf(os.Stderr, "[%s] Server listening on %v\n", reg.Name, lis.Addr())
+		fmt.Fprintf(os.Stderr, "[%s][%d] Server listening on %v\n", name, os.Getpid(), lis.Addr())
 		s := grpc.NewServer()
 		reflection.Register(s)
-		reg.Services(s) // register all services required by the client for this registration.
-		errs := make(chan error, 1)
-		go func() { errs <- s.Serve(lis) }()
-		select {
-		case err := <-errs:
+		if err := reg.Server(s); err != nil {
 			return err
-		case <-ctx.Done():
-			s.GracefulStop()
-			return nil
 		}
+		return s.Serve(lis)
 	}
 
-	// Build client implementation.
-	resolver := &resolver.Resolver{Name: strings.ToLower(reg.Name) + strconv.Itoa(rand.IntN(200))}
-	conn, err := grpc.Dial(
-		resolver.Scheme()+":///",
-		grpc.WithResolvers(resolver),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return err
-	}
-	clients := map[reflect.Type]any{}
-	for _, a := range reg.Clients(conn) {
-		clients[reflect.TypeOf(a).Elem()] = a
-	}
-
-	r.groups[reg.Name] = &Group{
-		Name:     reg.Name,
-		Accessor: &Accessor{Conn: conn, Resolver: resolver, Clients: clients},
-		ImplFn:   implFn,
+	r.components[name] = &Component{
+		Name:   name,
+		Handle: &Handle{Client: client, Conn: conn, Resolver: resolver},
+		Impl:   implFn,
 	}
 	return nil
 }
 
-func (r *registry) getGrpcClient(_ context.Context, t reflect.Type) (any, error) {
+// Registered returns all groups registered by the user.
+func Registered() []*Component {
+	return globalRegistry.allComponents()
+}
+
+// GetGrpcClient returns the grpc client corresponding to a grpc server that has registered service t.
+func GetGrpcClient(t reflect.Type) (any, error) {
+	return globalRegistry.getGrpcClient(t)
+}
+
+func (r *registry) allComponents() []*Component {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, g := range r.groups {
-		for cltype, client := range g.Accessor.Clients {
-			if strings.ToLower(t.Name()) == strings.ToLower(cltype.Name()) {
-				return client, nil
-			}
-		}
+	return maps.Values(r.components)
+}
+
+func (r *registry) getGrpcClient(t reflect.Type) (any, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	name, err := getServiceName(t.Name())
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("unable to find grpc client for %s", t.Name())
+	c, ok := r.components[name]
+	if !ok {
+		return nil, fmt.Errorf("unable to find registered client for service: %s", name)
+	}
+	return c.Handle.Client, nil
+}
+
+func getServiceName(s string) (string, error) {
+	suffix := "Client"
+	if strings.HasSuffix(s, suffix) {
+		return s[:len(s)-len(suffix)], nil
+	}
+	return "", fmt.Errorf("unable to extract service name from: %s", s)
 }

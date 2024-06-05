@@ -2,7 +2,7 @@ package multigrpc
 
 import (
 	"context"
-	"fmt"
+	"net"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver/internal/control"
@@ -16,10 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const defaultReplication = 1
-
-var controlPort = 57056
-var deployerPort = 60100
+const defaultReplication = 2
 
 type deployer struct {
 	control.DeployerControlGrpcServer
@@ -34,14 +31,12 @@ type deployer struct {
 	groups map[string]*group // groups, by group name
 }
 
-// A group contains information about a grpc group, which is the same as a
-// co-location group.
+// A group contains information about a component being deployed.
 type group struct {
-	name         string                   // group name
-	registration *grpcregistry.Group      // stuff that contains the actual server and the clients
-	envelopes    []*envelope.EnvelopeGrpc // envelopes, one per weavelet
-	started      bool                     // started components
-	addresses    map[string]bool          // weavelet addresses
+	name      string                   // group name
+	started   bool                     // started components
+	envelopes []*envelope.EnvelopeGrpc // envelopes, one per weavelet
+	replicas  map[string]bool          // weavelet addresses
 }
 
 // handler handles a connection to a weavelet.
@@ -63,12 +58,11 @@ func newDeployer(ctx context.Context, config *multi.MultiConfig) (*deployer, err
 	groups := grpcregistry.Registered()
 	for _, g := range groups {
 		d.groups[g.Name] = &group{
-			name:         g.Name,
-			addresses:    map[string]bool{},
-			registration: g,
+			name:     g.Name,
+			replicas: map[string]bool{},
 		}
 	}
-	d.groups[runtime.Main] = &group{name: runtime.Main, addresses: map[string]bool{}}
+	d.groups[runtime.Main] = &group{name: runtime.Main, replicas: map[string]bool{}}
 
 	// Start a goroutine that watches for context cancellation.
 	d.running.Go(func() error {
@@ -90,36 +84,45 @@ func (d *deployer) activateComponent(req *protos.ActivateComponentRequest) error
 	defer d.mu.Unlock()
 
 	if _, ok := d.groups[req.Component]; !ok {
-		d.groups[req.Component] = &group{name: req.Component, addresses: map[string]bool{}}
+		d.groups[req.Component] = &group{name: req.Component, replicas: map[string]bool{}}
 	}
-	target := d.groups[req.Component]
-	if !target.started {
-		return d.startGroup(target)
+	g := d.groups[req.Component]
+	if g.started {
+		return nil
 	}
-	return nil
+	return d.startGroup(g)
 }
 
 func (d *deployer) startGroup(g *group) error {
 	if d.err != nil {
 		return d.err
 	}
-	if len(g.envelopes) == defaultReplication {
+
+	rep := defaultReplication
+	if g.name == runtime.Main {
+		rep = 1
+	}
+
+	if len(g.envelopes) == rep {
 		// Already started.
 		return nil
 	}
 
-	for r := 0; r < defaultReplication; r++ {
+	for r := 0; r < rep; r++ {
+		ctrlSocket, err := getControlSocket()
+		if err != nil {
+			return err
+		}
+
 		// Start the weavelet.
-		info := &protos.WeaveletArgs{
+		args := &protos.WeaveletArgs{
 			App:             d.config.App.Name,
 			RunMain:         g.name == runtime.Main,
 			InternalAddress: "127.0.0.1:0",
-			ControlSocket:   fmt.Sprintf(":%d", controlPort),
-			DeployerSocket:  fmt.Sprintf(":%d", deployerPort),
+			ControlSocket:   ctrlSocket,
 		}
-		controlPort = controlPort + 1
-		deployerPort = deployerPort + 1
-		e, err := envelope.NewEnvelopeGrpc(d.ctx, info, d.config.App, envelope.Options{})
+
+		e, err := envelope.NewEnvelopeGrpc(d.ctx, args, d.config.App)
 		if err != nil {
 			return err
 		}
@@ -145,6 +148,22 @@ func (d *deployer) startGroup(g *group) error {
 		if err := e.UpdateComponents([]string{g.name}); err != nil {
 			return err
 		}
+
+		// Update routing info about other things.
+		// Notify all groups about changes in this group.
+		for gn, gr := range d.groups {
+			if gn == g.name || gn == runtime.Main {
+				continue
+			}
+			if err := e.UpdateRoutingInfo(
+				&protos.RoutingInfo{
+					Component: gn,
+					Replicas:  maps.Keys(gr.replicas),
+				}); err != nil {
+				return err
+			}
+		}
+
 		g.envelopes = append(g.envelopes, e)
 	}
 	g.started = true // Robert - is this the place to mark it as started???
@@ -172,24 +191,33 @@ func (d *deployer) stop(err error) {
 }
 
 func (d *deployer) registerReplica(g *group, replicaAddr string, pid int) error {
-	if g.addresses[replicaAddr] {
+	if g.replicas[replicaAddr] {
 		return nil // Replica already registered
 	}
-	g.addresses[replicaAddr] = true
+	g.replicas[replicaAddr] = true
 
-	// Notify all groups about changes in this group ....
+	// Notify all groups about changes in this group.
 	for _, gr := range d.groups {
 		for _, e := range gr.envelopes {
 			if err := e.UpdateRoutingInfo(
 				&protos.RoutingInfo{
 					Component: g.name,
-					Replicas:  maps.Keys(g.addresses),
+					Replicas:  maps.Keys(g.replicas),
 				}); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func getControlSocket() (string, error) {
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return "", err
+	}
+	defer lis.Close()
+	return lis.Addr().String(), nil
 }
 
 func (h *handler) ActivateComponent(ctx context.Context, request *protos.ActivateComponentRequest) (*protos.ActivateComponentReply, error) {

@@ -10,6 +10,7 @@ import (
 	"github.com/ServiceWeaver/weaver/internal/control"
 	"github.com/ServiceWeaver/weaver/runtime"
 	"github.com/ServiceWeaver/weaver/runtime/grpcregistry"
+
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/retry"
 	"github.com/ServiceWeaver/weaver/runtime/version"
@@ -23,27 +24,26 @@ import (
 type RemoteWeaveletGrpc struct {
 	control.WeaveletControlGrpcServer
 
-	ctx        context.Context
-	servers    *errgroup.Group
 	args       *protos.WeaveletArgs
 	weaverInfo *WeaverInfo
-	deployer   control.DeployerControlGrpcClient // component to control deployer
+
+	ctx     context.Context
+	servers *errgroup.Group
+
+	deployer control.DeployerControlGrpcClient // component to control deployer
 
 	// state to synchronize with envelope initiated initialization handshake.
 	initMu     sync.Mutex
 	initCalled bool
 	initDone   chan struct{}
 
-	// channel that is closed when deployer is ready.
-	deployerReady chan struct{}
-
 	groups map[string]*group // groups that we should start each of them in a separate process
 
-	lis net.Listener // Address dialed by other groups
+	internalLis net.Listener // Address dialed by other groups
 }
 
-type group struct {
-	reg *grpcregistry.Group
+type group struct { // a group runs a single component for now
+	component *grpcregistry.Component
 
 	activateInit sync.Once // used to activate the group
 	activateErr  error     // non-nil if activation fails
@@ -54,8 +54,8 @@ type group struct {
 	replicas []string
 }
 
-func NewRemoteWeaveletGrpc(ctx context.Context, groups []*grpcregistry.Group,
-	bootstrap runtime.Bootstrap) (*RemoteWeaveletGrpc, error) {
+func NewRemoteWeaveletGrpc(ctx context.Context, components []*grpcregistry.Component, bootstrap runtime.Bootstrap) (*RemoteWeaveletGrpc, error) {
+	servers, ctx := errgroup.WithContext(ctx)
 
 	// Get the arguments.
 	args := bootstrap.Args
@@ -66,28 +66,25 @@ func NewRemoteWeaveletGrpc(ctx context.Context, groups []*grpcregistry.Group,
 		return nil, err
 	}
 
-	servers, ctx := errgroup.WithContext(ctx)
 	w := &RemoteWeaveletGrpc{
-		ctx:           ctx,
-		servers:       servers,
-		groups:        map[string]*group{},
-		args:          args,
-		weaverInfo:    &WeaverInfo{DeploymentID: args.DeploymentId},
-		initDone:      make(chan struct{}),
-		deployerReady: make(chan struct{}),
-		lis:           lis,
+		ctx:         ctx,
+		servers:     servers,
+		groups:      map[string]*group{},
+		args:        args,
+		weaverInfo:  &WeaverInfo{DeploymentID: args.DeploymentId},
+		initDone:    make(chan struct{}),
+		internalLis: lis,
 	}
 
-	// Initialize the registered groups.
-	for _, g := range groups {
-		w.groups[g.Name] = &group{reg: g}
+	// Initialize the groups, one for each registered component.
+	for _, c := range components {
+		w.groups[c.Name] = &group{component: c}
 	}
-
-	info := bootstrap.Args
 
 	// Serve the control component.
-	controlAddr, err := net.Listen("tcp", info.ControlSocket)
+	controlAddr, err := net.Listen("tcp", args.ControlSocket)
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
 
@@ -96,6 +93,7 @@ func NewRemoteWeaveletGrpc(ctx context.Context, groups []*grpcregistry.Group,
 		defer s.GracefulStop()
 		control.RegisterWeaveletControlGrpcServer(s, w)
 		if err := s.Serve(controlAddr); err != nil {
+			panic(err)
 			return err
 		}
 		return nil
@@ -104,9 +102,9 @@ func NewRemoteWeaveletGrpc(ctx context.Context, groups []*grpcregistry.Group,
 	// Get a handle to the deployer control component.
 	w.deployer, err = w.getDeployerControl()
 	if err != nil {
+		panic(err)
 		return nil, err
 	}
-	close(w.deployerReady)
 
 	// Wait for initialization handshake to complete, so we have full config info.
 	select {
@@ -129,11 +127,22 @@ func NewRemoteWeaveletGrpc(ctx context.Context, groups []*grpcregistry.Group,
 			})
 		})
 		if g.activateErr != nil {
+			panic("plm")
 			return nil, g.activateErr
 		}
 	}
-	fmt.Fprintf(os.Stderr, "🧶 weavelet started %s\n", w.lis.Addr())
+
+	fmt.Fprintf(os.Stderr, "[%d] 🧶 weavelet started %s\n", os.Getpid(), w.internalLis.Addr())
 	return w, nil
+}
+
+func (r *RemoteWeaveletGrpc) getDeployerControl() (control.DeployerControlGrpcClient, error) {
+	conn, err := grpc.Dial(r.args.DeployerSocket, grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	// Robert - close connection somehow!? conn.Close()
+	return control.NewDeployerControlGrpcClient(conn), nil
 }
 
 // Wait waits for the RemoteWeavelet to fully shut down after its context has
@@ -146,15 +155,6 @@ func (w *RemoteWeaveletGrpc) Info() *protos.WeaveletArgs {
 	return w.args
 }
 
-func (r *RemoteWeaveletGrpc) getDeployerControl() (control.DeployerControlGrpcClient, error) {
-	conn, err := grpc.Dial(r.args.DeployerSocket, grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	// Robert - close connection somehow!? conn.Close()
-	return control.NewDeployerControlGrpcClient(conn), nil
-}
-
 func (r *RemoteWeaveletGrpc) InitWeavelet(context.Context, *protos.InitWeaveletRequest) (*protos.InitWeaveletReply, error) {
 	r.initMu.Lock()
 	defer r.initMu.Unlock()
@@ -164,7 +164,7 @@ func (r *RemoteWeaveletGrpc) InitWeavelet(context.Context, *protos.InitWeaveletR
 	}
 
 	return &protos.InitWeaveletReply{
-		DialAddr: r.lis.Addr().String(),
+		DialAddr: r.internalLis.Addr().String(),
 		Version: &protos.SemVer{
 			Major: version.DeployerMajor,
 			Minor: version.DeployerMinor,
@@ -181,7 +181,7 @@ func (r *RemoteWeaveletGrpc) UpdateComponents(_ context.Context, req *protos.Upd
 				return
 			}
 			gr.implInit.Do(func() {
-				gr.implErr = gr.reg.Start(r.ctx, r.lis)
+				gr.implErr = gr.component.Impl(r.ctx, r.internalLis)
 			})
 		}()
 	}
@@ -193,6 +193,8 @@ func (r *RemoteWeaveletGrpc) UpdateRoutingInfo(_ context.Context, req *protos.Up
 		return nil, fmt.Errorf("nil RoutingInfo")
 	}
 	info := req.RoutingInfo
+	//fmt.Fprintf(os.Stderr, "[Robert][%d] - update routing info: %v\n", os.Getpid(), info)
+
 	group, ok := r.groups[req.RoutingInfo.Component]
 	if !ok {
 		panic(fmt.Errorf("unable to find group: %s\n", req.RoutingInfo.Component))
@@ -214,7 +216,7 @@ func (r *RemoteWeaveletGrpc) UpdateRoutingInfo(_ context.Context, req *protos.Up
 	mu.Lock()
 	defer mu.Unlock()
 
-	group.reg.Accessor.Resolver.UpdateState(resolver.State{
+	group.component.Handle.Resolver.UpdateState(resolver.State{
 		Endpoints: endpoints,
 	})
 

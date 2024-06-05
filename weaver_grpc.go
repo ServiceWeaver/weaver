@@ -10,35 +10,40 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Registration as passed by the user code.
-type Registration struct {
-	Name     string
-	Clients  func(cc grpc.ClientConnInterface) []any
-	Services func(s grpc.ServiceRegistrar)
-	// Robert: listeners?
+func RegisterComponent[C any](client func(grpc.ClientConnInterface) C, server func(s grpc.ServiceRegistrar) error) {
+	grpcregistry.Register(grpcregistry.Registration{
+		ClientType: reflect.TypeOf((*C)(nil)).Elem(),
+		Client: func(cc grpc.ClientConnInterface) any {
+			return client(cc)
+		},
+		Server: server,
+	})
 }
 
 // GetClient - returns a grpc client corresponding to a grpc server that run in
 // a colocation group. The grpc client should load balance requests across all
 // the server replicas.
-func GetClient[T any](ctx context.Context, p *T) (T, error) {
-	h, err := grpcregistry.GetGrpcClient(ctx, reflect.TypeOf(p).Elem())
+func GetClient[T any]() (T, error) {
+	h, err := grpcregistry.GetGrpcClient(reflect.TypeOf((*T)(nil)).Elem())
+	if err != nil {
+		var x T
+		return x, err
+	}
 	return h.(T), err
 }
 
-// RunGrpc - similar to weaver.Run, runs an app.
-func RunGrpc(ctx context.Context, regs []*Registration, app func(ctx context.Context) error) error {
-	// Register the groups.
-	for _, r := range regs {
-		if err := grpcregistry.Register(&grpcregistry.Registration{
-			Name:     r.Name,
-			Clients:  r.Clients,
-			Services: r.Services,
-		}); err != nil {
-			return err
-		}
-	}
+type Registration[C any] struct {
+	Name   string
+	Client func(cc grpc.ClientConnInterface) C
+	Server func(s grpc.ServiceRegistrar) error
+}
 
+//////////////////////////// END NEW APIs //////////////////////////////
+
+// Registration as passed by the user code.
+
+// RunGrpc - similar to weaver.Run, runs an app.
+func RunGrpc(ctx context.Context, app func(ctx context.Context) error) error {
 	// Decides whether to run locally or remote.
 	bootstrap, err := runtime.GetBootstrap(ctx)
 	if err != nil {
@@ -53,9 +58,9 @@ func RunGrpc(ctx context.Context, regs []*Registration, app func(ctx context.Con
 }
 
 func runGrpcLocal(ctx context.Context, app func(ctx context.Context) error) error {
-	regs := grpcregistry.Registered()
+	components := grpcregistry.Registered()
 
-	wlet, err := weaver.NewSingleGrpcWeavelet(ctx, regs)
+	wlet, err := weaver.NewSingleGrpcWeavelet(ctx, components)
 	if err != nil {
 		return err
 	}
@@ -73,9 +78,9 @@ func runGrpcLocal(ctx context.Context, app func(ctx context.Context) error) erro
 }
 
 func runGrpcRemote(ctx context.Context, app func(ctx context.Context) error, bootstrap runtime.Bootstrap) error {
-	regs := grpcregistry.Registered()
+	components := grpcregistry.Registered()
 
-	wlet, err := weaver.NewRemoteWeaveletGrpc(ctx, regs, bootstrap)
+	wlet, err := weaver.NewRemoteWeaveletGrpc(ctx, components, bootstrap)
 	if err != nil {
 		return err
 	}

@@ -31,18 +31,23 @@ func (r *Resolver) UpdateState(s resolver.State) {
 		panic("cannot update state as grpc.Dial with resolver has not been called")
 	}
 
-	if err := r.CC.UpdateState(s); err != nil {
-		fmt.Fprintf(os.Stderr, "Update State for group %s with err: %v\n", r.Name, err)
+	if len(s.Endpoints) > 0 {
+		if err := r.CC.UpdateState(s); err != nil {
+			fmt.Fprintf(os.Stderr, "Update State for group %s with err: %v\n", r.Name, err)
+		}
 	}
 	r.lastSeenState = &s
 }
 
-func (r *Resolver) ResolveNow(resolver.ResolveNowOptions) {
+func (r *Resolver) ResolveNow(opts resolver.ResolveNowOptions) {
+	panic("plm")
+	fmt.Fprintf(os.Stderr, "Robert - ResolveNow: %v\n", opts)
 	// noop for resolver
 }
 
 func (r *Resolver) Close() {
 	// noop for resolver
+	r.Close()
 }
 
 func (r *Resolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {

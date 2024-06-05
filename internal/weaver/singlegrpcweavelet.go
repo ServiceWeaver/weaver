@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sync"
 
 	"github.com/ServiceWeaver/weaver/runtime/grpcregistry"
 	"golang.org/x/sync/errgroup"
@@ -13,42 +12,35 @@ import (
 )
 
 type SingleGrpcWeavelet struct {
-	ctx    context.Context
-	groups []*grpcregistry.Group // registered groups
-
-	servers *errgroup.Group
-
-	mu      sync.Mutex
-	started map[string]bool
+	ctx        context.Context
+	components []*grpcregistry.Component
+	servers    *errgroup.Group
 }
 
-func NewSingleGrpcWeavelet(ctx context.Context, groups []*grpcregistry.Group) (*SingleGrpcWeavelet, error) {
+func NewSingleGrpcWeavelet(ctx context.Context, components []*grpcregistry.Component) (*SingleGrpcWeavelet, error) {
 	servers, ctx := errgroup.WithContext(ctx)
 
 	w := &SingleGrpcWeavelet{
-		ctx:     ctx,
-		groups:  groups,
-		started: map[string]bool{},
-		servers: servers,
+		ctx:        ctx,
+		components: components,
+		servers:    servers,
 	}
 
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, g := range w.groups {
+	for _, c := range w.components {
 		servers.Go(func() error {
-			g.Accessor.Resolver.UpdateState(resolver.State{
+			lis, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				return err
+			}
+			c.Handle.Resolver.UpdateState(resolver.State{
 				Endpoints: []resolver.Endpoint{
 					{Addresses: []resolver.Address{{Addr: lis.Addr().String()}}},
 				},
 			})
-			return g.Start(ctx, lis)
+			return c.Impl(ctx, lis)
 		})
 	}
-
-	fmt.Fprintf(os.Stderr, "🧶 weavelet started %s: pid - %d\n", lis.Addr(), os.Getpid())
+	fmt.Fprintf(os.Stderr, "🧶 weavelet started pid - %d\n", os.Getpid())
 	return w, nil
 }
 
