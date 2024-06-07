@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/DataDog/hyperloglog v0.0.0-20220804205443-1806d9b66146
 	github.com/alecthomas/chroma/v2 v2.2.0
+	github.com/dominikbraun/graph v0.23.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goburrow/cache v0.1.4
