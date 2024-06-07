@@ -22,8 +22,36 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
+	"github.com/dominikbraun/graph"
 	"golang.org/x/exp/slices"
 )
+
+func checkCircularDependency(regs []*codegen.Registration) error {
+	g := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
+
+	for _, reg := range regs {
+		if err := g.AddVertex(reg.Name); err != nil {
+			return fmt.Errorf("components [%s], error %s", reg.Name, err)
+		}
+	}
+
+	var errs []error
+	for _, reg := range regs {
+		edges := codegen.ExtractEdges([]byte(reg.RefData))
+		for _, edge := range edges {
+			err := g.AddEdge(edge[0], edge[1])
+			if err != nil {
+				switch err {
+				case graph.ErrEdgeAlreadyExists, graph.ErrEdgeCreatesCycle:
+					err = fmt.Errorf("components [%s] and [%s] have cycle Ref", edge[0], edge[1])
+				}
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
 
 // validateRegistrations validates the provided registrations, returning an
 // diagnostic error if they are invalid. Note that some validation is performed
