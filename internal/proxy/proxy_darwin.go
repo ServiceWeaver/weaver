@@ -12,32 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !darwin
-//+build !darwin
+//go:build darwin
+//+build darwin
 
 package proxy
 
 import (
 	"errors"
-	"log/slog"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"sync"
+	"time"
+
+	"github.com/ServiceWeaver/weaver/internal/logtype"
 )
 
 // Proxy is an HTTP proxy that forwards traffic to a set of backends.
 type Proxy struct {
-	logger   *slog.Logger          // logger
+	logger   logtype.Logger        // logger
 	reverse  httputil.ReverseProxy // underlying proxy
 	mu       sync.Mutex            // guards backends
 	backends []string              // backend addresses
 }
 
 // NewProxy returns a new proxy.
-func NewProxy(logger *slog.Logger) *Proxy {
+func NewProxy(logger logtype.Logger) *Proxy {
 	p := &Proxy{logger: logger}
-	p.reverse = httputil.ReverseProxy{Director: p.director}
+	p.reverse = httputil.ReverseProxy{
+		Director: p.director,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			// for non HTTP/2 cases, set a reasonable limit on the
+			// setup reasonable defaults so this proxy wound not run out
+			// of requesting adddress under high load pressure, e.g examples/hello
+			// default value of MaxIdelConnsPerHost is 2, 5 is the minimum value to
+			// make requesting address issue disappear
+			MaxIdleConnsPerHost: 5,
+		},
+	}
+
 	return p
 }
 
@@ -61,7 +85,7 @@ func (p *Proxy) director(r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.backends) == 0 {
-		p.logger.Error("director", "err", errors.New("no backends"), "url", r.URL)
+		p.logger.Error("director", errors.New("no backends"), "url", r.URL)
 		return
 	}
 	r.URL.Scheme = "http" // TODO(mwhittaker): Support HTTPS.
