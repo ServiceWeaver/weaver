@@ -524,6 +524,7 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     github.com/ServiceWeaver/weaver/runtime/tool
     github.com/ServiceWeaver/weaver/runtime/traces
     github.com/ServiceWeaver/weaver/runtime/version
+    github.com/containerd/cgroups/v3/cgroup2
     github.com/google/uuid
     golang.org/x/exp/maps
     golang.org/x/sync/errgroup
@@ -785,6 +786,7 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/protomsg
     github.com/ServiceWeaver/weaver/runtime/protos
     github.com/ServiceWeaver/weaver/runtime/version
+    github.com/containerd/cgroups/v3/cgroup2
     go.opentelemetry.io/otel/trace
     golang.org/x/sync/errgroup
     io

@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/DataDog/hyperloglog v0.0.0-20220804205443-1806d9b66146
 	github.com/alecthomas/chroma/v2 v2.2.0
+	github.com/containerd/cgroups/v3 v3.0.3
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/goburrow/cache v0.1.4
@@ -50,7 +51,6 @@ require (
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cilium/ebpf v0.11.0 // indirect
-	github.com/containerd/cgroups/v3 v3.0.3 // indirect
 	github.com/containerd/containerd v1.7.11 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
