@@ -50,3 +50,33 @@ func TestDFSAll(t *testing.T) {
 			DebugString(g), diff)
 	}
 }
+
+func TestDFSALLWithoutCycles(t *testing.T) {
+	g := NewAdjacencyGraph(
+		[]Node{1, 2, 3, 4},
+		[]Edge{
+			{1, 2},
+			{2, 3},
+			{3, 4},
+		},
+	)
+	var got []string
+	DFSAll(g,
+		func(n Node) { got = append(got, fmt.Sprint("enter ", n)) },
+		func(n Node) { got = append(got, fmt.Sprint("leave ", n)) })
+	want := []string{
+		"enter 1",
+		"enter 2",
+		"enter 3",
+		"enter 4",
+		"leave 4",
+		"leave 3",
+		"leave 2",
+		"leave 1",
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("DFSAll for:\n%s\nDiff (-want +got):\n%s",
+			DebugString(g), diff)
+	}
+}

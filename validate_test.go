@@ -219,7 +219,7 @@ func TestValidate_checkCircularDependencysError(t *testing.T) {
 	}
 
 	if err := checkCircularDependency(regs); err != nil {
-		const want = "components [github.com/renanbastos93/weaver-issue-556/LocalCache] and [github.com/renanbastos93/weaver-issue-556/ImageScaler] have cycle Ref"
+		const want = "components have cycle Ref"
 		if err.Error() != want {
 			t.Fatalf("validateRegistrations: got %q, want %q", err, want)
 		}

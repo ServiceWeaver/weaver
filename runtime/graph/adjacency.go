@@ -89,6 +89,51 @@ func (g *adjacencyGraph) NodeLimit() int {
 	return len(g.out)
 }
 
+// isNode checks if the given node is a valid node in the graph.
+//
+// It takes a node and a slice of outgoing node lists as parameters. It returns
+// true if the node is a valid node, and false otherwise.
+//
+// Parameters:
+// - n: The node to check.
+// - out: The slice of outgoing node lists.
+//
+// Returns:
+// - bool: True if the node is a valid node, false otherwise.
 func isNode(n Node, out [][]Node) bool {
+	// Check if the node is a valid index in the outgoing node list slice.
+	// Additionally, check if the list of outgoing nodes for the node is not nil.
 	return n >= 0 && int(n) < len(out) && out[n] != nil
+}
+
+// HasCycle checks if the graph contains a cycle using Depth-First Search (DFS)
+func (g *adjacencyGraph) HasCycle() bool {
+	visited := make(map[Node]bool)
+	stack := make(map[Node]bool)
+
+	var hasCycleDFS func(node Node) bool
+	hasCycleDFS = func(node Node) bool {
+		if !visited[node] {
+			visited[node] = true
+			stack[node] = true
+
+			for _, neighbor := range g.out[node] {
+				if !visited[neighbor] && hasCycleDFS(neighbor) {
+					return true
+				} else if stack[neighbor] {
+					return true
+				}
+			}
+		}
+		stack[node] = false
+		return false
+	}
+
+	for n := range g.out {
+		if hasCycleDFS(Node(n)) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -14,7 +14,9 @@
 
 package graph
 
-import "slices"
+import (
+	"slices"
+)
 
 // DFSAll performs a depth first search of all nodes in g.
 // If enter is non-nil, it is called on entry to a node.

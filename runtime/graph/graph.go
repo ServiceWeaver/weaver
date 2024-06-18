@@ -46,6 +46,8 @@ type Graph interface {
 	// so Graph implementations should use a relatively dense numeric
 	// assignment for nodes.
 	NodeLimit() int
+
+	HasCycle() bool
 }
 
 // PerEdge calls fn(edge) for every edge in g.
@@ -81,4 +83,9 @@ func DebugString(g Graph) string {
 		b.WriteRune('\n')
 	})
 	return b.String()
+}
+
+// HasCycle checks if the graph contains a cycle.
+func HasCycle(g Graph) bool {
+	return g.HasCycle()
 }

@@ -22,35 +22,51 @@ import (
 
 	"github.com/ServiceWeaver/weaver/internal/reflection"
 	"github.com/ServiceWeaver/weaver/runtime/codegen"
-	"github.com/dominikbraun/graph"
+	"github.com/ServiceWeaver/weaver/runtime/graph"
+
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
+// checkCircularDependency checks if there are any circular dependencies in the
+// given registrations. It returns an error if a circular dependency is detected.
 func checkCircularDependency(regs []*codegen.Registration) error {
-	g := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
+	const mainComponent = "github.com/ServiceWeaver/weaver/Main"
+	var (
+		edges   []graph.Edge
+		nodes   []graph.Node
+		nodeMap = map[string]graph.Node{mainComponent: 0}
+	)
 
 	for _, reg := range regs {
-		if err := g.AddVertex(reg.Name); err != nil {
-			return fmt.Errorf("components [%s], error %s", reg.Name, err)
+		es := codegen.ExtractEdges([]byte(reg.RefData))
+		for _, e := range es {
+			nodeMap[e[0]] = 0
+			nodeMap[e[1]] = 0
 		}
+
+		components := maps.Keys(nodeMap)
+		slices.Sort(components)
+		for i, c := range components {
+			nodeMap[c] = graph.Node(i)
+			nodes = append(nodes, nodeMap[c])
+		}
+
+		for _, e := range es {
+			src := nodeMap[e[0]]
+			dst := nodeMap[e[1]]
+			edges = append(edges, graph.Edge{Src: src, Dst: dst})
+		}
+
 	}
 
-	var errs []error
-	for _, reg := range regs {
-		edges := codegen.ExtractEdges([]byte(reg.RefData))
-		for _, edge := range edges {
-			err := g.AddEdge(edge[0], edge[1])
-			if err != nil {
-				switch err {
-				case graph.ErrEdgeAlreadyExists, graph.ErrEdgeCreatesCycle:
-					err = fmt.Errorf("components [%s] and [%s] have cycle Ref", edge[0], edge[1])
-				}
-				errs = append(errs, err)
-			}
-		}
+	g := graph.NewAdjacencyGraph(nodes, edges)
+	if graph.HasCycle(g) {
+		return errors.New("components have cycle Ref")
 	}
 
-	return errors.Join(errs...)
+	return nil
+
 }
 
 // validateRegistrations validates the provided registrations, returning an
