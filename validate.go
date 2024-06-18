@@ -61,7 +61,7 @@ func checkCircularDependency(regs []*codegen.Registration) error {
 	}
 
 	g := graph.NewAdjacencyGraph(nodes, edges)
-	if graph.HasCycle(g) {
+	if g.HasCycle() {
 		return errors.New("components have cycle Ref")
 	}
 

@@ -47,6 +47,16 @@ type Graph interface {
 	// assignment for nodes.
 	NodeLimit() int
 
+	// HasCycle checks if the graph contains a cycle using Depth-First Search (DFS)
+	//
+	// This function uses Depth-First Search (DFS) to traverse the graph and checks
+	// if a cycle exists. DFS is a traversal algorithm that visits all the vertices
+	// of a graph and explores all the vertices reachable from a given vertex. If
+	// a cycle is found during the traversal, it returns true indicating that the
+	// graph contains a cycle.
+	//
+	// Return:
+	//     bool: true if the graph contains a cycle, false otherwise.
 	HasCycle() bool
 }
 

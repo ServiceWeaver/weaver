@@ -29,8 +29,6 @@ func TestGraphHasCycle(t *testing.T) {
 		{
 			name: "HasCycle",
 			graph: graph.NewAdjacencyGraph(
-				// [0 1 2 0 1 2 0 1 2]
-				// [{1 2} {2 1}]
 				[]graph.Node{1, 2, 3, 4},
 				[]graph.Edge{
 					{1, 2},
