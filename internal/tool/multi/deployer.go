@@ -44,6 +44,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/profiling"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/traces"
+	cgroups "github.com/containerd/cgroups/v3/cgroup2"
 	"github.com/google/uuid"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
@@ -55,19 +56,20 @@ const defaultReplication = 2
 
 // A deployer manages an application deployment.
 type deployer struct {
-	ctx          context.Context
-	ctxCancel    context.CancelFunc
-	deploymentId string
-	tmpDir       string // Private directory for this weavelet/envelope
-	config       *MultiConfig
-	started      time.Time
-	logger       *slog.Logger
-	caCert       *x509.Certificate
-	caKey        crypto.PrivateKey
-	running      errgroup.Group
-	logsDB       *logging.FileStore
-	printer      *logging.PrettyPrinter
-	traceDB      *traces.DB
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	deploymentId  string
+	tmpDir        string // Private directory for this weavelet/envelope
+	config        *MultiConfig
+	started       time.Time
+	logger        *slog.Logger
+	caCert        *x509.Certificate
+	caKey         crypto.PrivateKey
+	running       errgroup.Group
+	logsDB        *logging.FileStore
+	printer       *logging.PrettyPrinter
+	traceDB       *traces.DB
+	cgroupManager *cgroups.Manager
 
 	// statsProcessor tracks and computes stats to be rendered on the /statusz page.
 	statsProcessor *imetrics.StatsProcessor
@@ -76,6 +78,20 @@ type deployer struct {
 	err     error                 // error that stopped the babysitter
 	groups  map[string]*group     // groups, by component name
 	proxies map[string]*proxyInfo // proxies, by listener name
+}
+
+func loadCgroup(mountpoint string, groupname string) (*cgroups.Manager, error) {
+	var cgroupManager *cgroups.Manager
+	var err error
+	if mountpoint != "" {
+		cgroupManager, err = cgroups.Load(groupname, cgroups.WithMountpoint(mountpoint))
+	} else {
+		cgroupManager, err = cgroups.Load(groupname)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Unable to load cgroup: %w", err)
+	}
+	return cgroupManager, nil
 }
 
 // A group contains information about a co-location group.
@@ -135,6 +151,13 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 			return nil, fmt.Errorf("cannot generate signing certificate: %w", err)
 		}
 	}
+	var cgroupManager *cgroups.Manager
+	if config.Cgroup != nil && config.Cgroup.Groupname != "" {
+		cgroupManager, err = loadCgroup(config.Cgroup.Mountpoint, config.Cgroup.Groupname)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// Create the trace saver.
 	traceDB, err := traces.OpenDB(ctx, perfettoFile)
@@ -157,6 +180,7 @@ func newDeployer(ctx context.Context, deploymentId string, config *MultiConfig, 
 		deploymentId:   deploymentId,
 		config:         config,
 		started:        time.Now(),
+		cgroupManager:  cgroupManager,
 		proxies:        map[string]*proxyInfo{},
 	}
 
@@ -330,7 +354,8 @@ func (d *deployer) startColocationGroup(g *group) error {
 			InternalAddress: "localhost:0",
 		}
 		e, err := envelope.NewEnvelope(d.ctx, info, d.config.App, envelope.Options{
-			Logger: d.logger,
+			Logger:  d.logger,
+			Manager: d.cgroupManager,
 		})
 		if err != nil {
 			return err

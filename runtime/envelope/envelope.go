@@ -35,6 +35,7 @@ import (
 	"github.com/ServiceWeaver/weaver/runtime/protomsg"
 	"github.com/ServiceWeaver/weaver/runtime/protos"
 	"github.com/ServiceWeaver/weaver/runtime/version"
+	cgroups "github.com/containerd/cgroups/v3/cgroup2"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
@@ -132,6 +133,9 @@ type Options struct {
 
 	// Child is used to run the weavelet. If nil, a sub-process is created.
 	Child Child
+
+	// Cgroup manager for this envelope. If nil, cgroup is not added.
+	Manager *cgroups.Manager
 }
 
 // NewEnvelope creates a new envelope, starting a weavelet subprocess (via child.Start) and
@@ -204,6 +208,15 @@ func NewEnvelope(ctx context.Context, wlet *protos.WeaveletArgs, config *protos.
 	}
 	if err := child.Start(ctx, e.config, e.weavelet); err != nil {
 		return nil, fmt.Errorf("NewEnvelope: %w", err)
+	}
+
+	if options.Manager != nil {
+		pid, isChildProcess := child.Pid()
+		if isChildProcess {
+			if err := options.Manager.AddProc(uint64(pid)); err != nil {
+				return nil, fmt.Errorf("NewEnvelope adding to cgroup: %w", err)
+			}
+		}
 	}
 
 	reply, err := controller.InitWeavelet(e.ctx, &protos.InitWeaveletRequest{
