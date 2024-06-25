@@ -10,12 +10,14 @@ github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
+    github.com/ServiceWeaver/weaver/runtime/grpcregistry
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/protos
     go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/slices
+    google.golang.org/grpc
     log/slog
     math/rand
     net
@@ -35,6 +37,7 @@ github.com/ServiceWeaver/weaver/cmd/weaver
     github.com/ServiceWeaver/weaver/internal/tool/callgraph
     github.com/ServiceWeaver/weaver/internal/tool/generate
     github.com/ServiceWeaver/weaver/internal/tool/multi
+    github.com/ServiceWeaver/weaver/internal/tool/multigrpc
     github.com/ServiceWeaver/weaver/internal/tool/single
     github.com/ServiceWeaver/weaver/internal/tool/ssh
     github.com/ServiceWeaver/weaver/runtime/tool
@@ -259,6 +262,23 @@ github.com/ServiceWeaver/weaver/examples/hello
     log
     net/http
     reflect
+github.com/ServiceWeaver/weaver/examples/hellogrpc
+    context
+    fmt
+    github.com/ServiceWeaver/weaver
+    google.golang.org/grpc
+    google.golang.org/grpc/codes
+    google.golang.org/grpc/status
+    google.golang.org/protobuf/reflect/protoreflect
+    google.golang.org/protobuf/runtime/protoimpl
+    google.golang.org/protobuf/types/known/emptypb
+    google.golang.org/protobuf/types/known/timestamppb
+    net
+    net/http
+    os
+    reflect
+    sync
+    time
 github.com/ServiceWeaver/weaver/examples/helloworld
     context
     fmt
@@ -304,6 +324,16 @@ github.com/ServiceWeaver/weaver/internal/config
 github.com/ServiceWeaver/weaver/internal/control
     context
     github.com/ServiceWeaver/weaver/runtime/protos
+github.com/ServiceWeaver/weaver/internal/controlgrpc
+    context
+    github.com/ServiceWeaver/weaver/runtime/protos
+    google.golang.org/grpc
+    google.golang.org/grpc/codes
+    google.golang.org/grpc/status
+    google.golang.org/protobuf/reflect/protoreflect
+    google.golang.org/protobuf/runtime/protoimpl
+    google.golang.org/protobuf/types/known/emptypb
+    reflect
 github.com/ServiceWeaver/weaver/internal/env
     fmt
     strings
@@ -369,6 +399,11 @@ github.com/ServiceWeaver/weaver/internal/reflection
     reflect
 github.com/ServiceWeaver/weaver/internal/register
     fmt
+    sync
+github.com/ServiceWeaver/weaver/internal/resolver
+    fmt
+    google.golang.org/grpc/resolver
+    os
     sync
 github.com/ServiceWeaver/weaver/internal/routing
     fmt
@@ -540,6 +575,26 @@ github.com/ServiceWeaver/weaver/internal/tool/multi
     sync
     syscall
     time
+github.com/ServiceWeaver/weaver/internal/tool/multigrpc
+    context
+    errors
+    flag
+    fmt
+    github.com/ServiceWeaver/weaver/internal/controlgrpc
+    github.com/ServiceWeaver/weaver/internal/tool/multi
+    github.com/ServiceWeaver/weaver/runtime
+    github.com/ServiceWeaver/weaver/runtime/codegen
+    github.com/ServiceWeaver/weaver/runtime/envelope
+    github.com/ServiceWeaver/weaver/runtime/grpcregistry
+    github.com/ServiceWeaver/weaver/runtime/protos
+    github.com/ServiceWeaver/weaver/runtime/tool
+    golang.org/x/exp/maps
+    golang.org/x/sync/errgroup
+    google.golang.org/protobuf/types/known/emptypb
+    net
+    os
+    path/filepath
+    sync
 github.com/ServiceWeaver/weaver/internal/tool/single
     context
     errors
@@ -650,6 +705,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/internal/cond
     github.com/ServiceWeaver/weaver/internal/config
     github.com/ServiceWeaver/weaver/internal/control
+    github.com/ServiceWeaver/weaver/internal/controlgrpc
     github.com/ServiceWeaver/weaver/internal/env
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/net/call
@@ -661,6 +717,7 @@ github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/deployers
+    github.com/ServiceWeaver/weaver/runtime/grpcregistry
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -676,7 +733,11 @@ github.com/ServiceWeaver/weaver/internal/weaver
     go.opentelemetry.io/otel/semconv/v1.4.0
     go.opentelemetry.io/otel/trace
     golang.org/x/exp/maps
+    golang.org/x/exp/slices
     golang.org/x/sync/errgroup
+    google.golang.org/grpc
+    google.golang.org/grpc/credentials/insecure
+    google.golang.org/grpc/resolver
     google.golang.org/protobuf/types/known/timestamppb
     io
     log/slog
@@ -775,6 +836,7 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     fmt
     github.com/ServiceWeaver/weaver
     github.com/ServiceWeaver/weaver/internal/control
+    github.com/ServiceWeaver/weaver/internal/controlgrpc
     github.com/ServiceWeaver/weaver/internal/net/call
     github.com/ServiceWeaver/weaver/internal/pipe
     github.com/ServiceWeaver/weaver/internal/proto
@@ -787,6 +849,8 @@ github.com/ServiceWeaver/weaver/runtime/envelope
     github.com/ServiceWeaver/weaver/runtime/version
     go.opentelemetry.io/otel/trace
     golang.org/x/sync/errgroup
+    google.golang.org/grpc
+    google.golang.org/grpc/credentials/insecure
     io
     log/slog
     net
@@ -797,6 +861,19 @@ github.com/ServiceWeaver/weaver/runtime/graph
     golang.org/x/exp/slices
     slices
     strings
+github.com/ServiceWeaver/weaver/runtime/grpcregistry
+    context
+    fmt
+    github.com/ServiceWeaver/weaver/internal/resolver
+    golang.org/x/exp/maps
+    google.golang.org/grpc
+    google.golang.org/grpc/credentials/insecure
+    google.golang.org/grpc/reflection
+    net
+    os
+    reflect
+    strings
+    sync
 github.com/ServiceWeaver/weaver/runtime/logging
     bufio
     context
