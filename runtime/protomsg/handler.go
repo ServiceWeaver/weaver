@@ -24,6 +24,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/metrics"
 	"google.golang.org/protobuf/proto"
 )
@@ -40,17 +41,17 @@ var (
 	httpRequestLatencyMicros = metrics.NewHistogramMap[handlerLabels](
 		"serviceweaver_system_http_request_latency_micros",
 		"Duration, in microseconds, of Service Weaver HTTP request execution",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 	httpRequestBytesReceived = metrics.NewHistogramMap[handlerLabels](
 		"serviceweaver_system_http_request_bytes_received",
 		"Number of bytes received by Service Weaver HTTP request handlers",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 	httpRequestBytesReturned = metrics.NewHistogramMap[handlerLabels](
 		"serviceweaver_system_http_request_bytes_returned",
 		"Number of bytes returned by Service Weaver HTTP request handlers",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 )
 

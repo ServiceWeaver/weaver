@@ -17,42 +17,34 @@ package codegen
 import (
 	"time"
 
+	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/metrics"
-)
-
-// Names of automatically populated metrics.
-const (
-	MethodCountsName       = "serviceweaver_method_count"
-	MethodErrorsName       = "serviceweaver_method_error_count"
-	MethodLatenciesName    = "serviceweaver_method_latency_micros"
-	MethodBytesRequestName = "serviceweaver_method_bytes_request"
-	MethodBytesReplyName   = "serviceweaver_method_bytes_reply"
 )
 
 var (
 	// The following metrics are automatically populated for the user.
 	methodCounts = metrics.NewCounterMap[MethodLabels](
-		MethodCountsName,
+		imetrics.MethodCountsName,
 		"Count of Service Weaver component method invocations",
 	)
 	methodErrors = metrics.NewCounterMap[MethodLabels](
-		MethodErrorsName,
+		imetrics.MethodErrorsName,
 		"Count of Service Weaver component method invocations that result in an error",
 	)
 	methodLatencies = metrics.NewHistogramMap[MethodLabels](
-		MethodLatenciesName,
+		imetrics.MethodLatenciesName,
 		"Duration, in microseconds, of Service Weaver component method execution",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 	methodBytesRequest = metrics.NewHistogramMap[MethodLabels](
-		MethodBytesRequestName,
+		imetrics.MethodBytesRequestName,
 		"Number of bytes in Service Weaver component method requests",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 	methodBytesReply = metrics.NewHistogramMap[MethodLabels](
-		MethodBytesReplyName,
+		imetrics.MethodBytesReplyName,
 		"Number of bytes in Service Weaver component method replies",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 )
 

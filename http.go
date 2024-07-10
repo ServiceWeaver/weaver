@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	imetrics "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/metrics"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -58,17 +59,17 @@ var (
 	httpRequestLatencyMicros = metrics.NewHistogramMap[httpLabels](
 		"serviceweaver_http_request_latency_micros",
 		"Duration, in microseconds, of HTTP request execution",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 	httpRequestBytesReceived = metrics.NewHistogramMap[httpLabels](
 		"serviceweaver_http_request_bytes_received",
 		"Number of bytes received by HTTP request handlers",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 	httpRequestBytesReturned = metrics.NewHistogramMap[httpLabels](
 		"serviceweaver_http_request_bytes_returned",
 		"Number of bytes returned by HTTP request handlers",
-		metrics.NonNegativeBuckets,
+		imetrics.GeneratedBuckets,
 	)
 )
 
