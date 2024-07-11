@@ -50,15 +50,6 @@
 //		)
 //	)
 //
-// [NonNegativeBuckets] returns a default set of non-negative buckets. It is
-// useful when declaring histograms that measure things like memory or latency.
-//
-//	var exampleLatency = metrics.NewHistogram(
-//		"example_latency",
-//		"The latency of something, in microseconds",
-//		metrics.NonNegativeBuckets,
-//	)
-//
 // # Updating Metrics
 //
 // Every metric type has a set of methods you can use to update the metric.
