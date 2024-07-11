@@ -26,7 +26,7 @@ import (
 var stringLength = metrics.NewHistogram(
 	"reverse_string_length",
 	"The length of strings passed to the Reverse method",
-	metrics.NonNegativeBuckets,
+	[]float64{1, 10, 100, 1000, 10000, 100000, 1000000},
 )
 
 // Reverser component.
