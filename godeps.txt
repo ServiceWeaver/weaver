@@ -4,6 +4,7 @@ github.com/ServiceWeaver/weaver
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/control
+    github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/reflection
     github.com/ServiceWeaver/weaver/internal/weaver
     github.com/ServiceWeaver/weaver/metrics
@@ -315,8 +316,7 @@ github.com/ServiceWeaver/weaver/internal/heap
     container/heap
 github.com/ServiceWeaver/weaver/internal/metrics
     context
-    github.com/ServiceWeaver/weaver/runtime/codegen
-    github.com/ServiceWeaver/weaver/runtime/logging
+    fmt
     github.com/ServiceWeaver/weaver/runtime/metrics
     strings
     sync
@@ -386,8 +386,8 @@ github.com/ServiceWeaver/weaver/internal/status
     flag
     fmt
     github.com/ServiceWeaver/weaver/internal/files
+    github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/traceio
-    github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/colors
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/metrics
@@ -742,6 +742,7 @@ github.com/ServiceWeaver/weaver/runtime/codegen
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/config
+    github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -875,6 +876,7 @@ github.com/ServiceWeaver/weaver/runtime/protomsg
     encoding/binary
     errors
     fmt
+    github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/codegen
     google.golang.org/protobuf/proto

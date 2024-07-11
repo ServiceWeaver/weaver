@@ -28,8 +28,8 @@ import (
 	"strings"
 	"time"
 
+	metrics2 "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
-	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
 	"github.com/ServiceWeaver/weaver/runtime/metrics"
 	"github.com/ServiceWeaver/weaver/runtime/perfetto"
@@ -267,7 +267,7 @@ func computeTraffic(status *Status, metrics []*protos.MetricSnapshot) []edge {
 	}
 	byPair := map[pair]int{}
 	for _, metric := range metrics {
-		if metric.Name != codegen.MethodCountsName {
+		if metric.Name != metrics2.MethodCountsName {
 			continue
 		}
 		call := pair{
