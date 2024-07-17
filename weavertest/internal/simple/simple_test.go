@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ServiceWeaver/weaver/internal/traceio"
+	"github.com/ServiceWeaver/weaver/metadata"
 	"github.com/ServiceWeaver/weaver/weavertest"
 	"github.com/ServiceWeaver/weaver/weavertest/internal/simple"
 	"github.com/google/uuid"
@@ -53,11 +54,68 @@ func TestOneComponent(t *testing.T) {
 	}
 }
 
+func TestContextWithMetadata(t *testing.T) {
+	updateMetadata := func(ctx context.Context, dst simple.Destination, isMultiDeployer bool) error {
+		numCallsUpdateMeta := 1
+		if isMultiDeployer {
+			// Note that the multi deployer will create two replicas for the dst
+			// component. Because the UpdateMetadata and GetMetadata methods are not
+			// routed, we can end up updating the metadata at replica 0, and reading
+			// the metadata from replica 1. To avoid this scenario we call the
+			// UpdateMetadata method 10 times, to make sure each replica has the metadata.
+			numCallsUpdateMeta = 10
+		}
+		for i := 0; i < numCallsUpdateMeta; i++ {
+			if err := dst.UpdateMetadata(ctx); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, runner := range weavertest.AllRunners() {
+		runner.Test(t, func(t *testing.T, dst simple.Destination) {
+			ctx := context.Background()
+
+			// Do not propagate any metadata. Verify that the returned metadata is empty.
+			if err := updateMetadata(ctx, dst, runner.Name == weavertest.Multi.Name); err != nil {
+				t.Fatal(err)
+			}
+			got, err := dst.GetMetadata(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want map[string]string
+			if !reflect.DeepEqual(want, got) {
+				t.Errorf("unexpected metadata : expecting %v, got %v", want, got)
+			}
+
+			// Propagate valid metadata. Verify that the returned metadata is as expected.
+			want = map[string]string{
+				"foo": "bar",
+				"baz": "waldo",
+			}
+			ctx = metadata.NewContext(ctx, want)
+			if err := updateMetadata(ctx, dst, runner.Name == weavertest.Multi.Name); err != nil {
+				t.Fatal(err)
+			}
+			got, err = dst.GetMetadata(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(want, got) {
+				t.Errorf("unexpected metadata : expecting %v, got %v", want, got)
+			}
+		})
+	}
+}
+
 type fakeDest struct{ file, msg string }
 
-func (f *fakeDest) Getpid(context.Context) (int, error)                { return 100, nil }
-func (f *fakeDest) GetAll(context.Context, string) ([]string, error)   { return nil, nil }
-func (f *fakeDest) RoutedRecord(context.Context, string, string) error { return nil }
+func (f *fakeDest) Getpid(context.Context) (int, error)                    { return 100, nil }
+func (f *fakeDest) GetAll(context.Context, string) ([]string, error)       { return nil, nil }
+func (f *fakeDest) RoutedRecord(context.Context, string, string) error     { return nil }
+func (f *fakeDest) UpdateMetadata(context.Context) error                   { return nil }
+func (f *fakeDest) GetMetadata(context.Context) (map[string]string, error) { return nil, nil }
 func (f *fakeDest) Record(ctx context.Context, file, msg string) error {
 	f.file = file
 	f.msg = msg

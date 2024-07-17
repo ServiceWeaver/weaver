@@ -17,38 +17,46 @@ package call
 import (
 	"context"
 
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const traceHeaderLen = 25
-
 // writeTraceContext serializes the trace context (if any) contained in ctx
-// into b.
-// REQUIRES: len(b) >= traceHeaderLen
-func writeTraceContext(ctx context.Context, b []byte) {
+// into enc.
+func writeTraceContext(ctx context.Context, enc *codegen.Encoder) {
 	sc := trace.SpanContextFromContext(ctx)
 	if !sc.IsValid() {
+		enc.Bool(false)
 		return
 	}
+	enc.Bool(true)
 
 	// Send trace information in the header.
 	// TODO(spetrovic): Confirm that we don't need to bother with TraceState,
 	// which seems to be used for storing vendor-specific information.
 	traceID := sc.TraceID()
 	spanID := sc.SpanID()
-	copy(b, traceID[:])
-	copy(b[16:], spanID[:])
-	b[24] = byte(sc.TraceFlags())
+	copy(enc.Grow(len(traceID)), traceID[:])
+	copy(enc.Grow(len(spanID)), spanID[:])
+	enc.Byte(byte(sc.TraceFlags()))
 }
 
-// readTraceContext returns a span context with tracing information stored in b.
-// REQUIRES: len(b) >= traceHeaderLen
-func readTraceContext(b []byte) trace.SpanContext {
+// readTraceContext returns a span context with tracing information stored in dec.
+func readTraceContext(dec *codegen.Decoder) *trace.SpanContext {
+	hasTrace := dec.Bool()
+	if !hasTrace {
+		return nil
+	}
+	var traceID trace.TraceID
+	var spanID trace.SpanID
+	traceID = *(*trace.TraceID)(dec.Read(len(traceID)))
+	spanID = *(*trace.SpanID)(dec.Read(len(spanID)))
 	cfg := trace.SpanContextConfig{
-		TraceID:    *(*trace.TraceID)(b[:16]),
-		SpanID:     *(*trace.SpanID)(b[16:24]),
-		TraceFlags: trace.TraceFlags(b[24]),
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: trace.TraceFlags(dec.Byte()),
 		Remote:     true,
 	}
-	return trace.NewSpanContext(cfg)
+	trace := trace.NewSpanContext(cfg)
+	return &trace
 }

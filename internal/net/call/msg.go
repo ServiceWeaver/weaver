@@ -60,10 +60,13 @@ const currentVersion = initialVersion
 //    version  [4]byte
 //
 // requestMessage:
-//    headerKey    [16]byte   -- fingerprint of method name
-//    deadline      [8]byte   -- zero, or deadline in microseconds
-//    traceContext [25]byte   -- zero, or trace context
-//    remainder               -- call argument serialization
+//    headerLen         [4]byte       -- length of the encoded header
+//    header            [length]byte  -- encoded header information
+//      headerKey       [16]byte      -- fingerprint of method name
+//      deadline        [8]byte       -- zero, or deadline in microseconds
+//      traceContext    [25]byte      -- zero, or trace context
+//      metadataContext [length]byte  -- encoded map[string]string
+//    remainder                       -- call argument serialization
 //
 // responseMessage:
 //    payload holds call result serialization

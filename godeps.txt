@@ -332,6 +332,7 @@ github.com/ServiceWeaver/weaver/internal/net/call
     errors
     fmt
     github.com/ServiceWeaver/weaver/internal/traceio
+    github.com/ServiceWeaver/weaver/metadata
     github.com/ServiceWeaver/weaver/runtime/codegen
     github.com/ServiceWeaver/weaver/runtime/logging
     github.com/ServiceWeaver/weaver/runtime/retry
@@ -695,6 +696,9 @@ github.com/ServiceWeaver/weaver/internal/weaver
     sync/atomic
     syscall
     time
+github.com/ServiceWeaver/weaver/metadata
+    context
+    maps
 github.com/ServiceWeaver/weaver/metrics
     github.com/ServiceWeaver/weaver/runtime/metrics
     github.com/ServiceWeaver/weaver/runtime/protos
@@ -1063,9 +1067,11 @@ github.com/ServiceWeaver/weaver/weavertest/internal/simple
     errors
     fmt
     github.com/ServiceWeaver/weaver
+    github.com/ServiceWeaver/weaver/metadata
     github.com/ServiceWeaver/weaver/runtime/codegen
     go.opentelemetry.io/otel/codes
     go.opentelemetry.io/otel/trace
+    maps
     net/http
     os
     reflect
