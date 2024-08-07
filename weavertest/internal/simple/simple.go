@@ -121,8 +121,7 @@ func (d *destination) GetAll(_ context.Context, file string) ([]string, error) {
 func (d *destination) UpdateMetadata(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	meta, found := metadata.FromContext(ctx)
-	if found {
+	if meta, found := metadata.FromContext(ctx); found {
 		d.metadata = maps.Clone(meta)
 	}
 	return nil

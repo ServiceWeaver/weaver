@@ -60,13 +60,19 @@ const currentVersion = initialVersion
 //    version  [4]byte
 //
 // requestMessage:
-//    headerLen         [4]byte       -- length of the encoded header
-//    header            [length]byte  -- encoded header information
-//      headerKey       [16]byte      -- fingerprint of method name
-//      deadline        [8]byte       -- zero, or deadline in microseconds
-//      traceContext    [25]byte      -- zero, or trace context
-//      metadataContext [length]byte  -- encoded map[string]string
-//    remainder                       -- call argument serialization
+//    headerLen         [4]byte         -- length of the encoded header
+//    header            [headerLen]byte -- encoded header information
+//    payload                           -- call argument serialization
+//
+// The header is encoded using Service Weaver's encoding format for a type that
+// looks like:
+//
+// struct header {
+//  MethodKey [16]byte
+//  Deadline  int64
+//  TraceContext [25]byte
+//  MetadataContext map[string]string
+// }
 //
 // responseMessage:
 //    payload holds call result serialization
