@@ -148,8 +148,6 @@ const (
 	idle                   // can be used for calls, no calls in-flight
 	active                 // can be used for calls, some calls in-flight
 	draining               // some calls in-flight, no new calls should be added
-
-	hdrLenLen = uint32(4) // size of the header length included in each message
 )
 
 var connStateNames = []string{
@@ -405,8 +403,7 @@ func (rc *reconnectingConnection) callOnce(ctx context.Context, h MethodKey, arg
 	// [header_length][encoded_header][payload]
 	var hdrLen [hdrLenLen]byte
 	binary.LittleEndian.PutUint32(hdrLen[:], uint32(len(hdr)))
-	hdrSlice := hdrLen[:]
-	hdrSlice = append(hdrSlice, hdr...)
+	hdrSlice := append(hdrLen[:], hdr...)
 
 	rpc := &call{}
 	rpc.doneSignal = make(chan struct{})

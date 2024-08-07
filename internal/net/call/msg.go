@@ -46,6 +46,8 @@ const (
 
 const currentVersion = initialVersion
 
+const hdrLenLen = uint32(4) // size of the header length included in each message
+
 // # Message formats
 //
 // All messages have the following format:
@@ -68,10 +70,10 @@ const currentVersion = initialVersion
 // looks like:
 //
 // struct header {
-//  MethodKey [16]byte
-//  Deadline  int64
-//  TraceContext [25]byte
-//  MetadataContext map[string]string
+//   MethodKey       [16]byte
+//   Deadline        int64
+//   TraceContext    [25]byte
+//   MetadataContext map[string]string
 // }
 //
 // responseMessage:
