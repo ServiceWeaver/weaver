@@ -22,12 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 
 	"github.com/ServiceWeaver/weaver"
+	"github.com/ServiceWeaver/weaver/metadata"
 )
 
 //go:generate ../../../cmd/weaver/weaver generate
@@ -50,6 +52,8 @@ type Destination interface {
 	Record(_ context.Context, file, msg string) error
 	GetAll(_ context.Context, file string) ([]string, error)
 	RoutedRecord(_ context.Context, file, msg string) error
+	UpdateMetadata(_ context.Context) error
+	GetMetadata(_ context.Context) (map[string]string, error)
 }
 
 var (
@@ -67,7 +71,8 @@ func (r destRouter) RoutedRecord(_ context.Context, file, msg string) string {
 type destination struct {
 	weaver.Implements[Destination]
 	weaver.WithRouter[destRouter]
-	mu sync.Mutex
+	mu       sync.Mutex
+	metadata map[string]string
 }
 
 var pid = os.Getpid()
@@ -77,7 +82,7 @@ func (d *destination) Init(ctx context.Context) error {
 	return nil
 }
 
-func (d *destination) Getpid(_ context.Context) (int, error) {
+func (d *destination) Getpid(context.Context) (int, error) {
 	return pid, nil
 }
 
@@ -111,6 +116,21 @@ func (d *destination) GetAll(_ context.Context, file string) ([]string, error) {
 	}
 	str := strings.TrimSpace(string(data))
 	return strings.Split(str, "\n"), nil
+}
+
+func (d *destination) UpdateMetadata(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if meta, found := metadata.FromContext(ctx); found {
+		d.metadata = maps.Clone(meta)
+	}
+	return nil
+}
+
+func (d *destination) GetMetadata(_ context.Context) (map[string]string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.metadata, nil
 }
 
 // Server is a component used to test Service Weaver listener handling.

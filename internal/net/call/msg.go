@@ -46,6 +46,8 @@ const (
 
 const currentVersion = initialVersion
 
+const hdrLenLen = uint32(4) // size of the header length included in each message
+
 // # Message formats
 //
 // All messages have the following format:
@@ -60,10 +62,19 @@ const currentVersion = initialVersion
 //    version  [4]byte
 //
 // requestMessage:
-//    headerKey    [16]byte   -- fingerprint of method name
-//    deadline      [8]byte   -- zero, or deadline in microseconds
-//    traceContext [25]byte   -- zero, or trace context
-//    remainder               -- call argument serialization
+//    headerLen         [4]byte         -- length of the encoded header
+//    header            [headerLen]byte -- encoded header information
+//    payload                           -- call argument serialization
+//
+// The header is encoded using Service Weaver's encoding format for a type that
+// looks like:
+//
+// struct header {
+//   MethodKey       [16]byte
+//   Deadline        int64
+//   TraceContext    [25]byte
+//   MetadataContext map[string]string
+// }
 //
 // responseMessage:
 //    payload holds call result serialization

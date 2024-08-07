@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/ServiceWeaver/weaver/runtime/codegen"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -36,14 +37,14 @@ func TestTraceSerialization(t *testing.T) {
 	})
 
 	// Serialize the trace context.
-	var b [25]byte
-	writeTraceContext(
-		trace.ContextWithSpanContext(context.Background(), span), b[:])
+	enc := codegen.NewEncoder()
+	writeTraceContext(trace.ContextWithSpanContext(context.Background(), span), enc)
 
 	// Deserialize the trace context.
-	actual := readTraceContext(b[:])
+	dec := codegen.NewDecoder(enc.Data())
+	actual := readTraceContext(dec)
 	expect := span.WithRemote(true)
-	if !expect.Equal(actual) {
+	if !expect.Equal(*actual) {
 		want, _ := json.Marshal(expect)
 		got, _ := json.Marshal(actual)
 		t.Errorf("span context diff, want %q, got %q", want, got)
