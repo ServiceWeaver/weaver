@@ -386,6 +386,7 @@ github.com/ServiceWeaver/weaver/internal/status
     errors
     flag
     fmt
+    github.com/ServiceWeaver/weaver/internal/control
     github.com/ServiceWeaver/weaver/internal/files
     github.com/ServiceWeaver/weaver/internal/metrics
     github.com/ServiceWeaver/weaver/internal/traceio
