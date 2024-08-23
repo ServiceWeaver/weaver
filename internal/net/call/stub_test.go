@@ -188,7 +188,7 @@ func TestErrorArgsNotEncoded(t *testing.T) {
 	})
 
 	if !strings.Contains(err.Error(), "decoder: unable to read") {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 }
 

@@ -144,7 +144,7 @@ func TestErrorDecUnableToRead(t *testing.T) {
 		dec.Bool()
 	})
 	if !strings.Contains(err.Error(), "unable to read #bytes") {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 }
 
@@ -160,7 +160,7 @@ func TestErrorUnableToDecBool(t *testing.T) {
 		dec.Bool()
 	})
 	if !strings.Contains(err.Error(), "unable to decode bool") {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 }
 
@@ -176,7 +176,7 @@ func TestErrorUnableToDecBytes(t *testing.T) {
 		dec.Bytes()
 	})
 	if !strings.Contains(err.Error(), "unable to decode bytes; expected length") {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 }
 
