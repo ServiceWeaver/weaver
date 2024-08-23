@@ -165,7 +165,7 @@ func run(deployer string, args []string) (int, error) {
 	binary := "weaver-" + deployer
 	if _, err := exec.LookPath(binary); err != nil {
 		msg := fmt.Sprintf(`"weaver %s" is not a weaver command. See "weaver --help". If you're trying to invoke a custom deployer, the %q binary was not found. You may need to install the %q binary or add it to your PATH.`, deployer, binary, binary)
-		return 1, fmt.Errorf(wrap(msg, 80))
+		return 1, fmt.Errorf("%s", wrap(msg, 80))
 	}
 	cmd := exec.Command(binary, args...)
 	cmd.Stdin = os.Stdin

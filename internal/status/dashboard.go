@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ServiceWeaver/weaver/internal/control"
 	metrics2 "github.com/ServiceWeaver/weaver/internal/metrics"
 	"github.com/ServiceWeaver/weaver/internal/traceio"
 	"github.com/ServiceWeaver/weaver/runtime/logging"
@@ -265,14 +266,23 @@ func computeTraffic(status *Status, metrics []*protos.MetricSnapshot) []edge {
 		caller    string
 		component string
 	}
+	isSystemComponentFn := func(name string) bool {
+		return name == control.WeaveletPath || name == control.DeployerPath
+	}
 	byPair := map[pair]int{}
 	for _, metric := range metrics {
 		if metric.Name != metrics2.MethodCountsName {
 			continue
 		}
+		caller := metric.Labels["caller"]
+		component := metric.Labels["component"]
+		if isSystemComponentFn(caller) || isSystemComponentFn(component) {
+			// Don't display traffic information for the internal system components.
+			continue
+		}
 		call := pair{
-			caller:    metric.Labels["caller"],
-			component: metric.Labels["component"],
+			caller:    caller,
+			component: component,
 		}
 		byPair[call] += int(metric.Value)
 	}
