@@ -54,7 +54,7 @@ const (
 	Usage = `Generate code for a Service Weaver application.
 
 Usage:
-  weaver generate [packages]
+  weaver generate [tags] [packages]
 
 Description:
   "weaver generate" generates code for the Service Weaver applications in the
@@ -63,6 +63,9 @@ Description:
   directory. For every package, the generated code is placed in a weaver_gen.go
   file in the package's directory. For example, "weaver generate . ./foo" will
   create ./weaver_gen.go and ./foo/weaver_gen.go.
+
+  You specify build tags for "weaver generate" in the same way you specify build
+  tags for go build. See "go help build" for more information.
 
   You specify packages for "weaver generate" in the same way you specify
   packages for go build, go test, go vet, etc. See "go help packages" for more
@@ -86,13 +89,21 @@ Examples:
   weaver generate ./foo
 
   # Generate code for all packages in all subdirectories of current directory.
-  weaver generate ./...`
+  weaver generate ./...
+
+  # Generate code for all files that have a "//go:build good" line at the top of
+  the file.
+  weaver generate -tags good
+
+  # Generate code for all files that have a "//go:build good,prod" line at the
+  top of the file.
+  weaver generate -tags good,prod`
 )
 
 // Options controls the operation of Generate.
 type Options struct {
-	// If non-nil, use the specified function to report warnings.
-	Warn func(error)
+	Warn      func(error) // If non-nil, use the specified function to report warnings
+	BuildTags string
 }
 
 // Generate generates Service Weaver code for the specified packages.
@@ -104,11 +115,13 @@ func Generate(dir string, pkgs []string, opt Options) error {
 	}
 	fset := token.NewFileSet()
 	cfg := &packages.Config{
-		Mode:       packages.NeedName | packages.NeedSyntax | packages.NeedImports | packages.NeedTypes | packages.NeedTypesInfo,
-		Dir:        dir,
-		Fset:       fset,
-		ParseFile:  parseNonWeaverGenFile,
-		BuildFlags: []string{"--tags=ignoreWeaverGen"},
+		Mode:      packages.NeedName | packages.NeedSyntax | packages.NeedImports | packages.NeedTypes | packages.NeedTypesInfo,
+		Dir:       dir,
+		Fset:      fset,
+		ParseFile: parseNonWeaverGenFile,
+	}
+	if len(opt.BuildTags) > 0 {
+		cfg.BuildFlags = []string{opt.BuildTags}
 	}
 	pkgList, err := packages.Load(cfg, pkgs...)
 	if err != nil {
