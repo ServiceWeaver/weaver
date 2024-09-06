@@ -900,6 +900,35 @@ Or, use `weaver single deploy`:
 $ weaver single deploy weaver.toml
 ```
 
+## Context Propagation
+
+You can propagate metadata information from a component method caller to the
+callee. The metadata is propagated to the callee even if the caller and the callee
+are not colocated in the same process.
+
+The metadata is a map from string to string, stored in context.Context. You can
+add the map to a context by calling `NewContext` and retrieve it by calling
+`FromContext`:
+
+```go
+...
+// Attach metadata with key "save_operation" and value "true" to the context.
+// Call the Add method on the adder component.
+ctx := context.Background()
+ctx = metadata.NewContext(ctx, map[string]string{"save_operation": "true"})
+adder.Add(ctx, 1, 2)
+...
+// Retrieve the metadata from the context
+func (*adder) Add(ctx context.Context, x, y int) (int, error) {
+    meta, ok := metadata.FromContext(ctx)
+    if ok {
+        save := meta["save_operation"]
+        ...
+    }
+    ...
+}
+```
+
 # Logging
 
 <div hidden class="todo">
