@@ -103,7 +103,7 @@ func runGenerator(t *testing.T, directory, filename, contents string, subdirs []
 	// Run "weaver generate".
 	opt := Options{
 		Warn:      func(err error) { t.Log(err) },
-		BuildTags: "--tags=ignoreWeaverGen",
+		BuildTags: "ignoreWeaverGen",
 	}
 	if err := Generate(tmp, []string{tmp}, opt); err != nil {
 		return "", err
@@ -295,7 +295,7 @@ func TestGeneratorBuildWithTags(t *testing.T) {
 	// Run the "weaver generate" command with the build tag "good". Verify that the
 	// command succeeds because the bad.go file is ignored, and the weaver_gen.go
 	// contains only generated code for the good.go.
-	err = Generate(tmp, []string{tmp}, Options{Warn: func(err error) { t.Log(err) }, BuildTags: "--tags=good"})
+	err = Generate(tmp, []string{tmp}, Options{Warn: func(err error) { t.Log(err) }, BuildTags: "good"})
 	if err != nil {
 		t.Fatalf("unexpected generator error: %v", err)
 	}

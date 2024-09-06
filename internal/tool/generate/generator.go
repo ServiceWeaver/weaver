@@ -54,7 +54,7 @@ const (
 	Usage = `Generate code for a Service Weaver application.
 
 Usage:
-  weaver generate [tags] [packages]
+  weaver generate [-tags taglist] [packages]
 
 Description:
   "weaver generate" generates code for the Service Weaver applications in the
@@ -121,7 +121,7 @@ func Generate(dir string, pkgs []string, opt Options) error {
 		ParseFile: parseNonWeaverGenFile,
 	}
 	if len(opt.BuildTags) > 0 {
-		cfg.BuildFlags = []string{opt.BuildTags}
+		cfg.BuildFlags = []string{"-tags", opt.BuildTags}
 	}
 	pkgList, err := packages.Load(cfg, pkgs...)
 	if err != nil {
