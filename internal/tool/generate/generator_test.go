@@ -62,7 +62,8 @@ replace github.com/ServiceWeaver/weaver => %s
 //
 // If "weaver generate" succeeds, the produced weaver_gen.go file is written in
 // the provided directory with name ${filename}_weaver_gen.go.
-func runGenerator(t *testing.T, directory, filename, contents string, subdirs []string) (string, error) {
+func runGenerator(t *testing.T, directory, filename, contents string, subdirs []string,
+	buildTags []string) (string, error) {
 	// runGenerator creates a temporary directory, copies the file and all
 	// subdirs into it, writes a go.mod file, runs "go mod tidy", and finally
 	// runs "weaver generate".
@@ -103,7 +104,7 @@ func runGenerator(t *testing.T, directory, filename, contents string, subdirs []
 	// Run "weaver generate".
 	opt := Options{
 		Warn:      func(err error) { t.Log(err) },
-		BuildTags: "ignoreWeaverGen",
+		BuildTags: "ignoreWeaverGen" + "," + strings.Join(buildTags, ","),
 	}
 	if err := Generate(tmp, []string{tmp}, opt); err != nil {
 		return "", err
@@ -135,7 +136,12 @@ func runGenerator(t *testing.T, directory, filename, contents string, subdirs []
 	if err := tidy.Run(); err != nil {
 		t.Fatalf("go mod tidy: %v", err)
 	}
-	gobuild := exec.Command("go", "build")
+
+	var buildTagsArg string
+	if len(buildTags) > 0 {
+		buildTagsArg = "-tags=" + strings.Join(buildTags, ",")
+	}
+	gobuild := exec.Command("go", "build", buildTagsArg)
 	gobuild.Dir = tmp
 	gobuild.Stdout = os.Stdout
 	gobuild.Stderr = os.Stderr
@@ -219,7 +225,7 @@ func TestGenerator(t *testing.T) {
 			}
 
 			// Run "weaver generate".
-			output, err := runGenerator(t, dir, filename, contents, []string{"sub1", "sub2"})
+			output, err := runGenerator(t, dir, filename, contents, []string{"sub1", "sub2"}, []string{})
 			if err != nil {
 				t.Fatalf("error running generator: %v", err)
 			}
@@ -247,68 +253,35 @@ func TestGeneratorBuildWithTags(t *testing.T) {
 		t.Fatalf("cannot list files in %q", dir)
 	}
 
-	tmp := t.TempDir()
-	save := func(f, data string) {
-		if err := os.WriteFile(filepath.Join(tmp, f), []byte(data), 0644); err != nil {
-			t.Fatalf("error writing %s: %v", f, err)
-		}
-	}
-
-	// Copy the files from dir to the temp directory.
 	for _, file := range files {
 		filename := file.Name()
 		if !strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, generatedCodeFile) {
 			continue
 		}
+		t.Run(filename, func(t *testing.T) {
+			t.Parallel()
 
-		// Read the test file.
-		bits, err := os.ReadFile(filepath.Join(dir, filename))
-		if err != nil {
-			t.Fatalf("cannot read %q: %v", filename, err)
-		}
-		contents := string(bits)
-		save(filename, contents)
-	}
-	save("go.mod", goModFile)
+			// Read the test file.
+			bits, err := os.ReadFile(filepath.Join(dir, filename))
+			if err != nil {
+				t.Fatalf("cannot read %q: %v", filename, err)
+			}
+			contents := string(bits)
+			// Run "weaver generate".
+			output, err := runGenerator(t, dir, filename, contents, []string{}, []string{"good"})
 
-	// Run "go mod tidy"
-	tidy := exec.Command("go", "mod", "tidy")
-	tidy.Dir = tmp
-	tidy.Stdout = os.Stdout
-	tidy.Stderr = os.Stderr
-	if err := tidy.Run(); err != nil {
-		t.Fatalf("go mod tidy: %v", err)
-	}
-
-	// Run the "weaver generate" command with no build tags. Verify that the command
-	// doesn't succeed because bad.go does not compile.
-	err = Generate(tmp, []string{tmp}, Options{Warn: func(err error) { t.Log(err) }})
-	if err == nil {
-		t.Fatal("expected generator to return an error; got nil error")
-	}
-	// Verify that no weaver_gen.go file was generated.
-	_, err = os.ReadFile(filepath.Join(tmp, generatedCodeFile))
-	if err == nil {
-		t.Fatal("expected no generated file")
-	}
-
-	// Run the "weaver generate" command with the build tag "good". Verify that the
-	// command succeeds because the bad.go file is ignored, and the weaver_gen.go
-	// contains only generated code for the good.go.
-	err = Generate(tmp, []string{tmp}, Options{Warn: func(err error) { t.Log(err) }, BuildTags: "good"})
-	if err != nil {
-		t.Fatalf("unexpected generator error: %v", err)
-	}
-	// Verify that the weaver_gen.go file doesn't contain generated code for the bad service.
-	output, err := os.ReadFile(filepath.Join(tmp, generatedCodeFile))
-	if err != nil {
-		t.Fatalf("unable to read the weaver_gen.go file: %v", err)
-	}
-	if strings.Contains(string(output), "bad") {
-		t.Fatalf("unexpected generated code for the bad service")
-	}
-	if !strings.Contains(string(output), "good") {
-		t.Fatalf("expected generated code for the good service")
+			if filename == "good.go" {
+				// Verify that the error is nil and the weaver_gen.go contains generated code for the good service.
+				if err != nil || !strings.Contains(output, "GoodService") {
+					t.Fatalf("expected generated code for the good service")
+				}
+				return
+			}
+			// For the bad.go verify that the error is not nil and there is no output.
+			if err == nil || len(output) > 0 {
+				t.Fatalf("expected no generated code for the good service")
+			}
+		})
 	}
 }
 
@@ -361,7 +334,7 @@ func TestGeneratorErrors(t *testing.T) {
 			}
 
 			// Run "weaver generate".
-			output, err := runGenerator(t, dir, filename, contents, []string{})
+			output, err := runGenerator(t, dir, filename, contents, []string{}, []string{})
 			errfile := strings.TrimSuffix(filename, ".go") + "_error.txt"
 			if err == nil {
 				os.Remove(filepath.Join(dir, errfile))
