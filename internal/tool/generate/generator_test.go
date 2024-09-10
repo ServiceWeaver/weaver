@@ -136,12 +136,7 @@ func runGenerator(t *testing.T, directory, filename, contents string, subdirs []
 	if err := tidy.Run(); err != nil {
 		t.Fatalf("go mod tidy: %v", err)
 	}
-
-	var buildTagsArg string
-	if len(buildTags) > 0 {
-		buildTagsArg = "-tags=" + strings.Join(buildTags, ",")
-	}
-	gobuild := exec.Command("go", "build", buildTagsArg)
+	gobuild := exec.Command("go", "build", "-tags="+opt.BuildTags)
 	gobuild.Dir = tmp
 	gobuild.Stdout = os.Stdout
 	gobuild.Stderr = os.Stderr
@@ -225,7 +220,7 @@ func TestGenerator(t *testing.T) {
 			}
 
 			// Run "weaver generate".
-			output, err := runGenerator(t, dir, filename, contents, []string{"sub1", "sub2"}, []string{})
+			output, err := runGenerator(t, dir, filename, contents, []string{"sub1", "sub2"}, nil)
 			if err != nil {
 				t.Fatalf("error running generator: %v", err)
 			}
@@ -268,7 +263,7 @@ func TestGeneratorBuildWithTags(t *testing.T) {
 			}
 			contents := string(bits)
 			// Run "weaver generate".
-			output, err := runGenerator(t, dir, filename, contents, []string{}, []string{"good"})
+			output, err := runGenerator(t, dir, filename, contents, nil, []string{"good"})
 
 			if filename == "good.go" {
 				// Verify that the error is nil and the weaver_gen.go contains generated code for the good service.
@@ -334,7 +329,7 @@ func TestGeneratorErrors(t *testing.T) {
 			}
 
 			// Run "weaver generate".
-			output, err := runGenerator(t, dir, filename, contents, []string{}, []string{})
+			output, err := runGenerator(t, dir, filename, contents, nil, nil)
 			errfile := strings.TrimSuffix(filename, ".go") + "_error.txt"
 			if err == nil {
 				os.Remove(filepath.Join(dir, errfile))
