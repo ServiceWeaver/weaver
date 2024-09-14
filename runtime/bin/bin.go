@@ -125,6 +125,7 @@ func ReadComponentGraph(file string) ([]string, graph.Graph, error) {
 		dst := nodeMap[e[1]]
 		edges = append(edges, graph.Edge{Src: src, Dst: dst})
 	}
+
 	return components, graph.NewAdjacencyGraph(maps.Values(nodeMap), edges), nil
 }
 

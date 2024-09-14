@@ -162,6 +162,10 @@ func runLocal[T any, _ PointerToMain[T]](ctx context.Context, app func(context.C
 		return err
 	}
 
+	if err := checkCircularDependency(regs); err != nil {
+		return err
+	}
+
 	wlet, err := weaver.NewSingleWeavelet(ctx, regs, opts)
 	if err != nil {
 		return err
@@ -183,6 +187,10 @@ func runLocal[T any, _ PointerToMain[T]](ctx context.Context, app func(context.C
 func runRemote[T any, _ PointerToMain[T]](ctx context.Context, app func(context.Context, *T) error, bootstrap runtime.Bootstrap) error {
 	regs := codegen.Registered()
 	if err := validateRegistrations(regs); err != nil {
+		return err
+	}
+
+	if err := checkCircularDependency(regs); err != nil {
 		return err
 	}
 
