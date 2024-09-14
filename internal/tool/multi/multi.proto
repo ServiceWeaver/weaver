@@ -18,6 +18,17 @@ option go_package = "github.com/ServiceWeaver/weaver/internal/tool/multi";
 package multi;
 import "runtime/protos/config.proto";
 
+// Cgroup stores the configuration realted to any cgroup provided
+// for the child processes.
+message Cgroup {
+  // Cgroup mountpoint allows end users to override default
+  // system mountpoint i.e `/sys/fs/cgroup`
+  string mountpoint = 1;
+  // Allows users to provide Cgroup groupname and weaver will
+  // add all the child processes to that specific cgroup.
+  string groupname = 2;
+}
+
 // MultiConfig stores the configuration information for one execution of a
 // Service Weaver application using the multiprocess deployer.
 message MultiConfig {
@@ -36,4 +47,8 @@ message MultiConfig {
     string address = 1;
   }
   map<string, ListenerOptions> listeners = 3;
+
+  // Cgroup config for the deployment which allows end-users to add the child
+  // processes created by weaver into the specified cgroup.
+  Cgroup cgroup = 4;
 }
