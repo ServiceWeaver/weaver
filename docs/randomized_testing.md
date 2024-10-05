@@ -37,10 +37,10 @@ especially valuable, as many failure inducing corner cases are extremely
 pathological and hard to think of. [Even well studied and heavily scrutinized
 protocols tend to have subtle bugs][protocol_bugs].
 
-## Overview
+## Types of Randomized Testing
 
-In this document, we describe three ways to introduce randomized property-based
-testing to Service Weaver. This doc borrows heavily from [*Testing Distributed
+In this section, we describe three ways to introduce randomized property-based
+testing to Service Weaver. We borrow heavily from [*Testing Distributed
 Systems*][testing_distributed_systems] by [Andrey Satarin][asatarin].
 
 The various approaches differ in the following ways.
@@ -51,7 +51,7 @@ The various approaches differ in the following ways.
 - How concurrently do things run?
 - How complex are the APIs?
 
-## Jepsen Testing
+### Jepsen Testing
 
 With [Jepsen][jepsen]-style testing, we run a Service Weaver application with
 components in their own containers. We execute random client requests against
@@ -83,7 +83,7 @@ execution is impossible due to the non-determinism introduced by executing
 requests and failures in parallel (this is a problem even if the code itself is
 deterministic). Running an app across a set of containers can also be slow.
 
-## Deterministic Simulation
+### Deterministic Simulation
 
 With [deterministic simulation][deterministic_simulation], we run a Service
 Weaver application all within a single process. We execute random client
@@ -140,7 +140,7 @@ Implementing deterministic simulation is also more complex than implementing
 Jepsen-style tests, as the simulator has to cleverly inject itself into the code
 at every method call.
 
-## Chaos Testing
+### Chaos Testing
 
 [Chaos testing][chaos_monkey] a Service Weaver app is similar to Jepsen testing
 it. We run the application in a set of containers, run a random workload against
@@ -159,7 +159,7 @@ The pro and con of chaos testing is that we cannot test complex properties
 (e.g., linearizability) or complex failures. This makes chaos testing easier to
 reason about but also less expressive.
 
-## Proposal
+### Proposal
 
 I propose we introduce deterministic simulation style testing to weavertest.
 Later, we may be able to implement Jepsen-style testing as well using the same
@@ -167,6 +167,609 @@ or very similar API. Both deterministic testing and Jepsen testing require
 roughly the same things from the user (which operations to run, how to generate
 arguments to these operations, which failures to inject, which properties to
 check).
+
+## API
+
+In this section, we propose options for a deterministic simulation API.
+Consider an application with components `A`, and `B`:
+
+```go
+// Component A
+type A interface { A(context.Context, int) (int, error) }
+type a struct{ weaver.Implements[A] }
+func (*a) A(context.Context, int) (int, error) { ... }
+
+// Component B
+type B interface { B(context.Context) error }
+type b struct{ weaver.Implements[B] }
+func (*b) B(context.Context) error { ... }
+
+// Component B fake.
+type fakeb struct{}
+func (*fakeb) B(context.Context) error { ... }
+```
+
+We want to simulate this application against a workload with the following
+characteristics:
+
+- We have two operations, or ops, to run. One calls `A.A` on randomly generated
+  integers, and the other calls `B.B`.
+- We want to fake component `B`.
+- We have some state that we update as the test runs. Specifically, we
+  want to record the set of all successful calls to `A.A`.
+
+### Option 1
+
+Option 1 is shown below. We call `sim.RegisterState[T]` to register a function
+that returns a freshly initialized piece of state of type `T`. We call
+`sim.RegisterFake[T]` to register a fake for component `T`. We call
+`sim.RegisterOp[T]` to register an operation. Every operation has
+
+- a name,
+- a way to randomly generate a value of type `T`, and
+- the body of the operation, which receives the state, the randomly
+  generated value of type `T`, and any components it needs to execute.
+
+Finally, we run the simulator. It's important to note that `s.Run()` runs many
+simulations, potentially on many threads. This is why `RegisterState` and
+`RegisterFake` take functions as arguments. The simulator has to create a new
+state and new fake for every simulation.
+
+```go
+func TestWorkload(t *testing.T) {
+    // Create the simulator.
+    s, err := sim.New(sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // Register state of type map[int]int.
+    sim.RegisterState(s, func() map[int]int {
+        return map[int]int{}
+    })
+
+    // Register a fake for component B.
+    sim.RegisterFake[B](s, func() B {
+        return &fakeb{}
+    })
+
+    // Register an op to call A.A.
+    sim.RegisterOp(s, sim.Op[int]{
+        Name: "CallA",
+        Gen:  func(*rand.Rand) int { ... },
+        Func: func(ctx context.Context, replies map[int]int, x int, a A) error {
+            if y, err := a.A(ctx, x); err == nil {
+                replies[x] = y
+            }
+            return nil
+        },
+    })
+
+    // Register an op to call B.B.
+    sim.RegisterOp(s, sim.Op[struct{}]{
+        Name: "CallB",
+        Gen:  func(*rand.Rand) struct{} { ... },
+        Func: func(ctx context.Context, _ map[int]int, _ struct{}, b B) error {
+            b.B(ctx)
+            return nil
+        },
+    })
+
+    // Run the simulator for 10 seconds.
+    results, err := s.Run(10*time.Second)
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
+**Pros.**
+This API is very direct. It leverages the Go type system when possible
+(`RegisterState[T]`, `RegisterFake[T]`, `Op[T]`), but does lean on reflection in
+places.
+
+**Cons.**
+This API is unergonomic. Threading state through every single op, even those
+that don't need it, is cumbersome. Registering state and fakes through generator
+functions is also a bit awkward. Fakes don't have a way to read or write the
+state, which can be very useful for some tests.
+
+### Option 2
+
+Option 2 is shown below. `s.Run` mirrors `T.Run` from the `testing` package. We
+call `s.Run` with a lambda that performs a single simulation. Inside the lambda,
+state is represented as local variables. Fakes are registered as values,
+rather than constructor functions. Ops are the same as in Option 1, except that
+they don't need to take state as an argument.
+
+```go
+func TestWorkload(t *testing.T) {
+    // Create the simulator.
+    s, err := sim.New(sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    // Run the simulator for 10 seconds.
+    results, err := s.Run(10*time.Second, func(s *sim.Sim) error {
+        // State is a local variable.
+        replies := map[int]int{}
+
+        // Register a fake value.
+        sim.RegisterFake[B](s, &fakeb{})
+
+        // Register an op to call A.A.
+        sim.RegisterOp(s, sim.Op[int]{
+            Name: "CallA",
+            Gen:  func(*rand.Rand) int { ... },
+            Func: func(ctx context.Context, x int, a A) error {
+                if y, err := a.A(ctx, x); err == nil {
+                    replies[x] = y
+                }
+                return nil
+            },
+        })
+
+        // Register an op to call B.B.
+        sim.RegisterOp(s, sim.Op[struct{}]{
+            Name: "CallB",
+            Gen:  func(*rand.Rand) struct{} { ... },
+            Func: func(ctx context.Context, _ struct{}, b B) error {
+                b.B(ctx)
+                return nil
+            },
+        })
+
+        // Run a single simulation.
+        return s.Run()
+    })
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
+**Pros.**
+The main benefit of this approach is that state is represented as local
+variables, and fakes are registered by value.
+
+**Cons.**
+This API has two distinct simulator types: one to run a bunch of simulations and
+one to run a single simulation. The API cannot prevent someone from registering
+different state, fakes, and ops for every individual simulation, which is not
+intended. More generally, it's a bit odd that you keep re-registering everything
+for every individual simulation.
+
+### Option 3
+
+Option 3 is shown below. This option wraps all the logic of the workload into
+the `Workload` struct, which is passed to the `sim.New[T]` function. The
+`Workload` struct has `weaver.Ref`s to the components needed in the test. It
+also has fields for any state.
+
+- Method `FakeB` returns a fake for component `B`. Generally, method `FakeFoo`
+  returns a fake for component `Foo`.
+- Method `GenCallA` generates the random values passed to `CallA`. Generally,
+  `GenFoo` generates the random values passed to `Foo`.
+- Methods `CallA` and `CallB` are the body of the ops. Generally, all exported
+  methods that don't begin with `Fake` or `Gen` are ops.
+
+Note that `Fake` and `Gen` methods must be exported in order to make them
+callable via reflection. TODO(mwhittaker): I think this is true, but I need to
+double check.
+
+```go
+type Workload struct {
+    a weaver.Ref[A]
+    b weaver.Ref[B]
+    replies map[int]int
+}
+
+func (w *Workload) Init(context.Context) error {
+    w.replies = map[int]int{}
+    return nil
+}
+
+func (w *Workload) FakeB(context.Context) B {
+    return &fakeb{}
+}
+
+func (w *Workload) CallA(ctx context.Context, x int) error {
+    if y, err := w.a.Get().A(ctx, x); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+
+func (*Workload) GenCallA(r *rand.Rand) int {
+    ...
+}
+
+func (w *Workload) CallB(ctx context.Context) error {
+    w.b.Get().B(ctx)
+    return nil
+}
+
+func TestWorkload(t *testing.T) {
+    s, err := sim.New[Workload](sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+    results, err := s.Simulate(10 * time.Second)
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
+
+**Pros.**
+This API is arguably more ergonomic than the other options.
+
+**Cons.**
+This option is very magical. Rather than calling library functions like
+`sim.RegisterOp`, for example, you have to know the special syntax to create an
+op. Moreover, the `Fake` methods are only called once during initialization, so
+it's odd they are methods. It would make more sense if they were part of `Init`.
+
+### Option 4
+
+Option 4 is identical to Option 3, but rather than having `FakeFoo` methods, the
+`Init` method returns a slice of fakes using the existing `weavertest.Fake`
+function.
+
+```go
+func (w *Workload) Init(context.Context) ([]weavertest.FakeComponent, error) {
+    w.replies = map[int]int{}
+    fakes := []weavertest.FakeComponent{weavertest.Fake[B](&fakeb{})}
+    return fakes, nil
+}
+```
+
+The returned fakes can be optional, allowing for a simpler `Init` method for
+workloads without fakes:
+
+```go
+func (w *Workload) Init(context.Context) error {
+    // No fakes here.
+    w.replies = map[int]int{}
+    return nil
+}
+```
+
+**Pros.**
+This option re-uses the existing `weavertest` mechanism to register fakes. It
+also avoids the magical `Fake` functions.
+
+**Cons.**
+If `Init` is required to return `[]weavertest.FakeComponent`, then the `Init`
+signature is complicated even for workloads that don't need fakes. If it is
+optional, then there's complexity in understanding `Init` can have two different
+signatures. In contrast with Option 3, the simulator does not know ahead of time
+which components are faked. A workload could also theoretically return a
+different set of fakes every time `Init` is called, which is not intended.
+
+### Option 5
+
+Option 5 is identical to Option 3, except that fakes are fields in the workload
+struct. For example, in the code snippet below, the tag `` `fake:"b"` ``
+indicates that the `fakeb` field is a fake for the `weaver.Ref[B]` field named
+`b`. You can initialize fakes in the `Init` function.
+
+```go
+type Workload struct {
+    a weaver.Ref[A]
+    b weaver.Ref[B]
+    fakeb fakeb `fake:"b"`
+    replies map[int]int
+}
+
+func (w *Workload) Init(context.Context) error {
+    w.replies = map[int]int{}
+    // Initialize w.fakeb here.
+    return nil
+}
+```
+
+We can also use a generic `weavertest.Fake` type instead of struct tags:
+
+```go
+type Fake[C, F any] {
+    Component() C
+    Fake() *F
+}
+
+type Workload struct {
+    a weaver.Ref[A]
+    b weavertest.Fake[B, fakeb]
+    replies map[int]int
+}
+
+func (w *Workload) Init(context.Context) error {
+    w.replies = map[int]int{}
+    // Initialize w.b.Fake() here.
+    return nil
+}
+```
+
+This same `weavertest.Fake` can be used in existing weavertests (replacing
+`weavertest.Fake` and `weavertest.FakeComponent`):
+
+```go
+runner.Test(t, func(t *testing.T, a weavertest.Fake[A, fake]) {
+    ...
+})
+```
+
+**Pros.**
+No magic `Fake` functions.
+
+**Cons.**
+Magic struct tags. Also, it is awkward to fake a component to which we don't
+need a direct reference.
+
+### Option 6
+
+Option 6 is identical to Option 3, except that fakes are registered via a
+`sim.Sim` passed to `Init`:
+
+```go
+func (w *Workload) Init(_ context.Context, s *sim.Sim) error {
+    w.replies = map[int]int{}
+    sim.RegisterFake[B](s, &fakeb{})
+    return nil
+}
+```
+
+As a slight tweak, we could re-use `weavertest.Fake` if we wanted to:
+
+```go
+func (w *Workload) Init(_ context.Context, s *sim.Sim) error {
+    w.replies = map[int]int{}
+    s.RegisterFake(weavertest.Fake[B](&fakeb{}))
+    return nil
+}
+```
+
+**Pros.**
+No magic `Fake` functions. The signature of `Init` is also consistent and
+simple. We may add more methods to `sim.Sim` in the future that workloads can
+call.
+
+**Cons.**
+There are now two simulator types. One for the actual simulator, and one passed
+to `Init`. As with Option 4, the simulator does not know ahead of time which
+components are faked, and the `Init` method can return different fakes on every
+invocation.
+
+### Option 7
+
+This option describes an alternative way to specify generators. It can be used
+by all previous options. With this option, an op argument of type `T` implements
+a `Generator[T]` interface:
+
+```go
+type Generator[T any] interface {
+    Generate(*rand.Rand) T
+}
+```
+
+Note that we might want to pass in something other than `rand.Rand` since the
+result won't necessarily be random (we might be replying old values). In
+addition, using a different argument type gives us the opportunity to add
+methods like `InterestingInt()` which might for example give us integers that
+are near powers of two, etc.
+
+In the code snippet below, for example, `CallA` receives an argument of type
+`myInt`. `myInt` implements `Generator[myInt]`. `CallA` is called on random
+values of `myInt` generated by the `Generate(*rand.Rand) myInt` method.
+
+```go
+type Workload struct {
+    a weaver.Ref[A]
+    b weaver.Ref[B]
+    replies map[int]int
+}
+
+type myInt int
+
+func (myInt) Generate(r *rand.Rand) myInt {
+    return r.Intn(100)
+}
+
+func (w *Workload) Init(context.Context) error {
+    w.replies = map[int]int{}
+    return nil
+}
+
+func (w *Workload) CallA(ctx context.Context, x myInt) error {
+    if y, err := w.a.Get().A(ctx, int(x)); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+
+func (w *Workload) CallB(ctx context.Context) error {
+    w.b.Get().B(ctx)
+    return nil
+}
+```
+
+We can also provide a family of generally useful generators as well. For
+example, `sim.NonNegativeInt`, `sim.SmallInt`, `sim.ReadableString`, and so on.
+Furthermore, we can support primitive types, like `int` and `string`, by using a
+default generator.
+
+**Pros.**
+
+- If a workload has many ops that re-use a type, this approach is much less
+  onerous than repeatedly defining generator methods.
+- The family of generators that we provide can sometimes reduce the amount of
+  work a user has to do.
+- We can extend this API to include other methods besides `Generate`. For
+  example, if the set of all random values is small, `Generate` could return a
+  list of all values, which the simulator may be able to take advantage of.
+  Existing quickcheck libraries also leverage the idea of [Shrinkable
+  types][shrink] to minimize arbitrary types. We could do the same.
+
+**Cons.**
+
+- If a workload has many ops that don't re-use types much, this approach is more
+  onerous that defining generator methods.
+- The `Generator[T]` interface is clunky. A value of type `T` generates a value
+  of type `T`, which is weird. It means that op arguments are doubling as
+  generators and generated values. Plus, the user sometimes has to typecast
+  these arguments. We saw that in the `CallA` method above.
+- If we support primitive types, there is a bit of inconsistency because the
+  primitive types don't implement the `Generator[T]` interface.
+
+### Option 8
+
+Option 8 is identical to Option 7 with a slight change to the `Generator`
+interface. Option 7 has the oddity that op arguments double as generated values
+and generators. This approach tries to address that. We have two interfaces:
+
+```go
+type Generator[T any] interface {
+    Generate(*rand.Rand) T
+}
+
+type Rand[G Generator[T], T any] interface {
+    Get() T
+}
+```
+
+`Generator[T]` is the same as before. We introduce a `Rand[G, T]` interface to
+represent a random value of type `T` generated by a generator of type `T`. Now,
+op arguments are of type `Rand[G, T]`:
+
+```go
+type gen struct {}
+func (gen) Generate(r *rand.Rand) int {
+    return r.Intn(100)
+}
+
+func (w *Workload) CallA(ctx context.Context, x sim.Rand[gen]) error {
+    if y, err := w.a.Get().A(ctx, x.Get()); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+```
+
+**Pros.**
+
+- There is a separation between generators and generated values.
+- There is no longer a need for typecasting.
+
+**Cons.**
+
+- The API is complicated and a bit confusing.
+
+### Option 9
+
+Option 9 is identical to Option 7 that, like Option 8, tries to avoid values
+doubling as their own generators. With this option, we register generators in
+`Init`.
+
+```go
+type myInt int
+type myIntGen struct{}
+func (myIntGen) Generate(r *rand.Rand) myInt {
+    return r.Randn(100)
+}
+
+func (w *Workload) Init(ctx context.Context, s *sim.Sim) error {
+    // Register myIntGen. Whenever an op takes an argument of type myInt, the
+    // simulator will use myIntGen to generate it.
+    sim.RegisterGenerator[myIntGen](s)
+    return nill
+}
+
+func (w *Workload) CallA(ctx context.Context, x myInt) error {
+    if y, err := w.a.Get().A(ctx, int(x)); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+```
+
+We can simplify this code by using a raw `int` instead of `myInt` as well.
+
+```go
+type intgen struct{}
+func (intgen) Generate(r *rand.Rand) int {
+    return r.Randn(100)
+}
+
+func (w *Workload) Init(ctx context.Context, s *sim.Sim) error {
+    // Register intgen. Whenever an op takes an argument of type int, the
+    // simulator will use intgen to generate it.
+    sim.RegisterGenerator[intgen](s)
+    return nill
+}
+
+func (w *Workload) CallA(ctx context.Context, x int) error {
+    if y, err := w.a.Get().A(ctx, x); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+```
+
+**Pros.**
+
+- There is a separation between generators and generated values.
+- Primitive values can be generated in custom ways.
+
+**Cons.**
+
+- People can easily forget to register a generator for every type.
+- People can register two generators for the same type.
+
+### Decision
+
+We'll go with the following design for now and continue to improve it over time.
+Nothing is set in stone. Workloads are specified as structs. The `Init` method
+takes a `sim.Sim` that can be used to register fakes and generators. Generators
+can be a `Generator[T]` or a plain function `func(*rand.Rand) T`.
+
+```
+type Workload struct {
+    a weaver.Ref[A]
+    b weaver.Ref[B]
+    replies map[int]int
+}
+
+func (w *Workload) Init(ctx context.Context, s *sim.Sim) error {
+    w.replies = map[int]int{}
+    s.RegisterFake(weavertest.Fake[B](&fakeb{}))
+    s.RegisterGenerators("CallA", sim.Int())
+    return nil
+}
+
+func (w *Workload) CallA(ctx context.Context, x int) error {
+    if y, err := w.a.Get().A(ctx, x); err == nil {
+        w.replies[x] = y
+    }
+    return nil
+}
+
+func (w *Workload) CallB(ctx context.Context) error {
+    w.b.Get().B(ctx)
+    return nil
+}
+
+func TestWorkload(t *testing.T) {
+    s, err := sim.New[Workload](sim.Options{...})
+    if err != nil {
+        t.Fatal(err)
+    }
+    results, err := s.Simulate(10 * time.Second)
+    if err != nil {
+        t.Fatal(err)
+    }
+}
+```
 
 [asatarin]: https://twitter.com/asatarin
 [chaos_monkey]: https://netflix.github.io/chaosmonkey/
@@ -176,5 +779,6 @@ check).
 [jepsen]: https://jepsen.io/
 [minimization]: https://www.usenix.org/system/files/conference/nsdi16/nsdi16-paper-scott.pdf
 [protocol_bugs]: https://github.com/dranov/protocol-bugs-list
+[shrink]: https://ocaml.org/p/qcheck-core/0.21.1/doc/QCheck/Shrink/index.html
 [sim_demo]: https://github.com/ServiceWeaver/weaver/tree/sim/internal/sim
 [testing_distributed_systems]: https://asatarin.github.io/testing-distributed-systems/
