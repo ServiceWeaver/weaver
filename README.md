@@ -9,7 +9,7 @@
 > **On June 6, 2025**, we plan to permanently freeze and archive the GitHub repository, after which no new commits or releases will be made.
 
 Service Weaver is a programming framework for writing, deploying, and managing
-distributed applications. You can run, test, and debug a Service Weaver
+distributed applications. You can run, test and debug a Service Weaver
 application locally on your machine, and then deploy it to the
 cloud with a single command.
 
